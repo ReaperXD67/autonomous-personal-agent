@@ -454,8 +454,8 @@ groups, and added a dependency risk register plus contract test.
 
 GitHub dependency analysis surfaced seven advisories immediately after initial
 publication. A version bump alone was insufficient: the Redis major update
-changed blocking-read behavior, and FastAPI still constrained Starlette below
-the patched advisory line.
+changed blocking-read behavior, and the first regenerated lock retained an older
+Starlette even though the patched major line was compatible.
 
 ### Alternatives considered
 
@@ -465,9 +465,9 @@ evidence; force an unsupported Starlette version; retain older direct packages.
 ### Why this approach was selected
 
 Local idle/runtime and outage testing caught a failure that unit/CI tests missed.
-The residual Starlette interfaces are demonstrably absent, so a documented
-`not_used` exception with a regression contract is safer than unsupported
-dependency overrides.
+A second security update to Starlette `1.3.1` was accepted only after container,
+API, and CI compatibility evidence; the regression contract remains defense in
+depth.
 
 ### Files affected
 
@@ -486,19 +486,21 @@ tests, Dependabot configuration, security docs, README, and security policy.
 
 ### Result
 
-Passed. The pytest advisory is removed by the dependency update. Six transitive
-Starlette advisories remain version-detectable but their affected interfaces are
-forbidden by test and recorded for audited `not_used` disposition.
+Passed. The pytest advisory is removed by the direct dependency update. Starlette
+`1.3.1` then removed all six transitive advisories; live smoke tasks
+`768c172c-bf8e-48d9-afbe-06f2a77c2fa3` and
+`fdee52c2-0b6e-49d1-aa8c-7fa9edeff5c3` passed on the patched runtime. GitHub's
+configured dependency-graph update then marked all seven alerts `fixed`.
 
 ### Risks / follow-ups
 
-Re-evaluate immediately when FastAPI supports a patched Starlette line or if the
-application adds form, file/static, `HTTPEndpoint`, or URL-derived policy.
+Keep the defense-in-depth contract aligned with application features and treat
+future network-facing dependency advisories as release blockers.
 
 ### Decision
 
-Land the dependency update only with the runtime compatibility fixes and explicit
-residual-risk evidence.
+Land dependency/security updates only with runtime compatibility evidence; carry
+no active advisory exception when a supported patched version passes.
 
 ## Final Implementation Summary
 

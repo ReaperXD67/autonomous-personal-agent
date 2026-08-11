@@ -2,40 +2,36 @@
 
 Last reviewed: 2026-08-11
 
-This register records an explicit, reviewable exception. It is not permission to
-ignore future advisories.
+No dependency risk exception is active.
 
 ## Current package state
 
-Direct Python dependencies are pinned to the versions in
+Direct and transitive Python dependencies are pinned in
 `services/control-api/uv.lock`. The August 2026 update moves FastAPI to `0.141.1`,
-pytest to `9.1.1`, and the remaining direct runtime/dev packages to their tested
-current versions. This resolves the pytest temporary-directory advisory.
+Starlette to `1.3.1`, pytest to `9.1.1`, and the remaining direct runtime/dev
+packages to their tested current versions.
 
-FastAPI `0.141.1` still resolves Starlette `0.47.3`. Six Starlette advisories have
-patched releases outside FastAPI's currently compatible range. The affected
-interfaces are absent from this control plane:
+GitHub initially reported seven advisories: one pytest temporary-directory issue
+and six Starlette issues. Current pins resolve all seven:
 
-| Advisory | Affected interface | Current exposure |
+| Package | Resolution | Verification |
 |---|---|---|
-| `GHSA-82w8-qh3p-5jfq` | form-urlencoded parsing via `request.form()` | Not used; API accepts typed JSON bodies |
-| `GHSA-jp82-jpqv-5vv3` | `request.url.hostname` authority parsing | Not used for authorization, routing, or policy |
-| `GHSA-wqp7-x3pw-xc5r` | Windows UNC paths in `StaticFiles` | No `StaticFiles`; runtime is Linux |
-| `GHSA-x746-7m8f-x49c` | method dispatch in `HTTPEndpoint` | No `HTTPEndpoint`; FastAPI routes only |
-| `GHSA-86qp-5c8j-p5mr` | Host/path poisoning through `request.url` | Path is structured-log metadata only; never a security decision |
-| `GHSA-7f5h-v6xp-fcq8` | Range merging in `FileResponse` | No file-serving route or `FileResponse` |
+| pytest `9.1.1` | Above patched `9.0.3` | Ruff + 12-test container suite |
+| Starlette `1.3.1` | At latest required patched line | Image build, API health, safe and approval-gated live smoke paths |
 
-Repository contract tests fail if these interfaces enter application source.
-The API also remains loopback-only, authenticates every non-health route, and is
-not approved for public-internet deployment.
+The Starlette security update crossed a major version. It was merged only after
+local runtime testing and GitHub Actions passed. Repository contract tests also
+continue to forbid the unused high-risk surfaces (`StaticFiles`, `FileResponse`,
+`HTTPEndpoint`, form parsing, and hostname-derived policy) as defense in depth.
 
-## Disposition
+## Review rule
 
-Risk classification: accepted as **not used**, with compensating tests. GitHub
-alerts may be dismissed only with this register linked in the audit comment.
-Reopen the review immediately if application code adds form parsing, static/file
-serving, `HTTPEndpoint`, or `request.url`-derived policy. Logging the request path
-does not authorize or route work.
+Do not dismiss a future alert without either:
 
-Remove this exception as soon as an official FastAPI release supports a patched
-Starlette line and the full local/CI smoke suite passes. Dependabot checks weekly.
+1. upgrading to a patched version and running unit, container, and relevant live
+   failure-path tests; or
+2. recording the exact affected interface, exposure analysis, compensating
+   control, owner, and removal condition here.
+
+Dependabot checks weekly with production and development dependencies grouped
+separately. Reopen review immediately when a new network-facing advisory appears.
