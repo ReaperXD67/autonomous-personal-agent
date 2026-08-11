@@ -42,15 +42,27 @@ def execute_foundation_task(task: dict) -> dict:
     return {"echo": message, "handler": "foundation.echo"}
 
 
+def claim_next(client: redis.Redis) -> tuple[str, str] | None:
+    try:
+        return client.brpop(settings.task_queue_key, timeout=settings.worker_poll_seconds)
+    except redis.exceptions.TimeoutError:
+        # redis-py 8 can surface an empty blocking poll as a socket timeout.
+        return None
+
+
 def run() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
     database = Database(settings.database_url)
-    client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
+    client = redis.Redis.from_url(
+        settings.redis_url,
+        decode_responses=True,
+        socket_timeout=settings.worker_poll_seconds + 2,
+    )
     logger.info("worker started", extra={"action": "startup"})
 
     while not stopping:
-        item = client.brpop(settings.task_queue_key, timeout=settings.worker_poll_seconds)
+        item = claim_next(client)
         if item is None:
             continue
         task_id: UUID | None = None

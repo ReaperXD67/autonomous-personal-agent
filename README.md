@@ -163,6 +163,7 @@ tests/                    repository security/Compose contracts
 - [Task and data flows](docs/architecture/data-flow.md)
 - [Security baseline](docs/security/security-baseline.md)
 - [Threat model](docs/security/threat-model.md)
+- [Dependency risk register](docs/security/dependency-risk-register.md)
 - [MCP security](docs/security/mcp-security.md)
 - [Local operations](docs/operations/local-development.md)
 - [Engineering journal](engineering/ENGINEERING_JOURNAL.md)

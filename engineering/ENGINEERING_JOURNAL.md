@@ -440,6 +440,66 @@ only after their CI and compatibility evidence are satisfactory.
 Publish the validated foundation now and evolve autonomy through protected,
 reviewable increments.
 
+## Step 10 — Upgrade dependencies and resolve advisory exposure
+
+### What I changed
+
+Updated all direct Python runtime/development dependencies to their tested current
+versions, including FastAPI `0.141.1`, redis-py `8.1.0`, and pytest `9.1.1`.
+Hardened the worker against redis-py 8 empty-poll timeouts, normalized Windows
+Docker source file modes before Ruff, split production/development Dependabot
+groups, and added a dependency risk register plus contract test.
+
+### Why
+
+GitHub dependency analysis surfaced seven advisories immediately after initial
+publication. A version bump alone was insufficient: the Redis major update
+changed blocking-read behavior, and FastAPI still constrained Starlette below
+the patched advisory line.
+
+### Alternatives considered
+
+Merge the green bot PR without local runtime testing; dismiss all alerts without
+evidence; force an unsupported Starlette version; retain older direct packages.
+
+### Why this approach was selected
+
+Local idle/runtime and outage testing caught a failure that unit/CI tests missed.
+The residual Starlette interfaces are demonstrably absent, so a documented
+`not_used` exception with a regression contract is safer than unsupported
+dependency overrides.
+
+### Files affected
+
+Python dependency manifest/lock, worker, Dockerfile test stage, worker/repository
+tests, Dependabot configuration, security docs, README, and security policy.
+
+### Validation
+
+- Updated images built successfully.
+- Ruff passed and Pytest reported `12 passed` on Windows Docker Desktop.
+- Worker remained healthy across multiple empty Redis blocking polls.
+- Updated-runtime smoke tasks succeeded: `037c335d-1b07-46ef-8164-7e9cc02c39c2`
+  and approved `59200ac2-9fcc-43d6-9564-94a340ff5532`.
+- Redis-outage task `1718747d-ce19-4e02-aae6-d941bdee4d61` remained in the
+  durable outbox while Redis was stopped and succeeded after restart.
+
+### Result
+
+Passed. The pytest advisory is removed by the dependency update. Six transitive
+Starlette advisories remain version-detectable but their affected interfaces are
+forbidden by test and recorded for audited `not_used` disposition.
+
+### Risks / follow-ups
+
+Re-evaluate immediately when FastAPI supports a patched Starlette line or if the
+application adds form, file/static, `HTTPEndpoint`, or URL-derived policy.
+
+### Decision
+
+Land the dependency update only with the runtime compatibility fixes and explicit
+residual-risk evidence.
+
 ## Final Implementation Summary
 
 Implemented a reproducible, secure foundation: authenticated task API,
@@ -457,7 +517,7 @@ as reconstructible transport; high-impact approval before outbox creation;
 per-agent default-deny tools; upstream Hermes/OmniRoute behind optional pinned
 profiles; no Docker socket or public database ports.
 
-Validation observed: Compose model and builds pass, Ruff passes, 10 tests pass,
+Validation observed: Compose model and builds pass, Ruff passes, 12 tests pass,
 core and optional containers are healthy, safe/approved/recovery flows pass,
 idempotency holds, unauthorized access is rejected, data survives restart, and a
 checksummed PostgreSQL backup exists. Remaining production gaps are recorded

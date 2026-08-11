@@ -14,6 +14,7 @@ FROM dependencies AS test
 RUN uv sync --frozen --no-install-project
 WORKDIR /workspace
 COPY . .
+RUN find . -type f -exec chmod a-x {} +
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/workspace/services/control-api
 CMD ["sh", "-c", "ruff check services/control-api/app services/control-api/tests tests && pytest -q"]
@@ -30,4 +31,3 @@ COPY --chown=10001:10001 services/control-api/app ./app
 USER 10001:10001
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
-

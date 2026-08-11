@@ -37,3 +37,19 @@ def test_env_example_contains_placeholders_not_common_secret_prefixes() -> None:
     assert "CHANGE_ME" in content
     for prefix in ("ghp_", "sk-", "xoxb-", "AKIA"):
         assert prefix not in content
+
+
+def test_accepted_starlette_advisory_surfaces_are_not_used() -> None:
+    application_source = "\n".join(
+        path.read_text(encoding="utf-8")
+        for path in (ROOT / "services/control-api/app").glob("*.py")
+    )
+    forbidden_surfaces = (
+        "StaticFiles",
+        "FileResponse",
+        "HTTPEndpoint",
+        ".form(",
+        "request.url.hostname",
+    )
+    for surface in forbidden_surfaces:
+        assert surface not in application_source
