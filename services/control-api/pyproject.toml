@@ -1,0 +1,31 @@
+[project]
+name = "autonomous-agent-control-plane"
+version = "0.1.0"
+description = "Policy-enforcing control plane for autonomous-personal-agent"
+requires-python = ">=3.13,<3.14"
+dependencies = [
+  "fastapi==0.116.1",
+  "psycopg[binary]==3.2.9",
+  "redis==6.4.0",
+  "uvicorn==0.35.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest==8.4.1",
+  "pyyaml==6.0.2",
+  "ruff==0.12.8",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["services/control-api/tests", "tests"]
+addopts = "--strict-markers --disable-warnings"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "S"]
+ignore = ["S101"]
+

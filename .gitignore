@@ -1,0 +1,55 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa*
+id_ed25519*
+credentials*.json
+oauth*.json
+token*.json
+secrets/
+
+# Runtime state
+data/*
+!data/.gitkeep
+runtime/
+backups/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+browser-profiles/
+agent-memory/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+
+# Node / browser tooling
+node_modules/
+playwright-report/
+test-results/
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Build output
+dist/
+build/
+*.egg-info/
+

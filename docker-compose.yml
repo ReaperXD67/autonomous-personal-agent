@@ -1,0 +1,264 @@
+name: autonomous-personal-agent
+
+x-json-logging: &json-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-app-security: &app-security
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg17@sha256:3e8b3adfd27b5707128f60956f62a793c3c9326ea8cfaf0eab7adccb5d700b21
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agent}
+      POSTGRES_USER: ${POSTGRES_USER:-agent_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/init-env.ps1 first}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./config/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  redis:
+    image: redis:8.2.1-alpine@sha256:987c376c727652f99625c7d205a1cba3cb2c53b92b0b62aade2bd48ee1593232
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Run scripts/init-env.ps1 first}
+    command:
+      - sh
+      - -ec
+      - exec redis-server --appendonly yes --appendfsync everysec --save 60 1 --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$${REDIS_PASSWORD}\" ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  control-api:
+    <<: *app-security
+    build:
+      context: .
+      dockerfile: services/control-api/Dockerfile
+      target: runtime
+    image: autonomous-personal-agent/control-api:local
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:${CONTROL_API_PORT:-8080}:8000
+    networks:
+      - edge
+      - data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    logging: *json-logging
+
+  worker:
+    <<: *app-security
+    build:
+      context: .
+      dockerfile: services/control-api/Dockerfile
+      target: runtime
+    image: autonomous-personal-agent/control-api:local
+    restart: unless-stopped
+    command: ["python", "-m", "app.worker"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.worker", "--healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    logging: *json-logging
+
+  dispatcher:
+    <<: *app-security
+    build:
+      context: .
+      dockerfile: services/control-api/Dockerfile
+      target: runtime
+    image: autonomous-personal-agent/control-api:local
+    restart: unless-stopped
+    command: ["python", "-m", "app.dispatcher"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - data
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.dispatcher", "--healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    logging: *json-logging
+
+  test:
+    build:
+      context: .
+      dockerfile: services/control-api/Dockerfile
+      target: test
+    image: autonomous-personal-agent/test:local
+    profiles:
+      - tools
+    environment:
+      APP_ENV: test
+      CONTROL_API_TOKEN: test-token-with-at-least-thirty-two-characters
+      DATABASE_URL: postgresql://test:test@localhost:5432/test
+      REDIS_URL: redis://localhost:6379/0
+    command: ["sh", "-c", "ruff check services/control-api/app services/control-api/tests tests && pytest -q"]
+    network_mode: none
+
+  omniroute:
+    image: diegosouzapw/omniroute:3.8.49@sha256:92c768c56e2de32c51a0621ef182835018b00b288c9bb235c5c5e4514658c1a1
+    profiles:
+      - agent
+    restart: unless-stopped
+    stop_grace_period: 40s
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 20128
+      DASHBOARD_PORT: 20128
+      API_PORT: 20129
+      API_HOST: 0.0.0.0
+      DATA_DIR: /app/data
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      INITIAL_PASSWORD: ${OMNIROUTE_INITIAL_PASSWORD:?Run scripts/init-env.ps1 first}
+      API_KEY_SECRET: ${OMNIROUTE_API_KEY_SECRET:?Run scripts/init-env.ps1 first}
+      JWT_SECRET: ${OMNIROUTE_JWT_SECRET:?Run scripts/init-env.ps1 first}
+      MACHINE_ID_SALT: ${OMNIROUTE_MACHINE_ID_SALT:?Run scripts/init-env.ps1 first}
+      REQUIRE_API_KEY: "true"
+      AUTH_COOKIE_SECURE: "false"
+    volumes:
+      - omniroute_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:${OMNIROUTE_PORT:-20128}:20128
+    networks:
+      - edge
+      - data
+      - model
+    healthcheck:
+      test: ["CMD", "node", "healthcheck.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+  hermes:
+    image: nousresearch/hermes-agent:v2026.8.3@sha256:16788311e2fa3035456bdc1bafb8ec2b1777db64ebf020af9bb7eb73c3712c9e
+    profiles:
+      - agent
+    restart: unless-stopped
+    environment:
+      HERMES_UID: "10000"
+      HERMES_GID: "10000"
+      OPENAI_BASE_URL: http://omniroute:20128/v1
+      OPENAI_API_KEY: ${OMNIROUTE_API_KEY:-CHANGE_ME_AFTER_OMNIROUTE_ONBOARDING}
+    command: ["gateway", "run"]
+    volumes:
+      - hermes_data:/opt/data
+    depends_on:
+      omniroute:
+        condition: service_healthy
+    networks:
+      - edge
+      - model
+    healthcheck:
+      test: ["CMD", "/command/s6-svstat", "-u", "/run/service/main-hermes"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging: *json-logging
+
+networks:
+  edge:
+    driver: bridge
+  data:
+    driver: bridge
+    internal: true
+  model:
+    driver: bridge
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  omniroute_data:
+  hermes_data:
