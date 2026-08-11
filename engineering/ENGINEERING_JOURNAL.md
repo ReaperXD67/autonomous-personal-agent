@@ -386,6 +386,60 @@ upstream-supported auth provider before publication.
 
 Keep optional integrations labeled prepared, not fully configured.
 
+## Step 9 — Publish and govern the public repository
+
+### What I changed
+
+Created `ReaperXD67/autonomous-personal-agent` as a public GitHub repository and
+pushed focused core, documentation, CI, and governance commits. Added repository
+topics, CODEOWNERS, a security-aware pull-request template, vulnerability alerts,
+automated security fixes, private vulnerability reporting, and `main` protection.
+
+### Why
+
+The project is intended as a public portfolio and reusable engineering case
+study. Provenance, visible CI, maintainership, and safe contribution defaults are
+part of the system rather than afterthoughts.
+
+### Alternatives considered
+
+One squashed initial commit; unprotected direct-push workflow; private repository;
+publishing before local validation.
+
+### Why this approach was selected
+
+Focused commits preserve important design milestones. A public, protected default
+branch makes the implementation inspectable while keeping future changes behind
+the same validation contract.
+
+### Files affected
+
+`.github/CODEOWNERS`, `.github/pull_request_template.md`, README badges, and GitHub
+repository settings. Local secret and backup files remained ignored.
+
+### Validation
+
+- Local and remote `main` resolved to the same pushed commit.
+- GitHub Actions CI run `31516417578` passed `validate` in 39 seconds.
+- Branch protection requires strict `validate`, linear history, and resolved
+  conversations; force pushes and deletion are disabled.
+- Remote visibility is public and default branch is `main`.
+
+### Result
+
+Passed. Repository is available at
+`https://github.com/ReaperXD67/autonomous-personal-agent`.
+
+### Risks / follow-ups
+
+Dependabot immediately opened PRs #1 and #2. They should be reviewed and merged
+only after their CI and compatibility evidence are satisfactory.
+
+### Decision
+
+Publish the validated foundation now and evolve autonomy through protected,
+reviewable increments.
+
 ## Final Implementation Summary
 
 Implemented a reproducible, secure foundation: authenticated task API,
