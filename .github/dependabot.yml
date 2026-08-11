@@ -19,6 +19,7 @@ updates:
         dependency-type: development
 
   - package-ecosystem: docker
-    directory: /
+    # Docker Dependabot scans Dockerfiles, not Compose service declarations.
+    directory: /services/control-api
     schedule:
       interval: weekly

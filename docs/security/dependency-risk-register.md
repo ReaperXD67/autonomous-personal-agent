@@ -34,4 +34,6 @@ Do not dismiss a future alert without either:
    control, owner, and removal condition here.
 
 Dependabot checks weekly with production and development dependencies grouped
-separately. Reopen review immediately when a new network-facing advisory appears.
+separately; its Docker ecosystem entry tracks the control-service Dockerfile.
+Release-pinned Compose service digests remain an explicit manual review. Reopen
+review immediately when a new network-facing advisory appears.
