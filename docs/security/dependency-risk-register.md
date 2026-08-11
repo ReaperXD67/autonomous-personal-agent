@@ -37,3 +37,7 @@ Dependabot checks weekly with production and development dependencies grouped
 separately; its Docker ecosystem entry tracks the control-service Dockerfile.
 Release-pinned Compose service digests remain an explicit manual review. Reopen
 review immediately when a new network-facing advisory appears.
+
+Python base-image updates remain on the declared `>=3.13,<3.14` runtime line.
+Dependabot ignores `>=3.14` until a coordinated compatibility change updates the
+project constraint, uv source runtime, tests, and deployment evidence together.
