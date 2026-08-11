@@ -1,5 +1,8 @@
 # autonomous-personal-agent
 
+[![CI](https://github.com/ReaperXD67/autonomous-personal-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ReaperXD67/autonomous-personal-agent/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Security-first, self-hosted foundation for an autonomous personal agent. This
 repository establishes durable task state, approval gates, audit events,
 containerized workers, persistent memory storage, model-routing boundaries,
@@ -160,6 +163,7 @@ tests/                    repository security/Compose contracts
 - [Task and data flows](docs/architecture/data-flow.md)
 - [Security baseline](docs/security/security-baseline.md)
 - [Threat model](docs/security/threat-model.md)
+- [Dependency risk register](docs/security/dependency-risk-register.md)
 - [MCP security](docs/security/mcp-security.md)
 - [Local operations](docs/operations/local-development.md)
 - [Engineering journal](engineering/ENGINEERING_JOURNAL.md)
