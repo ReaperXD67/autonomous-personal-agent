@@ -4,17 +4,17 @@ version = "0.1.0"
 description = "Policy-enforcing control plane for autonomous-personal-agent"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-  "fastapi==0.116.1",
-  "psycopg[binary]==3.2.9",
-  "redis==6.4.0",
-  "uvicorn==0.35.0",
+  "fastapi==0.141.1",
+  "psycopg[binary]==3.3.4",
+  "redis==8.1.0",
+  "uvicorn==0.52.1",
 ]
 
 [dependency-groups]
 dev = [
-  "pytest==8.4.1",
-  "pyyaml==6.0.2",
-  "ruff==0.12.8",
+  "pytest==9.1.1",
+  "pyyaml==6.0.3",
+  "ruff==0.16.2",
 ]
 
 [tool.pytest.ini_options]
