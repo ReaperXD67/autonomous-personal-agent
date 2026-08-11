@@ -1,0 +1,7 @@
+schema: autonomous-personal-agent/tool-profile/v1
+profile: core
+description: Default profile; no external MCP capability during foundation.
+agents: [hermes]
+tools: []
+deny_unlisted: true
+

@@ -1,0 +1,87 @@
+schema: autonomous-personal-agent/tool-registry/v1
+catalog:
+  reference: mcp/docker-mcp-catalog:latest
+  digest: sha256:b388805a250eaff0d5db680c001bf2bb780d7578cb685729c651117ce702cdd9
+  observed_at: 2026-08-11
+defaults:
+  enabled: false
+  approval: required
+tools:
+  - id: research.fetch
+    category: research
+    description: Retrieve a URL and extract content as Markdown.
+    mcp_server: fetch
+    image: mcp/fetch@sha256:d9907377c03da91e49cf02c3dd6f0f83d1e0183e1222850f92595089f2c9a59d
+    source: https://github.com/modelcontextprotocol/servers
+    risk: READ_ONLY
+    credentials: []
+    capability: read
+    allowed_agents: [research]
+    approval: not_required_after_url_policy
+    enabled: false
+
+  - id: research.search.brave
+    category: research
+    description: Search public web through Brave Search API.
+    mcp_server: brave
+    image: mcp/brave-search@sha256:b8938122495f7857c4cb81b77662f4737367665350700856d61724ce61109fac
+    source: https://github.com/brave/brave-search-mcp-server
+    risk: READ_ONLY
+    credentials: [BRAVE_API_KEY]
+    capability: read
+    allowed_agents: [research]
+    approval: not_required_after_query_policy
+    enabled: false
+
+  - id: browser.playwright
+    category: browser
+    description: Browser navigation, inspection, screenshots, and form interaction.
+    mcp_server: playwright
+    image: mcp/playwright@sha256:097d978439237cc9b12e10825836a97245add2be0479272cce9d98c368f024d1
+    source: https://github.com/microsoft/playwright-mcp
+    risk: HIGH_RISK_WRITE
+    credentials: [site_specific_session_if_approved]
+    capability: read_write
+    allowed_agents: [research, browser, jobs]
+    approval: action_dependent
+    enabled: false
+
+  - id: coding.filesystem
+    category: coding
+    description: Read/write files only inside an explicit sandbox workspace.
+    mcp_server: filesystem
+    image: mcp/filesystem@sha256:35fcf0217ca0d5bf7b0a5bd68fb3b89e08174676c0e0b4f431604512cf7b3f67
+    source: https://github.com/modelcontextprotocol/servers
+    risk: LOW_RISK_WRITE
+    credentials: []
+    capability: read_write
+    allowed_agents: [coding]
+    approval: required_for_writes_outside_task_branch
+    enabled: false
+
+  - id: coding.github
+    category: coding
+    description: GitHub repository, issue, and pull-request workflows.
+    mcp_server: github-official
+    image: ghcr.io/github/github-mcp-server@sha256:2afb26356481d1a350e14544a6e160f7f7ec1561a1ea309b823665abf0309036
+    source: https://github.com/github/github-mcp-server
+    risk: HIGH_RISK_WRITE
+    credentials: [GITHUB_FINE_GRAINED_TOKEN_OR_OAUTH]
+    capability: read_write
+    allowed_agents: [coding]
+    approval: action_dependent
+    enabled: false
+
+  - id: coding.ast_grep
+    category: coding
+    description: Structural source-code search and analysis.
+    mcp_server: ast-grep
+    image: mcp/ast-grep@sha256:5fc3f2e9dcf2c019e92662f608b8d89e12134ed6d91e6f5461de6efd506a1e72
+    source: https://github.com/ast-grep/ast-grep-mcp
+    risk: READ_ONLY
+    credentials: []
+    capability: read
+    allowed_agents: [coding]
+    approval: not_required_inside_sandbox
+    enabled: false
+

@@ -1,0 +1,10 @@
+schema: autonomous-personal-agent/tool-profile/v1
+profile: coding
+description: Sandboxed code inspection and reviewed GitHub workflows.
+agents: [coding]
+tools:
+  - coding.ast_grep
+  - coding.filesystem
+  - coding.github
+deny_unlisted: true
+

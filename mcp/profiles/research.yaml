@@ -1,0 +1,9 @@
+schema: autonomous-personal-agent/tool-profile/v1
+profile: research
+description: Public retrieval and search only; no authenticated browser session.
+agents: [research]
+tools:
+  - research.fetch
+  - research.search.brave
+deny_unlisted: true
+

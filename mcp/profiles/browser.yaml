@@ -1,0 +1,8 @@
+schema: autonomous-personal-agent/tool-profile/v1
+profile: browser
+description: Disposable browser capability with action-level policy.
+agents: [browser, jobs]
+tools:
+  - browser.playwright
+deny_unlisted: true
+

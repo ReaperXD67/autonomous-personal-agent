@@ -1,0 +1,25 @@
+# Reference template only. Copy into the Hermes data volume after OmniRoute
+# onboarding; do not commit the rendered file or an actual API key.
+model:
+  provider: custom
+  default: auto
+  base_url: http://omniroute:20128/v1
+  api_key: ${OMNIROUTE_API_KEY}
+
+approvals:
+  mode: manual
+  cron_mode: manual
+  timeout: 300
+
+security:
+  redact_secrets: true
+  tirith_enabled: true
+
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+  write_approval: true
+
+# MCP remains disabled until a reviewed profile is deliberately rendered.
+mcp_servers: {}
+

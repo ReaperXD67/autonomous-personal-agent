@@ -1,0 +1,37 @@
+schema: autonomous-personal-agent/tool-policy/v1
+default_effect: deny
+unknown_action_risk: DESTRUCTIVE
+sampling:
+  default_enabled: false
+risk_levels:
+  READ_ONLY:
+    approval_required: false
+  LOW_RISK_WRITE:
+    approval_required: false
+    constraints: [sandbox_only, audit_required]
+  HIGH_RISK_WRITE:
+    approval_required: true
+    constraints: [context_hash_required, audit_required]
+  DESTRUCTIVE:
+    approval_required: true
+    enabled: false
+rules:
+  - agent: research
+    allow: [research.fetch, research.search.brave]
+    constraints: [public_urls_only, deny_private_ip_ranges, no_credentials_in_query]
+
+  - agent: browser
+    allow: [browser.playwright]
+    constraints: [disposable_profile, domain_allowlist, downloads_disabled_by_default]
+    approval_actions: [form_submit, file_upload, authenticated_write, purchase]
+
+  - agent: jobs
+    allow: [browser.playwright]
+    constraints: [disposable_profile, job_domain_allowlist]
+    approval_actions: [form_submit, file_upload, application_submit]
+
+  - agent: coding
+    allow: [coding.ast_grep, coding.filesystem, coding.github]
+    constraints: [workspace_mount_only, repository_allowlist, protected_branches]
+    approval_actions: [merge_pull_request, publish_release, modify_workflow, delete]
+

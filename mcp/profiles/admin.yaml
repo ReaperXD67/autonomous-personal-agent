@@ -1,0 +1,7 @@
+schema: autonomous-personal-agent/tool-profile/v1
+profile: admin
+description: Reserved for operator-only diagnostics; never assigned to autonomous agents.
+agents: []
+tools: []
+deny_unlisted: true
+
