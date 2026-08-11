@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      APP_ENV: test
+      CONTROL_API_TOKEN: ci-control-token-with-at-least-32-characters
+      POSTGRES_PASSWORD: ci-postgres-password
+      REDIS_PASSWORD: ci-redis-password
+      OMNIROUTE_INITIAL_PASSWORD: ci-omniroute-password
+      OMNIROUTE_API_KEY_SECRET: ci-omniroute-api-key-secret
+      OMNIROUTE_JWT_SECRET: ci-omniroute-jwt-secret
+      OMNIROUTE_MACHINE_ID_SALT: ci-omniroute-machine-id-salt
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Validate Compose model
+        run: docker compose config --quiet
+
+      - name: Build test and runtime images
+        run: docker compose build test control-api worker dispatcher
+
+      - name: Run lint and tests
+        run: docker compose --profile tools run --rm test
