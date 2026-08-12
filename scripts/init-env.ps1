@@ -45,4 +45,4 @@ foreach ($entry in $replacements.GetEnumerator()) {
 $utf8NoBom = [Text.UTF8Encoding]::new($false)
 [IO.File]::WriteAllText($targetPath, $content, $utf8NoBom)
 Write-Host 'Created ignored .env with cryptographically random local secrets.'
-Write-Host 'OmniRoute API key remains an onboarding placeholder by design.'
+Write-Host 'Run scripts/configure-free-models.ps1 to create the local OmniRoute inference key.'

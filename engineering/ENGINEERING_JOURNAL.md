@@ -502,6 +502,62 @@ future network-facing dependency advisories as release blockers.
 Land dependency/security updates only with runtime compatibility evidence; carry
 no active advisory exception when a supported patched version passes.
 
+## Step 11 — Configure and verify zero-provider-key inference
+
+### What I changed
+
+Added an idempotent OmniRoute bootstrap that creates a local inference key,
+blocks unsafe or stale keyless routes, configures an OVHcloud anonymous fast
+path with AI Horde anonymous fallback, and points Hermes at `free/default`.
+Documented the aggregate-token claim and the route's operational limits.
+
+### Why
+
+The optional agent profile was container-healthy but could not perform inference
+without manual onboarding. The public portfolio should provide a truthful,
+reproducible default without requiring payment credentials.
+
+### Alternatives considered
+
+Automate provider account creation; enable reverse-engineered consumer web
+routes; use catalog claims without live probes; require a paid provider.
+
+### Why this approach was selected
+
+Official anonymous endpoints avoid impersonation, terms acceptance, KYC, and
+billing automation. A local gateway key still protects the loopback inference
+API. Failover improves resilience without claiming unlimited service.
+
+### Files affected
+
+`scripts/configure-free-models.ps1`, Hermes/OmniRoute examples and documentation,
+repository contracts, Makefile, README, and ADR-0006.
+
+### Validation
+
+- Live OVHcloud and AI Horde model probes returned assistant content.
+- Pollinations and LLM7 probes returned authentication failures and were removed.
+- `free/default` completed through OmniRoute without provider credentials.
+- Hermes returned exactly `HERMES_FREE_OK` through the same route.
+- Re-running the bootstrap reused the gateway key and route successfully.
+
+### Result
+
+Passed. Hermes can perform model inference through the local OmniRoute gateway
+without an external provider account, API key, or payment method.
+
+### Risks / follow-ups
+
+Anonymous capacity is upstream-controlled and may be rate-limited or disappear.
+Production reliability needs operator-owned account-backed free tiers, a paid
+provider, suitable local inference, or a combination. AI Horde does not promise
+tool calling.
+
+### Decision
+
+Use verified official anonymous inference as the development default; keep
+account creation, provider terms, KYC, and billing under explicit human control.
+
 ## Final Implementation Summary
 
 Implemented a reproducible, secure foundation: authenticated task API,
@@ -511,16 +567,18 @@ container hardening, health/metrics/logging, Windows operations, backups, CI,
 ADRs, threat model, roadmap, and a disabled-by-default curated MCP policy.
 
 Deliberately not implemented: real email/job/browser/coding actions, public UI,
-production authentication, model-provider credentials, unrestricted MCP, or
-self-modification. Those features require the phase gates in `docs/roadmap.md`.
+production authentication, account-backed model-provider credentials,
+unrestricted MCP, or self-modification. Those features require the phase gates
+in `docs/roadmap.md`.
 
 Key decisions: container-first local development; PostgreSQL as authority; Redis
 as reconstructible transport; high-impact approval before outbox creation;
 per-agent default-deny tools; upstream Hermes/OmniRoute behind optional pinned
 profiles; no Docker socket or public database ports.
 
-Validation observed: Compose model and builds pass, Ruff passes, 12 tests pass,
-core and optional containers are healthy, safe/approved/recovery flows pass,
-idempotency holds, unauthorized access is rejected, data survives restart, and a
-checksummed PostgreSQL backup exists. Remaining production gaps are recorded
-without claiming completion.
+Validation observed: Compose model and builds pass, Ruff passes, repository
+tests pass, core and optional containers are healthy, safe/approved/recovery
+flows pass, idempotency holds, unauthorized access is rejected, data survives
+restart, a checksummed PostgreSQL backup exists, and Hermes completes through a
+verified zero-provider-key route. Remaining production gaps are recorded without
+claiming completion.

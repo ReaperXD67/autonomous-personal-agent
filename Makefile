@@ -1,4 +1,4 @@
-.PHONY: init config build up down logs ps health test lint smoke backup agent-up clean
+.PHONY: init config build up down logs ps health test lint smoke backup agent-up free-models clean
 
 init:
 	powershell -ExecutionPolicy Bypass -File scripts/init-env.ps1
@@ -14,6 +14,9 @@ up:
 
 agent-up:
 	docker compose --profile agent up -d
+
+free-models:
+	powershell -ExecutionPolicy Bypass -File scripts/configure-free-models.ps1
 
 down:
 	docker compose down

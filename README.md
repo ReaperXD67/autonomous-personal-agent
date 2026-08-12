@@ -29,7 +29,7 @@ and human approval for high-impact actions.
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
-| Hermes + OmniRoute | Prepared | Optional, official release-pinned Compose profile; onboarding still required |
+| Hermes + OmniRoute | Implemented | Release-pinned profile plus verified zero-credential `free/default` routing |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Full autonomous features | Planned | See [roadmap](docs/roadmap.md) |
 
@@ -92,6 +92,7 @@ Stop cleanly:
 | `./scripts/test.ps1` | `make test` | Run lint and tests in isolated container |
 | `./scripts/logs.ps1` | `make logs` | Follow bounded Docker logs |
 | `./scripts/backup.ps1` | `make backup` | Create ignored PostgreSQL custom dump + SHA-256 |
+| `./scripts/configure-free-models.ps1` | `make free-models` | Configure and test the zero-provider-key model route |
 | `./scripts/down.ps1` | `make down` | Stop stack without deleting volumes |
 
 ## Optional Hermes + OmniRoute profile
@@ -108,10 +109,21 @@ Hermes dashboard is intentionally not published. Current upstream requires an
 auth provider for any non-loopback container bind; configure that first, then
 add a reviewed authenticated dashboard override. Do not weaken this guard.
 
-Complete OmniRoute onboarding, create a scoped inference key, store it only in
-ignored `.env`, then configure Hermes using
+Configure the verified no-provider-key route automatically:
+
+```powershell
+./scripts/configure-free-models.ps1
+```
+
+This creates `free/default` using OVHcloud anonymous inference with AI Horde
+anonymous fallback, creates a local Hermes-to-OmniRoute key, and performs a
+live completion. Provider quotas and availability remain upstream-controlled;
+“1.4B+ free tokens” is an aggregate across separate free-tier accounts, not a
+balance bundled with OmniRoute.
+
+For manual or account-backed setup, create a scoped inference key, keep it only
+in ignored `.env`, and use
 [services/hermes/config.example.yaml](services/hermes/config.example.yaml).
-Until this is done, image health can pass but model inference is not ready.
 
 ## Security defaults
 
