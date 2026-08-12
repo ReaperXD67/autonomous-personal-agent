@@ -12,6 +12,7 @@ def make_settings(**overrides: object) -> Settings:
         "redis_url": "redis://:pass@redis:6379/0",
         "task_queue_key": "agent:tasks:ready",
         "worker_poll_seconds": 5,
+        "worker_lease_seconds": 120,
     }
     values.update(overrides)
     return Settings(**values)
@@ -29,3 +30,8 @@ def test_rejects_short_token() -> None:
 
 def test_accepts_complete_configuration() -> None:
     make_settings().validate()
+
+
+def test_rejects_unsafe_worker_lease() -> None:
+    with pytest.raises(ConfigurationError, match="WORKER_LEASE_SECONDS"):
+        make_settings(worker_lease_seconds=10).validate()

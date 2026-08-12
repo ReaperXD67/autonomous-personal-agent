@@ -14,20 +14,32 @@ arbitrary tools.
 Reads unpublished PostgreSQL outbox rows, publishes task identities to Redis,
 and marks delivery. A crash after publish may duplicate a ready signal; worker
 state transition makes that harmless. A crash before publish leaves a durable
-row for retry.
+row for retry. It also reconciles expired worker leases: unfinished tasks are
+requeued until their bounded attempt budget is exhausted, with every outcome
+written to the audit trail.
 
 ### Worker
 
-Consumes Redis queue, atomically transitions `queued → running`, executes an
+Consumes Redis queue, atomically transitions `queued → running` with a durable
+lease, executes an
 allowlisted handler, and stores result/error plus audit in the same database
 transaction. Stale queue messages are discarded when PostgreSQL state is not
-`queued`.
+`queued`. Current handlers are short; long-running tools still need periodic
+heartbeat renewal before they are enabled.
 
 ### PostgreSQL + pgvector
 
 Owns durable tasks, approvals, audit events, outbox rows, memory records, and embeddings.
-Schema is initialized by versioned SQL. PostgreSQL lifecycle stays independent
+Schema is initialized and upgraded by a one-shot migration service before the
+runtime starts. PostgreSQL lifecycle stays independent
 from application images, upgrades, and backups.
+
+### Ollama (optional)
+
+The `local-model` profile provides a GPU-backed, internal-only OpenAI-compatible
+endpoint. It has no published host port and no access to PostgreSQL or Redis.
+The default Qwen3 8B Q4 model is a constrained offline fallback, not the main
+reasoning route.
 
 ### Redis
 

@@ -18,6 +18,7 @@ docker compose config --quiet
 ./scripts/up.ps1
 ./scripts/health.ps1
 ./scripts/smoke.ps1
+./scripts/doctor.ps1
 ```
 
 `init-env.ps1` does not overwrite existing `.env` unless `-Force` is explicit.
@@ -36,6 +37,22 @@ docker compose up -d
 Test image contains lint/test dependencies; runtime image does not. Repository
 contract tests assert data stores have no host ports, published ports bind only
 loopback, services have healthchecks, and examples contain no common key forms.
+
+Runtime startup is gated by the one-shot `migrate` service. It replays
+idempotent versioned SQL with `ON_ERROR_STOP`; API, dispatcher, and worker start
+only after it exits successfully.
+
+## Optional inference
+
+```powershell
+./scripts/up.ps1 -Agent
+./scripts/agent-smoke.ps1
+./scripts/local-model.ps1
+```
+
+`agent-smoke.ps1` requires the user-created scoped OmniRoute key in ignored
+`.env`. `local-model.ps1` starts GPU-backed Ollama, downloads the selected model,
+and performs a harmless response test. See [manual setup](manual-setup.md).
 
 ## Logs and status
 

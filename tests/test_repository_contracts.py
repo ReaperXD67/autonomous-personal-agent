@@ -21,7 +21,7 @@ def test_only_loopback_ports_are_published() -> None:
 def test_every_long_running_service_has_healthcheck() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     for name, service in compose["services"].items():
-        if name != "test":
+        if name not in {"test", "migrate"}:
             assert "healthcheck" in service, name
 
 
@@ -30,6 +30,33 @@ def test_transactional_outbox_is_wired_into_runtime() -> None:
     schema = (ROOT / "config/postgres/init/001_schema.sql").read_text(encoding="utf-8")
     assert "dispatcher" in compose["services"]
     assert "task_outbox" in schema
+
+
+def test_migrations_gate_runtime_startup() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    assert "migrate" in compose["services"]
+    for name in ("control-api", "dispatcher", "worker"):
+        dependency = compose["services"][name]["depends_on"]["migrate"]
+        assert dependency["condition"] == "service_completed_successfully"
+
+
+def test_worker_lease_migration_is_present() -> None:
+    migration = ROOT / "config/postgres/init/003_worker_leases.sql"
+    assert migration.exists()
+    source = migration.read_text(encoding="utf-8")
+    assert "lease_expires_at" in source
+    assert "max_attempts" in source
+
+
+def test_repository_agent_guidance_enforces_engineering_records() -> None:
+    guidance = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
+    for required in (
+        "ENGINEERING_JOURNAL.md",
+        "SYSTEM_EVOLUTION.md",
+        "EXPERIMENT_LOG.md",
+        "scripts/verify.ps1",
+    ):
+        assert required in guidance
 
 
 def test_env_example_contains_placeholders_not_common_secret_prefixes() -> None:

@@ -69,7 +69,7 @@ def run() -> None:
         try:
             envelope = json.loads(item[1])
             task_id = UUID(envelope["task_id"])
-            task = database.transition_to_running(task_id)
+            task = database.transition_to_running(task_id, settings.worker_lease_seconds)
             if task is None:
                 logger.warning(
                     "discarded stale queue item",

@@ -43,6 +43,12 @@ def run() -> None:
     logger.info("outbox dispatcher started", extra={"action": "startup"})
 
     while not stopping:
+        recovery = database.recover_expired_tasks()
+        if recovery["recovered"] or recovery["exhausted"]:
+            logger.warning(
+                "expired worker leases reconciled",
+                extra={"action": "lease.reconciled", **recovery},
+            )
         events = database.pending_outbox(limit=50)
         if not events:
             time.sleep(1)

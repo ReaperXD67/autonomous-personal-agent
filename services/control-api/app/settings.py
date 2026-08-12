@@ -18,6 +18,7 @@ class Settings:
     redis_url: str
     task_queue_key: str
     worker_poll_seconds: int
+    worker_lease_seconds: int
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -29,6 +30,7 @@ class Settings:
             redis_url=os.getenv("REDIS_URL", "").strip(),
             task_queue_key=os.getenv("TASK_QUEUE_KEY", "agent:tasks:ready").strip(),
             worker_poll_seconds=int(os.getenv("WORKER_POLL_SECONDS", "5")),
+            worker_lease_seconds=int(os.getenv("WORKER_LEASE_SECONDS", "120")),
         )
         settings.validate()
         return settings
@@ -52,6 +54,8 @@ class Settings:
             raise ConfigurationError("CONTROL_API_TOKEN must contain at least 32 characters")
         if not 1 <= self.worker_poll_seconds <= 60:
             raise ConfigurationError("WORKER_POLL_SECONDS must be between 1 and 60")
+        if not 30 <= self.worker_lease_seconds <= 3600:
+            raise ConfigurationError("WORKER_LEASE_SECONDS must be between 30 and 3600")
 
 
 @lru_cache(maxsize=1)
