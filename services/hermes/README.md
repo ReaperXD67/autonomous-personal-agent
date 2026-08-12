@@ -5,14 +5,17 @@ Compose profile `agent` runs official Nous Research image
 state lives in named volume `hermes_data`; no host filesystem or Docker socket
 is mounted.
 
-The container receives OmniRoute's internal URL and an API-key placeholder.
-After OmniRoute onboarding:
+The container receives OmniRoute's internal URL and a local gateway key. For a
+zero-cost local route:
 
-1. Create a scoped OmniRoute inference key from its loopback-only dashboard.
-2. Put that key in ignored `.env` as `OMNIROUTE_API_KEY`.
-3. Render `config.example.yaml` into Hermes state, or use `hermes setup` inside
-   the container and choose custom OpenAI-compatible provider.
-4. Restart Hermes and verify a harmless model request.
+1. Start the agent profile: `./scripts/up.ps1 -Agent`.
+2. Run `./scripts/configure-free-models.ps1`.
+3. The script creates/reuses a scoped OmniRoute key, configures `free/default`,
+   sets Hermes' custom endpoint and 64K context guard, then verifies inference.
+
+No model-provider credential is required for the verified OVHcloud + AI Horde
+route. `OMNIROUTE_API_KEY` authenticates only Hermes to the local gateway; it is
+not a paid provider key.
 
 Approval mode stays manual. MCP stays empty. Terminal, host filesystem, and
 external messaging credentials are intentionally not provisioned here.

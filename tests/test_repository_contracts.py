@@ -53,3 +53,21 @@ def test_accepted_starlette_advisory_surfaces_are_not_used() -> None:
     )
     for surface in forbidden_surfaces:
         assert surface not in application_source
+
+
+def test_free_model_bootstrap_keeps_secrets_out_of_source() -> None:
+    script = (ROOT / "scripts/configure-free-models.ps1").read_text(encoding="utf-8")
+    assert "OMNIROUTE_API_KEY" in script
+    assert "Set-DotEnvValue" in script
+    assert "free/default" in script
+    assert "sk-" not in script
+    assert "config', 'set', 'model.api_key', $currentGatewayKey" not in script
+    assert "$currentGatewayKey | docker compose exec -T hermes" in script
+
+
+def test_free_model_bootstrap_blocks_known_unsafe_or_stale_routes() -> None:
+    script = (ROOT / "scripts/configure-free-models.ps1").read_text(encoding="utf-8")
+    for provider in ("duckduckgo-web", "chipotle", "pollinations", "llm7"):
+        assert provider in script
+    assert "ovhfree/Mistral-Small-3.2-24B-Instruct-2506" in script
+    assert "aihorde/google/gemma-4-31b" in script

@@ -2,9 +2,11 @@
 # onboarding; do not commit the rendered file or an actual API key.
 model:
   provider: custom
-  default: auto
+  default: free/default
   base_url: http://omniroute:20128/v1
   api_key: ${OMNIROUTE_API_KEY}
+  # Hermes requires at least 64K even when an upstream model advertises less.
+  context_length: 65536
 
 approvals:
   mode: manual
@@ -22,4 +24,3 @@ memory:
 
 # MCP remains disabled until a reviewed profile is deliberately rendered.
 mcp_servers: {}
-
