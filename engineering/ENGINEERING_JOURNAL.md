@@ -524,3 +524,147 @@ core and optional containers are healthy, safe/approved/recovery flows pass,
 idempotency holds, unauthorized access is rejected, data survives restart, and a
 checksummed PostgreSQL backup exists. Remaining production gaps are recorded
 without claiming completion.
+
+## Step 11 — Verify progress and add recoverable, free inference foundations
+
+Date: 2026-08-12
+
+### Objective
+
+Verify the existing repository honestly, research current free/self-hosted agent
+options, close the most important reliability gap, prepare a realistic free
+inference path for the observed hardware, and separate automated work from
+user-owned onboarding.
+
+### Investigation
+
+- Inspected Git status/history, repository structure, Compose, application code,
+  schema, scripts, tests, roadmap, security records, and existing journal.
+- Used the current official Codex manual and primary upstream sources for Hermes
+  Agent, OmniRoute, Prime Agent, NVIDIA Nemotron 3, Ollama, Qwen3, and Docker GPU
+  support.
+- Measured local hardware: RTX 4070 Laptop GPU with 8188 MiB VRAM.
+- Verified the pre-change stack: seven containers healthy and 14 tests passed.
+
+### Decision
+
+Keep Hermes as the sole cognitive orchestrator and OmniRoute as the replaceable
+model router. Treat Prime Agent as a future disposable coding worker because its
+own trust model is not a sandbox. Route Nemotron remotely on this hardware. Add
+Qwen3 8B Q4 through optional internal Ollama only as a constrained local
+fallback. Implement durable worker leases and a startup migration gate before
+adding more autonomous capabilities.
+
+### Why
+
+The official Nemotron 3 Super BF16 card requires 8× H100-80GB and the current
+Nano Omni card still lists 21 GB for NVFP4, so local Nemotron would be dishonest
+on 8 GB VRAM. The existing worker could leave a task permanently `running` if it
+died after claiming.
+
+### Alternatives considered
+
+- CPU-offload Nemotron locally.
+- Run Hermes and Prime Agent as peer orchestrators with host permissions.
+- Depend only on volatile hosted free tiers.
+- Add a full queue framework before requirements stabilize.
+- Skip the migration runner and apply schema manually.
+
+### Trade-offs
+
+The local model is private and token-free but weaker and limited to an 8K
+configured context. Hosted free routes provide better models but can throttle or
+disappear. Lease recovery prevents permanent claims but long-running tools still
+need heartbeat renewal and delayed backoff. Production still needs a distinct
+migration-owner role and rollback procedure.
+
+### Implementation
+
+- Added a one-shot migration service that gates runtime startup and applied
+  migration `003_worker_leases` to existing state.
+- Added lease expiry, three-attempt budgets, dispatcher reconciliation, audit
+  events, and reusable live recovery smoke tests.
+- Added digest-pinned Ollama `0.32.5`, GPU reservation, internal endpoint,
+  local-only mode, memory bounds, and setup script.
+- Added doctor and agent inference smoke scripts.
+- Added root `AGENTS.md` so future coding agents must preserve policy boundaries,
+  update engineering records, and run the verified handoff commands.
+- Added the required System Evolution and Experiment Log documents, ADR-0006,
+  current research, manual setup, and synchronized architecture/roadmap/README.
+- Made health checks wait for bounded startup instead of failing on transient
+  Docker `starting` state.
+
+### Files changed
+
+Root/Compose: `docker-compose.yml`, `.env.example`, `Makefile`, `README.md`.
+
+Runtime/schema: `services/control-api/app/`, service tests,
+`config/postgres/init/001_schema.sql`, and `003_worker_leases.sql`.
+
+Operations: health/up/verify, doctor, agent/local-model, and recovery smoke
+PowerShell scripts.
+
+Documentation: architecture, roadmap, ADR-0006, free-stack research, manual and
+local operations, System Evolution, Experiment Log, and this journal.
+
+### Validation
+
+- `docker compose config --quiet` passed.
+- Runtime/test images rebuilt successfully; Ruff passed; final Pytest: `16 passed`.
+- Full `scripts/verify.ps1` passed after the bounded health-wait fix.
+- Safe task `f36aca16-40c8-41eb-b25a-92d8e7526754` passed.
+- Approval task `5d07cb30-fac3-4d63-bb97-8b9ec7d16597` passed.
+- Automated lease retry and exhaustion passed; task IDs are in Experiment Log.
+- `scripts/doctor.ps1 -Agent` passed every required check.
+- OmniRoute listed 79 routes; `scripts/agent-smoke.ps1` passed through
+  `free/default`.
+- Hermes returned exactly `HERMES_OK` through the custom endpoint.
+
+### Results
+
+Core infrastructure, real free routed inference, Hermes inference, versioned
+migration startup, and worker-crash recovery work. Local Ollama is prepared but
+not claimed operational because the download did not finish.
+
+### Problems encountered
+
+- Initial verification checked health too early after migration startup.
+- OmniRoute `auto` had no eligible candidate; a direct free route returned 429.
+- The first free/default response streamed SSE because `stream: false` was absent.
+- Ollama image transfer was too slow for a bounded validation window.
+
+### Resolution
+
+Health now polls within a fixed timeout. Inference smoke uses `free/default`,
+requests non-streaming output, and surfaces bounded error details. The local
+download was stopped safely and remains resumable through one documented command.
+
+### Security implications
+
+Ollama has no published port, disables cloud features, and receives no database
+network. No Docker socket or host workspace is mounted into Hermes/Ollama.
+Recovery actions are audited. Prime Agent remains disabled until isolated. The
+migration container's database ownership must be split before production.
+
+### Performance implications
+
+Lease reconciliation adds one indexed query per dispatcher loop. Local Qwen is
+configured for one model and one parallel request to bound 8 GB VRAM usage. The
+8K local context is deliberately constrained.
+
+### Future improvements
+
+Add heartbeat renewal, cancellation, delayed retry/dead-letter inspection,
+role-separated migrations, cost/usage audit metadata, a Hermes control-plane
+adapter, and an isolated worktree coding-worker evaluation.
+
+## Milestone summary — Reliability and hybrid free inference
+
+Implemented: migrations, lease recovery, repeatable diagnostics, working free
+routed/Hermes inference, and optional local inference architecture.
+
+Not implemented: completed local model download, Telegram/email/GitHub accounts,
+production identity/TLS, unrestricted MCP, or autonomous coding worker.
+
+Next milestone: Hermes-to-control-plane task adapter plus safe read-only research
+tools, after periodic lease heartbeats and per-capability derived risk policies.

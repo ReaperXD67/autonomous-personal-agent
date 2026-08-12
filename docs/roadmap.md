@@ -13,8 +13,10 @@
 
 ## Phase 1 — reliability and production gate
 
-- [ ] Versioned migration runner and rollback policy
-- [ ] Worker lease/heartbeat, retry budget, dead-letter/reconciliation
+- [x] Startup migration runner applies versioned, idempotent SQL before runtime services
+- [ ] Migration rollback policy and disposable restore drill
+- [x] Worker lease, bounded crash retry, expired-claim reconciliation, and audit events
+- [ ] Periodic heartbeat for long tools, delayed backoff, cancellation, and dead-letter inspection
 - [ ] Per-user OIDC auth, roles, rate limits, step-up approvals
 - [ ] OpenTelemetry traces/metrics/log correlation and alerts
 - [ ] Encrypted automated backups and restore drill
@@ -23,6 +25,7 @@
 
 ## Phase 2 — agent/model integration
 
+- [x] Optional pinned Ollama/Qwen3 8B local fallback with GPU-aware setup script
 - [ ] Complete OmniRoute provider onboarding with cost budgets
 - [ ] Hermes adapter that creates control-plane tasks instead of bypassing policy
 - [ ] Model routing tests, fallback canary, usage/cost audit metadata
@@ -49,3 +52,9 @@
 
 Purchases/transfers, mass communication, job submission, public publishing,
 production infrastructure changes, and destructive repository/data operations.
+
+## Evaluated but deliberately deferred
+
+- Prime Agent as a disposable coding worker after sandbox/worktree isolation
+- Nemotron 3 local hosting until hardware has enough VRAM; use a reviewed remote
+  free route on the current 8 GB GPU

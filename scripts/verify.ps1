@@ -14,6 +14,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Stack startup failed' }
     & (Join-Path $PSScriptRoot 'health.ps1')
     & (Join-Path $PSScriptRoot 'smoke.ps1')
+    & (Join-Path $PSScriptRoot 'recovery-smoke.ps1')
 }
 finally {
     Pop-Location

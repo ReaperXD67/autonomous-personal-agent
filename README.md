@@ -25,11 +25,12 @@ and human approval for high-impact actions.
 |---|---|---|
 | Container-first local stack | Implemented | Docker Compose; no project Python, Node, Redis, or PostgreSQL install on Windows |
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
-| Dispatcher + worker | Implemented | Transactional outbox delivery plus deterministic `foundation.echo` lifecycle handler |
+| Dispatcher + worker | Implemented | Transactional outbox, worker leases, bounded crash recovery, deterministic `foundation.echo` handler |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
 | Hermes + OmniRoute | Prepared | Optional, official release-pinned Compose profile; onboarding still required |
+| Local inference | Prepared | Optional pinned Ollama + Qwen3 8B setup for the observed 8 GB NVIDIA GPU |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Full autonomous features | Planned | See [roadmap](docs/roadmap.md) |
 
@@ -70,6 +71,7 @@ cd autonomous-personal-agent
 ./scripts/up.ps1
 ./scripts/health.ps1
 ./scripts/smoke.ps1
+./scripts/doctor.ps1 -Agent
 ```
 
 Open health endpoint at `http://127.0.0.1:8080/health/ready`. PostgreSQL and
@@ -89,10 +91,13 @@ Stop cleanly:
 | `./scripts/up.ps1` | `make up` | Build and start core stack |
 | `./scripts/health.ps1` | `make health` | Check container and dependency readiness |
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
+| `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
+| `./scripts/agent-smoke.ps1` | `make agent-smoke` | Verify configured OmniRoute model inference |
 | `./scripts/test.ps1` | `make test` | Run lint and tests in isolated container |
 | `./scripts/logs.ps1` | `make logs` | Follow bounded Docker logs |
 | `./scripts/backup.ps1` | `make backup` | Create ignored PostgreSQL custom dump + SHA-256 |
 | `./scripts/down.ps1` | `make down` | Stop stack without deleting volumes |
+| `./scripts/doctor.ps1` | `make doctor` | Diagnose Docker, WSL, configuration, services, GPU, and agent readiness |
 
 ## Optional Hermes + OmniRoute profile
 
@@ -112,6 +117,22 @@ Complete OmniRoute onboarding, create a scoped inference key, store it only in
 ignored `.env`, then configure Hermes using
 [services/hermes/config.example.yaml](services/hermes/config.example.yaml).
 Until this is done, image health can pass but model inference is not ready.
+
+## Completely local, no-token-cost inference
+
+The observed RTX 4070 Laptop GPU has 8 GB VRAM. Current Nemotron 3 agentic
+checkpoints are too large for it, so the local fallback is Qwen3 8B Q4:
+
+```powershell
+./scripts/local-model.ps1
+```
+
+This starts a digest-pinned Ollama container, downloads the approximately 5.2 GB
+model, and runs a harmless smoke request. It is private and has no token bill,
+but its 8K configured context and model quality are below strong hosted models.
+Use OmniRoute free providers for Nemotron or larger coding models when available.
+See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
+[remaining manual setup](docs/operations/manual-setup.md).
 
 ## Security defaults
 
@@ -137,6 +158,7 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 | Ready queue, cache, transient state | Redis | Recoverable; AOF enabled, not authoritative |
 | Hermes state | `hermes_data` volume | Optional; back up after onboarding |
 | OmniRoute configuration | `omniroute_data` volume | Optional; contains credentials, encrypt backups |
+| Local Ollama models | `ollama_data` volume | Optional; reproducible downloads, potentially large |
 
 Named volumes survive `docker compose down`. Never run `down --volumes` unless
 intentional data deletion is acceptable and backups were verified.
@@ -147,6 +169,7 @@ intentional data deletion is acceptable and backups were verified.
 config/postgres/init/     versioned database bootstrap schema
 docs/                     architecture, ADRs, operations, security, roadmap
 engineering/              factual build and validation journal
+AGENTS.md                  durable rules for future coding agents
 mcp/                      curated tool registry, profiles, permission policy
 scripts/                  Windows-first lifecycle and verification commands
 services/control-api/     control API, outbox dispatcher, and worker image
@@ -166,7 +189,11 @@ tests/                    repository security/Compose contracts
 - [Dependency risk register](docs/security/dependency-risk-register.md)
 - [MCP security](docs/security/mcp-security.md)
 - [Local operations](docs/operations/local-development.md)
+- [Manual setup remaining](docs/operations/manual-setup.md)
+- [Free agent/model research](docs/research/free-agent-stack-2026-08.md)
 - [Engineering journal](engineering/ENGINEERING_JOURNAL.md)
+- [System evolution](engineering/SYSTEM_EVOLUTION.md)
+- [Experiment log](engineering/EXPERIMENT_LOG.md)
 
 ## License
 

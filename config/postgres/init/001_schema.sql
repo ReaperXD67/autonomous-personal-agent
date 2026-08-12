@@ -23,6 +23,9 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     error_code varchar(100),
     error_message text,
     attempt_count integer NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    max_attempts integer NOT NULL DEFAULT 3 CHECK (max_attempts BETWEEN 1 AND 10),
+    last_heartbeat_at timestamptz,
+    lease_expires_at timestamptz,
     idempotency_key varchar(200) UNIQUE,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
@@ -34,7 +37,6 @@ CREATE INDEX IF NOT EXISTS idx_agent_tasks_status_created
     ON agent_tasks (status, created_at);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_correlation
     ON agent_tasks (correlation_id);
-
 CREATE TABLE IF NOT EXISTS task_approvals (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     task_id uuid NOT NULL REFERENCES agent_tasks(id) ON DELETE RESTRICT,

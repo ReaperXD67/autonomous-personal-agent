@@ -44,8 +44,9 @@ class TaskView(BaseModel):
     error_code: str | None
     error_message: str | None
     attempt_count: int
+    max_attempts: int
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None
     completed_at: datetime | None
-
+    lease_expires_at: datetime | None

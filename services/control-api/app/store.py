@@ -83,7 +83,11 @@ class Database:
             """
             INSERT INTO task_outbox (task_id, correlation_id, topic, payload)
             VALUES (%s, %s, 'task.ready', %s)
-            ON CONFLICT (task_id, topic) DO NOTHING
+            ON CONFLICT (task_id, topic) DO UPDATE
+            SET correlation_id = EXCLUDED.correlation_id,
+                payload = EXCLUDED.payload,
+                published_at = NULL,
+                last_error = NULL
             """,
             (
                 task["id"],
@@ -208,16 +212,22 @@ class Database:
             connection.commit()
             return row
 
-    def transition_to_running(self, task_id: UUID) -> dict[str, Any] | None:
+    def transition_to_running(
+        self, task_id: UUID, lease_seconds: int
+    ) -> dict[str, Any] | None:
         with self.connect() as connection:
             row = connection.execute(
                 """
                 UPDATE agent_tasks
-                SET status = 'running', started_at = now(), attempt_count = attempt_count + 1
+                SET status = 'running',
+                    started_at = now(),
+                    attempt_count = attempt_count + 1,
+                    last_heartbeat_at = now(),
+                    lease_expires_at = now() + make_interval(secs => %s)
                 WHERE id = %s AND status = 'queued'
                 RETURNING *
                 """,
-                (task_id,),
+                (lease_seconds, task_id),
             ).fetchone()
             if row is not None:
                 self._append_audit(
@@ -240,7 +250,8 @@ class Database:
             row = connection.execute(
                 """
                 UPDATE agent_tasks
-                SET status = 'succeeded', output = %s, completed_at = now()
+                SET status = 'succeeded', output = %s, completed_at = now(),
+                    lease_expires_at = NULL, last_heartbeat_at = NULL
                 WHERE id = %s AND status = 'running'
                 RETURNING *
                 """,
@@ -269,7 +280,8 @@ class Database:
             row = connection.execute(
                 """
                 UPDATE agent_tasks
-                SET status = 'failed', error_code = %s, error_message = %s, completed_at = now()
+                SET status = 'failed', error_code = %s, error_message = %s, completed_at = now(),
+                    lease_expires_at = NULL, last_heartbeat_at = NULL
                 WHERE id = %s AND status = 'running'
                 RETURNING *
                 """,
@@ -293,6 +305,86 @@ class Database:
             )
             connection.commit()
             return row
+
+    def recover_expired_tasks(self, limit: int = 50) -> dict[str, int]:
+        recovered = 0
+        exhausted = 0
+        with self.connect() as connection:
+            tasks = connection.execute(
+                """
+                SELECT *
+                FROM agent_tasks
+                WHERE status = 'running' AND lease_expires_at <= now()
+                ORDER BY lease_expires_at
+                FOR UPDATE SKIP LOCKED
+                LIMIT %s
+                """,
+                (limit,),
+            ).fetchall()
+            for task in tasks:
+                approval_status = "approved" if task["approved_by"] else "not_required"
+                if task["attempt_count"] >= task["max_attempts"]:
+                    row = connection.execute(
+                        """
+                        UPDATE agent_tasks
+                        SET status = 'failed', completed_at = now(),
+                            lease_expires_at = NULL, last_heartbeat_at = NULL,
+                            error_code = 'WORKER_LEASE_EXHAUSTED',
+                            error_message = 'Worker lease expired and retry budget was exhausted'
+                        WHERE id = %s AND status = 'running'
+                        RETURNING *
+                        """,
+                        (task["id"],),
+                    ).fetchone()
+                    if row is None:
+                        continue
+                    exhausted += 1
+                    self._append_audit(
+                        connection,
+                        correlation_id=row["correlation_id"],
+                        task_id=row["id"],
+                        actor_type="dispatcher",
+                        actor_id="outbox-dispatcher",
+                        tool_name=row["kind"],
+                        action="task.lease_exhausted",
+                        risk_level=row["risk_level"],
+                        approval_status=approval_status,
+                        execution_status="failed",
+                        error_code="WORKER_LEASE_EXHAUSTED",
+                        error_message="Worker lease expired and retry budget was exhausted",
+                    )
+                    continue
+
+                row = connection.execute(
+                    """
+                    UPDATE agent_tasks
+                    SET status = 'queued', started_at = NULL,
+                        lease_expires_at = NULL, last_heartbeat_at = NULL,
+                        error_code = NULL, error_message = NULL
+                    WHERE id = %s AND status = 'running'
+                    RETURNING *
+                    """,
+                    (task["id"],),
+                ).fetchone()
+                if row is None:
+                    continue
+                recovered += 1
+                self._append_audit(
+                    connection,
+                    correlation_id=row["correlation_id"],
+                    task_id=row["id"],
+                    actor_type="dispatcher",
+                    actor_id="outbox-dispatcher",
+                    tool_name=row["kind"],
+                    action="task.recovered",
+                    risk_level=row["risk_level"],
+                    approval_status=approval_status,
+                    execution_status="queued",
+                    result_metadata={"attempt_count": row["attempt_count"]},
+                )
+                self._add_outbox(connection, row)
+            connection.commit()
+        return {"recovered": recovered, "exhausted": exhausted}
 
     def pending_outbox(self, limit: int) -> list[dict[str, Any]]:
         with self.connect() as connection:
