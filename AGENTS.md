@@ -58,7 +58,7 @@ request, rotate credentials, delete volumes, or change external accounts unless
 the user explicitly requests that action.
 
 The user's standing repository preference is to publish each validated major
-milestone: create or update a `codex/` branch, commit the scoped work, push it,
-and create or update a draft pull request. Never publish secrets or work that
-has not passed the relevant validation, and honor an explicit request to keep a
-milestone local.
+milestone all the way to `main`: create or update a `codex/` branch, commit and
+push the scoped work, create or update its pull request, and merge it into
+`main`. Never publish secrets or work that has not passed the relevant
+validation, and honor an explicit request to keep a milestone local.
