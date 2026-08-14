@@ -1,13 +1,17 @@
-# autonomous-personal-agent
+# Autonomous Personal Agent
 
 [![CI](https://github.com/ReaperXD67/autonomous-personal-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ReaperXD67/autonomous-personal-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Status: foundation](https://img.shields.io/badge/status-foundation-16a085.svg)](#implemented-now)
 
-Security-first, self-hosted foundation for an autonomous personal agent. This
+**A control plane for useful autonomy: durable work, explicit approvals, and an audit trail by default.**
+
+This is a security-first, self-hosted foundation for an autonomous personal agent. This
 repository establishes durable task state, approval gates, audit events,
 containerized workers, persistent memory storage, model-routing boundaries,
 and a curated MCP policy layer before broad autonomy is enabled.
 
+> [!IMPORTANT]
 > **Foundation status:** core infrastructure works locally. Email, job
 > applications, Telegram, browser automation, coding agents, and unrestricted
 > MCP access are planned—not implemented.
