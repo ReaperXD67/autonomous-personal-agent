@@ -153,8 +153,11 @@ Observed:
 - SPDX JSON generation completed successfully.
 - Ruff and Pytest passed; 24 tests in 0.37 seconds.
 
-Result: passed locally. The pull request must also pass the same checks on a
-clean GitHub checkout before merge.
+GitHub Actions run `31892979230` then passed the branch-required clean-checkout
+`validate` job in 55 seconds. It produced non-expired artifact
+`control-api-sbom` at 380,063 bytes with expiry 2026-08-29.
+
+Result: passed locally and in GitHub CI.
 
 ## Planned experiments
 

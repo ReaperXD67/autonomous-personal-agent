@@ -810,6 +810,8 @@ failures cannot be bypassed by merging while an optional workflow fails.
 - Runtime image scan: zero high/critical Debian or Python package findings.
 - Official Syft `v1.51.0` generated SPDX JSON successfully.
 - Containerized Ruff and Pytest passed 24 tests in 0.37 seconds.
+- GitHub Actions run `31892979230` passed the clean-checkout required job in 55
+  seconds and uploaded a 380,063-byte `control-api-sbom` artifact.
 - Git diff whitespace validation passed.
 
 ### Limitation
