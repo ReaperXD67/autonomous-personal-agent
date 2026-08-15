@@ -111,6 +111,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+      JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -145,6 +146,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+      JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
       WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-10}
@@ -159,6 +161,47 @@ services:
       - data
     healthcheck:
       test: ["CMD", "python", "-m", "app.worker", "--healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    logging: *json-logging
+
+  job-worker:
+    <<: *app-security
+    build:
+      context: .
+      dockerfile: services/control-api/Dockerfile
+      target: runtime
+    image: autonomous-personal-agent/control-api:local
+    restart: unless-stopped
+    command: ["python", "-m", "app.job_worker"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+      JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
+      WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
+      WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-10}
+      WORKER_RETRY_BASE_SECONDS: ${WORKER_RETRY_BASE_SECONDS:-5}
+      WORKER_RETRY_MAX_SECONDS: ${WORKER_RETRY_MAX_SECONDS:-300}
+      CAREER_SCHEDULER_SECONDS: ${CAREER_SCHEDULER_SECONDS:-30}
+      LOCAL_MODEL: ${LOCAL_MODEL:-qwen3:8b}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - edge
+      - data
+      - model
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.job_worker", "--healthcheck"]
       interval: 15s
       timeout: 5s
       retries: 4
@@ -181,6 +224,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+      JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
       WORKER_RETRY_BASE_SECONDS: ${WORKER_RETRY_BASE_SECONDS:-5}
       WORKER_RETRY_MAX_SECONDS: ${WORKER_RETRY_MAX_SECONDS:-300}

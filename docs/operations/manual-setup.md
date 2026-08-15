@@ -13,6 +13,29 @@ again on 2026-08-15. On
 GPU placement. No inference download or provider onboarding remains required for
 basic testing. The complete default `./scripts/readiness.ps1` gate passed all six
 configured paths on 2026-08-15; repeat setup only to add or replace a provider.
+The career smoke on the same date fetched 100 live public listings, retained 5
+fresh matches for its exact synthetic target, and persisted a structured local
+Qwen application draft.
+
+## First personal career mission
+
+This is the only personal-data input needed for the current workflow:
+
+1. Run `./scripts/open-dashboard.ps1 -LocalModel -CopyToken`.
+2. Paste the token into the local dashboard and clear the clipboard.
+3. Create a mission with your actual target titles, locations, true skills, and
+   plain-text résumé.
+4. Choose a freshness window and activate the mission.
+5. Optionally add exact employer board slugs from public Ashby or Greenhouse
+   career URLs. No credential is needed; the system intentionally will not guess
+   a company list or scrape login-gated sites.
+6. Review generated evidence and drafts, answer application-specific questions,
+   and submit through the official link yourself.
+
+See [dashboard and career missions](dashboard-and-career.md). Automatic form
+submission is not represented as ready: each real submission needs a reviewed
+site adapter, exact approval context, credentials/consent, and duplicate-submit
+protection.
 
 ## Path A — completely local inference
 
@@ -69,6 +92,8 @@ steps only to repair it or switch the route:
 - Email/Google/GitHub OAuth consent
 - Provider sign-up and acceptance of provider terms
 - VPS purchase, DNS, TLS, WireGuard, and backup destination
+- job-site accounts, screening-question answers, CAPTCHA/identity checks, and
+  final application consent
 - Any secret, recovery code, payment method, or identity verification
 
 Those actions carry identity, legal, financial, or external-state consequences

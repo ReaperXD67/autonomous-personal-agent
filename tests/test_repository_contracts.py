@@ -36,7 +36,7 @@ def test_transactional_outbox_is_wired_into_runtime() -> None:
 def test_migrations_gate_runtime_startup() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     assert "migrate" in compose["services"]
-    for name in ("control-api", "dispatcher", "worker"):
+    for name in ("control-api", "dispatcher", "worker", "job-worker"):
         dependency = compose["services"][name]["depends_on"]["migrate"]
         assert dependency["condition"] == "service_completed_successfully"
 
@@ -57,6 +57,28 @@ def test_execution_lifecycle_migration_and_smoke_are_present() -> None:
     source = migration.read_text(encoding="utf-8")
     for field in ("lease_id", "next_attempt_at", "cancellation_requested_at", "dead_lettered"):
         assert field in source
+
+
+def test_career_workflow_has_isolated_egress_worker_and_durable_schema() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    worker = compose["services"]["worker"]
+    job_worker = compose["services"]["job-worker"]
+    assert "edge" not in worker["networks"]
+    assert set(job_worker["networks"]) == {"edge", "data", "model"}
+    assert job_worker["command"] == ["python", "-m", "app.job_worker"]
+    migration = ROOT / "config/postgres/init/005_career_workflow.sql"
+    assert migration.exists()
+    source = migration.read_text(encoding="utf-8")
+    for table in ("career_profiles", "job_opportunities", "job_application_drafts"):
+        assert table in source
+
+
+def test_dashboard_is_packaged_without_forbidden_static_file_surfaces() -> None:
+    index = ROOT / "services/control-api/app/web/index.html"
+    script = ROOT / "services/control-api/app/web/app.js"
+    assert index.exists() and script.exists()
+    assert "Hermes Command Center" in index.read_text(encoding="utf-8")
+    assert "sessionStorage" in script.read_text(encoding="utf-8")
 
 
 def test_restore_drill_uses_a_disposable_database() -> None:

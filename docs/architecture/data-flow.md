@@ -26,6 +26,20 @@ sequenceDiagram
     API->>DB: read authoritative state
 ```
 
+Career tasks use the same sequence but the dispatcher routes their task IDs to a
+dedicated Redis list and the career worker claims them. The caller supplies only
+profile/opportunity IDs. The worker loads résumé data from PostgreSQL only for a
+local draft; raw résumé text is absent from queue envelopes, task payloads,
+audit metadata, and public job-source requests.
+
+## Career mission schedule
+
+An active PostgreSQL profile holds `next_scan_at`. The career worker atomically
+claims due profiles, advances the next schedule, and calls the same durable task
+creation method as the API. The transactional outbox is committed before any
+queue publication. Restarting the stack may delay a scan but does not lose the
+mission. Fresh source records are filtered and upserted by profile/source key.
+
 ## High/destructive-risk task
 
 Creation stops at `pending_approval`; no outbox row is created. An authenticated
@@ -44,6 +58,7 @@ completed work.
 | Pending delivery | PostgreSQL outbox | Durable until published; safe to retry |
 | Ready signal | Redis | May be reconstructed from queued tasks |
 | Agent memory | PostgreSQL + pgvector | Planned writers require provenance and policy |
+| Career profiles/opportunities/drafts | PostgreSQL | Résumé is returned only as presence/length metadata; draft access stays internal |
 | Embeddings | pgvector column | Model/version metadata must accompany future writes |
 | Logs | Docker log driver | Operational, rotated, not authoritative audit storage |
 

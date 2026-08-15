@@ -13,6 +13,8 @@ class RiskLevel(StrEnum):
 CAPABILITY_RISK: dict[str, RiskLevel] = {
     "foundation.echo": RiskLevel.LOW,
     "foundation.wait": RiskLevel.MEDIUM,
+    "career.search": RiskLevel.LOW,
+    "career.application_draft": RiskLevel.MEDIUM,
 }
 
 _RISK_ORDER = {

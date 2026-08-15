@@ -15,13 +15,12 @@ required on Windows.
 ```powershell
 ./scripts/init-env.ps1
 docker compose config --quiet
-./scripts/up.ps1
-./scripts/health.ps1
-./scripts/smoke.ps1
-./scripts/recovery-smoke.ps1
-./scripts/lifecycle-smoke.ps1
-./scripts/doctor.ps1
+./scripts/open-dashboard.ps1 -LocalModel -CopyToken
 ```
+
+The private website opens at <http://127.0.0.1:8080/>. See
+[dashboard and career missions](dashboard-and-career.md) for the first real
+job-hunt test and how to change ongoing work without editing code.
 
 `init-env.ps1` does not overwrite existing `.env` unless `-Force` is explicit.
 `-Force` rotates bootstrap values and can break existing state; use it only with
@@ -31,9 +30,10 @@ an intentional credential-rotation plan.
 
 ```powershell
 ./scripts/test.ps1
-docker compose build control-api dispatcher worker
+docker compose build control-api dispatcher worker job-worker
 docker compose up -d
 ./scripts/smoke.ps1
+./scripts/career-smoke.ps1 -Draft
 ```
 
 Test image contains lint/test dependencies; runtime image does not. Repository

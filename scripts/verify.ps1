@@ -7,7 +7,7 @@ try {
     }
     docker compose config --quiet
     if ($LASTEXITCODE -ne 0) { throw 'Compose validation failed' }
-    docker compose build control-api dispatcher worker test
+    docker compose build control-api dispatcher worker job-worker test
     if ($LASTEXITCODE -ne 0) { throw 'Image build failed' }
     & (Join-Path $PSScriptRoot 'test.ps1')
     docker compose up -d

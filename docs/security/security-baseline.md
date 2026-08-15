@@ -29,7 +29,11 @@ capability must enter this registry before its handler is reachable.
 - uniquely owned worker leases, heartbeats, cooperative cancellation, bounded
   retry delays, and authenticated dead-letter inspection;
 - upstream images pinned by release and manifest digest;
-- MCP servers disabled by default.
+- MCP servers disabled by default;
+- career-source HTTPS hosts, redirects, response sizes, timeouts, and board
+  slugs allowlisted; arbitrary URLs rejected;
+- résumé text excluded from queue/task/audit/public-source payloads and local
+  draft output constrained to a structured schema;
 - required immutable-action CI gates for dependency review, repository
   vulnerability/secret/misconfiguration scanning, runtime-image vulnerability
   scanning, and an SPDX JSON SBOM artifact;
@@ -49,6 +53,7 @@ assume logs/artifacts containing a leaked value are compromised.
 - short-lived identity and per-user authorization, replacing one bootstrap token;
 - signed release images and upstream image-signature verification;
 - egress allowlists for browser/email/tool workers;
+- OIDC/RBAC and rate limits before any non-private dashboard exposure;
 - idempotent side-effect keys for future external write tools;
 - backup encryption, off-host retention/scheduling, and incident response;
 
