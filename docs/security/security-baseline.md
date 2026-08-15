@@ -9,8 +9,9 @@
 | High | send email, submit application, merge/publish, change infrastructure | Human approval required |
 | Destructive | delete data/repository, destructive shell, purchases/transfers | Human approval required plus future step-up authentication; disabled today |
 
-Risk label supplied by caller is not sufficient long-term. Future policy must
-derive minimum risk from tool/action metadata and reject downgrades.
+The implemented capability allowlist derives a minimum risk from the task kind.
+A caller-provided risk may escalate that result but cannot lower it. Every new
+capability must enter this registry before its handler is reachable.
 
 ## Implemented controls
 
@@ -25,6 +26,8 @@ derive minimum risk from tool/action metadata and reject downgrades.
 - approval state persisted before queue publication;
 - structured logs without headers/bodies;
 - redacted audit metadata with correlation IDs;
+- uniquely owned worker leases, heartbeats, cooperative cancellation, bounded
+  retry delays, and authenticated dead-letter inspection;
 - upstream images pinned by release and manifest digest;
 - MCP servers disabled by default.
 
@@ -44,9 +47,8 @@ assume logs/artifacts containing a leaked value are compromised.
 - container/image/SBOM and secret scans in enforced CI;
 - signed release images and verified dependency update process;
 - egress allowlists for browser/email/tool workers;
-- worker leases, retry/dead-letter policy, and idempotent side-effect keys;
-- backup encryption, retention, restore drills, incident response;
-- policy engine that binds capability/action to minimum risk.
+- idempotent side-effect keys for future external write tools;
+- backup encryption, off-host retention/scheduling, and incident response;
 
 ## Unsafe configurations
 
@@ -54,4 +56,3 @@ Never mount `/var/run/docker.sock` into Hermes or general workers; never mount
 host home/root; never use privileged mode/host networking; never expose admin
 dashboards without authentication; never disable approval to fix workflow
 friction; never log request bodies by default.
-

@@ -15,6 +15,7 @@ try {
     & (Join-Path $PSScriptRoot 'health.ps1')
     & (Join-Path $PSScriptRoot 'smoke.ps1')
     & (Join-Path $PSScriptRoot 'recovery-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'lifecycle-smoke.ps1')
 }
 finally {
     Pop-Location

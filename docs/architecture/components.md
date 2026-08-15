@@ -15,17 +15,18 @@ Reads unpublished PostgreSQL outbox rows, publishes task identities to Redis,
 and marks delivery. A crash after publish may duplicate a ready signal; worker
 state transition makes that harmless. A crash before publish leaves a durable
 row for retry. It also reconciles expired worker leases: unfinished tasks are
-requeued until their bounded attempt budget is exhausted, with every outcome
-written to the audit trail.
+requeued with exponential delay until their bounded attempt budget is exhausted,
+then become inspectable dead letters. Cancellation requests on an abandoned
+claim are finalized during the same reconciliation. Every outcome is audited.
 
 ### Worker
 
-Consumes Redis queue, atomically transitions `queued → running` with a durable
-lease, executes an
-allowlisted handler, and stores result/error plus audit in the same database
-transaction. Stale queue messages are discarded when PostgreSQL state is not
-`queued`. Current handlers are short; long-running tools still need periodic
-heartbeat renewal before they are enabled.
+Consumes Redis queue, atomically transitions `queued → running` with a unique
+lease ID and worker identity, executes an allowlisted handler, renews long-task
+leases on a bounded heartbeat, and stores result/error plus audit in the same
+database transaction. A stale worker cannot complete a lease it no longer owns.
+Cancellation is cooperative while running and immediate before claim. Stale
+queue messages are discarded when PostgreSQL state is not `queued`.
 
 ### PostgreSQL + pgvector
 
@@ -46,20 +47,21 @@ reasoning route.
 Owns transient ready queue and future cache/scheduling signals. Password auth
 and AOF reduce accidental loss, but Redis remains non-authoritative.
 
-## Prepared upstream components
+## Optional upstream components
 
 ### Hermes
 
 Nous Research Hermes Agent is optional orchestrator/brain. Foundation does not
 fork or fake its APIs. Release `v2026.8.3` is verified from official repository
-and Docker image. Manual approval remains configured; MCP and messaging remain
-unprovisioned.
+and Docker image. Its routed one-shot inference passed locally. Manual approval
+remains configured; MCP and messaging remain unprovisioned.
 
 ### OmniRoute
 
 OmniRoute is optional OpenAI-compatible model routing gateway. Release `3.8.49`
 is verified from official repository and Docker image. Dashboard binds to
-loopback, secrets stay in `.env`, and inference key enforcement is enabled.
+loopback, secrets stay in `.env`, and inference key enforcement is enabled. Its
+authenticated catalog and `free/default` inference path passed locally.
 
 ## Planned components
 

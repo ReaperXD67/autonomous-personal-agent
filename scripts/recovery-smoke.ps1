@@ -47,7 +47,7 @@ try {
     Set-ExpiredLease -TaskId $retryTask.id -AttemptsExpression '1'
     $null = Wait-TaskStatus -TaskId $retryTask.id -Statuses @('queued')
     docker compose start worker | Out-Null
-    $retryResult = Wait-TaskStatus -TaskId $retryTask.id -Statuses @('succeeded', 'failed')
+    $retryResult = Wait-TaskStatus -TaskId $retryTask.id -Statuses @('succeeded', 'dead_lettered')
     if ($retryResult.status -ne 'succeeded' -or $retryResult.output.echo -ne 'lease-recovery-ok' -or $retryResult.attempt_count -ne 2) {
         throw "Lease retry failed: status=$($retryResult.status) attempts=$($retryResult.attempt_count)"
     }
@@ -55,7 +55,7 @@ try {
     docker compose stop worker | Out-Null
     $exhaustTask = New-TestTask -Title 'Lease exhaustion smoke' -Message 'must-not-run'
     Set-ExpiredLease -TaskId $exhaustTask.id -AttemptsExpression 'max_attempts'
-    $exhaustResult = Wait-TaskStatus -TaskId $exhaustTask.id -Statuses @('failed')
+    $exhaustResult = Wait-TaskStatus -TaskId $exhaustTask.id -Statuses @('dead_lettered')
     if ($exhaustResult.error_code -ne 'WORKER_LEASE_EXHAUSTED') {
         throw "Lease exhaustion used unexpected error: $($exhaustResult.error_code)"
     }

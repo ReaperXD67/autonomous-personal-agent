@@ -14,9 +14,9 @@
 ## Phase 1 — reliability and production gate
 
 - [x] Startup migration runner applies versioned, idempotent SQL before runtime services
-- [ ] Migration rollback policy and disposable restore drill
+- [x] Migration rollback policy and disposable restore drill
 - [x] Worker lease, bounded crash retry, expired-claim reconciliation, and audit events
-- [ ] Periodic heartbeat for long tools, delayed backoff, cancellation, and dead-letter inspection
+- [x] Periodic heartbeat for long tools, delayed backoff, cancellation, and dead-letter inspection
 - [ ] Per-user OIDC auth, roles, rate limits, step-up approvals
 - [ ] OpenTelemetry traces/metrics/log correlation and alerts
 - [ ] Encrypted automated backups and restore drill

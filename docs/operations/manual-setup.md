@@ -6,15 +6,18 @@ credentials.
 
 ## Verified current workstation status
 
-On 2026-08-12, OmniRoute already had a scoped key and exposed 79 model routes,
-`free/default` completed a live smoke request, and Hermes returned `HERMES_OK`
-through that endpoint. Do not repeat provider onboarding unless you want to add
-or replace a provider. The local Ollama/Qwen download is the only unfinished
-inference setup.
+OmniRoute has a scoped key and exposed 79 model routes, `free/default` completed
+a live smoke request, and Hermes returned `HERMES_READY_OK` through that endpoint
+again on 2026-08-15. On
+2026-08-15, local Qwen3 8B returned exactly `LOCAL_MODEL_OK` and Ollama reported
+GPU placement. No inference download or provider onboarding remains required for
+basic testing; repeat setup only to add or replace a provider.
 
 ## Path A — completely local inference
 
 This has no token charge and sends prompts only to the local Ollama container.
+It is already operational on this workstation; the command is an idempotent
+recheck or repair path.
 
 ```powershell
 ./scripts/local-model.ps1
@@ -35,7 +38,7 @@ fallback in `auto`. Do not publish port 11434.
 ## Path B — add or replace a stronger free-tier provider
 
 1. Open <http://127.0.0.1:20128>.
-2. Finish OmniRoute's local administrator onboarding.
+2. Sign in to the existing local administrator account.
 3. Use the live free-tier catalog to connect providers whose current terms you
    accept. Prefer no-card and explicit free-forever options; quotas can change.
 4. Add a Nemotron route from a provider offering it at no charge if available.
@@ -44,9 +47,10 @@ fallback in `auto`. Do not publish port 11434.
    documentation, logs, or chat.
 7. Run `./scripts/agent-smoke.ps1`.
 
-## Connect Hermes
+## Reconfigure Hermes (optional)
 
-After either inference path works:
+Hermes is already connected to OmniRoute and returned `HERMES_OK`. Use these
+steps only to repair it or switch the route:
 
 1. Run `docker compose --profile agent exec hermes hermes setup`.
 2. Select a custom OpenAI-compatible provider.

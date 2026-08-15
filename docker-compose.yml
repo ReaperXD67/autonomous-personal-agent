@@ -147,6 +147,9 @@ services:
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
+      WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-10}
+      WORKER_RETRY_BASE_SECONDS: ${WORKER_RETRY_BASE_SECONDS:-5}
+      WORKER_RETRY_MAX_SECONDS: ${WORKER_RETRY_MAX_SECONDS:-300}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -179,6 +182,8 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
+      WORKER_RETRY_BASE_SECONDS: ${WORKER_RETRY_BASE_SECONDS:-5}
+      WORKER_RETRY_MAX_SECONDS: ${WORKER_RETRY_MAX_SECONDS:-300}
     depends_on:
       migrate:
         condition: service_completed_successfully

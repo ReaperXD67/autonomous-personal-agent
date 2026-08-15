@@ -25,12 +25,12 @@ and human approval for high-impact actions.
 |---|---|---|
 | Container-first local stack | Implemented | Docker Compose; no project Python, Node, Redis, or PostgreSQL install on Windows |
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
-| Dispatcher + worker | Implemented | Transactional outbox, worker leases, bounded crash recovery, deterministic `foundation.echo` handler |
+| Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
-| Hermes + OmniRoute | Prepared | Optional, official release-pinned Compose profile; onboarding still required |
-| Local inference | Prepared | Optional pinned Ollama + Qwen3 8B setup for the observed 8 GB NVIDIA GPU |
+| Hermes + OmniRoute | Verified locally | Optional pinned profile; 79 routes, `free/default`, and Hermes one-shot inference passed |
+| Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Full autonomous features | Planned | See [roadmap](docs/roadmap.md) |
 
@@ -92,10 +92,12 @@ Stop cleanly:
 | `./scripts/health.ps1` | `make health` | Check container and dependency readiness |
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
+| `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |
 | `./scripts/agent-smoke.ps1` | `make agent-smoke` | Verify configured OmniRoute model inference |
 | `./scripts/test.ps1` | `make test` | Run lint and tests in isolated container |
 | `./scripts/logs.ps1` | `make logs` | Follow bounded Docker logs |
 | `./scripts/backup.ps1` | `make backup` | Create ignored PostgreSQL custom dump + SHA-256 |
+| `./scripts/restore-drill.ps1` | `make restore-drill` | Restore into a random disposable database and validate it |
 | `./scripts/down.ps1` | `make down` | Stop stack without deleting volumes |
 | `./scripts/doctor.ps1` | `make doctor` | Diagnose Docker, WSL, configuration, services, GPU, and agent readiness |
 
@@ -113,10 +115,11 @@ Hermes dashboard is intentionally not published. Current upstream requires an
 auth provider for any non-loopback container bind; configure that first, then
 add a reviewed authenticated dashboard override. Do not weaken this guard.
 
-Complete OmniRoute onboarding, create a scoped inference key, store it only in
-ignored `.env`, then configure Hermes using
-[services/hermes/config.example.yaml](services/hermes/config.example.yaml).
-Until this is done, image health can pass but model inference is not ready.
+This workstation is onboarded with a scoped inference-only key in ignored
+`.env`; `free/default` and Hermes one-shot inference pass. A fresh clone still
+requires local administrator onboarding and a new scoped key. Use
+[services/hermes/config.example.yaml](services/hermes/config.example.yaml) as the
+reviewed boundary and never treat image health alone as inference readiness.
 
 ## Completely local, no-token-cost inference
 
@@ -128,8 +131,10 @@ checkpoints are too large for it, so the local fallback is Qwen3 8B Q4:
 ```
 
 This starts a digest-pinned Ollama container, downloads the approximately 5.2 GB
-model, and runs a harmless smoke request. It is private and has no token bill,
-but its 8K configured context and model quality are below strong hosted models.
+model, requires the exact harmless response `LOCAL_MODEL_OK`, and verifies GPU
+placement. This workstation passed that check on 2026-08-15. It is private and
+has no token bill, but its 8K configured context and model quality are below
+strong hosted models.
 Use OmniRoute free providers for Nemotron or larger coding models when available.
 See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
 [remaining manual setup](docs/operations/manual-setup.md).

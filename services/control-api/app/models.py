@@ -13,7 +13,7 @@ class TaskCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=200)
-    kind: Literal["foundation.echo"] = "foundation.echo"
+    kind: Literal["foundation.echo", "foundation.wait"] = "foundation.echo"
     payload: dict[str, Any] = Field(default_factory=dict)
     risk_level: RiskLevel = RiskLevel.LOW
     requested_by: str = Field(min_length=1, max_length=120)
@@ -24,6 +24,13 @@ class ApprovalDecision(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     decision: Literal["approved", "rejected"]
+    actor: str = Field(min_length=1, max_length=120)
+    reason: str | None = Field(default=None, max_length=500)
+
+
+class TaskCancellation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     actor: str = Field(min_length=1, max_length=120)
     reason: str | None = Field(default=None, max_length=500)
 
@@ -50,3 +57,8 @@ class TaskView(BaseModel):
     started_at: datetime | None
     completed_at: datetime | None
     lease_expires_at: datetime | None
+    next_attempt_at: datetime
+    cancellation_requested_at: datetime | None
+    cancellation_requested_by: str | None
+    cancellation_reason: str | None
+    dead_lettered_at: datetime | None

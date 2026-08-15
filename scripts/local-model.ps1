@@ -24,7 +24,7 @@ try {
     }
 
     $gpu = & nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>$null | Select-Object -First 1
-    if ($LASTEXITCODE -ne 0 -or -not $gpu) {
+    if (-not $gpu) {
         throw 'An NVIDIA GPU visible to Windows is required by the local-model profile.'
     }
     Write-Host "GPU: $gpu"
@@ -50,11 +50,16 @@ try {
     }
 
     if (-not $SkipSmoke) {
-        $output = docker compose --profile local-model exec -T ollama ollama run $Model 'Reply with exactly LOCAL_MODEL_OK and nothing else.'
-        if ($LASTEXITCODE -ne 0 -or -not ($output -join "`n").Trim()) {
-            throw 'The local model did not return a response.'
+        $output = docker compose --profile local-model exec -T ollama ollama run $Model --think=false 'Reply with exactly LOCAL_MODEL_OK and nothing else.'
+        $response = ($output -join "`n").Trim()
+        if ($LASTEXITCODE -ne 0 -or $response -ne 'LOCAL_MODEL_OK') {
+            throw "The local model returned an unexpected response: $response"
         }
-        Write-Host 'Local inference smoke test returned a non-empty response.'
+        $placement = docker compose --profile local-model exec -T ollama ollama ps
+        if ($LASTEXITCODE -ne 0 -or -not (($placement -join "`n") -match 'GPU')) {
+            throw 'Local inference completed, but Ollama did not report GPU placement.'
+        }
+        Write-Host 'Local inference smoke returned LOCAL_MODEL_OK and Ollama reported GPU placement.'
     }
 
     Write-Host "Local endpoint for containers: http://ollama:11434/v1"

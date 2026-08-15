@@ -668,3 +668,107 @@ production identity/TLS, unrestricted MCP, or autonomous coding worker.
 
 Next milestone: Hermes-to-control-plane task adapter plus safe read-only research
 tools, after periodic lease heartbeats and per-capability derived risk policies.
+
+## Step 12 — Complete durable execution lifecycle and prove test readiness
+
+Date: 2026-08-15
+
+### Objective
+
+Close the remaining foundation reliability gates that can be completed locally,
+prove that authoritative PostgreSQL state is recoverable, re-evaluate the local
+model download, and leave an exact list of work that still requires user-owned
+identity, infrastructure, or external credentials.
+
+### Investigation
+
+- Confirmed a clean `main` worktree at merge commit `9ae658d` and reviewed the
+  directive, roadmap, architecture, security, operations, and latest evidence.
+- Compared Phase 1 gaps to the current worker/store/schema behavior.
+- Found that crash recovery existed but long work had no heartbeat, claims had
+  no unique owner token, retry was immediate, cancellation was absent, exhausted
+  tasks appeared as ordinary failures, and restores were still a prose procedure.
+- Rechecked the optional stack and found that the previously incomplete Ollama
+  download had finished: `qwen3:8b`, 5.2 GB, was present.
+
+### Decision
+
+Implement one bounded reliability milestone before adding real external tools:
+owned leases, periodic heartbeat, cooperative cancellation, bounded delayed
+retry, explicit dead letters, minimum capability-derived risk, and a disposable
+restore drill. Keep dead-letter replay manual and do not introduce a queue
+framework while only two deterministic foundation handlers exist.
+
+### Implementation
+
+- Added migration `004_execution_lifecycle` with lease ownership, worker
+  identity, retry availability, cancellation metadata, and dead-letter state.
+- Added capability minimum-risk policy; callers may escalate but cannot lower
+  the allowlisted risk.
+- Added a heartbeat monitor and bounded `foundation.wait` handler to exercise
+  real long-task behavior. Completion/failure now requires the unique lease ID.
+- Added immediate queued cancellation, cooperative running cancellation, audit
+  events, delayed exponential recovery, outbox backoff, and authenticated
+  `/v1/tasks/dead-letters` inspection.
+- Added repeatable lifecycle smoke coverage and extended settings/contracts to
+  validate safe heartbeat and retry bounds.
+- Added SHA-256 sidecars and `restore-drill.ps1`, which accepts only repository
+  backup paths, restores only to a checked random database, validates SQL and
+  application invariants, and removes the disposable target.
+- Fixed the local-model GPU check for PowerShell environments where a successful
+  native pipeline leaves `$LASTEXITCODE` unset. The smoke now requires exact
+  `LOCAL_MODEL_OK` and reported GPU placement.
+- Added ADR-0007 and synchronized README, roadmap, architecture, security,
+  operations, system evolution, experiments, and this journal.
+
+### Problems encountered and resolution
+
+- The first live upgrade failed because the edited bootstrap schema attempted to
+  create an index on `task_outbox.available_at` before migration 004 added that
+  column to an existing database. The bootstrap index was restored to its
+  backward-compatible definition; migration 004 now replaces it after adding
+  the column. The next migration run succeeded without deleting data.
+- The first unit pass found one import-order lint error. It was corrected and the
+  test image rebuilt so Docker did not reuse the previous source snapshot.
+- `local-model.ps1` falsely rejected a visible GPU because `$null -ne 0` evaluated
+  true when `$LASTEXITCODE` was unset after a successful pipeline. Readiness now
+  depends on the actual non-empty GPU query result.
+
+### Validation
+
+- `docker compose config --quiet` and runtime/test image builds passed.
+- Ruff passed; Pytest passed 23 tests in the final full run.
+- `scripts/verify.ps1` passed API health, safe execution, approval execution,
+  delayed retry, dead-letter exhaustion, queued cancellation, running
+  cancellation, and dead-letter inspection.
+- `scripts/restore-drill.ps1` verified the checksum, 4 migrations, 32 tasks, 105
+  audits, vector extension, zero orphan audit links, application readiness, and
+  safe removal of its disposable database.
+- `scripts/doctor.ps1 -Agent` passed every required check.
+- OmniRoute listed 79 routes and `free/default` inference passed.
+- Qwen3 8B returned exactly `LOCAL_MODEL_OK`; Ollama reported GPU placement.
+- Hermes returned exactly `HERMES_READY_OK` through the configured route.
+- No runtime error/traceback was present in control API, dispatcher, or worker
+  logs during the tested lifecycle.
+
+### Security and performance implications
+
+Unique lease IDs prevent stale-worker commits after reassignment. Cancellation
+stays in the authenticated policy/audit path instead of granting container
+control. Capability risk has a trusted minimum. Retry delay is bounded from 5 to
+300 seconds by default, and heartbeats run every 10 seconds against a 120-second
+lease. Heartbeats update task state without one audit row per interval.
+
+### Not implemented
+
+Per-user OIDC/RBAC, rate limits, step-up identity, OpenTelemetry/alerts,
+encrypted off-host scheduled backups, public TLS/WireGuard deployment, enforced
+SBOM/vulnerability/signature CI, Hermes task adapter, model cost metadata,
+memory APIs, scheduler, MCP/browser/coding workers, Telegram, email, and web UI.
+These remain phase-gated rather than being represented by fake integrations.
+
+### Next milestone
+
+Add enforced supply-chain CI and basic telemetry that require no external
+account, then implement the Hermes-to-control-plane adapter and budget-aware
+model audit metadata before enabling any read-only external tool.

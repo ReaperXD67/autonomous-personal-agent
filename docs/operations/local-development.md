@@ -18,6 +18,8 @@ docker compose config --quiet
 ./scripts/up.ps1
 ./scripts/health.ps1
 ./scripts/smoke.ps1
+./scripts/recovery-smoke.ps1
+./scripts/lifecycle-smoke.ps1
 ./scripts/doctor.ps1
 ```
 
@@ -42,6 +44,11 @@ Runtime startup is gated by the one-shot `migrate` service. It replays
 idempotent versioned SQL with `ON_ERROR_STOP`; API, dispatcher, and worker start
 only after it exits successfully.
 
+`recovery-smoke.ps1` verifies delayed crash retry and dead-letter exhaustion.
+`lifecycle-smoke.ps1` verifies cancellation before and during execution plus the
+authenticated dead-letter view. `restore-drill.ps1` creates a checksummed dump,
+restores only to a random disposable database, probes it, and removes it.
+
 ## Optional inference
 
 ```powershell
@@ -52,7 +59,8 @@ only after it exits successfully.
 
 `agent-smoke.ps1` requires the user-created scoped OmniRoute key in ignored
 `.env`. `local-model.ps1` starts GPU-backed Ollama, downloads the selected model,
-and performs a harmless response test. See [manual setup](manual-setup.md).
+requires `LOCAL_MODEL_OK`, and verifies reported GPU placement. See
+[manual setup](manual-setup.md).
 
 ## Logs and status
 

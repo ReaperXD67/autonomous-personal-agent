@@ -81,6 +81,58 @@ inference result is claimed.
 Result: setup automation and Compose validation passed; full local download and
 inference remain unverified due transfer speed.
 
+## EXP-006 — Owned lease, cancellation, and dead-letter lifecycle
+
+Date: 2026-08-15
+
+Method: rebuild the runtime, apply migration `004_execution_lifecycle`, execute
+the full verification suite, force one expired claim below its budget and one at
+its budget, cancel one queued task and one 30-second running task, then query the
+authenticated dead-letter endpoint.
+
+Observed:
+
+- Containerized Ruff and Pytest passed: 23 tests in 0.72 seconds.
+- Safe task `d779250d-f7cd-4c2c-89db-d27547adaabe` succeeded.
+- Approval-gated task `d8909278-6d8b-4668-a3f6-85ffc33e91d9` succeeded.
+- Expired task `944a8a52-99ac-4f5d-a99f-034405af1d79` succeeded on attempt 2
+  after delayed recovery.
+- Exhausted task `7cfb86a6-05d4-4d70-b4ff-2fb30e5bfb4c` became
+  `dead_lettered` with `WORKER_LEASE_EXHAUSTED`.
+- Queued task `a62c4c39-67b6-4d97-8127-1cfdc7b92c3d` cancelled before claim.
+- Running task `911c7191-1ee2-43a0-8e8f-121f268c6cec` cooperatively cancelled
+  and retained cancellation metadata.
+
+Result: passed.
+
+## EXP-007 — Checksummed disposable restore drill
+
+Date: 2026-08-15
+
+The backup script created `agent-20260815T151336Z.dump` with SHA-256
+`f4ad193a09d4ab2bfd43141a6962aa4e6bd1f861b89b751ffc6b36172160e7e2`.
+The drill restored it into random database `agent_restore_125a39ff965e`, found 4
+migrations, 32 tasks, 105 audit events, the vector extension, and zero orphaned
+audit links. Application database readiness passed, then the disposable database
+was removed.
+
+Result: passed. Encryption/off-host scheduling is not implied.
+
+## EXP-008 — Local and routed inference readiness
+
+Date: 2026-08-15
+
+Observed:
+
+- Ollama contained `qwen3:8b` at 5.2 GB.
+- Qwen3 returned exactly `LOCAL_MODEL_OK` with thinking disabled.
+- `ollama ps` reported GPU placement on the RTX 4070 Laptop GPU.
+- OmniRoute listed 79 models and `free/default` returned a valid completion.
+- Hermes returned exactly `HERMES_READY_OK` through the configured route.
+
+Result: local, routed, and Hermes inference passed. Free-route capacity remains
+volatile and the 8K local context remains intentionally constrained.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

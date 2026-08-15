@@ -19,6 +19,9 @@ class Settings:
     task_queue_key: str
     worker_poll_seconds: int
     worker_lease_seconds: int
+    worker_heartbeat_seconds: int
+    worker_retry_base_seconds: int
+    worker_retry_max_seconds: int
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -31,6 +34,9 @@ class Settings:
             task_queue_key=os.getenv("TASK_QUEUE_KEY", "agent:tasks:ready").strip(),
             worker_poll_seconds=int(os.getenv("WORKER_POLL_SECONDS", "5")),
             worker_lease_seconds=int(os.getenv("WORKER_LEASE_SECONDS", "120")),
+            worker_heartbeat_seconds=int(os.getenv("WORKER_HEARTBEAT_SECONDS", "10")),
+            worker_retry_base_seconds=int(os.getenv("WORKER_RETRY_BASE_SECONDS", "5")),
+            worker_retry_max_seconds=int(os.getenv("WORKER_RETRY_MAX_SECONDS", "300")),
         )
         settings.validate()
         return settings
@@ -56,6 +62,16 @@ class Settings:
             raise ConfigurationError("WORKER_POLL_SECONDS must be between 1 and 60")
         if not 30 <= self.worker_lease_seconds <= 3600:
             raise ConfigurationError("WORKER_LEASE_SECONDS must be between 30 and 3600")
+        if not 1 <= self.worker_heartbeat_seconds <= self.worker_lease_seconds // 2:
+            raise ConfigurationError(
+                "WORKER_HEARTBEAT_SECONDS must be at least 1 and no more than half the lease"
+            )
+        if not 1 <= self.worker_retry_base_seconds <= 300:
+            raise ConfigurationError("WORKER_RETRY_BASE_SECONDS must be between 1 and 300")
+        if not self.worker_retry_base_seconds <= self.worker_retry_max_seconds <= 3600:
+            raise ConfigurationError(
+                "WORKER_RETRY_MAX_SECONDS must be between the retry base and 3600"
+            )
 
 
 @lru_cache(maxsize=1)
