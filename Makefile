@@ -1,4 +1,4 @@
-.PHONY: init config build up down logs ps health test lint smoke recovery-smoke lifecycle-smoke agent-smoke backup restore-drill readiness agent-up local-model-up doctor clean
+.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke recovery-smoke lifecycle-smoke agent-smoke backup restore-drill readiness agent-up local-model-up doctor clean
 
 init:
 	powershell -ExecutionPolicy Bypass -File scripts/init-env.ps1
@@ -11,6 +11,9 @@ build:
 
 up:
 	docker compose up -d --build
+
+dashboard:
+	powershell -ExecutionPolicy Bypass -File scripts/open-dashboard.ps1 -LocalModel -CopyToken
 
 agent-up:
 	docker compose --profile agent up -d
@@ -41,6 +44,9 @@ lint:
 
 smoke:
 	powershell -ExecutionPolicy Bypass -File scripts/smoke.ps1
+
+career-smoke:
+	powershell -ExecutionPolicy Bypass -File scripts/career-smoke.ps1 -Draft
 
 recovery-smoke:
 	powershell -ExecutionPolicy Bypass -File scripts/recovery-smoke.ps1

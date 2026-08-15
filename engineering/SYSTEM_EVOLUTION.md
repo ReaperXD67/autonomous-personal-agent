@@ -60,8 +60,25 @@ sanitized check metadata. Cached local models are reused by default to avoid
 coupling a valid offline inference path to registry availability; exact response
 and GPU-placement verification remain required.
 
+## v0.7 — Private command center and career missions (2026-08-15)
+
+The control API now serves a same-origin private web command center for missions,
+fresh opportunities, tasks, approvals, and audit activity. PostgreSQL remains
+authoritative for career profiles, source-attributed opportunities, and local
+application packs. A dedicated career worker is the only core worker with
+outbound access; its job-source hosts, redirects, sizes, timeouts, and public ATS
+board slugs are bounded.
+
+Active profiles persist their next run and create scheduled work through the
+same policy, audit, transactional outbox, lease, and retry path as user-created
+tasks. Résumé text does not enter task payloads, queue envelopes, audit metadata,
+or public source requests. Local Qwen creates structured truthful preparation
+packs, but no generic job-form submit capability exists. The system records a
+user-completed application only after the user submits on the official site.
+
 ## Next architectural pressure
 
 Per-user identity, rate limits, correlated telemetry, encrypted off-host backup
-automation, and a policy-bound Hermes adapter remain the production/readiness
+automation, a private VPS ingress profile, site-specific approval-gated submit
+adapters, and a policy-bound Hermes adapter remain the production/readiness
 priorities.

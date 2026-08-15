@@ -11,11 +11,14 @@ def make_settings(**overrides: object) -> Settings:
         "database_url": "postgresql://user:pass@db/test",
         "redis_url": "redis://:pass@redis:6379/0",
         "task_queue_key": "agent:tasks:ready",
+        "job_queue_key": "agent:jobs:ready",
         "worker_poll_seconds": 5,
         "worker_lease_seconds": 120,
         "worker_heartbeat_seconds": 10,
         "worker_retry_base_seconds": 5,
         "worker_retry_max_seconds": 300,
+        "career_scheduler_seconds": 30,
+        "local_model": "qwen3:8b",
     }
     values.update(overrides)
     return Settings(**values)
@@ -48,3 +51,8 @@ def test_rejects_heartbeat_that_cannot_renew_before_half_lease() -> None:
 def test_rejects_retry_max_below_retry_base() -> None:
     with pytest.raises(ConfigurationError, match="WORKER_RETRY_MAX_SECONDS"):
         make_settings(worker_retry_base_seconds=30, worker_retry_max_seconds=20).validate()
+
+
+def test_rejects_overeager_career_scheduler() -> None:
+    with pytest.raises(ConfigurationError, match="CAREER_SCHEDULER_SECONDS"):
+        make_settings(career_scheduler_seconds=5).validate()

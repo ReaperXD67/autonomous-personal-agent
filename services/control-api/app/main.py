@@ -3,27 +3,47 @@ from __future__ import annotations
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import Response as FastAPIResponse
 
 from app.auth import require_api_token
+from app.career_models import (
+    AuditEventView,
+    CareerProfileCreate,
+    CareerProfileUpdate,
+    CareerProfileView,
+    OpportunityStateUpdate,
+    OpportunityView,
+)
+from app.career_store import (
+    CareerProfileNotFoundError,
+    CareerStore,
+    OpportunityNotFoundError,
+)
 from app.logging_config import configure_logging
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate, TaskView
+from app.policy import RiskLevel
 from app.settings import get_settings
 from app.store import Database, InvalidTaskStateError, TaskNotFoundError
 
 settings = get_settings()
 configure_logging(settings.log_level)
 logger = logging.getLogger("control-api")
+dashboard_html = (Path(__file__).parent / "web" / "index.html").read_text(encoding="utf-8")
+dashboard_css = (Path(__file__).parent / "web" / "app.css").read_text(encoding="utf-8")
+dashboard_javascript = (Path(__file__).parent / "web" / "app.js").read_text(encoding="utf-8")
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
     application.state.database = Database(settings.database_url)
+    application.state.career = CareerStore(settings.database_url)
     application.state.redis = redis.Redis.from_url(settings.redis_url, decode_responses=True)
     logger.info("control plane starting", extra={"action": "startup"})
     yield
@@ -61,6 +81,15 @@ async def request_context(request: Request, call_next):
         )
         raise
     response.headers["x-correlation-id"] = str(correlation_id)
+    response.headers["x-content-type-options"] = "nosniff"
+    response.headers["x-frame-options"] = "DENY"
+    response.headers["referrer-policy"] = "no-referrer"
+    response.headers["permissions-policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["content-security-policy"] = (
+        "default-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+        "form-action 'none'; img-src 'self' data:; style-src 'self'; "
+        "script-src 'self'; connect-src 'self'"
+    )
     logger.info(
         "request completed",
         extra={
@@ -79,6 +108,25 @@ def _database(request: Request) -> Database:
 
 def _redis(request: Request) -> redis.Redis:
     return request.app.state.redis
+
+
+def _career(request: Request) -> CareerStore:
+    return request.app.state.career
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+def dashboard() -> str:
+    return dashboard_html
+
+
+@app.get("/assets/app.css", include_in_schema=False)
+def dashboard_styles() -> FastAPIResponse:
+    return FastAPIResponse(content=dashboard_css, media_type="text/css")
+
+
+@app.get("/assets/app.js", include_in_schema=False)
+def dashboard_script() -> FastAPIResponse:
+    return FastAPIResponse(content=dashboard_javascript, media_type="text/javascript")
 
 
 @app.get("/health/live")
@@ -110,6 +158,7 @@ def system_status(request: Request) -> dict[str, Any]:
         "environment": settings.environment,
         "task_counts": _database(request).status_counts(),
         "queue_depth": _redis(request).llen(settings.task_queue_key),
+        "job_queue_depth": _redis(request).llen(settings.job_queue_key),
     }
 
 
@@ -123,6 +172,9 @@ def metrics(request: Request) -> str:
         "# HELP autonomous_agent_queue_depth Ready task queue depth.",
         "# TYPE autonomous_agent_queue_depth gauge",
         f"autonomous_agent_queue_depth {_redis(request).llen(settings.task_queue_key)}",
+        "# HELP autonomous_agent_job_queue_depth Ready career-task queue depth.",
+        "# TYPE autonomous_agent_job_queue_depth gauge",
+        f"autonomous_agent_job_queue_depth {_redis(request).llen(settings.job_queue_key)}",
         "# HELP autonomous_agent_tasks_total Tasks by current status.",
         "# TYPE autonomous_agent_tasks_total gauge",
     ]
@@ -141,6 +193,149 @@ def metrics(request: Request) -> str:
 )
 def create_task(request: Request, payload: TaskCreate) -> dict[str, Any]:
     return _database(request).create_task(payload)
+
+
+@app.get(
+    "/v1/tasks",
+    response_model=list[TaskView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_tasks(
+    request: Request,
+    task_status: str | None = Query(default=None, alias="status", max_length=30),
+    kind_prefix: str | None = Query(default=None, max_length=100),
+    limit: int = Query(default=100, ge=1, le=200),
+) -> list[dict[str, Any]]:
+    return _database(request).list_tasks(
+        task_status=task_status, kind_prefix=kind_prefix, limit=limit
+    )
+
+
+@app.get(
+    "/v1/audit-events",
+    response_model=list[AuditEventView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_audit_events(
+    request: Request,
+    task_id: UUID | None = None,
+    limit: int = Query(default=100, ge=1, le=200),
+) -> list[dict[str, Any]]:
+    return _database(request).list_audit_events(task_id=task_id, limit=limit)
+
+
+@app.post(
+    "/v1/career/profiles",
+    response_model=CareerProfileView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def create_career_profile(
+    request: Request, payload: CareerProfileCreate
+) -> dict[str, Any]:
+    return _career(request).create_profile(payload)
+
+
+@app.get(
+    "/v1/career/profiles",
+    response_model=list[CareerProfileView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_career_profiles(request: Request) -> list[dict[str, Any]]:
+    return _career(request).list_profiles()
+
+
+@app.put(
+    "/v1/career/profiles/{profile_id}",
+    response_model=CareerProfileView,
+    dependencies=[Depends(require_api_token)],
+)
+def update_career_profile(
+    request: Request, profile_id: UUID, payload: CareerProfileUpdate
+) -> dict[str, Any]:
+    try:
+        return _career(request).update_profile(profile_id, payload)
+    except CareerProfileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Career profile not found") from exc
+
+
+@app.post(
+    "/v1/career/profiles/{profile_id}/scan",
+    response_model=TaskView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def scan_career_profile(request: Request, profile_id: UUID) -> dict[str, Any]:
+    try:
+        profile = _career(request).get_profile(profile_id)
+    except CareerProfileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Career profile not found") from exc
+    return _database(request).create_task(
+        TaskCreate(
+            title=f"Scan fresh jobs for {profile['name']}",
+            kind="career.search",
+            payload={"profile_id": str(profile_id), "trigger": "manual"},
+            risk_level=RiskLevel.LOW,
+            requested_by="dashboard:career",
+            idempotency_key=f"career-manual-scan:{profile_id}:{uuid4()}",
+        )
+    )
+
+
+@app.get(
+    "/v1/career/opportunities",
+    response_model=list[OpportunityView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_career_opportunities(
+    request: Request,
+    profile_id: UUID | None = None,
+    opportunity_status: str | None = Query(default=None, alias="status", max_length=30),
+    limit: int = Query(default=100, ge=1, le=300),
+) -> list[dict[str, Any]]:
+    return _career(request).list_opportunities(
+        profile_id=profile_id, opportunity_status=opportunity_status, limit=limit
+    )
+
+
+@app.patch(
+    "/v1/career/opportunities/{opportunity_id}",
+    response_model=OpportunityView,
+    dependencies=[Depends(require_api_token)],
+)
+def update_career_opportunity(
+    request: Request, opportunity_id: UUID, payload: OpportunityStateUpdate
+) -> dict[str, Any]:
+    try:
+        return _career(request).update_opportunity_state(opportunity_id, payload)
+    except OpportunityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Opportunity not found") from exc
+
+
+@app.post(
+    "/v1/career/opportunities/{opportunity_id}/draft",
+    response_model=TaskView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def draft_career_application(request: Request, opportunity_id: UUID) -> dict[str, Any]:
+    try:
+        opportunity = _career(request).get_opportunity(opportunity_id)
+    except OpportunityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Opportunity not found") from exc
+    return _database(request).create_task(
+        TaskCreate(
+            title=f"Prepare truthful application draft for {opportunity['title']}",
+            kind="career.application_draft",
+            payload={
+                "profile_id": str(opportunity["profile_id"]),
+                "opportunity_id": str(opportunity_id),
+            },
+            risk_level=RiskLevel.MEDIUM,
+            requested_by="dashboard:career",
+            idempotency_key=f"career-draft:{opportunity_id}:{uuid4()}",
+        )
+    )
 
 
 @app.get(

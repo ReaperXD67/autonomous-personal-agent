@@ -13,7 +13,12 @@ class TaskCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=200)
-    kind: Literal["foundation.echo", "foundation.wait"] = "foundation.echo"
+    kind: Literal[
+        "foundation.echo",
+        "foundation.wait",
+        "career.search",
+        "career.application_draft",
+    ] = "foundation.echo"
     payload: dict[str, Any] = Field(default_factory=dict)
     risk_level: RiskLevel = RiskLevel.LOW
     requested_by: str = Field(min_length=1, max_length=120)

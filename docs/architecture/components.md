@@ -6,8 +6,8 @@
 
 Responsibilities: authentication, request validation, correlation IDs, risk
 policy, task persistence, approval decisions, transactional outbox writes,
-readiness, and minimal Prometheus-format metrics. It does not call LLMs or
-arbitrary tools.
+career mission/opportunity APIs, the same-origin private dashboard, readiness,
+and minimal Prometheus-format metrics. It does not call LLMs or arbitrary tools.
 
 ### Outbox dispatcher
 
@@ -28,9 +28,20 @@ database transaction. A stale worker cannot complete a lease it no longer owns.
 Cancellation is cooperative while running and immediate before claim. Stale
 queue messages are discarded when PostgreSQL state is not `queued`.
 
+### Career worker
+
+Consumes a separate career-ready queue but claims the same durable tasks and
+leases. It schedules due active profiles through the control-plane database
+policy/outbox path, reads only reviewed public Arbeitnow/Ashby/Greenhouse APIs,
+scores fresh listings deterministically, and persists opportunities. Draft tasks
+send the selected job plus the stored résumé only to internal Ollama and persist
+structured results. It has outbound edge, data, and model networks but no host
+mount, Docker socket, or published port.
+
 ### PostgreSQL + pgvector
 
-Owns durable tasks, approvals, audit events, outbox rows, memory records, and embeddings.
+Owns durable tasks, approvals, audit events, outbox rows, career profiles,
+opportunities, application drafts, memory records, and embeddings.
 Schema is initialized and upgraded by a one-shot migration service before the
 runtime starts. PostgreSQL lifecycle stays independent
 from application images, upgrades, and backups.
@@ -65,12 +76,11 @@ authenticated catalog and `free/default` inference path passed locally.
 
 ## Planned components
 
-- scheduler that creates durable tasks before publishing queue messages;
 - browser worker with disposable sessions and domain policy;
 - email worker split into read/classify, draft, and send permissions;
 - coding worker isolated per repository/worktree;
 - MCP policy adapter translating registry decisions to runtime grants;
-- Telegram and web interfaces calling the control API;
+- Telegram interface calling the control API;
 - OpenTelemetry collector and dashboard stack when operational load warrants it.
 
 ## Boundary rule

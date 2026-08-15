@@ -32,7 +32,8 @@
 - [ ] Hermes adapter that creates control-plane tasks instead of bypassing policy
 - [ ] Model routing tests, fallback canary, usage/cost audit metadata
 - [ ] Safe memory writer/retriever with provenance and deletion policy
-- [ ] Scheduler that persists jobs before queue publication
+- [x] Career scheduler persists tasks through the policy/outbox path before queue publication
+- [ ] General-purpose scheduler beyond career missions
 
 ## Phase 3 — curated tools
 
@@ -46,9 +47,12 @@
 
 - [ ] Telegram control with pairing and allowlist
 - [ ] Email read/classify, then draft, then separately gated send
-- [ ] Job discovery/tracking; every submission approval-gated
+- [x] Fresh-job discovery/tracking from reviewed public sources
+- [x] Local résumé evidence and cover-letter drafting
+- [ ] Site-specific application form adapters; every submission approval-gated
 - [ ] Calendar/Drive/Notion/task-manager integrations by scoped profile
-- [ ] Web UI for tasks, approvals, audit timelines, and budgets
+- [x] Private web UI for missions, opportunities, tasks, approvals, and audit timelines
+- [ ] Budget/usage UI and per-user identity
 
 ## Never autonomous by default
 

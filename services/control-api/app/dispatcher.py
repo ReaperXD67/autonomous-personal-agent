@@ -60,7 +60,12 @@ def run() -> None:
             if stopping:
                 break
             try:
-                client.lpush(settings.task_queue_key, json.dumps(event["payload"]))
+                queue_key = (
+                    settings.job_queue_key
+                    if event["topic"] == "career.ready"
+                    else settings.task_queue_key
+                )
+                client.lpush(queue_key, json.dumps(event["payload"]))
                 database.mark_outbox_published(event["id"])
                 logger.info(
                     "outbox event published",

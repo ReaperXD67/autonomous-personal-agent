@@ -16,3 +16,5 @@ def test_initial_status_follows_approval_policy() -> None:
 def test_caller_can_escalate_but_not_lower_capability_risk() -> None:
     assert effective_risk("foundation.echo", RiskLevel.HIGH) == RiskLevel.HIGH
     assert effective_risk("foundation.wait", RiskLevel.LOW) == RiskLevel.MEDIUM
+    assert effective_risk("career.search", RiskLevel.LOW) == RiskLevel.LOW
+    assert effective_risk("career.application_draft", RiskLevel.LOW) == RiskLevel.MEDIUM

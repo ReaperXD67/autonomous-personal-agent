@@ -17,11 +17,14 @@ class Settings:
     database_url: str
     redis_url: str
     task_queue_key: str
+    job_queue_key: str
     worker_poll_seconds: int
     worker_lease_seconds: int
     worker_heartbeat_seconds: int
     worker_retry_base_seconds: int
     worker_retry_max_seconds: int
+    career_scheduler_seconds: int
+    local_model: str
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -32,11 +35,14 @@ class Settings:
             database_url=os.getenv("DATABASE_URL", "").strip(),
             redis_url=os.getenv("REDIS_URL", "").strip(),
             task_queue_key=os.getenv("TASK_QUEUE_KEY", "agent:tasks:ready").strip(),
+            job_queue_key=os.getenv("JOB_QUEUE_KEY", "agent:jobs:ready").strip(),
             worker_poll_seconds=int(os.getenv("WORKER_POLL_SECONDS", "5")),
             worker_lease_seconds=int(os.getenv("WORKER_LEASE_SECONDS", "120")),
             worker_heartbeat_seconds=int(os.getenv("WORKER_HEARTBEAT_SECONDS", "10")),
             worker_retry_base_seconds=int(os.getenv("WORKER_RETRY_BASE_SECONDS", "5")),
             worker_retry_max_seconds=int(os.getenv("WORKER_RETRY_MAX_SECONDS", "300")),
+            career_scheduler_seconds=int(os.getenv("CAREER_SCHEDULER_SECONDS", "30")),
+            local_model=os.getenv("LOCAL_MODEL", "qwen3:8b").strip(),
         )
         settings.validate()
         return settings
@@ -49,6 +55,8 @@ class Settings:
                 ("DATABASE_URL", self.database_url),
                 ("REDIS_URL", self.redis_url),
                 ("TASK_QUEUE_KEY", self.task_queue_key),
+                ("JOB_QUEUE_KEY", self.job_queue_key),
+                ("LOCAL_MODEL", self.local_model),
             )
             if not value
         ]
@@ -72,6 +80,8 @@ class Settings:
             raise ConfigurationError(
                 "WORKER_RETRY_MAX_SECONDS must be between the retry base and 3600"
             )
+        if not 10 <= self.career_scheduler_seconds <= 300:
+            raise ConfigurationError("CAREER_SCHEDULER_SECONDS must be between 10 and 300")
 
 
 @lru_cache(maxsize=1)

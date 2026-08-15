@@ -182,6 +182,32 @@ Observed:
 Result: all six configured workstation paths passed. The ignored machine report
 is `runtime/readiness/latest.json`; it contains status/timing metadata only.
 
+## EXP-011 — Live career discovery and local application draft
+
+Date: 2026-08-15
+
+Method: start the rebuilt core plus local-model profile, load the command-center
+HTML/CSS/JavaScript over loopback, then run `scripts/career-smoke.ps1 -Draft`.
+The smoke selected a current public listing title, created an inactive synthetic
+profile/resume, queued a real career scan through the policy/outbox path, required
+an attributable persisted match, generated a structured draft on local Qwen, and
+removed only the exact synthetic profile.
+
+Observed:
+
+- Dashboard HTML, CSS, and JavaScript returned HTTP 200 at 13,823, 17,047, and
+  27,206 bytes respectively; the HTML response included the self-only content
+  security policy.
+- Search task `39407809-2eac-423f-9f82-aee0901897ad` succeeded after fetching
+  100 live listings and matching 5 within the synthetic profile's fresh window.
+- Draft task `9ea6e366-de07-44a3-b7ac-a30c4ae4a0bd` succeeded with model
+  `qwen3:8b`; a non-empty structured fit summary and cover letter were persisted.
+- The synthetic career profile and its cascaded opportunities/draft were removed
+  by an exact UUID plus `requested_by = 'local-career-smoke'` predicate.
+
+Result: the live no-key discovery and local résumé-to-draft paths passed. This
+does not test or claim external application submission.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

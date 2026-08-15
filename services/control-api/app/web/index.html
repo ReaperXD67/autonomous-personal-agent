@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Private mission control for the Hermes personal agent.">
+  <title>Hermes Command Center</title>
+  <link rel="stylesheet" href="/assets/app.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <div class="brand"><div class="brand-mark">H</div><div><strong>Hermes</strong><small>Command Center</small></div></div>
+      <div class="nav-label">Workspace</div>
+      <button class="nav-item active" data-view-target="overview"><span>⌂</span><span>Overview</span></button>
+      <button class="nav-item" data-view-target="missions"><span>◎</span><span>Missions</span></button>
+      <button class="nav-item" data-view-target="opportunities"><span>↗</span><span>Opportunities</span></button>
+      <button class="nav-item" data-view-target="approvals"><span>✓</span><span>Approvals</span><b id="approval-badge" hidden>0</b></button>
+      <div class="nav-label">System</div>
+      <button class="nav-item" data-view-target="tasks"><span>≋</span><span>Tasks & audit</span></button>
+      <button class="nav-item" data-view-target="settings"><span>⚙</span><span>Settings</span></button>
+      <div class="rail-footer"><strong><span class="pulse warning" id="rail-pulse"></span><span id="rail-status">Connect required</span></strong><p id="rail-copy">Your control token is kept only for this browser tab.</p></div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div><div class="eyebrow" id="page-eyebrow">Private agent workspace</div><h1 id="page-title">Turn intentions into <em>reviewable work.</em></h1><p class="lede" id="page-lede">Run continuous missions while every consequential action remains visible and controlled.</p></div>
+        <div class="top-actions"><span class="last-sync" id="last-sync">Not connected</span><button class="button primary" id="connect-button">Connect workspace</button></div>
+      </header>
+
+      <section class="view active" data-view="overview">
+        <div class="summary" aria-label="Workspace summary">
+          <article class="metric"><small>Fresh matches</small><strong id="metric-matches">—</strong><span>within your freshness window</span></article>
+          <article class="metric"><small>Needs approval</small><strong id="metric-approvals">0</strong><span>high-impact actions</span></article>
+          <article class="metric"><small>Active missions</small><strong id="metric-missions">0</strong><span>continuous schedules</span></article>
+          <article class="metric"><small>System health</small><strong id="metric-health" class="amber">Locked</strong><span>control plane</span></article>
+        </div>
+        <div class="grid primary-grid">
+          <section>
+            <article class="panel"><div class="panel-head"><div><h2>Mission control</h2><small>Continuous work you can pause or switch</small></div><button class="button compact" data-action="new-profile">New career mission</button></div><div class="card-stack" id="overview-missions"><div class="empty-state"><strong>No live missions yet</strong><p>Connect, add your career profile, then choose when job discovery should run.</p></div></div></article>
+            <article class="panel panel-gap"><div class="panel-head"><div><h2>Fresh opportunities</h2><small>Ranked by profile evidence and posting time</small></div><button class="text-button" data-view-jump="opportunities">View all</button></div><div class="job-list" id="overview-opportunities"><div class="empty-state"><strong>Profile needed</strong><p>Fresh matches will appear after your first scan.</p></div></div></article>
+          </section>
+          <aside>
+            <article class="panel"><div class="panel-head"><div><h2>Live activity</h2><small>Latest durable audit events</small></div></div><div class="activity" id="overview-activity"><div class="event"><strong>Workspace is locked</strong><p>Connect to load your real task state.</p></div></div></article>
+            <div class="notice"><strong>Application guard:</strong> discovery and drafting may run automatically. Submitting an application remains a separate, reviewable action.</div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="view" data-view="missions">
+        <div class="section-bar"><div><h2>Career missions</h2><p>Define what to hunt, how fresh it must be, and which reviewed sources to watch.</p></div><button class="button primary" data-action="new-profile">Create mission</button></div>
+        <div class="mission-grid" id="mission-list"><div class="empty-state panel"><strong>No missions created</strong><p>Your first mission can watch jobs and internships every six hours for free.</p></div></div>
+      </section>
+
+      <section class="view" data-view="opportunities">
+        <div class="section-bar"><div><h2>Opportunity inbox</h2><p>Only jobs inside the selected freshness window and above your fit score are retained.</p></div><button class="button" id="scan-now-button">Scan active missions now</button></div>
+        <div class="filters"><select id="opportunity-profile-filter" aria-label="Filter by mission"><option value="">All missions</option></select><select id="opportunity-status-filter" aria-label="Filter by status"><option value="">Active + history</option><option value="new">New</option><option value="shortlisted">Shortlisted</option><option value="dismissed">Dismissed</option><option value="applied">Applied</option></select><span id="opportunity-count">0 opportunities</span></div>
+        <div class="opportunity-grid" id="opportunity-list"><div class="empty-state panel"><strong>No matches yet</strong><p>Create a mission and run a scan.</p></div></div>
+      </section>
+
+      <section class="view" data-view="approvals">
+        <div class="section-bar"><div><h2>Approval inbox</h2><p>High-impact work cannot enter execution until you approve its exact task.</p></div></div>
+        <div class="approval-list" id="approval-list"><div class="empty-state panel"><strong>Nothing waiting</strong><p>Pending approvals will appear here.</p></div></div>
+      </section>
+
+      <section class="view" data-view="tasks">
+        <div class="split-grid">
+          <article class="panel task-composer"><div class="panel-head"><div><h2>Assign a one-off task</h2><small>Use this to verify the task engine independently</small></div></div><form id="task-form" class="form-body"><label>Title<input name="title" required maxlength="200" value="Test Hermes task"></label><label>Capability<select name="kind"><option value="foundation.echo">Echo a safe message</option><option value="foundation.wait">Wait cooperatively</option></select></label><label id="task-message-field">Message<textarea name="message" rows="4" maxlength="2000">Hello from the dashboard</textarea></label><label id="task-seconds-field" hidden>Seconds<input name="seconds" type="number" min="0" max="60" value="5"></label><label>Requested by<input name="requested_by" required maxlength="120" value="dashboard:user"></label><button class="button primary" type="submit">Assign task</button></form></article>
+          <article class="panel"><div class="panel-head"><div><h2>Task timeline</h2><small>Open a task to inspect its audit history</small></div><button class="text-button" id="refresh-button">Refresh</button></div><div class="task-list" id="task-list"><div class="empty-state"><strong>No tasks loaded</strong><p>Connect to inspect durable task state.</p></div></div></article>
+        </div>
+      </section>
+
+      <section class="view" data-view="settings">
+        <div class="settings-grid">
+          <article class="panel setting-card"><span class="tag">Local access</span><h2>Workspace connection</h2><p>The bootstrap token is held only in this tab’s session storage. It is never placed in a URL.</p><button class="button" id="settings-connect">Connect or replace token</button><button class="text-button danger-text" id="disconnect-button">Disconnect this tab</button></article>
+          <article class="panel setting-card"><span class="tag">Free sources</span><h2>Reviewed job access</h2><p>Arbeitnow is available without a key. Add employer board names for public Ashby and Greenhouse feeds; arbitrary URLs are rejected.</p><p class="fine-print">Arbeitnow is polled at most four times per day and must be attributed through its original listing link.</p></article>
+          <article class="panel setting-card"><span class="tag">Private drafting</span><h2>Local résumé tailoring</h2><p>Application drafts use the local Qwen model through Ollama. Your résumé is not sent to public job sources or placed in task payloads.</p><p class="fine-print">Start the local-model profile before generating drafts.</p></article>
+          <article class="panel setting-card warning-card"><span class="tag amber-tag">VPS boundary</span><h2>Do not expose port 8080 publicly yet</h2><p>For VPS testing, reach the dashboard through a private VPN or authenticated TLS reverse proxy. Shared-token access is not production identity.</p></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="connect-dialog" class="dialog compact-dialog"><form method="dialog" id="connect-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Private connection</span><h2>Connect this browser tab</h2><p>Paste the value of <code>CONTROL_API_TOKEN</code> from your ignored <code>.env</code> file.</p><label>Control token<input id="token-input" type="password" autocomplete="off" minlength="32" required></label><p class="fine-print">The token stays in session storage and disappears when the tab session is cleared.</p><button class="button primary full" type="submit">Connect securely</button></form></dialog>
+
+  <dialog id="profile-dialog" class="dialog wide-dialog">
+    <form method="dialog" id="profile-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Career mission</span><h2 id="profile-dialog-title">Create a job-hunt mission</h2><input type="hidden" name="profile_id">
+      <div class="form-grid">
+        <label>Mission name<input name="name" required maxlength="120" placeholder="Fresh software roles"></label><label>Your name<input name="candidate_name" required maxlength="160" placeholder="Name used in drafts"></label>
+        <label class="span-2">Target titles <small>comma-separated</small><input name="desired_titles" required placeholder="Software Engineer, Backend Intern, AI Engineer"></label><label class="span-2">Skills <small>comma-separated</small><input name="skills" placeholder="Python, FastAPI, PostgreSQL, Docker"></label>
+        <label>Must mention at least one<input name="required_keywords" placeholder="intern, graduate"></label><label>Exclude when mentioned<input name="excluded_keywords" placeholder="senior, staff, unpaid"></label>
+        <label>Locations<input name="locations" placeholder="India, Bengaluru, Remote"></label><label class="checkbox-row"><input name="remote_only" type="checkbox"> Remote roles only</label>
+        <label>Maximum age<select name="max_age_hours"><option value="24">24 hours</option><option value="48">48 hours</option><option value="72" selected>72 hours</option><option value="168">7 days</option></select></label><label>Minimum fit score<input name="min_score" type="number" min="0" max="100" value="45"></label>
+        <label>Scan schedule<select name="schedule_minutes"><option value="360">Every 6 hours</option><option value="720">Every 12 hours</option><option value="1440">Every day</option><option value="10080">Every week</option></select></label>
+        <fieldset><legend>Employment types</legend><label class="check"><input type="checkbox" name="employment_types" value="Intern"> Internship</label><label class="check"><input type="checkbox" name="employment_types" value="FullTime"> Full-time</label><label class="check"><input type="checkbox" name="employment_types" value="Contract"> Contract</label><label class="check"><input type="checkbox" name="employment_types" value="PartTime"> Part-time</label></fieldset>
+        <fieldset><legend>Job sources</legend><label class="check"><input type="checkbox" name="arbeitnow" checked> Arbeitnow public API</label><label>Ashby board names<input name="ashby_boards" placeholder="company-one, company-two"></label><label>Greenhouse board names<input name="greenhouse_boards" placeholder="company-one, company-two"></label></fieldset>
+        <label class="span-2">Résumé text <small id="resume-help">Paste plain text. Stored privately; never sent to job sources.</small><textarea name="resume_text" rows="10" maxlength="100000" placeholder="Paste the text from your résumé here..."></textarea></label><label class="checkbox-row span-2"><input name="active" type="checkbox"> Keep this mission running automatically while the stack is online</label>
+      </div><div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit" value="default">Save mission</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="detail-dialog" class="dialog detail-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><div id="detail-content"></div></form></dialog>
+  <dialog id="audit-dialog" class="dialog detail-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Audit trail</span><h2 id="audit-title">Task history</h2><div class="activity" id="audit-list"></div></form></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

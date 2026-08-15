@@ -7,7 +7,7 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $projectRoot
 try {
-    $required = @('postgres', 'redis', 'control-api', 'dispatcher', 'worker')
+    $required = @('postgres', 'redis', 'control-api', 'dispatcher', 'worker', 'job-worker')
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $states = @{}
     do {

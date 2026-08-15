@@ -79,12 +79,13 @@ class Database:
 
     @staticmethod
     def _add_outbox(connection: psycopg.Connection[Any], task: dict[str, Any]) -> None:
+        topic = "career.ready" if task["kind"].startswith("career.") else "task.ready"
         connection.execute(
             """
             INSERT INTO task_outbox (
                 task_id, correlation_id, topic, payload, available_at
             )
-            VALUES (%s, %s, 'task.ready', %s, %s)
+            VALUES (%s, %s, %s, %s, %s)
             ON CONFLICT (task_id, topic) DO UPDATE
             SET correlation_id = EXCLUDED.correlation_id,
                 payload = EXCLUDED.payload,
@@ -95,6 +96,7 @@ class Database:
             (
                 task["id"],
                 task["correlation_id"],
+                topic,
                 Jsonb(
                     {
                         "task_id": str(task["id"]),
@@ -167,6 +169,39 @@ class Database:
         if row is None:
             raise TaskNotFoundError(str(task_id))
         return row
+
+    def list_tasks(
+        self,
+        *,
+        task_status: str | None = None,
+        kind_prefix: str | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            return connection.execute(
+                """
+                SELECT * FROM agent_tasks
+                WHERE (%s IS NULL OR status = %s)
+                  AND (%s IS NULL OR kind LIKE (%s || '%%'))
+                ORDER BY created_at DESC
+                LIMIT %s
+                """,
+                (task_status, task_status, kind_prefix, kind_prefix, limit),
+            ).fetchall()
+
+    def list_audit_events(
+        self, *, task_id: UUID | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            return connection.execute(
+                """
+                SELECT * FROM audit_events
+                WHERE (%s::uuid IS NULL OR task_id = %s)
+                ORDER BY occurred_at DESC
+                LIMIT %s
+                """,
+                (task_id, task_id, limit),
+            ).fetchall()
 
     def list_dead_letters(self, limit: int = 50) -> list[dict[str, Any]]:
         with self.connect() as connection:
@@ -389,7 +424,7 @@ class Database:
                 correlation_id=row["correlation_id"],
                 task_id=row["id"],
                 actor_type="worker",
-                actor_id="foundation-worker",
+                actor_id=task["claimed_by"] or "worker",
                 tool_name=row["kind"],
                 action="task.succeeded",
                 risk_level=row["risk_level"],
@@ -476,7 +511,7 @@ class Database:
                 correlation_id=row["correlation_id"],
                 task_id=row["id"],
                 actor_type="worker",
-                actor_id="foundation-worker",
+                actor_id=task["claimed_by"] or "worker",
                 tool_name=row["kind"],
                 action="task.failed",
                 risk_level=row["risk_level"],

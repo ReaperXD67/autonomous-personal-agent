@@ -12,3 +12,4 @@ history.
 - [ADR-0006](ADR-0006-free-inference-and-coding-workers.md): free inference and coding workers
 - [ADR-0007](ADR-0007-durable-execution-lifecycle.md): durable execution lifecycle and restore policy
 - [ADR-0008](ADR-0008-required-supply-chain-gates.md): required supply-chain gates and SBOM
+- [ADR-0009](ADR-0009-private-career-missions.md): private career missions and review-before-submission

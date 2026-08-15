@@ -872,3 +872,93 @@ off-host backup, release signing, messaging credentials, and provider terms
 remain user-owned gates. The planned Hermes control-plane adapter, telemetry,
 memory, scheduler, MCP/browser/coding workers, and messaging/UI features remain
 engineering work and are not represented as complete.
+
+## Step 15 — Add the private command center and durable career missions
+
+Date: 2026-08-15
+
+### Objective
+
+Make the first real personal workflow testable from a website: continuously hunt
+only fresh jobs/internships, rank them against a user profile, prepare truthful
+local application material, let the user switch missions without code changes,
+and preserve the existing policy/audit boundary.
+
+### Research and decision
+
+Verified official public interfaces for Arbeitnow, Ashby, and Greenhouse.
+Remotive was not enabled because its official public-API documentation says
+listings are delayed 24 hours, conflicting with a fresh-only mission. Selected a
+same-origin dashboard, a dedicated egress worker, durable PostgreSQL scheduling,
+and local Qwen structured drafts. ADR-0009 records why generic application form
+submission remains absent and each future side effect must be approval-gated.
+
+### Implementation
+
+- Added a responsive command-center website for missions, fresh opportunities,
+  approvals, tasks, and audit timelines. The token is held in tab session storage
+  and the API serves external static assets under a self-only CSP.
+- Added migration 005 for career profiles, source-attributed opportunities, and
+  structured application drafts with indexes, bounds, and cascades.
+- Added authenticated profile/opportunity/task/audit APIs without exposing raw
+  résumé text in profile responses.
+- Added allowlisted Arbeitnow, Ashby, and Greenhouse readers with HTTPS/redirect,
+  slug, size, timeout, and freshness controls. Deterministic scoring records its
+  evidence.
+- Added `career.search` and `career.application_draft` policy capabilities, a
+  separate queue, dispatcher routing, and a dedicated hardened career worker.
+  Scheduled scans create durable tasks through the same policy/outbox path.
+- Added local Ollama structured drafting with prompt-injection instructions,
+  résumé-only evidence, output bounds, and no raw résumé in task/audit/source
+  payloads.
+- Added `open-dashboard.ps1` for the first user run and a disposable
+  `career-smoke.ps1` for real live-source and local-model verification.
+- Added tests, health/build coverage, ADR/research/operations documentation, and
+  synchronized roadmap, architecture, security, README, evolution, and manual
+  setup claims.
+
+### Problems encountered and resolution
+
+- Inline dashboard assets conflicted with a strict content-security policy. CSS
+  and JavaScript were packaged as same-origin assets so no unsafe CSP exception
+  was required.
+- The first lint pass found import ordering, line length, typing, and security
+  warnings across the new source adapter and tests. Each was corrected before
+  live validation.
+- A connection retry could use stale dashboard state after a non-auth API error.
+  The refresh function now returns an explicit connection result.
+- Mission configuration originally allowed every source to be disabled. Schema
+  validation now requires at least one reviewed source.
+
+### Validation
+
+- Compose configuration and all runtime/test image builds passed.
+- Ruff passed; Pytest passed 33 tests in 1.10 seconds.
+- Dashboard HTML/CSS/JavaScript returned HTTP 200 with the expected strict CSP.
+- The career smoke fetched 100 live listings, persisted 5 fresh matches, and
+  generated a structured application draft with local `qwen3:8b`; its synthetic
+  profile was removed using an exact guarded cleanup predicate.
+- The full verification gate passed all six service health checks, safe and
+  approved tasks, lease retry/exhaustion, queued/running cancellation, and
+  dead-letter inspection.
+- `doctor.ps1 -Agent` passed, OmniRoute listed 79 models, and `free/default`
+  inference passed. Bounded runtime logs contained no traceback, ERROR, CRITICAL,
+  or unhandled-request entry. Git whitespace validation passed.
+
+### Security and operational implications
+
+The career worker is the only core execution service with outbound egress and
+has no published port, Docker socket, or host mount. Resume content remains
+durable private data and must be covered by VPS backup/secrets policy. The web UI
+is safe only as a private administrator interface while one service-wide bearer
+token exists. Laptop sleep stops schedules; an always-on VPS requires private
+ingress, patching, encrypted backups, and enough compute for the selected local
+model.
+
+### Not implemented
+
+No application is submitted automatically. There is no generic browser worker,
+job-site login/CAPTCHA handling, OIDC/RBAC, public TLS/rate-limited ingress,
+email/Telegram adapter, or broad MCP/coding worker. VPS purchase, domain/DNS,
+private network, personal résumé content, target-company board selection, and
+final submission consent remain user-owned setup.

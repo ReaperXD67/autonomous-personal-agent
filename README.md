@@ -6,7 +6,7 @@
 
 [![CI](https://github.com/ReaperXD67/autonomous-personal-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/ReaperXD67/autonomous-personal-agent/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Status: foundation](https://img.shields.io/badge/status-foundation-16a085.svg)](#implemented-now)
+[![Status: local alpha](https://img.shields.io/badge/status-local_alpha-16a085.svg)](#implemented-now)
 
 **A control plane for useful autonomy: durable work, explicit approvals, and an audit trail by default.**
 
@@ -16,9 +16,10 @@ containerized workers, persistent memory storage, model-routing boundaries,
 and a curated MCP policy layer before broad autonomy is enabled.
 
 > [!IMPORTANT]
-> **Foundation status:** core infrastructure works locally. Email, job
-> applications, Telegram, browser automation, coding agents, and unrestricted
-> MCP access are planned—not implemented.
+> **Local-alpha status:** the private web dashboard, scheduled fresh-job
+> discovery, matching, tracking, and local application drafting work. Application
+> submission, email, Telegram, browser automation, coding workers, and broad MCP
+> access are not enabled. Never expose the dashboard port directly to the internet.
 
 ## Why this exists
 
@@ -33,7 +34,10 @@ and human approval for high-impact actions.
 |---|---|---|
 | Container-first local stack | Implemented | Docker Compose; no project Python, Node, Redis, or PostgreSQL install on Windows |
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
+| Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080` |
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
+| Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, and Greenhouse APIs; freshness filters, evidence scoring, and durable tracking |
+| Application preparation | Verified locally | Qwen3 8B creates a truthful structured résumé/cover-letter pack locally; submission remains manual |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -41,19 +45,22 @@ and human approval for high-impact actions.
 | Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
-| Full autonomous features | Planned | See [roadmap](docs/roadmap.md) |
+| External submission and messaging | Planned | Each consequential side effect remains approval-gated; see [roadmap](docs/roadmap.md) |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U["User / future Telegram / web UI"] --> API["Control API"]
+    U["Private web dashboard / future Telegram"] --> API["Control API"]
     API --> POLICY["Risk policy + approval gate"]
     POLICY -->|"approved / low risk"| OB["Transactional outbox"]
     POLICY -->|"high impact"| A["Pending human approval"]
     OB --> D["Outbox dispatcher"]
     D --> Q["Redis ready queue"]
     Q --> W["Worker"]
+    Q --> JW["Career worker"]
+    JW --> JS["Allowlisted public job APIs"]
+    JW --> LM["Local Qwen draft"]
     API --> PG[("PostgreSQL + pgvector")]
     W --> PG
     W --> AUDIT["Audit events"]
@@ -77,14 +84,17 @@ is already part of Windows.
 git clone https://github.com/ReaperXD67/autonomous-personal-agent.git
 cd autonomous-personal-agent
 ./scripts/init-env.ps1
-./scripts/up.ps1
-./scripts/health.ps1
-./scripts/smoke.ps1
-./scripts/doctor.ps1 -Agent
+./scripts/open-dashboard.ps1 -LocalModel -CopyToken
 ```
 
-Open health endpoint at `http://127.0.0.1:8080/health/ready`. PostgreSQL and
-Redis have no published host ports.
+The command starts and checks the stack, opens `http://127.0.0.1:8080`, and
+copies the private connection token without printing it. Paste that token into
+the dashboard. PostgreSQL, Redis, and Ollama have no published host ports.
+
+Create a career mission, paste résumé text, choose titles/skills/locations and a
+24–168 hour freshness window, then click **Scan now**. Activate the mission to
+repeat the scan every 6 hours or longer while the machine is running. See the
+[dashboard and career guide](docs/operations/dashboard-and-career.md).
 
 Stop cleanly:
 
@@ -98,8 +108,10 @@ Stop cleanly:
 |---|---|---|
 | `./scripts/init-env.ps1` | `make init` | Create ignored `.env` with random local secrets |
 | `./scripts/up.ps1` | `make up` | Build and start core stack |
+| `./scripts/open-dashboard.ps1 -LocalModel -CopyToken` | `make dashboard` | Start, verify, and open the private website with local drafting |
 | `./scripts/health.ps1` | `make health` | Check container and dependency readiness |
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
+| `./scripts/career-smoke.ps1 -Draft` | `make career-smoke` | Verify live fresh-job ingestion and a local structured draft using disposable synthetic data |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
 | `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |
 | `./scripts/agent-smoke.ps1` | `make agent-smoke` | Verify configured OmniRoute model inference |
@@ -184,6 +196,7 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 | Data | Store | Durability |
 |---|---|---|
 | Tasks, approvals, audits | PostgreSQL | Authoritative, backed up |
+| Career missions, matches, draft packs | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads |
 | Long-term memory and embeddings | PostgreSQL + pgvector | Authoritative, backed up |
 | Ready queue, cache, transient state | Redis | Recoverable; AOF enabled, not authoritative |
 | Hermes state | `hermes_data` volume | Optional; back up after onboarding |
@@ -219,6 +232,7 @@ tests/                    repository security/Compose contracts
 - [Dependency risk register](docs/security/dependency-risk-register.md)
 - [MCP security](docs/security/mcp-security.md)
 - [Local operations](docs/operations/local-development.md)
+- [Dashboard, job-hunt testing, and switching missions](docs/operations/dashboard-and-career.md)
 - [Manual setup remaining](docs/operations/manual-setup.md)
 - [Free agent/model research](docs/research/free-agent-stack-2026-08.md)
 - [Engineering journal](engineering/ENGINEERING_JOURNAL.md)

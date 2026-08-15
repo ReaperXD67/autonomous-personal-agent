@@ -20,10 +20,11 @@ and rotate after suspected exposure.
 
 ## Ingress
 
-Expose one HTTPS reverse proxy. Do not publish OmniRoute/Hermes admin dashboards
-publicly; access through WireGuard or SSH tunnels. Add authentication, rate
-limits, body-size limits, secure headers, and request timeouts. Set OmniRoute
-secure-cookie mode only after HTTPS exists.
+For the first private deployment, keep the command-center and OmniRoute ports on
+loopback and use WireGuard/Tailscale or SSH tunnels. Do not publish upstream
+admin dashboards. Public HTTPS requires OIDC/RBAC in front of the command
+center, rate limits, body-size limits, secure headers, request timeouts, and TLS.
+The single bootstrap bearer token is insufficient for public internet exposure.
 
 ## Promotion
 
@@ -37,7 +38,8 @@ secure-cookie mode only after HTTPS exists.
 
 ## Still missing for production
 
-Central monitoring, automated encrypted backups, schema migration runner,
-worker leases, rate limiting on control API, TLS proxy configuration, secrets
-manager integration, and incident runbooks.
-
+Central monitoring, automated encrypted off-host backups, rate limiting/OIDC on
+the control API, TLS proxy configuration, secrets-manager integration, signed
+release images, and incident runbooks. Migrations and owned worker leases are
+implemented, but production rollback and restore policy still need rehearsal on
+the chosen VPS.

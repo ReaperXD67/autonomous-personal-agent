@@ -22,15 +22,16 @@ execute tools.
 ### Execution plane
 
 The outbox dispatcher reliably bridges durable PostgreSQL intent to Redis.
-Workers claim queue messages and perform allowlisted capabilities. Foundation
-worker implements only `foundation.echo` and bounded `foundation.wait`; these
-prove success, heartbeat, cancellation, retry, and dead-letter semantics without
-pretending future autonomy already exists.
+Workers claim queue messages and perform allowlisted capabilities. The
+foundation worker implements `foundation.echo` and bounded `foundation.wait`.
+The dedicated career worker implements allowlisted fresh discovery and local
+application drafting while using the same lifecycle, policy, and audit model.
 
 ### Data plane
 
 PostgreSQL is system of record for tasks, approvals, audit events, memory, and
-embeddings. Redis carries ready-queue entries and future cache/scheduler state.
+embeddings, plus career profiles, opportunities, and drafts. Redis carries
+reconstructible ready queues and future cache state.
 Losing Redis may delay work but must not erase authoritative history.
 
 ### Agent and model plane
