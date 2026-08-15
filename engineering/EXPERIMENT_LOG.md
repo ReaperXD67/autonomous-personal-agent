@@ -159,6 +159,29 @@ GitHub Actions run `31892979230` then passed the branch-required clean-checkout
 
 Result: passed locally and in GitHub CI.
 
+## EXP-010 — Complete workstation readiness gate
+
+Date: 2026-08-15
+
+Method: run the default `scripts/readiness.ps1` with no skip switches after
+making the local-model bootstrap reuse an already-installed model unless an
+explicit refresh is requested.
+
+Observed:
+
+- Core lifecycle verification passed in 48.31 seconds.
+- Checksummed disposable restore passed in 5.60 seconds.
+- Environment and optional-agent doctor passed in 2.34 seconds.
+- OmniRoute `free/default` inference passed in 0.33 seconds.
+- Local Qwen3 8B inference passed on GPU in 2.23 seconds.
+- Hermes routed inference passed in 17.19 seconds.
+- The first run exposed a transient pull failure despite a complete cached
+  model. The gate correctly failed; after the bootstrap fix, the complete
+  no-skip rerun passed.
+
+Result: all six configured workstation paths passed. The ignored machine report
+is `runtime/readiness/latest.json`; it contains status/timing metadata only.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

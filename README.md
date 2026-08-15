@@ -109,6 +109,7 @@ Stop cleanly:
 | `./scripts/restore-drill.ps1` | `make restore-drill` | Restore into a random disposable database and validate it |
 | `./scripts/down.ps1` | `make down` | Stop stack without deleting volumes |
 | `./scripts/doctor.ps1` | `make doctor` | Diagnose Docker, WSL, configuration, services, GPU, and agent readiness |
+| `./scripts/readiness.ps1` | `make readiness` | Run the complete core, restore, local/routed-model, and Hermes readiness gate |
 
 ## Optional Hermes + OmniRoute profile
 
@@ -129,6 +130,19 @@ This workstation is onboarded with a scoped inference-only key in ignored
 requires local administrator onboarding and a new scoped key. Use
 [services/hermes/config.example.yaml](services/hermes/config.example.yaml) as the
 reviewed boundary and never treat image health alone as inference readiness.
+
+## Complete test-readiness gate
+
+After first boot, verify the complete configured workstation with one command:
+
+```powershell
+./scripts/readiness.ps1
+```
+
+It runs the full lifecycle suite, disposable database restore, environment
+doctor, OmniRoute route, local GPU model, and Hermes one-shot request. A
+secret-free machine-readable result is written to ignored
+`runtime/readiness/latest.json`. See the [test-readiness guide](docs/operations/test-readiness.md).
 
 ## Completely local, no-token-cost inference
 

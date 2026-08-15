@@ -49,6 +49,15 @@ only after it exits successfully.
 authenticated dead-letter view. `restore-drill.ps1` creates a checksummed dump,
 restores only to a random disposable database, probes it, and removes it.
 
+Before a complete workstation test session, run the composed no-skip gate:
+
+```powershell
+./scripts/readiness.ps1
+```
+
+See [test readiness](test-readiness.md) for its checks, sanitized report, and
+safe first manual tests.
+
 ## Optional inference
 
 ```powershell
@@ -58,8 +67,9 @@ restores only to a random disposable database, probes it, and removes it.
 ```
 
 `agent-smoke.ps1` requires the user-created scoped OmniRoute key in ignored
-`.env`. `local-model.ps1` starts GPU-backed Ollama, downloads the selected model,
-requires `LOCAL_MODEL_OK`, and verifies reported GPU placement. See
+`.env`. `local-model.ps1` starts GPU-backed Ollama, downloads a missing selected
+model or reuses the cached one, requires `LOCAL_MODEL_OK`, and verifies reported
+GPU placement. See
 [manual setup](manual-setup.md).
 
 ## Logs and status

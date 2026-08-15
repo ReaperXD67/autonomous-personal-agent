@@ -66,6 +66,27 @@ def test_restore_drill_uses_a_disposable_database() -> None:
     assert "RESTORE_DATABASE" in source
 
 
+def test_readiness_gate_covers_every_configured_runtime_path() -> None:
+    source = (ROOT / "scripts/readiness.ps1").read_text(encoding="utf-8")
+    for required in (
+        "verify.ps1",
+        "restore-drill.ps1",
+        "doctor.ps1",
+        "agent-smoke.ps1",
+        "local-model.ps1",
+        "HERMES_READY_OK",
+        "runtime/readiness",
+    ):
+        assert required in source
+
+
+def test_local_model_smoke_reuses_a_verified_cached_model() -> None:
+    source = (ROOT / "scripts/local-model.ps1").read_text(encoding="utf-8")
+    assert "ollama list" in source
+    assert "modelInstalled" in source
+    assert "ForcePull" in source
+
+
 def test_repository_agent_guidance_enforces_engineering_records() -> None:
     guidance = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
     for required in (
