@@ -16,7 +16,7 @@ try {
         param([Parameter(Mandatory)][string]$TaskId)
         for ($attempt = 0; $attempt -lt 30; $attempt++) {
             $task = Invoke-RestMethod -Method Get -Uri "$baseUrl/v1/tasks/$TaskId" -Headers $headers
-            if ($task.status -in @('succeeded', 'failed', 'rejected')) { return $task }
+            if ($task.status -in @('succeeded', 'failed', 'rejected', 'cancelled', 'dead_lettered')) { return $task }
             Start-Sleep -Milliseconds 500
         }
         throw "Task $TaskId did not reach a terminal state"
@@ -63,4 +63,3 @@ try {
 finally {
     Pop-Location
 }
-

@@ -17,22 +17,24 @@ corruption:
 ```
 
 Script dumps inside container, copies exact binary to ignored `backups/`, removes
-temporary container file, and prints SHA-256. Encrypt dump before off-host
-transfer.
+the temporary container file, and writes a `.sha256` sidecar. Encrypt both before
+off-host transfer.
 
 ## Restore drill
 
-Restore into a separate disposable Compose project/database, never over live
-data first:
+Run the automated drill against a randomly named disposable database, never the
+live database:
 
-Copy dump into PostgreSQL container, create a distinct `agent_restore` database,
-then run `pg_restore --dbname agent_restore --clean --if-exists --no-owner
---no-acl`. Confirm exact source/destination names before running. A future
-restore-check script will automate this without ever targeting live database.
+```powershell
+./scripts/restore-drill.ps1
+```
 
-Validate migration table, row counts, task/audit linkage, vector extension,
-and application readiness against restored database. Delete test database only
-after validation and with exact target confirmed.
+The script verifies SHA-256, creates only a checked `agent_restore_<random>`
+database, restores without changing ownership, validates migrations, task/audit
+linkage and the vector extension, probes it through application database code,
+then removes only the disposable database. Migration rollback policy is
+roll-forward by default; for incompatible changes, stop writers and restore the
+last verified dump into a new database before changing the application target.
 
 ## Volume backup
 
@@ -44,5 +46,6 @@ PostgreSQL backup.
 
 ## Objectives
 
-Initial proposed RPO: 24 hours; RTO: 4 hours. These are design targets, not met
-SLAs, until scheduled encrypted backups and restore drills are automated.
+Initial proposed RPO: 24 hours; RTO: 4 hours. Restore mechanics are now tested,
+but these remain design targets—not SLAs—until encrypted off-host scheduling and
+alerting are configured.

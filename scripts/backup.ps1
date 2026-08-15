@@ -37,8 +37,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Temporary backup cleanup failed' }
 
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $destinationPath).Hash.ToLowerInvariant()
+    $hashPath = "$destinationPath.sha256"
+    "$hash  $([IO.Path]::GetFileName($destinationPath))" | Set-Content -LiteralPath $hashPath -Encoding ascii
     Write-Host "Backup: $destinationPath"
     Write-Host "SHA256: $hash"
+    Write-Host "Checksum: $hashPath"
     Write-Host 'Encrypt before off-host storage; validate through a separate restore drill.'
 }
 finally {

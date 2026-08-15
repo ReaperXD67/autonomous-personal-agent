@@ -27,9 +27,21 @@ The local model is intentionally modest because the observed 8 GB GPU cannot run
 current Nemotron 3 agentic checkpoints responsibly. Prime Agent remains a future
 isolated coding worker rather than a second privileged orchestrator.
 
+## v0.4 — Owned execution lifecycle and proven restore (2026-08-15)
+
+Task claims now carry unique lease IDs and worker identities. Heartbeats renew
+long work, stale workers cannot commit, cancellation is durable and cooperative,
+retries use bounded exponential delay, and exhausted claims become authenticated
+dead-letter records. Capability policy establishes a minimum risk instead of
+trusting caller labels.
+
+Backups now receive checksum sidecars and a restore drill validates a randomly
+named disposable database through both SQL invariants and application code
+before removing it. Local Qwen3 8B also progressed from prepared to verified on
+GPU.
+
 ## Next architectural pressure
 
-Long-running capabilities need periodic lease heartbeats, cancellation, delayed
-backoff, and dead-letter inspection. Model routing needs verified usage/cost
-metadata. Hermes must create control-plane tasks instead of calling high-impact
-tools directly.
+Production identity, rate limiting, telemetry, encrypted off-host backups, and
+the Hermes control-plane adapter remain ahead of broader tool autonomy. Model
+routes need usage/cost audit metadata before budget-aware orchestration.

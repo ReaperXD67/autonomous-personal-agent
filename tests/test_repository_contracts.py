@@ -48,6 +48,23 @@ def test_worker_lease_migration_is_present() -> None:
     assert "max_attempts" in source
 
 
+def test_execution_lifecycle_migration_and_smoke_are_present() -> None:
+    migration = ROOT / "config/postgres/init/004_execution_lifecycle.sql"
+    smoke = ROOT / "scripts/lifecycle-smoke.ps1"
+    assert migration.exists()
+    assert smoke.exists()
+    source = migration.read_text(encoding="utf-8")
+    for field in ("lease_id", "next_attempt_at", "cancellation_requested_at", "dead_lettered"):
+        assert field in source
+
+
+def test_restore_drill_uses_a_disposable_database() -> None:
+    source = (ROOT / "scripts/restore-drill.ps1").read_text(encoding="utf-8")
+    assert "agent_restore_" in source
+    assert "dropdb" in source
+    assert "RESTORE_DATABASE" in source
+
+
 def test_repository_agent_guidance_enforces_engineering_records() -> None:
     guidance = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
     for required in (

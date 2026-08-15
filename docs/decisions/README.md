@@ -10,3 +10,4 @@ history.
 - [ADR-0004](ADR-0004-approval-and-audit.md): approval/audit ordering
 - [ADR-0005](ADR-0005-upstream-agent-and-mcp-integration.md): upstream/MCP policy
 - [ADR-0006](ADR-0006-free-inference-and-coding-workers.md): free inference and coding workers
+- [ADR-0007](ADR-0007-durable-execution-lifecycle.md): durable execution lifecycle and restore policy

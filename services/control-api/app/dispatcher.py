@@ -43,8 +43,11 @@ def run() -> None:
     logger.info("outbox dispatcher started", extra={"action": "startup"})
 
     while not stopping:
-        recovery = database.recover_expired_tasks()
-        if recovery["recovered"] or recovery["exhausted"]:
+        recovery = database.recover_expired_tasks(
+            retry_base_seconds=settings.worker_retry_base_seconds,
+            retry_max_seconds=settings.worker_retry_max_seconds,
+        )
+        if any(recovery.values()):
             logger.warning(
                 "expired worker leases reconciled",
                 extra={"action": "lease.reconciled", **recovery},
@@ -68,7 +71,12 @@ def run() -> None:
                     },
                 )
             except Exception as exc:
-                database.mark_outbox_failed(event["id"], str(exc))
+                database.mark_outbox_failed(
+                    event["id"],
+                    str(exc),
+                    retry_base_seconds=settings.worker_retry_base_seconds,
+                    retry_max_seconds=settings.worker_retry_max_seconds,
+                )
                 logger.exception(
                     "outbox publish failed",
                     extra={

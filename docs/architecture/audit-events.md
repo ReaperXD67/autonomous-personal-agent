@@ -22,3 +22,8 @@ but forensic timelines use event rows ordered by `occurred_at`. Deletion and
 export policies remain planned because personal data retention requirements
 depend on final deployment jurisdiction and use.
 
+Execution-lifecycle actions include `task.started`, `task.recovered`,
+`task.cancellation_requested`, `task.cancelled`, `task.succeeded`,
+`task.failed`, and `task.dead_lettered`. Retry audit metadata contains only the
+attempt number and delay, never payload contents. Heartbeats update lease state
+without producing one audit row per interval to avoid unbounded audit volume.

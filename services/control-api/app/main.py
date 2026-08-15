@@ -7,12 +7,12 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import redis
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
 from app.auth import require_api_token
 from app.logging_config import configure_logging
-from app.models import ApprovalDecision, TaskCreate, TaskView
+from app.models import ApprovalDecision, TaskCancellation, TaskCreate, TaskView
 from app.settings import get_settings
 from app.store import Database, InvalidTaskStateError, TaskNotFoundError
 
@@ -144,6 +144,17 @@ def create_task(request: Request, payload: TaskCreate) -> dict[str, Any]:
 
 
 @app.get(
+    "/v1/tasks/dead-letters",
+    response_model=list[TaskView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_dead_letters(
+    request: Request, limit: int = Query(default=50, ge=1, le=200)
+) -> list[dict[str, Any]]:
+    return _database(request).list_dead_letters(limit)
+
+
+@app.get(
     "/v1/tasks/{task_id}",
     response_model=TaskView,
     dependencies=[Depends(require_api_token)],
@@ -153,6 +164,24 @@ def get_task(request: Request, task_id: UUID) -> dict[str, Any]:
         return _database(request).get_task(task_id)
     except TaskNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Task not found") from exc
+
+
+@app.post(
+    "/v1/tasks/{task_id}/cancel",
+    response_model=TaskView,
+    dependencies=[Depends(require_api_token)],
+)
+def cancel_task(
+    request: Request,
+    task_id: UUID,
+    cancellation: TaskCancellation,
+) -> dict[str, Any]:
+    try:
+        return _database(request).cancel_task(task_id, cancellation)
+    except TaskNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Task not found") from exc
+    except InvalidTaskStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.post(
