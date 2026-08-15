@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import yaml
@@ -97,3 +98,19 @@ def test_accepted_starlette_advisory_surfaces_are_not_used() -> None:
     )
     for surface in forbidden_surfaces:
         assert surface not in application_source
+
+
+def test_ci_actions_are_immutable_and_security_gates_are_required() -> None:
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    action_refs = re.findall(r"uses:\s+[^\s@]+@([^\s#]+)", workflow)
+    assert action_refs
+    assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in action_refs)
+    for required in (
+        "dependency-review-action",
+        "aquasecurity/trivy-action",
+        "anchore/sbom-action",
+        "scanners: vuln,secret,misconfig",
+        "version: v0.74.0",
+        "control-api-sbom",
+    ):
+        assert required in workflow

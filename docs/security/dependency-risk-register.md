@@ -1,6 +1,6 @@
 # Dependency risk register
 
-Last reviewed: 2026-08-11
+Last reviewed: 2026-08-15
 
 No dependency risk exception is active.
 
@@ -32,6 +32,21 @@ Do not dismiss a future alert without either:
    failure-path tests; or
 2. recording the exact affected interface, exposure analysis, compensating
    control, owner, and removal condition here.
+
+## Enforced evidence
+
+The branch-required `validate` job now runs GitHub Dependency Review for pull
+request changes, Trivy `v0.74.0` over the repository and built runtime image,
+and Anchore Syft through the pinned SBOM action. Fixed high/critical findings
+fail the job; repository scanning also covers secrets and Dockerfile
+misconfiguration. The runtime SPDX JSON SBOM is retained as a workflow artifact
+for 14 days.
+
+Local pre-merge evidence on 2026-08-15 found zero high/critical findings in the
+locked runtime dependencies, Debian runtime image, or installed Python packages;
+zero Dockerfile misconfigurations were reported, and SPDX JSON generation passed.
+GitHub CI remains authoritative because it scans a clean checkout without local
+ignored files.
 
 Dependabot checks weekly with production and development dependencies grouped
 separately; its Docker ecosystem entry tracks the control-service Dockerfile.

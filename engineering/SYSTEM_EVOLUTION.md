@@ -40,8 +40,19 @@ named disposable database through both SQL invariants and application code
 before removing it. Local Qwen3 8B also progressed from prepared to verified on
 GPU.
 
+## v0.5 — Enforced supply-chain evidence (2026-08-15)
+
+The already-required CI check now reviews dependency changes, scans the clean
+repository for vulnerabilities, secrets, and misconfiguration, scans the built
+runtime image, and emits an SPDX JSON SBOM. Every action is pinned to an
+immutable commit. This turns prior asynchronous advisory monitoring into a merge
+gate without granting SARIF or package-write permissions.
+
+Release signing remains deferred until the project has a registry and trusted
+OIDC identity. Local-only tags are not presented as signed releases.
+
 ## Next architectural pressure
 
-Production identity, rate limiting, telemetry, encrypted off-host backups, and
-the Hermes control-plane adapter remain ahead of broader tool autonomy. Model
-routes need usage/cost audit metadata before budget-aware orchestration.
+Per-user identity, rate limits, correlated telemetry, encrypted off-host backup
+automation, and a policy-bound Hermes adapter remain the production/readiness
+priorities.
