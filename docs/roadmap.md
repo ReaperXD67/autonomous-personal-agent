@@ -22,6 +22,7 @@
 - [ ] Encrypted automated backups and restore drill
 - [ ] Reverse proxy/TLS/WireGuard deployment profile
 - [x] Required SBOM, dependency, vulnerability, secret, and configuration CI gates
+- [x] One-command workstation gate for lifecycle, restore, environment, and configured inference paths
 - [ ] Signed release images and upstream image-signature verification
 
 ## Phase 2 — agent/model integration

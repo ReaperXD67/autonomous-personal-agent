@@ -11,7 +11,8 @@ a live smoke request, and Hermes returned `HERMES_READY_OK` through that endpoin
 again on 2026-08-15. On
 2026-08-15, local Qwen3 8B returned exactly `LOCAL_MODEL_OK` and Ollama reported
 GPU placement. No inference download or provider onboarding remains required for
-basic testing; repeat setup only to add or replace a provider.
+basic testing. The complete default `./scripts/readiness.ps1` gate passed all six
+configured paths on 2026-08-15; repeat setup only to add or replace a provider.
 
 ## Path A — completely local inference
 
@@ -23,8 +24,10 @@ recheck or repair path.
 ./scripts/local-model.ps1
 ```
 
-The first run downloads the pinned Ollama image and the `qwen3:8b` Q4 model
-(approximately 5.2 GB for the model). Verify GPU placement afterward:
+If missing, the command downloads the pinned Ollama image and the `qwen3:8b` Q4
+model (approximately 5.2 GB for the model). An installed matching model is reused
+so temporary registry outages do not disable local testing. Use `-ForcePull`
+only when deliberately refreshing it. Verify GPU placement afterward:
 
 ```powershell
 docker compose --profile local-model exec ollama ollama ps

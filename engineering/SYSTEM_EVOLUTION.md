@@ -51,6 +51,15 @@ gate without granting SARIF or package-write permissions.
 Release signing remains deferred until the project has a registry and trusted
 OIDC identity. Local-only tags are not presented as signed releases.
 
+## v0.6 — Unified workstation readiness evidence (2026-08-15)
+
+A single no-skip readiness gate now composes the control-plane lifecycle,
+disposable restore, environment doctor, remote free route, local GPU model, and
+Hermes route into one pass/fail result. Its ignored JSON report contains only
+sanitized check metadata. Cached local models are reused by default to avoid
+coupling a valid offline inference path to registry availability; exact response
+and GPU-placement verification remain required.
+
 ## Next architectural pressure
 
 Per-user identity, rate limits, correlated telemetry, encrypted off-host backup

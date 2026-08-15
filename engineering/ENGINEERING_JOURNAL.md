@@ -820,3 +820,55 @@ Image signing and signature verification remain blocked on a trusted registry
 and OIDC/release identity. The project does not claim an unsigned local Docker
 tag is a signed release. SBOM artifacts expire after 14 days unless a future
 release workflow archives them.
+
+## Step 14 — Add one-command complete workstation readiness
+
+Date: 2026-08-15
+
+### Objective
+
+Replace scattered readiness claims with one repeatable no-skip command that
+proves the configured control plane, recovery path, environment, routed model,
+local GPU model, and Hermes route and leaves a sanitized machine-readable result.
+
+### Implementation
+
+- Added `scripts/readiness.ps1` and a Make target covering lifecycle
+  verification, disposable restore, agent doctor, OmniRoute, local Qwen, and
+  Hermes.
+- Added optional skip switches for focused diagnosis while documenting that a
+  skipped path does not prove complete readiness.
+- Added ignored `runtime/readiness/latest.json` output containing only check
+  names, statuses, durations, a timestamp, the tested Git commit, and concise
+  failure text.
+- Changed local-model bootstrap to reuse a matching cached model, download only
+  when missing, and expose `-ForcePull` for an intentional refresh.
+- Added repository contracts and synchronized README and operations guidance.
+
+### Problem encountered and resolution
+
+The first complete gate found that `ollama pull qwen3:8b` could fail during a
+registry/network interruption even though the same 5.2 GB model was fully
+installed and runnable. The bootstrap now checks the installed model list first.
+The real exact-response and GPU-placement smoke remains mandatory, so reuse does
+not weaken inference verification.
+
+### Validation
+
+- The direct cached local-model smoke returned exactly `LOCAL_MODEL_OK` and
+  Ollama reported GPU placement.
+- The complete no-skip gate then passed all six checks: lifecycle 48.31s,
+  restore 5.60s, doctor 2.34s, OmniRoute 0.33s, local Qwen 2.23s, and Hermes
+  17.19s.
+- The lifecycle verification inside that gate included containerized lint, 26
+  passing tests, and real safe, approval, retry, cancellation, and dead-letter
+  paths. A final standalone verification pass also succeeded.
+
+### Limitations
+
+This proves the configured local test stack, not production deployment or
+external side-effect adapters. Identity, public infrastructure, encrypted
+off-host backup, release signing, messaging credentials, and provider terms
+remain user-owned gates. The planned Hermes control-plane adapter, telemetry,
+memory, scheduler, MCP/browser/coding workers, and messaging/UI features remain
+engineering work and are not represented as complete.

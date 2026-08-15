@@ -2,6 +2,7 @@
 param(
     [string]$Model,
     [switch]$SkipPull,
+    [switch]$ForcePull,
     [switch]$SkipSmoke
 )
 
@@ -43,10 +44,22 @@ try {
     }
     if (-not $healthy) { throw 'Ollama did not become healthy. Run scripts/logs.ps1 ollama.' }
 
-    if (-not $SkipPull) {
+    if ($SkipPull -and $ForcePull) {
+        throw 'SkipPull and ForcePull cannot be used together.'
+    }
+
+    $installedModels = docker compose --profile local-model exec -T ollama ollama list
+    if ($LASTEXITCODE -ne 0) { throw 'Could not list the locally installed Ollama models.' }
+    $modelPattern = '(?m)^' + [regex]::Escape($Model) + '\s'
+    $modelInstalled = (($installedModels -join "`n") -match $modelPattern)
+
+    if ($ForcePull -or (-not $SkipPull -and -not $modelInstalled)) {
         Write-Host "Downloading local model $Model. This is resumable and may take several minutes."
         docker compose --profile local-model exec -T ollama ollama pull $Model
         if ($LASTEXITCODE -ne 0) { throw "Model pull failed: $Model" }
+    }
+    elseif ($modelInstalled) {
+        Write-Host "Using locally cached model $Model. Use -ForcePull to refresh it."
     }
 
     if (-not $SkipSmoke) {
