@@ -40,6 +40,7 @@ and human approval for high-impact actions.
 | Hermes + OmniRoute | Verified locally | Optional pinned profile; 79 routes, `free/default`, and Hermes one-shot inference passed |
 | Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
+| Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
 | Full autonomous features | Planned | See [roadmap](docs/roadmap.md) |
 
 ## Architecture
@@ -157,6 +158,8 @@ See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
 - Audit metadata stores keys and outcomes, not raw secrets or request bodies.
 - Hermes receives no Docker socket or host filesystem mount.
 - MCP registry starts disabled; each server needs review and scoped credentials.
+- Required CI rejects new fixed high/critical dependency or runtime-image
+  vulnerabilities and repository secret/misconfiguration findings.
 
 This is not safe for public internet exposure without TLS, authenticated reverse
 proxy, rate limiting, secret management, and VPS hardening described in the

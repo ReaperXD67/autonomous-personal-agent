@@ -21,7 +21,8 @@
 - [ ] OpenTelemetry traces/metrics/log correlation and alerts
 - [ ] Encrypted automated backups and restore drill
 - [ ] Reverse proxy/TLS/WireGuard deployment profile
-- [ ] SBOM, vulnerability, secret, and image-signature CI gates
+- [x] Required SBOM, dependency, vulnerability, secret, and configuration CI gates
+- [ ] Signed release images and upstream image-signature verification
 
 ## Phase 2 — agent/model integration
 

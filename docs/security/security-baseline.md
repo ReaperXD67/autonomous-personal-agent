@@ -30,6 +30,9 @@ capability must enter this registry before its handler is reachable.
   retry delays, and authenticated dead-letter inspection;
 - upstream images pinned by release and manifest digest;
 - MCP servers disabled by default.
+- required immutable-action CI gates for dependency review, repository
+  vulnerability/secret/misconfiguration scanning, runtime-image vulnerability
+  scanning, and an SPDX JSON SBOM artifact;
 
 ## Secrets
 
@@ -44,8 +47,7 @@ assume logs/artifacts containing a leaked value are compromised.
 - HTTPS reverse proxy, authenticated admin access, and API rate limiting;
 - secrets manager/Docker secrets support;
 - short-lived identity and per-user authorization, replacing one bootstrap token;
-- container/image/SBOM and secret scans in enforced CI;
-- signed release images and verified dependency update process;
+- signed release images and upstream image-signature verification;
 - egress allowlists for browser/email/tool workers;
 - idempotent side-effect keys for future external write tools;
 - backup encryption, off-host retention/scheduling, and incident response;

@@ -37,3 +37,44 @@ jobs:
 
       - name: Run lint and tests
         run: docker compose --profile tools run --rm test
+
+      - name: Review dependency changes
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+
+      - name: Scan repository dependencies, secrets, and configuration
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          format: table
+          version: v0.74.0
+
+      - name: Scan runtime image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: autonomous-personal-agent/control-api:local
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          format: table
+          version: v0.74.0
+          skip-setup-trivy: true
+
+      - name: Generate runtime image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: autonomous-personal-agent/control-api:local
+          format: spdx-json
+          output-file: control-api.spdx.json
+          artifact-name: control-api-sbom
+          upload-artifact: true
+          upload-artifact-retention: 14
+          upload-release-assets: false

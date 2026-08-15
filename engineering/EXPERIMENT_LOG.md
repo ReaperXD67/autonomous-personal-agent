@@ -133,6 +133,29 @@ Observed:
 Result: local, routed, and Hermes inference passed. Free-route capacity remains
 volatile and the 8K local context remains intentionally constrained.
 
+## EXP-009 — Supply-chain gate baseline
+
+Date: 2026-08-15
+
+Method: use official Trivy `v0.74.0` against the repository and the built
+`autonomous-personal-agent/control-api:local` image at high/critical severity,
+with fixed findings enforced; generate an SPDX JSON image SBOM with official
+Syft `v1.51.0`; rebuild the isolated test container after adding workflow
+contracts.
+
+Observed:
+
+- Repository/`uv.lock`: 0 high/critical vulnerabilities.
+- Repository secret scan: no findings reported.
+- Dockerfile misconfiguration scan: 0 findings.
+- Debian 12.15 runtime packages: 0 high/critical vulnerabilities.
+- Installed runtime Python packages: 0 high/critical vulnerabilities.
+- SPDX JSON generation completed successfully.
+- Ruff and Pytest passed; 24 tests in 0.37 seconds.
+
+Result: passed locally. The pull request must also pass the same checks on a
+clean GitHub checkout before merge.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

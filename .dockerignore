@@ -1,5 +1,8 @@
 .git
 .github
+!.github/
+!.github/workflows/
+!.github/workflows/ci.yml
 .env
 .env.*
 !.env.example
@@ -17,4 +20,3 @@ logs
 *.db
 browser-profiles
 agent-memory
-

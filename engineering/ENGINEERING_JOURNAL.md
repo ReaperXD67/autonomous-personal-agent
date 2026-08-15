@@ -772,3 +772,49 @@ These remain phase-gated rather than being represented by fake integrations.
 Add enforced supply-chain CI and basic telemetry that require no external
 account, then implement the Hermes-to-control-plane adapter and budget-aware
 model audit metadata before enabling any read-only external tool.
+
+## Step 13 — Enforce supply-chain evidence in the required CI check
+
+Date: 2026-08-15
+
+### Objective
+
+Close the automatically achievable portion of the Phase 1 supply-chain gate
+without requiring a registry, paid service, or broader GitHub token permission.
+
+### Research and decision
+
+Verified current releases from the official repositories: Trivy action
+`v0.36.0`, Trivy `v0.74.0`, Anchore SBOM action `v0.24.0`, GitHub Dependency
+Review `v5.0.0`, and Syft `v1.51.0`. Selected full action commit pins rather than
+mutable tags. Extended the existing branch-required `validate` job so security
+failures cannot be bypassed by merging while an optional workflow fails.
+
+### Implementation
+
+- Added pull-request dependency review with a high-severity failure threshold.
+- Added repository vulnerability, secret, and misconfiguration scanning.
+- Added high/critical scanning of the built control-plane runtime image.
+- Added an SPDX JSON runtime-image SBOM artifact with 14-day retention.
+- Added a repository contract that rejects every non-immutable action reference
+  and requires the expected scanner/SBOM configuration.
+- Allowed only `.github/workflows/ci.yml` through `.dockerignore` so the isolated
+  test image can enforce that contract; all other `.github` content stays out.
+- Added ADR-0008 and synchronized security, roadmap, README, experiment, and
+  evolution records.
+
+### Validation
+
+- Official Trivy `v0.74.0` repository scan: zero high/critical vulnerabilities,
+  no reported secret findings, and zero Dockerfile misconfigurations.
+- Runtime image scan: zero high/critical Debian or Python package findings.
+- Official Syft `v1.51.0` generated SPDX JSON successfully.
+- Containerized Ruff and Pytest passed 24 tests in 0.37 seconds.
+- Git diff whitespace validation passed.
+
+### Limitation
+
+Image signing and signature verification remain blocked on a trusted registry
+and OIDC/release identity. The project does not claim an unsigned local Docker
+tag is a signed release. SBOM artifacts expire after 14 days unless a future
+release workflow archives them.
