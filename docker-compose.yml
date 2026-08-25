@@ -112,6 +112,14 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
       JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
+      ACTION_QUEUE_KEY: ${ACTION_QUEUE_KEY:-agent:actions:ready}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-disabled}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-starttls}
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -147,6 +155,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
       JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
+      ACTION_QUEUE_KEY: ${ACTION_QUEUE_KEY:-agent:actions:ready}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
       WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-10}
@@ -184,6 +193,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
       JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
+      ACTION_QUEUE_KEY: ${ACTION_QUEUE_KEY:-agent:actions:ready}
       WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
       WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-10}
@@ -208,6 +218,100 @@ services:
       start_period: 10s
     logging: *json-logging
 
+  action-worker:
+    <<: *app-security
+    profiles:
+      - side-effects
+      - side-effects-test
+    build:
+      context: .
+      dockerfile: services/action-worker/Dockerfile
+      target: runtime
+    image: autonomous-personal-agent/action-worker:local
+    restart: unless-stopped
+    shm_size: 1gb
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
+      JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
+      ACTION_QUEUE_KEY: ${ACTION_QUEUE_KEY:-agent:actions:ready}
+      WORKER_POLL_SECONDS: ${WORKER_POLL_SECONDS:-5}
+      WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
+      WORKER_HEARTBEAT_SECONDS: ${WORKER_HEARTBEAT_SECONDS:-10}
+      WORKER_RETRY_BASE_SECONDS: ${WORKER_RETRY_BASE_SECONDS:-5}
+      WORKER_RETRY_MAX_SECONDS: ${WORKER_RETRY_MAX_SECONDS:-300}
+      MAIL_TRANSPORT: ${MAIL_TRANSPORT:-disabled}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_TLS_MODE: ${SMTP_TLS_MODE:-starttls}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    networks:
+      - edge
+      - data
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.action_worker", "--healthcheck"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 20s
+    logging: *json-logging
+
+  mailpit:
+    image: axllent/mailpit:v1.29.7@sha256:757f22b56c1da03570afdb3d259effe5091018008a81bbedc8158cee7e16fdbc
+    profiles:
+      - side-effects-test
+    restart: unless-stopped
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+      - /data:rw,noexec,nosuid,size=64m
+    environment:
+      MP_DATABASE: /data/mailpit.db
+      MP_MAX_MESSAGES: "100"
+      MP_ALLOW_INTERNAL_HTTP_REQUESTS: "false"
+    ports:
+      - 127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8025/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    logging: *json-logging
+
+  application-fixture:
+    <<: *app-security
+    profiles:
+      - side-effects-test
+    image: autonomous-personal-agent/control-api:local
+    command: ["python", "-m", "app.application_fixture"]
+    networks:
+      - edge
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health/ready', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    logging: *json-logging
+
   dispatcher:
     <<: *app-security
     build:
@@ -225,6 +329,7 @@ services:
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
       JOB_QUEUE_KEY: ${JOB_QUEUE_KEY:-agent:jobs:ready}
+      ACTION_QUEUE_KEY: ${ACTION_QUEUE_KEY:-agent:actions:ready}
       WORKER_LEASE_SECONDS: ${WORKER_LEASE_SECONDS:-120}
       WORKER_RETRY_BASE_SECONDS: ${WORKER_RETRY_BASE_SECONDS:-5}
       WORKER_RETRY_MAX_SECONDS: ${WORKER_RETRY_MAX_SECONDS:-300}

@@ -13,3 +13,4 @@ history.
 - [ADR-0007](ADR-0007-durable-execution-lifecycle.md): durable execution lifecycle and restore policy
 - [ADR-0008](ADR-0008-required-supply-chain-gates.md): required supply-chain gates and SBOM
 - [ADR-0009](ADR-0009-private-career-missions.md): private career missions and review-before-submission
+- [ADR-0010](ADR-0010-exact-external-actions.md): exact approval-bound application and email side effects

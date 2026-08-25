@@ -33,7 +33,7 @@ jobs:
         run: docker compose config --quiet
 
       - name: Build test and runtime images
-        run: docker compose build test control-api worker dispatcher
+        run: docker compose build test control-api worker dispatcher action-worker
 
       - name: Run lint and tests
         run: docker compose --profile tools run --rm test
@@ -68,6 +68,19 @@ jobs:
           version: v0.74.0
           skip-setup-trivy: true
 
+      - name: Scan isolated action runtime image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: autonomous-personal-agent/action-worker:local
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
+          format: table
+          version: v0.74.0
+          skip-setup-trivy: true
+          trivyignores: .trivyignore.yaml
+
       - name: Generate runtime image SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
         with:
@@ -75,6 +88,17 @@ jobs:
           format: spdx-json
           output-file: control-api.spdx.json
           artifact-name: control-api-sbom
+          upload-artifact: true
+          upload-artifact-retention: 14
+          upload-release-assets: false
+
+      - name: Generate action runtime image SBOM
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: autonomous-personal-agent/action-worker:local
+          format: spdx-json
+          output-file: action-worker.spdx.json
+          artifact-name: action-worker-sbom
           upload-artifact: true
           upload-artifact-retention: 14
           upload-release-assets: false

@@ -36,6 +36,13 @@ The single bootstrap bearer token is insufficient for public internet exposure.
 6. Check health, smoke task, logs, queue age, and external provider canary.
 7. Roll back images/config if gate fails; restore data only when migration is incompatible.
 
+Keep the `side-effects-test` profile local only. A VPS that will execute reviewed
+external actions uses `side-effects`, an egress firewall/proxy where available,
+and deployment-managed SMTP secrets. Run the local fixture smoke before enabling
+real destinations. Never mount a workstation browser profile or publish Mailpit.
+Treat an `ambiguous` action as an incident to reconcile with the destination;
+do not retry it by hand until the external state is known.
+
 ## Still missing for production
 
 Central monitoring, automated encrypted off-host backups, rate limiting/OIDC on

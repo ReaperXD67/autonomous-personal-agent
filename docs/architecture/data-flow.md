@@ -48,6 +48,22 @@ approver records `approved` or `rejected`. Approval atomically moves the task to
 publishes its ID. Database state prevents replayed queue items from re-running
 completed work.
 
+## Exact external action
+
+Application preparation can run automatically: the career worker drafts the
+pack and the action worker inspects a reviewed single-page form. Planning then
+freezes the destination, form signature, submit label, resolved field values,
+résumé/draft hashes, or email sender/recipient/subject/body into an expiring
+PostgreSQL envelope. A SHA-256 digest binds that envelope to the task and
+approval row.
+
+After approval, the action worker revalidates the digest and referenced material.
+For an application it reloads the form and refuses a changed signature. It
+commits a unique receipt immediately before the final click/send. Completion
+updates both receipt and action atomically. Any error after receipt creation is
+`ambiguous`; there is no automatic retry. A second plan for the same opportunity
+cannot click again because the application fingerprint is opportunity-scoped.
+
 ## State ownership
 
 | State | Authority | Notes |
@@ -59,6 +75,7 @@ completed work.
 | Ready signal | Redis | May be reconstructed from queued tasks |
 | Agent memory | PostgreSQL + pgvector | Planned writers require provenance and policy |
 | Career profiles/opportunities/drafts | PostgreSQL | Résumé is returned only as presence/length metadata; draft access stays internal |
+| Preflights/exact actions/receipts | PostgreSQL | Approval context, expiry, execution state, and duplicate guard are authoritative |
 | Embeddings | pgvector column | Model/version metadata must accompany future writes |
 | Logs | Docker log driver | Operational, rotated, not authoritative audit storage |
 
@@ -75,3 +92,5 @@ completed work.
   cooperative interruption from the lease-owning worker.
 - Lease IDs prevent a stale worker from completing work after recovery assigned
   it to another worker.
+- Consequential browser/email tasks have one attempt; an existing receipt blocks
+  replay and turns post-boundary failures into explicit reconciliation work.

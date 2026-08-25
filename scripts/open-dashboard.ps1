@@ -1,6 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$LocalModel,
+    [switch]$SideEffects,
+    [switch]$SideEffectsTest,
     [switch]$CopyToken
 )
 
@@ -12,7 +14,7 @@ try {
         & (Join-Path $PSScriptRoot 'init-env.ps1')
     }
 
-    & (Join-Path $PSScriptRoot 'up.ps1')
+    & (Join-Path $PSScriptRoot 'up.ps1') -SideEffects:$SideEffects -SideEffectsTest:$SideEffectsTest
     if ($LocalModel) {
         & (Join-Path $PSScriptRoot 'local-model.ps1')
     }
@@ -39,6 +41,9 @@ try {
     }
     if (-not $LocalModel) {
         Write-Host 'Add -LocalModel when you want private resume-tailored application drafts.'
+    }
+    if (-not $SideEffects -and -not $SideEffectsTest) {
+        Write-Host 'Add -SideEffects for the isolated browser/email executor, or -SideEffectsTest for harmless local fixtures.'
     }
 }
 finally {

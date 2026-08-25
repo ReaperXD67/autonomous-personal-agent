@@ -10,7 +10,7 @@ from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate
-from app.policy import effective_risk, initial_status, requires_approval
+from app.policy import capability_max_attempts, effective_risk, initial_status, requires_approval
 
 
 class TaskNotFoundError(LookupError):
@@ -79,7 +79,16 @@ class Database:
 
     @staticmethod
     def _add_outbox(connection: psycopg.Connection[Any], task: dict[str, Any]) -> None:
-        topic = "career.ready" if task["kind"].startswith("career.") else "task.ready"
+        if task["kind"] in {
+            "career.application_preflight",
+            "career.application_submit",
+            "communications.email_send",
+        }:
+            topic = "action.ready"
+        elif task["kind"].startswith("career."):
+            topic = "career.ready"
+        else:
+            topic = "task.ready"
         connection.execute(
             """
             INSERT INTO task_outbox (
@@ -107,57 +116,63 @@ class Database:
             ),
         )
 
-    def create_task(self, request: TaskCreate) -> dict[str, Any]:
+    def _create_task_record(
+        self, connection: psycopg.Connection[Any], request: TaskCreate
+    ) -> dict[str, Any]:
         risk_level = effective_risk(request.kind, request.risk_level)
         status = initial_status(risk_level)
-        with self.connect() as connection:
-            row = connection.execute(
-                """
-                INSERT INTO agent_tasks (
-                    title, kind, payload, risk_level, status, requested_by, idempotency_key
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (idempotency_key) DO NOTHING
-                RETURNING *
-                """,
-                (
-                    request.title,
-                    request.kind,
-                    Jsonb(request.payload),
-                    risk_level.value,
-                    status,
-                    request.requested_by,
-                    request.idempotency_key,
-                ),
+        row = connection.execute(
+            """
+            INSERT INTO agent_tasks (
+                title, kind, payload, risk_level, status, requested_by,
+                idempotency_key, max_attempts
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (idempotency_key) DO NOTHING
+            RETURNING *
+            """,
+            (
+                request.title,
+                request.kind,
+                Jsonb(request.payload),
+                risk_level.value,
+                status,
+                request.requested_by,
+                request.idempotency_key,
+                capability_max_attempts(request.kind),
+            ),
+        ).fetchone()
+        if row is None:
+            if request.idempotency_key is None:
+                raise RuntimeError("Task insert returned no row without idempotency conflict")
+            existing = connection.execute(
+                "SELECT * FROM agent_tasks WHERE idempotency_key = %s",
+                (request.idempotency_key,),
             ).fetchone()
-            if row is None:
-                if request.idempotency_key is None:
-                    raise RuntimeError("Task insert returned no row without idempotency conflict")
-                existing = connection.execute(
-                    "SELECT * FROM agent_tasks WHERE idempotency_key = %s",
-                    (request.idempotency_key,),
-                ).fetchone()
-                if existing is None:
-                    raise RuntimeError("Idempotency conflict row was not found")
-                return existing
+            if existing is None:
+                raise RuntimeError("Idempotency conflict row was not found")
+            return existing
 
-            approval = (
-                "required" if requires_approval(risk_level) else "not_required"
-            )
-            self._append_audit(
-                connection,
-                correlation_id=row["correlation_id"],
-                task_id=row["id"],
-                actor_type="user",
-                actor_id=request.requested_by,
-                tool_name=request.kind,
-                action="task.created",
-                risk_level=risk_level.value,
-                approval_status=approval,
-                execution_status=row["status"],
-                input_metadata={"kind": request.kind, "payload_keys": sorted(request.payload)},
-            )
-            if row["status"] == "queued":
-                self._add_outbox(connection, row)
+        approval = "required" if requires_approval(risk_level) else "not_required"
+        self._append_audit(
+            connection,
+            correlation_id=row["correlation_id"],
+            task_id=row["id"],
+            actor_type="user",
+            actor_id=request.requested_by,
+            tool_name=request.kind,
+            action="task.created",
+            risk_level=risk_level.value,
+            approval_status=approval,
+            execution_status=row["status"],
+            input_metadata={"kind": request.kind, "payload_keys": sorted(request.payload)},
+        )
+        if row["status"] == "queued":
+            self._add_outbox(connection, row)
+        return row
+
+    def create_task(self, request: TaskCreate) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = self._create_task_record(connection, request)
             connection.commit()
             return row
 
@@ -260,6 +275,14 @@ class Database:
             ).fetchone()
             if immediate:
                 connection.execute("DELETE FROM task_outbox WHERE task_id = %s", (task_id,))
+                connection.execute(
+                    """
+                    UPDATE external_actions
+                    SET status = 'cancelled'
+                    WHERE task_id = %s AND status IN ('pending_approval', 'queued')
+                    """,
+                    (task_id,),
+                )
             action = "task.cancelled" if immediate else "task.cancellation_requested"
             self._append_audit(
                 connection,
@@ -287,14 +310,29 @@ class Database:
             if task["status"] != "pending_approval":
                 raise InvalidTaskStateError(f"Task is {task['status']}, not pending_approval")
 
+            action = connection.execute(
+                "SELECT * FROM external_actions WHERE task_id = %s FOR UPDATE",
+                (task_id,),
+            ).fetchone()
+            action_hash = None
+            if action is not None:
+                action_hash = task["payload"].get("action_digest")
+                if action_hash != action["context_hash"]:
+                    raise InvalidTaskStateError("Action context changed after it was prepared")
+                if request.decision == "approved" and action["expires_at"] <= connection.execute(
+                    "SELECT now() AS current_time"
+                ).fetchone()["current_time"]:
+                    raise InvalidTaskStateError("Action approval window has expired")
+
             next_status = "queued" if request.decision == "approved" else "rejected"
             approved_by = request.actor if request.decision == "approved" else None
             connection.execute(
                 """
-                INSERT INTO task_approvals (task_id, decision, actor, reason)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO task_approvals (
+                    task_id, decision, actor, reason, action_context_hash
+                ) VALUES (%s, %s, %s, %s, %s)
                 """,
-                (task_id, request.decision, request.actor, request.reason),
+                (task_id, request.decision, request.actor, request.reason, action_hash),
             )
             row = connection.execute(
                 """
@@ -308,6 +346,15 @@ class Database:
                 """,
                 (next_status, approved_by, request.decision, request.decision, task_id),
             ).fetchone()
+            if action is not None:
+                connection.execute(
+                    """
+                    UPDATE external_actions
+                    SET status = %s, last_error = NULL
+                    WHERE id = %s
+                    """,
+                    (next_status, action["id"]),
+                )
             self._append_audit(
                 connection,
                 correlation_id=row["correlation_id"],

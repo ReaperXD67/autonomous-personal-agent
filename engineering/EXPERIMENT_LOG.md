@@ -208,6 +208,41 @@ Observed:
 Result: the live no-key discovery and local résumé-to-draft paths passed. This
 does not test or claim external application submission.
 
+## EXP-012 — Exact local application/email side-effect proof
+
+Date: 2026-08-25
+
+Method: run `scripts/side-effect-smoke.ps1` against the rebuilt core,
+`qwen3:8b`, isolated Playwright worker, fake six-field ATS, and Mailpit. The
+script created an inactive synthetic profile/opportunity, generated a real local
+draft, preflighted the form, approved the exact application, approved one exact
+email, created a second different application plan, and removed only its own
+PostgreSQL records. Separately reload the dashboard through Playwright and scan
+the final action image with Trivy 0.74.0.
+
+Observed:
+
+- Application task `04b6e586-cdb4-4904-a757-cad5c1cd5915` succeeded and the
+  fake ATS returned its confirmation.
+- Email task `7fe760a7-a633-4297-b427-93ecfe5e3a05` succeeded through Mailpit;
+  the exact unique subject appeared in the local inbox.
+- Second application task `9b98105c-1d6e-4aa2-8247-61f033df8487` failed with
+  the existing succeeded-receipt refusal; only one application receipt existed.
+- The guarded cleanup left zero side-effect-smoke career profiles and zero
+  linked external actions.
+- The dashboard reload returned the Hermes Command Center at loopback with zero
+  browser console errors or warnings.
+- Trivy found zero Ubuntu, Playwright Node, or application Python high/critical
+  findings after two exact stale base-SBOM PURLs were suppressed. Runtime import
+  and filesystem checks found neither attested distribution; both exceptions
+  expire 2026-09-25.
+- Final container suite passed 40 tests; the complete lifecycle verification
+  also passed.
+
+Result: exact approval binding, isolated execution, local email delivery, and
+duplicate refusal passed without any real external side effect. Real ATS and
+mail-provider compatibility are not implied.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

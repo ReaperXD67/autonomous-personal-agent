@@ -34,6 +34,12 @@ privilege expansion. Next implementation should render a curated Docker MCP
 profile, start gateway outside Hermes, expose only reviewed transport, and
 validate one safe read per server.
 
+The application adapter added in August 2026 uses Playwright as a dedicated,
+fixed-purpose worker, not the generic Playwright MCP server. That lets the
+control plane enforce exact ATS hosts, fields, form signature, approval digest,
+and durable side-effect receipt in application code. The broader MCP candidate
+remains disabled because it would expose unrelated navigation and form powers.
+
 ## Validation commands used
 
 ```text
@@ -43,4 +49,3 @@ docker mcp catalog server ls mcp/docker-mcp-catalog:latest --filter name=<candid
 ```
 
 No server was started and no destructive operation was tested.
-

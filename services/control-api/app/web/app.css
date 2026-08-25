@@ -206,6 +206,7 @@ code { color: var(--lime); font-family: "Cascadia Code", ui-monospace, monospace
 .dialog-close { position: absolute; right: 16px; top: 14px; width: 36px; height: 36px; border: 0; border-radius: 50%; color: var(--muted); background: rgba(255, 255, 255, .05); font-size: 23px; }
 .dialog-close:hover { color: var(--ink); background: rgba(255, 255, 255, .1); }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+.compact-grid { margin-top: 12px; }
 .form-grid label + label { margin: 0; }
 .span-2 { grid-column: 1 / -1; }
 .dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 12px; margin-top: 24px; padding-top: 19px; border-top: 1px solid var(--line); }
@@ -213,6 +214,11 @@ code { color: var(--lime); font-family: "Cascadia Code", ui-monospace, monospace
 .draft-box { margin-top: 18px; padding: 18px; border: 1px solid rgba(200, 255, 98, .16); border-radius: 14px; background: rgba(200, 255, 98, .035); }
 .draft-box h3 { margin: 15px 0 7px; }
 .draft-box p, .draft-box li { color: #c2c8c4; line-height: 1.6; }
+.inset-form { padding: 12px 0 0; }
+.action-summary { display: grid; grid-template-columns: minmax(120px, .35fr) minmax(0, 1fr); gap: 1px; margin: 20px 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--line); }
+.action-summary dt, .action-summary dd { margin: 0; padding: 11px 13px; background: #0e1216; white-space: pre-wrap; overflow-wrap: anywhere; }
+.action-summary dt { color: var(--quiet); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.action-summary dd { color: #c2c8c4; font-size: 12px; }
 
 .toast { position: fixed; z-index: 50; right: 24px; bottom: 24px; max-width: min(420px, calc(100vw - 48px)); padding: 14px 17px; border: 1px solid rgba(105, 230, 212, .25); border-radius: 12px; color: var(--ink); background: #172128; box-shadow: var(--shadow); font-size: 13px; }
 .toast.error { border-color: rgba(255, 124, 119, .3); background: #29191b; }

@@ -13,6 +13,8 @@ flowchart TB
     JOB["career worker"] --> DATA
     JOB --> EDGE
     JOB --> MODEL
+    ACTION["action worker"] --> DATA
+    ACTION --> EDGE
     OR --> DATA
     DATA --> PG["PostgreSQL :5432"]
     DATA --> REDIS["Redis :6379"]
@@ -31,6 +33,7 @@ flowchart TB
 | PostgreSQL | none | Internal only |
 | Redis | none | Internal only |
 | Ollama | none | Internal model endpoint only |
+| Mailpit | `127.0.0.1:8025` | Test profile only; captures email locally |
 
 The Hermes upstream dashboard is not published until an upstream-supported
 authentication provider is configured. `edge` provides intentional host binding
@@ -43,6 +46,12 @@ model requests and its own Redis rate-limit state.
 
 Ollama joins `edge` only for model downloads and `model` so Hermes/OmniRoute can
 reach it; it receives no data-network access.
+
+The action worker joins `edge` and `data`: `edge` is needed for reviewed ATS or
+configured SMTP endpoints, while `data` provides PostgreSQL/Redis. In-process
+browser routing restricts implemented ATS actions to the initial allowlisted
+host. Mailpit and the fake application form exist only in `side-effects-test`;
+Mailpit's SMTP port is not published to the host.
 
 ## VPS evolution
 

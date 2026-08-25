@@ -36,7 +36,7 @@ def test_transactional_outbox_is_wired_into_runtime() -> None:
 def test_migrations_gate_runtime_startup() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     assert "migrate" in compose["services"]
-    for name in ("control-api", "dispatcher", "worker", "job-worker"):
+    for name in ("control-api", "dispatcher", "worker", "job-worker", "action-worker"):
         dependency = compose["services"][name]["depends_on"]["migrate"]
         assert dependency["condition"] == "service_completed_successfully"
 
@@ -78,7 +78,47 @@ def test_dashboard_is_packaged_without_forbidden_static_file_surfaces() -> None:
     script = ROOT / "services/control-api/app/web/app.js"
     assert index.exists() and script.exists()
     assert "Hermes Command Center" in index.read_text(encoding="utf-8")
-    assert "sessionStorage" in script.read_text(encoding="utf-8")
+    javascript = script.read_text(encoding="utf-8")
+    assert "sessionStorage" not in javascript
+    for dangerous_sink in ("innerHTML", "insertAdjacentHTML", "document.write", "eval("):
+        assert dangerous_sink not in javascript
+
+
+def test_external_actions_use_isolated_pinned_workers_and_exact_receipts() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    action_worker = compose["services"]["action-worker"]
+    assert set(action_worker["networks"]) == {"edge", "data"}
+    assert action_worker["read_only"] is True
+    assert action_worker["cap_drop"] == ["ALL"]
+    assert "profiles" in action_worker
+    assert not action_worker.get("volumes")
+    assert "@sha256:" in compose["services"]["mailpit"]["image"]
+    migration = (
+        ROOT / "config/postgres/init/006_exact_external_actions.sql"
+    ).read_text(encoding="utf-8")
+    for table in (
+        "external_actions",
+        "side_effect_receipts",
+        "job_application_preflights",
+    ):
+        assert table in migration
+    source = (ROOT / "services/control-api/app/action_store.py").read_text(
+        encoding="utf-8"
+    )
+    assert "action_context_hash" in source
+    assert "retry refused" in source
+
+
+def test_action_image_scan_exceptions_are_exact_and_expiring() -> None:
+    ignores = yaml.safe_load((ROOT / ".trivyignore.yaml").read_text(encoding="utf-8"))
+    entries = ignores["vulnerabilities"]
+    assert {entry["id"] for entry in entries} == {
+        "GHSA-6v7p-g79w-8964",
+        "CVE-2025-47273",
+    }
+    assert all(entry.get("purls") and entry.get("expired_at") for entry in entries)
+    dockerfile = (ROOT / "services/action-worker/Dockerfile").read_text(encoding="utf-8")
+    assert "rm -rf /tmp/uv-cache" in dockerfile
 
 
 def test_restore_drill_uses_a_disposable_database() -> None:
@@ -155,5 +195,7 @@ def test_ci_actions_are_immutable_and_security_gates_are_required() -> None:
         "scanners: vuln,secret,misconfig",
         "version: v0.74.0",
         "control-api-sbom",
+        "action-worker-sbom",
+        "trivyignores: .trivyignore.yaml",
     ):
         assert required in workflow

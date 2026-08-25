@@ -17,9 +17,11 @@ and a curated MCP policy layer before broad autonomy is enabled.
 
 > [!IMPORTANT]
 > **Local-alpha status:** the private web dashboard, scheduled fresh-job
-> discovery, matching, tracking, and local application drafting work. Application
-> submission, email, Telegram, browser automation, coding workers, and broad MCP
-> access are not enabled. Never expose the dashboard port directly to the internet.
+> discovery, matching, tracking, local application drafting, exact-action review,
+> isolated single-page ATS submission, and test-sink email work. Every real
+> submission or email remains one-action/one-click approval-gated. Telegram,
+> generic browser automation, coding workers, and broad MCP access are not
+> enabled. Never expose the dashboard port directly to the internet.
 
 ## Why this exists
 
@@ -36,8 +38,10 @@ and human approval for high-impact actions.
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
 | Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080` |
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
-| Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, and Greenhouse APIs; freshness filters, evidence scoring, and durable tracking |
-| Application preparation | Verified locally | Qwen3 8B creates a truthful structured résumé/cover-letter pack locally; submission remains manual |
+| Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
+| Application preparation | Verified locally | Qwen3 8B creates a truthful structured résumé/cover-letter pack locally; the agent can auto-preflight common hosted forms and prepare the exact action |
+| Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
+| Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -45,7 +49,7 @@ and human approval for high-impact actions.
 | Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
-| External submission and messaging | Planned | Each consequential side effect remains approval-gated; see [roadmap](docs/roadmap.md) |
+| External submission and messaging | Prepared/partially verified | Local end-to-end side effects pass; real ATS/provider compatibility and credentials remain manual gates |
 
 ## Architecture
 
@@ -59,8 +63,11 @@ flowchart LR
     D --> Q["Redis ready queue"]
     Q --> W["Worker"]
     Q --> JW["Career worker"]
+    Q --> AW["Isolated action worker"]
     JW --> JS["Allowlisted public job APIs"]
     JW --> LM["Local Qwen draft"]
+    AW --> ATS["Reviewed ATS form"]
+    AW --> SMTP["Configured SMTP / Mailpit"]
     API --> PG[("PostgreSQL + pgvector")]
     W --> PG
     W --> AUDIT["Audit events"]
@@ -93,8 +100,20 @@ the dashboard. PostgreSQL, Redis, and Ollama have no published host ports.
 
 Create a career mission, paste résumé text, choose titles/skills/locations and a
 24–168 hour freshness window, then click **Scan now**. Activate the mission to
-repeat the scan every 6 hours or longer while the machine is running. See the
+repeat the scan every 6 hours or longer while the machine is running. Add your
+identity and enable auto-prepare to generate drafts and inspect supported forms
+without waiting; the exact final application still appears in **Approvals**.
+See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
+
+Before using any real destination, prove the side-effect path entirely locally:
+
+```powershell
+./scripts/side-effect-smoke.ps1
+```
+
+The disposable test submits only to a fake ATS inside Docker and sends only to
+Mailpit at `http://127.0.0.1:8025`.
 
 Stop cleanly:
 
@@ -112,6 +131,8 @@ Stop cleanly:
 | `./scripts/health.ps1` | `make health` | Check container and dependency readiness |
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
 | `./scripts/career-smoke.ps1 -Draft` | `make career-smoke` | Verify live fresh-job ingestion and a local structured draft using disposable synthetic data |
+| `./scripts/side-effect-smoke.ps1` | `make side-effect-smoke` | Verify local ATS submit, local email, exact approvals, and duplicate refusal with disposable data |
+| `./scripts/up.ps1 -SideEffects` | `make side-effects-up` | Start the isolated browser/email executor for configured real destinations |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
 | `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |
 | `./scripts/agent-smoke.ps1` | `make agent-smoke` | Verify configured OmniRoute model inference |
@@ -181,6 +202,8 @@ See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
 - PostgreSQL and Redis live on an internal Docker network.
 - Application containers run as non-root, read-only, without Linux capabilities.
 - High-risk and destructive tasks require an explicit approval record.
+- Real side effects bind approval to a SHA-256 digest of the exact action and
+  use a durable pre-click/pre-send receipt; they are never retried automatically.
 - Audit metadata stores keys and outcomes, not raw secrets or request bodies.
 - Hermes receives no Docker socket or host filesystem mount.
 - MCP registry starts disabled; each server needs review and scoped credentials.
@@ -196,7 +219,8 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 | Data | Store | Durability |
 |---|---|---|
 | Tasks, approvals, audits | PostgreSQL | Authoritative, backed up |
-| Career missions, matches, draft packs | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads |
+| Career missions, matches, draft packs, form preflights | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads |
+| Exact external actions and side-effect receipts | PostgreSQL | Authoritative; approval digest and duplicate guard survive restarts |
 | Long-term memory and embeddings | PostgreSQL + pgvector | Authoritative, backed up |
 | Ready queue, cache, transient state | Redis | Recoverable; AOF enabled, not authoritative |
 | Hermes state | `hermes_data` volume | Optional; back up after onboarding |
@@ -216,6 +240,7 @@ AGENTS.md                  durable rules for future coding agents
 mcp/                      curated tool registry, profiles, permission policy
 scripts/                  Windows-first lifecycle and verification commands
 services/control-api/     control API, outbox dispatcher, and worker image
+services/action-worker/   isolated Playwright/SMTP runtime and locked dependencies
 services/hermes/          verified upstream integration boundary
 services/omniroute/       verified upstream integration boundary
 tests/                    repository security/Compose contracts
@@ -231,6 +256,7 @@ tests/                    repository security/Compose contracts
 - [Threat model](docs/security/threat-model.md)
 - [Dependency risk register](docs/security/dependency-risk-register.md)
 - [MCP security](docs/security/mcp-security.md)
+- [Autonomous side-effect security review](docs/security/autonomous-side-effect-review.md)
 - [Local operations](docs/operations/local-development.md)
 - [Dashboard, job-hunt testing, and switching missions](docs/operations/dashboard-and-career.md)
 - [Manual setup remaining](docs/operations/manual-setup.md)

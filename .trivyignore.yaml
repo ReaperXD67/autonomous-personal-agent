@@ -1,0 +1,19 @@
+vulnerabilities:
+  - id: GHSA-6v7p-g79w-8964
+    purls:
+      - pkg:pypi/msgpack@1.1.2
+    expired_at: 2026-09-25
+    statement: >-
+      The pinned Microsoft Playwright base attestation lists msgpack 1.1.2, but
+      the final merged runtime has no importable msgpack distribution or matching
+      package metadata. Pip's separately vendored code is not this distribution.
+      Recheck the upstream base digest before expiry.
+  - id: CVE-2025-47273
+    purls:
+      - pkg:pypi/setuptools@70.3.0
+    expired_at: 2026-09-25
+    statement: >-
+      The pinned Microsoft Playwright base attestation lists setuptools 70.3.0,
+      but the final merged runtime has no importable setuptools distribution or
+      matching package metadata; virtualenv embeds fixed 82/83 wheels. Recheck
+      the upstream base digest before expiry.

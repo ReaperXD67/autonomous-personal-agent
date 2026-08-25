@@ -38,10 +38,12 @@ class CareerStore(Database):
                     name, candidate_name, desired_titles, skills, required_keywords,
                     excluded_keywords, locations, remote_only, employment_types,
                     max_age_hours, min_score, schedule_minutes, source_config,
-                    resume_text, active, requested_by, next_scan_at
+                    application_identity, resume_text, auto_prepare,
+                    auto_prepare_min_score, max_auto_prepare_per_scan,
+                    active, requested_by, next_scan_at
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, now()
+                    %s, %s, %s, %s, %s, %s, %s, now()
                 )
                 RETURNING *
                 """,
@@ -59,7 +61,15 @@ class CareerStore(Database):
                     request.min_score,
                     request.schedule_minutes,
                     Jsonb(request.source_config.model_dump()),
+                    Jsonb(
+                        request.application_identity.model_dump()
+                        if request.application_identity
+                        else {}
+                    ),
                     request.resume_text,
+                    request.auto_prepare,
+                    request.auto_prepare_min_score,
+                    request.max_auto_prepare_per_scan,
                     request.active,
                     request.requested_by,
                 ),
@@ -115,6 +125,11 @@ class CareerStore(Database):
             resume_text = (
                 existing["resume_text"] if request.resume_text is None else request.resume_text
             )
+            application_identity = (
+                existing["application_identity"]
+                if request.application_identity is None
+                else request.application_identity.model_dump()
+            )
             next_scan_at = (
                 datetime.now(UTC)
                 if request.active and not existing["active"]
@@ -127,7 +142,9 @@ class CareerStore(Database):
                     required_keywords = %s, excluded_keywords = %s, locations = %s,
                     remote_only = %s, employment_types = %s, max_age_hours = %s,
                     min_score = %s, schedule_minutes = %s, source_config = %s,
-                    resume_text = %s, active = %s, next_scan_at = %s
+                    application_identity = %s, resume_text = %s,
+                    auto_prepare = %s, auto_prepare_min_score = %s,
+                    max_auto_prepare_per_scan = %s, active = %s, next_scan_at = %s
                 WHERE id = %s
                 RETURNING *
                 """,
@@ -145,7 +162,11 @@ class CareerStore(Database):
                     request.min_score,
                     request.schedule_minutes,
                     Jsonb(request.source_config.model_dump()),
+                    Jsonb(application_identity),
                     resume_text,
+                    request.auto_prepare,
+                    request.auto_prepare_min_score,
+                    request.max_auto_prepare_per_scan,
                     request.active,
                     next_scan_at,
                     profile_id,
@@ -227,10 +248,18 @@ class CareerStore(Database):
 
     def save_opportunities(
         self, profile_id: UUID, opportunities: list[dict[str, Any]]
-    ) -> dict[str, int]:
+    ) -> dict[str, Any]:
         inserted = 0
         updated = 0
+        auto_prepare_ids: list[UUID] = []
         with self.connect() as connection:
+            profile = connection.execute(
+                """
+                SELECT auto_prepare, auto_prepare_min_score, max_auto_prepare_per_scan
+                FROM career_profiles WHERE id = %s
+                """,
+                (profile_id,),
+            ).fetchone()
             for opportunity in opportunities:
                 existing = connection.execute(
                     """
@@ -239,7 +268,7 @@ class CareerStore(Database):
                     """,
                     (profile_id, opportunity["source"], opportunity["source_key"]),
                 ).fetchone()
-                connection.execute(
+                saved = connection.execute(
                     """
                     INSERT INTO job_opportunities (
                         profile_id, source, source_key, company, title, location,
@@ -259,6 +288,7 @@ class CareerStore(Database):
                         score = EXCLUDED.score,
                         score_reasons = EXCLUDED.score_reasons,
                         last_seen_at = now()
+                    RETURNING id
                     """,
                     (
                         profile_id,
@@ -276,9 +306,15 @@ class CareerStore(Database):
                         opportunity["score"],
                         Jsonb(opportunity["score_reasons"]),
                     ),
-                )
+                ).fetchone()
                 if existing is None:
                     inserted += 1
+                    if (
+                        profile["auto_prepare"]
+                        and opportunity["score"] >= profile["auto_prepare_min_score"]
+                        and len(auto_prepare_ids) < profile["max_auto_prepare_per_scan"]
+                    ):
+                        auto_prepare_ids.append(saved["id"])
                 else:
                     updated += 1
             connection.execute(
@@ -286,7 +322,11 @@ class CareerStore(Database):
                 (profile_id,),
             )
             connection.commit()
-        return {"new": inserted, "updated": updated}
+        return {
+            "new": inserted,
+            "updated": updated,
+            "auto_prepare_ids": auto_prepare_ids,
+        }
 
     def list_opportunities(
         self,
@@ -298,13 +338,32 @@ class CareerStore(Database):
         with self.connect() as connection:
             return connection.execute(
                 """
-                SELECT o.*, d.content AS latest_draft
+                SELECT o.*, d.content AS latest_draft,
+                       row_to_json(pf.*) AS latest_preflight,
+                       row_to_json(a.*) AS latest_action
                 FROM job_opportunities o
                 LEFT JOIN LATERAL (
                     SELECT content FROM job_application_drafts
                     WHERE opportunity_id = o.id
                     ORDER BY created_at DESC LIMIT 1
                 ) d ON true
+                LEFT JOIN LATERAL (
+                    SELECT id, opportunity_id, task_id, apply_url, final_url,
+                           form_signature, fields, submit_label, blocked_reason,
+                           has_captcha, has_login, created_at
+                    FROM job_application_preflights
+                    WHERE opportunity_id = o.id
+                    ORDER BY created_at DESC LIMIT 1
+                ) pf ON true
+                LEFT JOIN LATERAL (
+                    SELECT id, task_id, action_type, status, target_display,
+                           public_context, context_hash, expires_at,
+                           external_reference, last_error, created_at, updated_at,
+                           executed_at
+                    FROM external_actions
+                    WHERE opportunity_id = o.id
+                    ORDER BY created_at DESC LIMIT 1
+                ) a ON true
                 WHERE (%s::uuid IS NULL OR o.profile_id = %s)
                   AND (%s::text IS NULL OR o.status = %s)
                 ORDER BY
@@ -319,13 +378,32 @@ class CareerStore(Database):
         with self.connect() as connection:
             row = connection.execute(
                 """
-                SELECT o.*, d.content AS latest_draft
+                SELECT o.*, d.content AS latest_draft,
+                       row_to_json(pf.*) AS latest_preflight,
+                       row_to_json(a.*) AS latest_action
                 FROM job_opportunities o
                 LEFT JOIN LATERAL (
                     SELECT content FROM job_application_drafts
                     WHERE opportunity_id = o.id
                     ORDER BY created_at DESC LIMIT 1
                 ) d ON true
+                LEFT JOIN LATERAL (
+                    SELECT id, opportunity_id, task_id, apply_url, final_url,
+                           form_signature, fields, submit_label, blocked_reason,
+                           has_captcha, has_login, created_at
+                    FROM job_application_preflights
+                    WHERE opportunity_id = o.id
+                    ORDER BY created_at DESC LIMIT 1
+                ) pf ON true
+                LEFT JOIN LATERAL (
+                    SELECT id, task_id, action_type, status, target_display,
+                           public_context, context_hash, expires_at,
+                           external_reference, last_error, created_at, updated_at,
+                           executed_at
+                    FROM external_actions
+                    WHERE opportunity_id = o.id
+                    ORDER BY created_at DESC LIMIT 1
+                ) a ON true
                 WHERE o.id = %s
                 """,
                 (opportunity_id,),
@@ -374,6 +452,8 @@ class CareerStore(Database):
             connection.commit()
         result = dict(row)
         result["latest_draft"] = None
+        result["latest_preflight"] = None
+        result["latest_action"] = None
         return result
 
     def get_draft_context(self, opportunity_id: UUID, profile_id: UUID) -> dict[str, Any]:

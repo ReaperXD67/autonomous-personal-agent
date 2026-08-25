@@ -38,7 +38,8 @@
 ## Phase 3 — curated tools
 
 - [ ] Read-only fetch/search MCP profile with SSRF/egress controls
-- [ ] Disposable Playwright worker with domain and download policy
+- [x] Disposable Playwright worker for reviewed ATS forms with domain, request, profile, and download policy
+- [ ] General read-only/browser MCP profile with DNS/IP-aware egress proxy
 - [ ] Sandboxed filesystem/coding worker per repository worktree
 - [ ] GitHub read tools, then draft PR workflow; merge stays approval-gated
 - [ ] Read-only database diagnostics role/tool
@@ -46,18 +47,22 @@
 ## Phase 4 — personal workflows
 
 - [ ] Telegram control with pairing and allowlist
-- [ ] Email read/classify, then draft, then separately gated send
+- [ ] Email read/classify and OAuth adapters
+- [x] Exact approval-gated single-recipient SMTP send adapter and local Mailpit proof
 - [x] Fresh-job discovery/tracking from reviewed public sources
 - [x] Local résumé evidence and cover-letter drafting
-- [ ] Site-specific application form adapters; every submission approval-gated
+- [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter
+- [ ] Real-site compatibility suite and additional reviewed ATS adapters
 - [ ] Calendar/Drive/Notion/task-manager integrations by scoped profile
 - [x] Private web UI for missions, opportunities, tasks, approvals, and audit timelines
 - [ ] Budget/usage UI and per-user identity
 
-## Never autonomous by default
+## Never broad or unreviewed by default
 
 Purchases/transfers, mass communication, job submission, public publishing,
 production infrastructure changes, and destructive repository/data operations.
+Application/email preparation can be automatic; each exact external action
+requires its own unexpired approval and cannot borrow a blanket permission.
 
 ## Evaluated but deliberately deferred
 

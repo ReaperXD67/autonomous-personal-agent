@@ -18,6 +18,9 @@ class TaskCreate(BaseModel):
         "foundation.wait",
         "career.search",
         "career.application_draft",
+        "career.application_preflight",
+        "career.application_submit",
+        "communications.email_send",
     ] = "foundation.echo"
     payload: dict[str, Any] = Field(default_factory=dict)
     risk_level: RiskLevel = RiskLevel.LOW

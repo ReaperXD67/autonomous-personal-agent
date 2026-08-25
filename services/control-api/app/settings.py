@@ -18,6 +18,7 @@ class Settings:
     redis_url: str
     task_queue_key: str
     job_queue_key: str
+    action_queue_key: str
     worker_poll_seconds: int
     worker_lease_seconds: int
     worker_heartbeat_seconds: int
@@ -25,6 +26,13 @@ class Settings:
     worker_retry_max_seconds: int
     career_scheduler_seconds: int
     local_model: str
+    mail_transport: str
+    smtp_host: str
+    smtp_port: int
+    smtp_username: str
+    smtp_password: str
+    smtp_from: str
+    smtp_tls_mode: str
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -36,6 +44,7 @@ class Settings:
             redis_url=os.getenv("REDIS_URL", "").strip(),
             task_queue_key=os.getenv("TASK_QUEUE_KEY", "agent:tasks:ready").strip(),
             job_queue_key=os.getenv("JOB_QUEUE_KEY", "agent:jobs:ready").strip(),
+            action_queue_key=os.getenv("ACTION_QUEUE_KEY", "agent:actions:ready").strip(),
             worker_poll_seconds=int(os.getenv("WORKER_POLL_SECONDS", "5")),
             worker_lease_seconds=int(os.getenv("WORKER_LEASE_SECONDS", "120")),
             worker_heartbeat_seconds=int(os.getenv("WORKER_HEARTBEAT_SECONDS", "10")),
@@ -43,6 +52,13 @@ class Settings:
             worker_retry_max_seconds=int(os.getenv("WORKER_RETRY_MAX_SECONDS", "300")),
             career_scheduler_seconds=int(os.getenv("CAREER_SCHEDULER_SECONDS", "30")),
             local_model=os.getenv("LOCAL_MODEL", "qwen3:8b").strip(),
+            mail_transport=os.getenv("MAIL_TRANSPORT", "disabled").strip().lower(),
+            smtp_host=os.getenv("SMTP_HOST", "").strip(),
+            smtp_port=int(os.getenv("SMTP_PORT", "587")),
+            smtp_username=os.getenv("SMTP_USERNAME", "").strip(),
+            smtp_password=os.getenv("SMTP_PASSWORD", "").strip(),
+            smtp_from=os.getenv("SMTP_FROM", "").strip(),
+            smtp_tls_mode=os.getenv("SMTP_TLS_MODE", "starttls").strip().lower(),
         )
         settings.validate()
         return settings
@@ -56,6 +72,7 @@ class Settings:
                 ("REDIS_URL", self.redis_url),
                 ("TASK_QUEUE_KEY", self.task_queue_key),
                 ("JOB_QUEUE_KEY", self.job_queue_key),
+                ("ACTION_QUEUE_KEY", self.action_queue_key),
                 ("LOCAL_MODEL", self.local_model),
             )
             if not value
@@ -82,6 +99,27 @@ class Settings:
             )
         if not 10 <= self.career_scheduler_seconds <= 300:
             raise ConfigurationError("CAREER_SCHEDULER_SECONDS must be between 10 and 300")
+        if self.mail_transport not in {"disabled", "mailpit", "smtp"}:
+            raise ConfigurationError("MAIL_TRANSPORT must be disabled, mailpit, or smtp")
+        if not 1 <= self.smtp_port <= 65535:
+            raise ConfigurationError("SMTP_PORT must be between 1 and 65535")
+        if self.smtp_tls_mode not in {"starttls", "ssl", "none"}:
+            raise ConfigurationError("SMTP_TLS_MODE must be starttls, ssl, or none")
+        if self.mail_transport == "mailpit" and (
+            self.smtp_host != "mailpit"
+            or self.smtp_tls_mode != "none"
+            or not self.smtp_from
+        ):
+            raise ConfigurationError(
+                "Mailpit transport requires host=mailpit, TLS=none, and a sender"
+            )
+        if self.mail_transport == "smtp":
+            if not all((self.smtp_host, self.smtp_username, self.smtp_password, self.smtp_from)):
+                raise ConfigurationError(
+                    "SMTP transport requires host, username, password, and from address"
+                )
+            if self.smtp_tls_mode == "none":
+                raise ConfigurationError("External SMTP transport must use TLS")
 
 
 @lru_cache(maxsize=1)
