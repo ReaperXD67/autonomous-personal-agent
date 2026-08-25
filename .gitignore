@@ -40,6 +40,7 @@ htmlcov/
 node_modules/
 playwright-report/
 test-results/
+.playwright-cli/
 
 # Editors and operating systems
 .idea/
@@ -52,4 +53,3 @@ Thumbs.db
 dist/
 build/
 *.egg-info/
-

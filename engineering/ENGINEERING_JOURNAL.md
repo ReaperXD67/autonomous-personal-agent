@@ -962,3 +962,89 @@ job-site login/CAPTCHA handling, OIDC/RBAC, public TLS/rate-limited ingress,
 email/Telegram adapter, or broad MCP/coding worker. VPS purchase, domain/DNS,
 private network, personal résumé content, target-company board selection, and
 final submission consent remain user-owned setup.
+
+## Step 16 — Add exact approval-bound application and email execution
+
+Date: 2026-08-25
+
+### Objective
+
+Automate the mechanical work between a fresh job match and an external action
+without granting the agent blanket authority to act under the user's identity.
+Add a free, reproducible test path and keep every runtime inside the existing
+policy, audit, and PostgreSQL authority boundary.
+
+### Research and decision
+
+Reviewed official Greenhouse, Ashby, and Lever job/application interfaces,
+Playwright container guidance, Gmail/Microsoft sending boundaries, Mailpit, and
+bot-challenge behavior. Public discovery APIs do not confer employer-controlled
+direct-submit credentials. Selected a hosted-form adapter with exact approval,
+a separate Playwright/SMTP runtime, and durable pre-side-effect receipts.
+ADR-0010 records the boundary. CAPTCHA/login bypass, generic personal-browser
+automation, and model-inferred legal/consent answers were rejected.
+
+### Implementation
+
+- Added migration 006 for application identity/auto-prepare settings, Lever,
+  form preflights, exact external-action envelopes, approval hashes, and unique
+  side-effect receipts.
+- Added `career.application_preflight`, `career.application_submit`, and
+  `communications.email_send` capabilities and a separate action queue/worker.
+- Added a release/digest-pinned Playwright image, reviewed ATS URL/request
+  policy, disposable contexts, strict field resolution, escaped PDF résumé
+  rendering, form-signature revalidation, and one final-click boundary.
+- Added deployment-fixed SMTP with validated single recipients, TLS enforcement
+  for external transports, fixed sender binding, Message-ID receipts, and no
+  retry after the external boundary.
+- Added automatic drafting/preflight for capped high-scoring fresh matches and
+  Lever discovery. Unknown required answers return to the dashboard.
+- Extended the dashboard with identity, auto-prepare, preflight, explicit-answer,
+  email-plan, and exact-action review flows. The bearer token moved from tab
+  session storage to page memory; DOM construction uses text nodes.
+- Added pinned Mailpit and a fake ATS test profile plus
+  `side-effect-smoke.ps1`, which uses disposable synthetic records and guarded
+  exact cleanup.
+- Added action-image Dependabot, Trivy, and SPDX SBOM CI coverage, security
+  review, ADR, research, operations, architecture, roadmap, and evolution docs.
+
+### Problems encountered and resolution
+
+- The first Playwright input-submit fallback used a brittle locator. The final
+  executor uses one accessible-role match for the exact approved label and
+  refuses zero or multiple controls.
+- The browser verifier reported a missing favicon. The API now returns an empty
+  204 favicon response; the final page reload had zero console errors/warnings.
+- Trivy read two fixed high findings from stale third-party SBOM PURLs inherited
+  from the Microsoft base even though neither distribution exists in the merged
+  runtime. Runtime import/filesystem evidence was recorded; the suppressions are
+  exact-PURL only, expire 2026-09-25, and live in the dependency risk register.
+  All unsuppressed runtime findings are zero. The uv build cache was also removed
+  from the final layer.
+
+### Validation
+
+- `docker compose config --quiet`, JavaScript syntax, PowerShell parse, and
+  whitespace checks passed.
+- Ruff and Pytest passed 40 tests in the final lifecycle build.
+- `scripts/verify.ps1` passed health, safe/approval paths, lease retry and
+  exhaustion, queued/running cancellation, and dead-letter inspection.
+- The final disposable side-effect smoke generated a local Qwen draft, inspected
+  six form fields, executed one fake application, delivered one email to
+  Mailpit, and refused the second application because the succeeded receipt
+  already existed. No external application/email left Docker and zero synthetic
+  career/action records remained.
+- Playwright rendered the locked dashboard at loopback with zero console errors
+  or warnings.
+- Trivy 0.74.0 reported zero unsuppressed high/critical findings across Ubuntu,
+  the application Python environment, and the Playwright Node driver.
+
+### Remaining boundary
+
+Real applications and real email have not been universally verified. Every
+exact send/submit remains approval-gated. User-owned SMTP/OAuth credentials,
+employer-specific questions/terms, logins, CAPTCHA, unsupported multi-step
+forms, OIDC/step-up approval, private VPS ingress, egress firewalling,
+off-host encrypted backups, and ambiguous-action reconciliation remain manual
+or future work. Hermes still does not bypass the control plane, and the generic
+Playwright MCP candidate remains disabled.

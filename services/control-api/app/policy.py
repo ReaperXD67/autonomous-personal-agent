@@ -15,6 +15,14 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
     "foundation.wait": RiskLevel.MEDIUM,
     "career.search": RiskLevel.LOW,
     "career.application_draft": RiskLevel.MEDIUM,
+    "career.application_preflight": RiskLevel.MEDIUM,
+    "career.application_submit": RiskLevel.HIGH,
+    "communications.email_send": RiskLevel.HIGH,
+}
+
+SIDE_EFFECT_CAPABILITIES = {
+    "career.application_submit",
+    "communications.email_send",
 }
 
 _RISK_ORDER = {
@@ -37,3 +45,8 @@ def requires_approval(risk_level: RiskLevel) -> bool:
 
 def initial_status(risk_level: RiskLevel) -> str:
     return "pending_approval" if requires_approval(risk_level) else "queued"
+
+
+def capability_max_attempts(kind: str) -> int:
+    """Consequential side effects never retry after an ambiguous worker crash."""
+    return 1 if kind in SIDE_EFFECT_CAPABILITIES else 3

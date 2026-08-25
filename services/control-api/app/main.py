@@ -12,6 +12,12 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, s
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.responses import Response as FastAPIResponse
 
+from app.action_models import (
+    ApplicationPlanCreate,
+    EmailActionCreate,
+    ExternalActionView,
+)
+from app.action_store import ActionPreparationError, ActionStore
 from app.auth import require_api_token
 from app.career_models import (
     AuditEventView,
@@ -44,6 +50,7 @@ dashboard_javascript = (Path(__file__).parent / "web" / "app.js").read_text(enco
 async def lifespan(application: FastAPI):
     application.state.database = Database(settings.database_url)
     application.state.career = CareerStore(settings.database_url)
+    application.state.actions = ActionStore(settings.database_url)
     application.state.redis = redis.Redis.from_url(settings.redis_url, decode_responses=True)
     logger.info("control plane starting", extra={"action": "startup"})
     yield
@@ -114,6 +121,10 @@ def _career(request: Request) -> CareerStore:
     return request.app.state.career
 
 
+def _actions(request: Request) -> ActionStore:
+    return request.app.state.actions
+
+
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
 def dashboard() -> str:
     return dashboard_html
@@ -127,6 +138,11 @@ def dashboard_styles() -> FastAPIResponse:
 @app.get("/assets/app.js", include_in_schema=False)
 def dashboard_script() -> FastAPIResponse:
     return FastAPIResponse(content=dashboard_javascript, media_type="text/javascript")
+
+
+@app.get("/favicon.ico", include_in_schema=False, status_code=status.HTTP_204_NO_CONTENT)
+def dashboard_favicon() -> None:
+    return None
 
 
 @app.get("/health/live")
@@ -159,6 +175,7 @@ def system_status(request: Request) -> dict[str, Any]:
         "task_counts": _database(request).status_counts(),
         "queue_depth": _redis(request).llen(settings.task_queue_key),
         "job_queue_depth": _redis(request).llen(settings.job_queue_key),
+        "action_queue_depth": _redis(request).llen(settings.action_queue_key),
     }
 
 
@@ -175,6 +192,9 @@ def metrics(request: Request) -> str:
         "# HELP autonomous_agent_job_queue_depth Ready career-task queue depth.",
         "# TYPE autonomous_agent_job_queue_depth gauge",
         f"autonomous_agent_job_queue_depth {_redis(request).llen(settings.job_queue_key)}",
+        "# HELP autonomous_agent_action_queue_depth Ready external-action queue depth.",
+        "# TYPE autonomous_agent_action_queue_depth gauge",
+        f"autonomous_agent_action_queue_depth {_redis(request).llen(settings.action_queue_key)}",
         "# HELP autonomous_agent_tasks_total Tasks by current status.",
         "# TYPE autonomous_agent_tasks_total gauge",
     ]
@@ -335,6 +355,80 @@ def draft_career_application(request: Request, opportunity_id: UUID) -> dict[str
             requested_by="dashboard:career",
             idempotency_key=f"career-draft:{opportunity_id}:{uuid4()}",
         )
+    )
+
+
+@app.post(
+    "/v1/career/opportunities/{opportunity_id}/preflight",
+    response_model=TaskView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def preflight_career_application(request: Request, opportunity_id: UUID) -> dict[str, Any]:
+    try:
+        opportunity = _career(request).get_opportunity(opportunity_id)
+    except OpportunityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Opportunity not found") from exc
+    return _database(request).create_task(
+        TaskCreate(
+            title="Inspect an official application form",
+            kind="career.application_preflight",
+            payload={
+                "profile_id": str(opportunity["profile_id"]),
+                "opportunity_id": str(opportunity_id),
+                "trigger": "manual",
+            },
+            risk_level=RiskLevel.MEDIUM,
+            requested_by="dashboard:career",
+            idempotency_key=f"career-preflight:{opportunity_id}:{uuid4()}",
+        )
+    )
+
+
+@app.post(
+    "/v1/career/opportunities/{opportunity_id}/submit-plan",
+    response_model=ExternalActionView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def plan_career_application(
+    request: Request, opportunity_id: UUID, payload: ApplicationPlanCreate
+) -> dict[str, Any]:
+    try:
+        return _actions(request).create_application_action(opportunity_id, payload)
+    except OpportunityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Opportunity not found") from exc
+    except ActionPreparationError as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={"message": str(exc), "missing_fields": exc.missing_fields},
+        ) from exc
+
+
+@app.post(
+    "/v1/external-actions/email",
+    response_model=ExternalActionView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def plan_email_action(request: Request, payload: EmailActionCreate) -> dict[str, Any]:
+    if settings.mail_transport == "disabled" or not settings.smtp_from:
+        raise HTTPException(status_code=409, detail="Configure an email transport first")
+    return _actions(request).create_email_action(payload, sender=settings.smtp_from)
+
+
+@app.get(
+    "/v1/external-actions",
+    response_model=list[ExternalActionView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_external_actions(
+    request: Request,
+    action_status: str | None = Query(default=None, alias="status", max_length=40),
+    limit: int = Query(default=100, ge=1, le=200),
+) -> list[dict[str, Any]]:
+    return _actions(request).list_external_actions(
+        action_status=action_status, limit=limit
     )
 
 

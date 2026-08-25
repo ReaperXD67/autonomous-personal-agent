@@ -48,7 +48,10 @@ After the gate passes:
 3. Ask Hermes a read-only question with tools still disabled.
 4. Compare the same non-sensitive prompt through `free/default` and local
    `qwen3:8b`; expect different quality and latency.
+5. Run `./scripts/side-effect-smoke.ps1`. It uses only a fake ATS and local
+   Mailpit sink, yet exercises the real approval and duplicate-guard code.
 
-Do not use purchases, email sending, job submission, public publishing, host
-filesystem tools, or destructive operations as first tests. Those adapters are
-not implemented and their external side effects remain phase-gated.
+Do not use purchases, real email, real job submission, public publishing, host
+filesystem tools, or destructive operations as first tests. Application/email
+adapters exist, but real destinations remain exact-approval-gated and need
+destination-specific manual configuration/compatibility checks.

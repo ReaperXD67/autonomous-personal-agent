@@ -18,6 +18,14 @@ updates:
       python-development:
         dependency-type: development
 
+  - package-ecosystem: uv
+    directory: /services/action-worker
+    schedule:
+      interval: weekly
+    groups:
+      action-worker-python:
+        patterns: ["*"]
+
   - package-ecosystem: docker
     # Docker Dependabot scans Dockerfiles, not Compose service declarations.
     directory: /services/control-api
@@ -27,3 +35,8 @@ updates:
       # Python 3.14 requires a coordinated project/runtime compatibility change.
       - dependency-name: python
         versions: [">= 3.14"]
+
+  - package-ecosystem: docker
+    directory: /services/action-worker
+    schedule:
+      interval: weekly

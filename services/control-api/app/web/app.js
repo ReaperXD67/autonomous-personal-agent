@@ -1,12 +1,13 @@
 "use strict";
 
 const state = {
-  token: sessionStorage.getItem("hermes-control-token") || "",
+  token: "",
   status: null,
   profiles: [],
   opportunities: [],
   tasks: [],
   audits: [],
+  actions: [],
   view: "overview",
 };
 
@@ -58,6 +59,12 @@ function titleCase(value) {
   return String(value || "").replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
+function safeExternalUrl(value) {
+  const parsed = new URL(value, window.location.origin);
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && parsed.hostname === "application-fixture")) throw new Error("Unsafe external URL was rejected");
+  return parsed.toString();
+}
+
 let toastTimer;
 function toast(message, error = false) {
   const element = $("#toast");
@@ -80,11 +87,18 @@ async function api(path, options = {}) {
   }
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
+    let details = null;
     try {
       const body = await response.json();
-      detail = typeof body.detail === "string" ? body.detail : detail;
+      if (typeof body.detail === "string") detail = body.detail;
+      else if (body.detail?.message) {
+        detail = body.detail.message;
+        details = body.detail;
+      }
     } catch (_error) { /* non-JSON error */ }
-    throw new Error(detail);
+    const error = new Error(detail);
+    error.details = details;
+    throw error;
   }
   if (response.status === 204) return null;
   return response.json();
@@ -94,7 +108,7 @@ function setConnection(connected, message = "") {
   const pulse = $("#rail-pulse");
   pulse.className = connected ? "pulse" : "pulse warning";
   $("#rail-status").textContent = connected ? "Control plane ready" : "Connect required";
-  $("#rail-copy").textContent = connected ? "Live state is refreshing automatically." : "Your control token is kept only for this browser tab.";
+  $("#rail-copy").textContent = connected ? "Live state is refreshing automatically." : "Your token stays only in memory until this tab reloads.";
   $("#connect-button").textContent = connected ? "Connected" : "Connect workspace";
   $("#metric-health").textContent = connected ? "Ready" : "Locked";
   $("#metric-health").className = connected ? "green" : "amber";
@@ -102,13 +116,13 @@ function setConnection(connected, message = "") {
 }
 
 function disconnect(showMessage = true) {
-  sessionStorage.removeItem("hermes-control-token");
   state.token = "";
   state.status = null;
   state.profiles = [];
   state.opportunities = [];
   state.tasks = [];
   state.audits = [];
+  state.actions = [];
   setConnection(false);
   renderAll();
   if (showMessage) toast("Disconnected this browser tab");
@@ -121,14 +135,15 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, profiles, opportunities, tasks, audits] = await Promise.all([
+    const [status, profiles, opportunities, tasks, audits, actions] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/career/profiles"),
       api("/v1/career/opportunities?limit=300"),
       api("/v1/tasks?limit=200"),
       api("/v1/audit-events?limit=100"),
+      api("/v1/external-actions?limit=200"),
     ]);
-    Object.assign(state, { status, profiles, opportunities, tasks, audits });
+    Object.assign(state, { status, profiles, opportunities, tasks, audits, actions });
     setConnection(true);
     renderAll();
     return true;
@@ -289,12 +304,32 @@ function renderApprovals() {
   pending.forEach((task) => {
     const card = node("article", "panel approval-card");
     const copy = node("div");
+    const action = state.actions.find((item) => item.task_id === task.id);
     copy.append(node("h3", "", task.title), node("p", "", `${task.kind} · requested by ${task.requested_by} · ${formatDate(task.created_at)}`));
+    if (action) copy.append(node("p", "", `${action.target_display} · expires ${formatDate(action.expires_at)} · hash ${action.context_hash.slice(0, 12)}…`));
     const actions = node("div", "card-actions");
+    if (action) actions.append(button("Review exact action", "text-button", "review-action", action.id));
     actions.append(button("Reject", "button compact", "reject-task", task.id), button("Approve", "button compact primary", "approve-task", task.id));
     card.append(copy, actions);
     list.append(card);
   });
+}
+
+function showActionReview(id) {
+  const action = state.actions.find((item) => item.id === id);
+  if (!action) return;
+  const root = $("#detail-content");
+  root.replaceChildren(
+    node("span", "tag amber-tag", "Exact approval packet"),
+    node("h2", "", titleCase(action.action_type)),
+    node("p", "", `${action.target_display} · expires ${formatDate(action.expires_at)}`),
+  );
+  const summary = node("dl", "action-summary");
+  Object.entries(action.public_context).forEach(([key, value]) => {
+    summary.append(node("dt", "", titleCase(key)), node("dd", "", typeof value === "string" ? value : JSON.stringify(value, null, 2)));
+  });
+  root.append(summary, node("p", "fine-print", `SHA-256 ${action.context_hash}. Approval is invalid if this packet changes.`));
+  $("#detail-dialog").showModal();
 }
 
 function renderTasks() {
@@ -355,7 +390,11 @@ function profilePayload(profile, overrides = {}) {
     min_score: profile.min_score,
     schedule_minutes: profile.schedule_minutes,
     source_config: profile.source_config,
+    application_identity: null,
     resume_text: null,
+    auto_prepare: profile.auto_prepare,
+    auto_prepare_min_score: profile.auto_prepare_min_score,
+    max_auto_prepare_per_scan: profile.max_auto_prepare_per_scan,
     active: profile.active,
     actor: "dashboard:user",
     ...overrides,
@@ -370,13 +409,19 @@ function openProfileDialog(profile = null) {
   $("#profile-dialog-title").textContent = profile ? "Edit career mission" : "Create a job-hunt mission";
   $("#resume-help").textContent = profile?.resume_present ? `A ${profile.resume_characters.toLocaleString()} character résumé is stored. Leave blank to keep it.` : "Paste plain text. Stored privately; never sent to job sources.";
   if (profile) {
-    for (const name of ["name", "candidate_name", "max_age_hours", "min_score", "schedule_minutes"]) form.elements[name].value = profile[name];
+    for (const name of ["name", "candidate_name", "max_age_hours", "min_score", "schedule_minutes", "auto_prepare_min_score", "max_auto_prepare_per_scan"]) form.elements[name].value = profile[name];
     for (const name of ["desired_titles", "skills", "required_keywords", "excluded_keywords", "locations"]) form.elements[name].value = profile[name].join(", ");
     form.elements.remote_only.checked = profile.remote_only;
     form.elements.active.checked = profile.active;
+    form.elements.auto_prepare.checked = profile.auto_prepare;
     form.elements.arbeitnow.checked = Boolean(profile.source_config.arbeitnow);
     form.elements.ashby_boards.value = (profile.source_config.ashby_boards || []).join(", ");
     form.elements.greenhouse_boards.value = (profile.source_config.greenhouse_boards || []).join(", ");
+    form.elements.lever_boards.value = (profile.source_config.lever_boards || []).join(", ");
+    for (const name of ["first_name", "last_name", "email", "phone", "identity_location", "linkedin_url", "github_url"]) {
+      const identityName = name === "identity_location" ? "location" : name;
+      form.elements[name].value = profile.application_identity?.[identityName] || "";
+    }
     $$("input[name='employment_types']", form).forEach((input) => { input.checked = profile.employment_types.includes(input.value); });
   }
   $("#profile-dialog").showModal();
@@ -386,6 +431,16 @@ async function saveProfile(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const id = form.elements.profile_id.value;
+  const identityValues = {
+    first_name: form.elements.first_name.value.trim(),
+    last_name: form.elements.last_name.value.trim(),
+    email: form.elements.email.value.trim(),
+    phone: form.elements.phone.value.trim() || null,
+    location: form.elements.identity_location.value.trim() || null,
+    linkedin_url: form.elements.linkedin_url.value.trim() || null,
+    github_url: form.elements.github_url.value.trim() || null,
+  };
+  const applicationIdentity = identityValues.email ? identityValues : null;
   const payload = {
     name: form.elements.name.value.trim(),
     candidate_name: form.elements.candidate_name.value.trim(),
@@ -399,8 +454,12 @@ async function saveProfile(event) {
     max_age_hours: Number(form.elements.max_age_hours.value),
     min_score: Number(form.elements.min_score.value),
     schedule_minutes: Number(form.elements.schedule_minutes.value),
-    source_config: { arbeitnow: form.elements.arbeitnow.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value) },
+    source_config: { arbeitnow: form.elements.arbeitnow.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value) },
+    application_identity: applicationIdentity,
     resume_text: form.elements.resume_text.value || (id ? null : ""),
+    auto_prepare: form.elements.auto_prepare.checked,
+    auto_prepare_min_score: Number(form.elements.auto_prepare_min_score.value),
+    max_auto_prepare_per_scan: Number(form.elements.max_auto_prepare_per_scan.value),
     active: form.elements.active.checked,
     ...(id ? { actor: "dashboard:user" } : { requested_by: "dashboard:user" }),
   };
@@ -447,6 +506,69 @@ async function draftOpportunity(id) {
   } catch (error) { toast(error.message, true); }
 }
 
+async function preflightOpportunity(id) {
+  try {
+    await api(`/v1/career/opportunities/${id}/preflight`, { method: "POST" });
+    toast("Sandboxed application-form inspection queued");
+    $("#detail-dialog").close();
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+}
+
+function showApplicationAnswers(id, fields) {
+  const form = $("#application-answer-form");
+  form.reset();
+  form.elements.opportunity_id.value = id;
+  const container = $("#application-answer-fields");
+  container.replaceChildren();
+  fields.forEach((field) => {
+    const label = node("label");
+    label.append(node("span", "", field.label));
+    let input;
+    if (field.type === "checkbox") {
+      input = document.createElement("input");
+      input.type = "checkbox";
+      label.className = "checkbox-row";
+    } else if (field.options?.length) {
+      input = document.createElement("select");
+      input.append(new Option("Choose an answer", ""));
+      field.options.forEach((option) => input.append(new Option(option, option)));
+    } else {
+      input = document.createElement(field.type === "textarea" ? "textarea" : "input");
+    }
+    input.dataset.fieldKey = field.key;
+    input.required = true;
+    label.append(input);
+    container.append(label);
+  });
+  $("#application-answer-dialog").showModal();
+}
+
+async function planOpportunity(id, answers = {}) {
+  try {
+    await api(`/v1/career/opportunities/${id}/submit-plan`, { method: "POST", body: JSON.stringify({ answers, actor: "dashboard:career", approval_window_minutes: 60 }) });
+    $("#detail-dialog").close();
+    $("#application-answer-dialog").close();
+    toast("Exact application packet is waiting for approval");
+    await loadData({ quiet: true });
+    switchView("approvals");
+  } catch (error) {
+    if (error.details?.missing_fields?.length) showApplicationAnswers(id, error.details.missing_fields);
+    else toast(error.message, true);
+  }
+}
+
+function showEmailDialog(id) {
+  const opportunity = state.opportunities.find((item) => item.id === id);
+  if (!opportunity) return;
+  const form = $("#email-action-form");
+  form.reset();
+  form.elements.opportunity_id.value = id;
+  form.elements.subject.value = `Application follow-up — ${opportunity.title}`;
+  form.elements.body.value = `Hello,\n\nI recently applied for the ${opportunity.title} role at ${opportunity.company}. I would welcome the opportunity to discuss how my experience fits the position.\n\nBest regards`;
+  $("#email-action-dialog").showModal();
+}
+
 function showOpportunity(id) {
   const opportunity = state.opportunities.find((item) => item.id === id);
   if (!opportunity) return;
@@ -469,12 +591,20 @@ function showOpportunity(id) {
     }
     root.append(box);
   }
+  if (opportunity.latest_preflight) {
+    const preflight = opportunity.latest_preflight;
+    root.append(node("p", preflight.blocked_reason ? "notice" : "fine-print", preflight.blocked_reason ? `Browser adapter needs user handling: ${titleCase(preflight.blocked_reason)}` : `${preflight.fields.length} form fields inspected · final control “${preflight.submit_label}”`));
+  }
+  if (opportunity.latest_action) root.append(node("p", "fine-print", `Latest external action: ${titleCase(opportunity.latest_action.status)}`));
   const actions = node("div", "card-actions");
   const source = node("a", "button primary", "Open official application");
-  source.href = opportunity.apply_url;
+  try { source.href = safeExternalUrl(opportunity.apply_url); }
+  catch (_error) { source.removeAttribute("href"); source.textContent = "Unsafe source URL rejected"; }
   source.target = "_blank";
   source.rel = "noopener noreferrer";
-  actions.append(source, button("Generate private draft", "button", "draft-opportunity", id), button("Mark applied after submitting", "text-button", "applied-opportunity", id), button("Dismiss", "text-button danger-text", "dismiss-opportunity", id));
+  actions.append(source, button("Generate private draft", "button", "draft-opportunity", id), button("Inspect application form", "button", "preflight-opportunity", id));
+  if (opportunity.latest_draft && opportunity.latest_preflight && !opportunity.latest_preflight.blocked_reason) actions.append(button("Prepare exact submission", "button primary", "plan-opportunity", id));
+  actions.append(button("Prepare follow-up email", "text-button", "email-opportunity", id), button("Mark applied after manual submission", "text-button", "applied-opportunity", id), button("Dismiss", "text-button danger-text", "dismiss-opportunity", id));
   root.append(actions);
   $("#detail-dialog").showModal();
 }
@@ -532,6 +662,10 @@ document.addEventListener("click", async (event) => {
   if (action === "dismiss-opportunity") { $("#detail-dialog").close(); return updateOpportunity(id, "dismissed"); }
   if (action === "applied-opportunity") { $("#detail-dialog").close(); return updateOpportunity(id, "applied"); }
   if (action === "draft-opportunity") { $("#detail-dialog").close(); return draftOpportunity(id); }
+  if (action === "preflight-opportunity") return preflightOpportunity(id);
+  if (action === "plan-opportunity") return planOpportunity(id);
+  if (action === "email-opportunity") return showEmailDialog(id);
+  if (action === "review-action") return showActionReview(id);
   if (action === "approve-task") return decideTask(id, "approved");
   if (action === "reject-task") return decideTask(id, "rejected");
   if (action === "view-audit") return showAudit(id);
@@ -544,7 +678,6 @@ $("#connect-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const token = $("#token-input").value.trim();
   state.token = token;
-  sessionStorage.setItem("hermes-control-token", token);
   try {
     const connected = await loadData();
     if (!connected) throw new Error("Could not connect");
@@ -557,6 +690,27 @@ $("#connect-form").addEventListener("submit", async (event) => {
   }
 });
 $("#profile-form").addEventListener("submit", saveProfile);
+$("#application-answer-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const answers = {};
+  $$('[data-field-key]', form).forEach((input) => {
+    answers[input.dataset.fieldKey] = input.type === "checkbox" ? input.checked : input.value;
+  });
+  await planOpportunity(form.elements.opportunity_id.value, answers);
+});
+$("#email-action-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  try {
+    await api("/v1/external-actions/email", { method: "POST", body: JSON.stringify({ recipient: form.elements.recipient.value, subject: form.elements.subject.value, body: form.elements.body.value, opportunity_id: form.elements.opportunity_id.value || null, actor: "dashboard:career", approval_window_minutes: 60 }) });
+    $("#email-action-dialog").close();
+    $("#detail-dialog").close();
+    toast("Exact email is waiting for approval");
+    await loadData({ quiet: true });
+    switchView("approvals");
+  } catch (error) { toast(error.message, true); }
+});
 $("#task-form").addEventListener("submit", assignTask);
 $("#task-form").elements.kind.addEventListener("change", (event) => {
   const waiting = event.target.value === "foundation.wait";
@@ -574,5 +728,4 @@ $("#scan-now-button").addEventListener("click", async () => {
 
 renderAll();
 setConnection(false);
-if (state.token) loadData({ quiet: true });
 setInterval(() => { if (state.token) loadData({ quiet: true }); }, 15000);

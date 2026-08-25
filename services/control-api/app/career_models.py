@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.action_models import ApplicationIdentity
+
 SOURCE_SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
 
 
@@ -30,8 +32,9 @@ class CareerSourceConfig(BaseModel):
     arbeitnow: bool = True
     ashby_boards: list[str] = Field(default_factory=list)
     greenhouse_boards: list[str] = Field(default_factory=list)
+    lever_boards: list[str] = Field(default_factory=list)
 
-    @field_validator("ashby_boards", "greenhouse_boards")
+    @field_validator("ashby_boards", "greenhouse_boards", "lever_boards")
     @classmethod
     def validate_board_slugs(cls, values: list[str]) -> list[str]:
         cleaned = _clean_values(values, limit=30)
@@ -43,7 +46,12 @@ class CareerSourceConfig(BaseModel):
 
     @model_validator(mode="after")
     def require_source(self) -> CareerSourceConfig:
-        if not self.arbeitnow and not self.ashby_boards and not self.greenhouse_boards:
+        if (
+            not self.arbeitnow
+            and not self.ashby_boards
+            and not self.greenhouse_boards
+            and not self.lever_boards
+        ):
             raise ValueError("At least one reviewed career source must be enabled")
         return self
 
@@ -66,7 +74,11 @@ class CareerProfileCreate(BaseModel):
     min_score: int = Field(default=45, ge=0, le=100)
     schedule_minutes: int = Field(default=360, ge=360, le=10080)
     source_config: CareerSourceConfig = Field(default_factory=CareerSourceConfig)
+    application_identity: ApplicationIdentity | None = None
     resume_text: str = Field(default="", max_length=100000)
+    auto_prepare: bool = False
+    auto_prepare_min_score: int = Field(default=75, ge=0, le=100)
+    max_auto_prepare_per_scan: int = Field(default=3, ge=1, le=10)
     active: bool = False
     requested_by: str = Field(min_length=1, max_length=120)
 
@@ -100,7 +112,11 @@ class CareerProfileUpdate(BaseModel):
     min_score: int = Field(default=45, ge=0, le=100)
     schedule_minutes: int = Field(default=360, ge=360, le=10080)
     source_config: CareerSourceConfig = Field(default_factory=CareerSourceConfig)
+    application_identity: ApplicationIdentity | None = None
     resume_text: str | None = Field(default=None, max_length=100000)
+    auto_prepare: bool = False
+    auto_prepare_min_score: int = Field(default=75, ge=0, le=100)
+    max_auto_prepare_per_scan: int = Field(default=3, ge=1, le=10)
     active: bool = False
     actor: str = Field(min_length=1, max_length=120)
 
@@ -133,7 +149,11 @@ class CareerProfileView(BaseModel):
     min_score: int
     schedule_minutes: int
     source_config: dict[str, Any]
+    application_identity: dict[str, Any]
     active: bool
+    auto_prepare: bool
+    auto_prepare_min_score: int
+    max_auto_prepare_per_scan: int
     requested_by: str
     resume_present: bool
     resume_characters: int
@@ -173,6 +193,8 @@ class OpportunityView(BaseModel):
     status: str
     applied_at: datetime | None
     latest_draft: dict[str, Any] | None = None
+    latest_preflight: dict[str, Any] | None = None
+    latest_action: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 

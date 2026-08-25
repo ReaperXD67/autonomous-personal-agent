@@ -26,6 +26,8 @@ Workers claim queue messages and perform allowlisted capabilities. The
 foundation worker implements `foundation.echo` and bounded `foundation.wait`.
 The dedicated career worker implements allowlisted fresh discovery and local
 application drafting while using the same lifecycle, policy, and audit model.
+The isolated action worker handles reviewed browser and email side effects only
+after an exact approval digest has entered the durable queue.
 
 ### Data plane
 
@@ -33,6 +35,8 @@ PostgreSQL is system of record for tasks, approvals, audit events, memory, and
 embeddings, plus career profiles, opportunities, and drafts. Redis carries
 reconstructible ready queues and future cache state.
 Losing Redis may delay work but must not erase authoritative history.
+External-action envelopes, form preflights, and side-effect receipts also live
+in PostgreSQL so approval and duplicate prevention survive a crash.
 
 ### Agent and model plane
 

@@ -32,6 +32,12 @@ capability must enter this registry before its handler is reachable.
 - MCP servers disabled by default;
 - career-source HTTPS hosts, redirects, response sizes, timeouts, and board
   slugs allowlisted; arbitrary URLs rejected;
+- isolated Playwright runtime with exact ATS host/same-host request policy,
+  disposable browser context, no login/CAPTCHA bypass, and no host profile;
+- exact external-action SHA-256 approval binding, expiry, résumé/draft/form
+  revalidation, one-attempt policy, and durable pre-side-effect receipts;
+- deployment-fixed SMTP endpoint/sender, external TLS enforcement, single
+  validated recipient, and local-only no-TLS Mailpit test mode;
 - résumé text excluded from queue/task/audit/public-source payloads and local
   draft output constrained to a structured schema;
 - required immutable-action CI gates for dependency review, repository
@@ -54,7 +60,8 @@ assume logs/artifacts containing a leaked value are compromised.
 - signed release images and upstream image-signature verification;
 - egress allowlists for browser/email/tool workers;
 - OIDC/RBAC and rate limits before any non-private dashboard exposure;
-- idempotent side-effect keys for future external write tools;
+- provider reconciliation/runbook for side effects left `ambiguous` after a
+  crash at the external boundary;
 - backup encryption, off-host retention/scheduling, and incident response;
 
 ## Unsafe configurations
@@ -63,3 +70,8 @@ Never mount `/var/run/docker.sock` into Hermes or general workers; never mount
 host home/root; never use privileged mode/host networking; never expose admin
 dashboards without authentication; never disable approval to fix workflow
 friction; never log request bodies by default.
+
+The current application/email adapter deliberately optimizes the work around
+approval rather than replacing authorization with an “intelligent” model. An
+LLM cannot approve its own external action, infer legal consent, or change the
+capability policy that authorizes its executor.

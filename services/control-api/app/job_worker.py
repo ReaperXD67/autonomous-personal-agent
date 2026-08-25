@@ -13,15 +13,18 @@ from uuid import UUID
 
 import redis
 
+from app.action_store import ActionStore
 from app.career import (
     fetch_arbeitnow,
     fetch_ashby,
     fetch_greenhouse,
+    fetch_lever,
     generate_application_draft,
     score_opportunity,
 )
-from app.career_store import CareerStore
 from app.logging_config import configure_logging
+from app.models import TaskCreate
+from app.policy import RiskLevel
 from app.settings import get_settings
 from app.worker import LeaseHeartbeat, TaskInterruptedError
 
@@ -38,7 +41,7 @@ def _stop(_signum: int, _frame: FrameType | None) -> None:
 
 def healthcheck() -> int:
     try:
-        database = CareerStore(settings.database_url)
+        database = ActionStore(settings.database_url)
         client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
         healthy = database.check() and bool(client.ping())
         client.close()
@@ -54,7 +57,7 @@ def _check_interrupted(interrupt: threading.Event | None) -> None:
 
 def execute_career_task(
     task: dict[str, object],
-    database: CareerStore,
+    database: ActionStore,
     interrupt: threading.Event | None = None,
 ) -> dict[str, object]:
     payload = task["payload"]
@@ -96,6 +99,14 @@ def execute_career_task(
                 sources_succeeded += 1
             except Exception as exc:
                 source_errors.append(f"greenhouse/{board}: {type(exc).__name__}")
+        for board in source_config.get("lever_boards", []):
+            _check_interrupted(interrupt)
+            sources_attempted += 1
+            try:
+                fetched.extend(fetch_lever(board))
+                sources_succeeded += 1
+            except Exception as exc:
+                source_errors.append(f"lever/{board}: {type(exc).__name__}")
 
         if sources_attempted == 0:
             raise ValueError("Career profile has no enabled job sources")
@@ -109,6 +120,39 @@ def execute_career_task(
             if scored is not None:
                 matches.append(scored)
         save_result = database.save_opportunities(profile_id, matches)
+        auto_prepared = 0
+        if profile["resume_text"].strip():
+            for opportunity_id in save_result["auto_prepare_ids"]:
+                _check_interrupted(interrupt)
+                database.create_task(
+                    TaskCreate(
+                        title="Prepare a truthful application pack",
+                        kind="career.application_draft",
+                        payload={
+                            "profile_id": str(profile_id),
+                            "opportunity_id": str(opportunity_id),
+                            "trigger": "auto_prepare",
+                        },
+                        risk_level=RiskLevel.MEDIUM,
+                        requested_by="scheduler:career-auto-prepare",
+                        idempotency_key=f"career-auto-draft:{opportunity_id}",
+                    )
+                )
+                database.create_task(
+                    TaskCreate(
+                        title="Inspect an official application form",
+                        kind="career.application_preflight",
+                        payload={
+                            "profile_id": str(profile_id),
+                            "opportunity_id": str(opportunity_id),
+                            "trigger": "auto_prepare",
+                        },
+                        risk_level=RiskLevel.MEDIUM,
+                        requested_by="scheduler:career-auto-prepare",
+                        idempotency_key=f"career-auto-preflight:{opportunity_id}",
+                    )
+                )
+                auto_prepared += 1
         return {
             "handler": "career.search",
             "profile_id": str(profile_id),
@@ -117,6 +161,7 @@ def execute_career_task(
             "matched": len(matches),
             "new": save_result["new"],
             "updated": save_result["updated"],
+            "auto_prepared": auto_prepared,
             "source_warnings": source_errors,
         }
 
@@ -133,18 +178,20 @@ def execute_career_task(
             model=settings.local_model,
             content=content,
         )
+        auto_action = database.try_create_automatic_application_action(opportunity_id)
         return {
             "handler": "career.application_draft",
             "profile_id": str(profile_id),
             "opportunity_id": str(opportunity_id),
             "model": settings.local_model,
             "draft_created": True,
+            "automatic_approval_task_created": auto_action is not None,
         }
 
     raise ValueError("Capability is not implemented in career worker")
 
 
-def _schedule_due_profiles(database: CareerStore) -> None:
+def _schedule_due_profiles(database: ActionStore) -> None:
     for profile in database.claim_due_profiles():
         try:
             database.create_scheduled_search(profile)
@@ -163,7 +210,7 @@ def _schedule_due_profiles(database: CareerStore) -> None:
 def run() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
-    database = CareerStore(settings.database_url)
+    database = ActionStore(settings.database_url)
     client = redis.Redis.from_url(
         settings.redis_url,
         decode_responses=True,

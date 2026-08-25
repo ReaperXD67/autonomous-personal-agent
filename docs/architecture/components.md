@@ -32,11 +32,22 @@ queue messages are discarded when PostgreSQL state is not `queued`.
 
 Consumes a separate career-ready queue but claims the same durable tasks and
 leases. It schedules due active profiles through the control-plane database
-policy/outbox path, reads only reviewed public Arbeitnow/Ashby/Greenhouse APIs,
+policy/outbox path, reads only reviewed public Arbeitnow/Ashby/Greenhouse/Lever APIs,
 scores fresh listings deterministically, and persists opportunities. Draft tasks
 send the selected job plus the stored résumé only to internal Ollama and persist
 structured results. It has outbound edge, data, and model networks but no host
 mount, Docker socket, or published port.
+
+### Action worker
+
+Consumes a separate external-action queue. Playwright runs in a release/digest-
+pinned image as the unprivileged `pwuser`, with a read-only root filesystem,
+no capabilities, no host/browser-profile mount, no Docker socket, and no
+published port. It preflights or submits only reviewed ATS URLs and aborts every
+cross-host browser request. SMTP uses deployment-fixed transport settings; task
+input cannot select a server or sender. Exact-context approval, expiry, current
+résumé/draft hashes, current form signature, and a durable receipt are checked
+before a final click or send. Consequential tasks have no automatic retry.
 
 ### PostgreSQL + pgvector
 
@@ -76,8 +87,8 @@ authenticated catalog and `free/default` inference path passed locally.
 
 ## Planned components
 
-- browser worker with disposable sessions and domain policy;
-- email worker split into read/classify, draft, and send permissions;
+- generic read-only browser tooling behind stronger network egress policy;
+- email read/classify and provider OAuth adapters;
 - coding worker isolated per repository/worktree;
 - MCP policy adapter translating registry decisions to runtime grants;
 - Telegram interface calling the control API;

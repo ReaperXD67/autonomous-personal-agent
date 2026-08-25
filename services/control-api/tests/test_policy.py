@@ -1,4 +1,10 @@
-from app.policy import RiskLevel, effective_risk, initial_status, requires_approval
+from app.policy import (
+    RiskLevel,
+    capability_max_attempts,
+    effective_risk,
+    initial_status,
+    requires_approval,
+)
 
 
 def test_only_high_impact_risks_require_approval() -> None:
@@ -18,3 +24,11 @@ def test_caller_can_escalate_but_not_lower_capability_risk() -> None:
     assert effective_risk("foundation.wait", RiskLevel.LOW) == RiskLevel.MEDIUM
     assert effective_risk("career.search", RiskLevel.LOW) == RiskLevel.LOW
     assert effective_risk("career.application_draft", RiskLevel.LOW) == RiskLevel.MEDIUM
+    assert effective_risk("career.application_submit", RiskLevel.LOW) == RiskLevel.HIGH
+    assert effective_risk("communications.email_send", RiskLevel.LOW) == RiskLevel.HIGH
+
+
+def test_side_effects_are_never_automatically_retried() -> None:
+    assert capability_max_attempts("career.application_submit") == 1
+    assert capability_max_attempts("communications.email_send") == 1
+    assert capability_max_attempts("career.application_preflight") == 3

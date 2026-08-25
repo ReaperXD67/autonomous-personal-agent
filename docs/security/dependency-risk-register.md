@@ -1,8 +1,25 @@
 # Dependency risk register
 
-Last reviewed: 2026-08-15
+Last reviewed: 2026-08-25
 
-No dependency risk exception is active.
+## Time-bounded Playwright base-attestation exception
+
+Two exact PURLs in the pinned Microsoft Playwright base image's third-party SBOM
+are suppressed until 2026-09-25:
+
+| Advisory | Attested package | Runtime evidence | Removal condition |
+|---|---|---|---|
+| `GHSA-6v7p-g79w-8964` | `pkg:pypi/msgpack@1.1.2` | no importable distribution or matching metadata in the final image | upstream base SBOM/digest no longer reports it, or Trivy inventory confirms a real package and it is upgraded |
+| `CVE-2025-47273` | `pkg:pypi/setuptools@70.3.0` | no importable distribution or matching metadata; embedded virtualenv wheels are fixed 82/83 | same |
+
+Trivy itself warns that third-party SBOM input can be inaccurate. A merged-
+filesystem inspection found neither distribution, and `importlib.util.find_spec`
+returned `None` for both. The separately vendored msgpack under current pip and
+fixed setuptools wheels under virtualenv are not the suppressed PURLs. The
+exception is constrained by PURL, records a statement in `.trivyignore.yaml`,
+and expires in 31 days. It does not ignore any other finding. The action image's
+Ubuntu packages, application Python packages, and Playwright Node driver had zero
+unsuppressed high/critical findings in the 2026-08-25 Trivy `0.74.0` scan.
 
 ## Current package state
 
@@ -49,7 +66,7 @@ GitHub CI remains authoritative because it scans a clean checkout without local
 ignored files.
 
 Dependabot checks weekly with production and development dependencies grouped
-separately; its Docker ecosystem entry tracks the control-service Dockerfile.
+separately; Docker and uv entries track both the control and action workers.
 Release-pinned Compose service digests remain an explicit manual review. Reopen
 review immediately when a new network-facing advisory appears.
 

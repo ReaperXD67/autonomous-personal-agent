@@ -9,13 +9,15 @@ desktop-only executable and does not depend on a hosted SaaS frontend.
 From PowerShell in the repository:
 
 ```powershell
-./scripts/open-dashboard.ps1 -LocalModel -CopyToken
+./scripts/open-dashboard.ps1 -LocalModel -SideEffectsTest -CopyToken
 ```
 
 This builds and starts the core stack, starts or reuses Qwen3 8B through Ollama,
 runs health checks, copies `CONTROL_API_TOKEN` without printing it, and opens
 <http://127.0.0.1:8080/>. Paste the clipboard value into **Connect workspace**,
-then overwrite the clipboard with ordinary text.
+then overwrite the clipboard with ordinary text. The test profile also starts a
+fake ATS and Mailpit at <http://127.0.0.1:8025>; messages are captured inside
+Docker and never sent.
 
 Use `./scripts/open-dashboard.ps1 -CopyToken` when discovery/tracking is enough
 and local drafting is not needed. `./scripts/down.ps1` stops compute while
@@ -33,25 +35,33 @@ overdue active missions are picked up after restart.
    excluded keywords reduce noise.
 5. Select locations, remote preference, employment types, freshness (24–168
    hours), and minimum score.
-6. Keep the no-key Arbeitnow source enabled. Optionally add exact public Ashby
-   or Greenhouse employer board slugs.
+6. Keep the no-key Arbeitnow source enabled. Optionally add exact public Ashby,
+   Greenhouse, or Lever employer board slugs.
 7. Paste plain résumé text. It is stored in PostgreSQL, hidden from profile API
    responses, omitted from task payloads/audit metadata, and used only by local
    Qwen for drafts.
-8. Check **Keep this mission running automatically**, save, and use **Scan now**
-   for the first result.
+8. Complete the application identity. This supplies routine name/contact fields
+   but never invents screening, legal, demographic, or consent answers.
+9. Enable **Automatically prepare strong fresh matches** if desired. Set its
+   score threshold and per-scan cap. This drafts and inspects supported forms
+   automatically; it does not approve the final click.
+10. Check **Keep this mission running automatically**, save, and use **Scan
+    now** for the first result.
 
 Fresh matches appear under **Opportunities** with posting time, source link,
 score, and matching reasons. Shortlist or dismiss them. **Generate private
 draft** creates a truthful fit summary, résumé evidence, honest gaps, keywords,
-and cover-letter draft using local Qwen. Inspect the pack and open the official
-application link in a separate tab.
+and cover-letter draft using local Qwen. **Inspect form** opens only a reviewed
+Greenhouse, Ashby, or Lever hosted form in the isolated worker. **Prepare exact
+submission** resolves routine fields and asks for every unknown required answer.
+It freezes the final host, form signature, values, résumé/draft hashes, and
+submit label into the **Approvals** inbox.
 
-Marking a listing `applied` records what the user already submitted. It does not
-submit a form. CAPTCHAs, account logins, screening questions, consent, and the
-reputational/legal effect of an application make blind submission unsafe. A
-future site-specific submit adapter must create an exact high-risk approval
-before each application.
+Review that exact envelope and approve it once. The worker reloads and rechecks
+the form, commits a durable receipt, and performs one final click. It will not
+retry automatically. CAPTCHA, account login, multi-page flows, changed forms,
+or unknown required answers stop for user handling; the adapter never bypasses
+them or guesses consent.
 
 ## Switch or pause the task
 
@@ -71,12 +81,31 @@ With the core and local model running:
 
 ```powershell
 ./scripts/career-smoke.ps1 -Draft
+./scripts/side-effect-smoke.ps1
 ```
 
 The script retrieves a current listing from the reviewed public API, creates a
 synthetic inactive profile, queues a real policy-bound scan, requires at least
 one persisted attributable match, queues a local structured draft, then deletes
 only its exact synthetic profile. It never uses a real résumé.
+The second command uses a fake candidate, fake ATS, and local Mailpit inbox. It
+proves the exact digest, application click, email send, and duplicate receipt
+guard, then deletes only its own PostgreSQL records.
+
+## Enable real external actions
+
+Start the isolated executor without test fixtures:
+
+```powershell
+./scripts/open-dashboard.ps1 -LocalModel -SideEffects -CopyToken
+```
+
+Application preflight/submission needs no credential when the supported hosted
+form itself is public. Real email remains disabled until `MAIL_TRANSPORT=smtp`
+and user-owned `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`, TLS mode, username, and
+password are configured in ignored deployment secrets. External SMTP requires
+`starttls` or `ssl`. Recreate the control API and action worker after a setting
+change. Never copy these credentials into a mission or chat.
 
 ## VPS access model
 
@@ -91,8 +120,8 @@ VPS test, bind the Compose port to loopback and use either:
 - an authenticated HTTPS reverse proxy after OIDC, rate limits, and TLS are
   implemented.
 
-The UI, API, career worker, PostgreSQL, Redis, and optional Ollama can run on a
-single Linux VPS. Local Qwen requires sufficient RAM/GPU; a CPU-only low-cost
+The UI, API, career/action workers, PostgreSQL, Redis, and optional Ollama can run
+on a single Linux VPS. Local Qwen requires sufficient RAM/GPU; a CPU-only low-cost
 VPS may discover and rank jobs but generate drafts slowly or not at all. Keep
 drafting on a private GPU machine or select a provider only after reviewing its
 privacy and free-tier terms.
@@ -101,7 +130,9 @@ privacy and free-tier terms.
 
 - The code, Docker stack, PostgreSQL, Redis, dashboard, scheduler, scoring, and
   local Ollama/Qwen inference have no per-token software charge.
-- Arbeitnow, public Ashby boards, and public Greenhouse boards need no API key.
+- Arbeitnow and public Ashby, Greenhouse, and Lever boards need no API key for
+  discovery. Public hosted application forms do not guarantee automation
+  compatibility or permission under every employer/site's terms.
 - Electricity, internet, domain names, and VPS compute are infrastructure costs;
   “free software” does not make a continuously running VPS free.
 - Public job-source terms and rate/availability can change. The project uses a

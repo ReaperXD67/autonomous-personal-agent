@@ -22,6 +22,7 @@ SOURCE_HOSTS = {
     "arbeitnow.com",
     "api.ashbyhq.com",
     "boards-api.greenhouse.io",
+    "api.lever.co",
 }
 
 
@@ -193,6 +194,51 @@ def fetch_greenhouse(board: str) -> list[dict[str, Any]]:
                 "employment_type": None,
                 "source_url": source_url,
                 "apply_url": source_url,
+                "published_at": published_at,
+            }
+        )
+    return normalized
+
+
+def fetch_lever(board: str) -> list[dict[str, Any]]:
+    slug = quote(board, safe="")
+    payload = _read_json(f"https://api.lever.co/v0/postings/{slug}?mode=json")
+    jobs = payload if isinstance(payload, list) else []
+    company = board.replace("-", " ").replace("_", " ").title()
+    normalized: list[dict[str, Any]] = []
+    for job in jobs[:500]:
+        if not isinstance(job, dict):
+            continue
+        created_at = job.get("createdAt")
+        if isinstance(created_at, int | float) and created_at > 10_000_000_000:
+            created_at /= 1000
+        published_at = _parse_datetime(created_at)
+        source_url = str(job.get("hostedUrl") or "")
+        apply_url = str(job.get("applyUrl") or source_url)
+        if (
+            published_at is None
+            or not source_url.startswith("https://jobs.lever.co/")
+            or not apply_url.startswith("https://jobs.lever.co/")
+        ):
+            continue
+        categories = job.get("categories") or {}
+        location = str(categories.get("location") or "")
+        workplace = str(job.get("workplaceType") or "")
+        normalized.append(
+            {
+                "source": "lever",
+                "source_key": str(job.get("id") or _stable_key(board, source_url)),
+                "company": company[:240],
+                "title": str(job.get("text") or "Untitled role")[:300],
+                "location": location[:300],
+                "description": _plain_text(str(job.get("description") or "")),
+                "remote": workplace.casefold() == "remote"
+                or "remote" in location.casefold(),
+                "employment_type": _normalize_employment_type(
+                    str(categories.get("commitment") or "")
+                ),
+                "source_url": source_url,
+                "apply_url": apply_url,
                 "published_at": published_at,
             }
         )

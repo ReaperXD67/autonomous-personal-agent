@@ -76,9 +76,31 @@ or public source requests. Local Qwen creates structured truthful preparation
 packs, but no generic job-form submit capability exists. The system records a
 user-completed application only after the user submits on the official site.
 
+## v0.8 — Exact approval-bound external actions (2026-08-25)
+
+Career autonomy now extends through automatic draft and supported-form
+preparation. Lever joins the reviewed public discovery sources. A dedicated
+Playwright/SMTP worker executes only frozen external-action envelopes after an
+unexpired approval is bound to the same SHA-256 context digest. PostgreSQL owns
+form preflights, action state, approval binding, and a receipt inserted
+immediately before the irreversible boundary. Application/email tasks receive
+one attempt; replay is refused and post-boundary uncertainty becomes explicit
+`ambiguous` state.
+
+The browser is a disposable non-root container without a personal profile,
+host mount, Docker socket, or broad URL authority. It resolves routine identity
+fields but stops on unknown required answers, CAPTCHA, login, multi-step forms,
+and form changes. Email endpoints and senders are deployment configuration, not
+task input. A fake ATS and Mailpit profile provide a deterministic no-egress
+proof. The dashboard token moved from session storage to page memory.
+
+This is more autonomous preparation, not blanket authorization. Real external
+actions still require exact approval; generic browser/MCP access, OAuth email
+read, site accounts, and production identity/ingress remain outside this
+boundary.
+
 ## Next architectural pressure
 
-Per-user identity, rate limits, correlated telemetry, encrypted off-host backup
-automation, a private VPS ingress profile, site-specific approval-gated submit
-adapters, and a policy-bound Hermes adapter remain the production/readiness
-priorities.
+Per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling
+for ambiguous provider state, real-ATS compatibility fixtures, OAuth mail,
+encrypted off-host backups, and the policy-bound Hermes adapter are next.

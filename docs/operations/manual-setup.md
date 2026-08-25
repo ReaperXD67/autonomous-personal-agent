@@ -17,25 +17,49 @@ The career smoke on the same date fetched 100 live public listings, retained 5
 fresh matches for its exact synthetic target, and persisted a structured local
 Qwen application draft.
 
+On 2026-08-25, the isolated side-effect smoke used a synthetic candidate and
+local fixtures to prepare and execute one exact application, deliver one exact
+email to Mailpit, and refuse a second application after finding the durable
+receipt. The Playwright and Mailpit images are installed locally. This verifies
+the mechanism, not every real employer form or an external mailbox.
+
 ## First personal career mission
 
 This is the only personal-data input needed for the current workflow:
 
-1. Run `./scripts/open-dashboard.ps1 -LocalModel -CopyToken`.
+1. Run `./scripts/open-dashboard.ps1 -LocalModel -SideEffectsTest -CopyToken`.
 2. Paste the token into the local dashboard and clear the clipboard.
 3. Create a mission with your actual target titles, locations, true skills, and
    plain-text résumé.
 4. Choose a freshness window and activate the mission.
-5. Optionally add exact employer board slugs from public Ashby or Greenhouse
+5. Optionally add exact employer board slugs from public Ashby, Greenhouse, or Lever
    career URLs. No credential is needed; the system intentionally will not guess
    a company list or scrape login-gated sites.
-6. Review generated evidence and drafts, answer application-specific questions,
-   and submit through the official link yourself.
+6. Add actual contact identity, enable auto-prepare only after checking the
+   score/cap, and run the local side-effect smoke before a real destination.
+7. Review each exact application in **Approvals**. Explicitly answer required
+   questions; CAPTCHA, login, and unsupported multi-step forms stay manual.
 
-See [dashboard and career missions](dashboard-and-career.md). Automatic form
-submission is not represented as ready: each real submission needs a reviewed
-site adapter, exact approval context, credentials/consent, and duplicate-submit
-protection.
+See [dashboard and career missions](dashboard-and-career.md). The reviewed
+single-page adapter and duplicate protection are ready; real-site compatibility
+is still destination-specific and never bypasses exact approval.
+
+## Real email transport
+
+The local Mailpit path needs no account. To send real mail, the user must choose
+a provider and create its SMTP/OAuth credential under that provider's terms.
+The current implementation supports authenticated SMTP with verified TLS:
+
+1. Put `MAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`,
+   `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_TLS_MODE=starttls` (or `ssl`) in
+   ignored deployment secrets.
+2. Run `./scripts/up.ps1 -SideEffects` to recreate the isolated executor.
+3. Prepare a harmless message to an address you own, review the exact
+   sender/recipient/subject/body, approve once, and verify provider delivery.
+
+Gmail and Microsoft also expose OAuth send APIs, but OAuth consent and token
+storage are not implemented here. Do not weaken account security by automating
+interactive login or storing a personal browser profile in the action worker.
 
 ## Path A — completely local inference
 
@@ -92,8 +116,8 @@ steps only to repair it or switch the route:
 - Email/Google/GitHub OAuth consent
 - Provider sign-up and acceptance of provider terms
 - VPS purchase, DNS, TLS, WireGuard, and backup destination
-- job-site accounts, screening-question answers, CAPTCHA/identity checks, and
-  final application consent
+- job-site accounts, screening/legal/consent answers, CAPTCHA/identity checks,
+  and each exact final application approval
 - Any secret, recovery code, payment method, or identity verification
 
 Those actions carry identity, legal, financial, or external-state consequences

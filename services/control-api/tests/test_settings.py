@@ -12,6 +12,7 @@ def make_settings(**overrides: object) -> Settings:
         "redis_url": "redis://:pass@redis:6379/0",
         "task_queue_key": "agent:tasks:ready",
         "job_queue_key": "agent:jobs:ready",
+        "action_queue_key": "agent:actions:ready",
         "worker_poll_seconds": 5,
         "worker_lease_seconds": 120,
         "worker_heartbeat_seconds": 10,
@@ -19,6 +20,13 @@ def make_settings(**overrides: object) -> Settings:
         "worker_retry_max_seconds": 300,
         "career_scheduler_seconds": 30,
         "local_model": "qwen3:8b",
+        "mail_transport": "disabled",
+        "smtp_host": "",
+        "smtp_port": 587,
+        "smtp_username": "",
+        "smtp_password": "",
+        "smtp_from": "",
+        "smtp_tls_mode": "starttls",
     }
     values.update(overrides)
     return Settings(**values)
@@ -56,3 +64,17 @@ def test_rejects_retry_max_below_retry_base() -> None:
 def test_rejects_overeager_career_scheduler() -> None:
     with pytest.raises(ConfigurationError, match="CAREER_SCHEDULER_SECONDS"):
         make_settings(career_scheduler_seconds=5).validate()
+
+
+def test_external_smtp_requires_tls_and_complete_credentials() -> None:
+    with pytest.raises(ConfigurationError, match="requires host"):
+        make_settings(mail_transport="smtp").validate()
+    with pytest.raises(ConfigurationError, match="must use TLS"):
+        make_settings(
+            mail_transport="smtp",
+            smtp_host="smtp.example.test",
+            smtp_username="user",
+            smtp_password="password",  # noqa: S106
+            smtp_from="user@example.test",
+            smtp_tls_mode="none",
+        ).validate()

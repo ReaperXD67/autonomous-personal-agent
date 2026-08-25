@@ -1,0 +1,11 @@
+[project]
+name = "autonomous-agent-action-worker"
+version = "0.1.0"
+description = "Sandboxed Playwright and email side-effect worker"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "playwright==1.62.0",
+  "psycopg[binary]==3.3.4",
+  "pydantic==2.12.5",
+  "redis==8.1.0",
+]
