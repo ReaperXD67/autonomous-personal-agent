@@ -1200,6 +1200,10 @@ boundary. ADR-0012 records the decision.
   not attest the USD 10 purchase threshold. Automatic 900-request selection was
   removed; the safe 40-request default now increases only through an explicit
   non-secret operator assertion, without exposing a management key.
+- The first GitHub validation run exposed a fresh-host monotonic-clock edge:
+  uptime below the 15-minute key-metadata TTL looked like a warm cache even
+  though no metadata had loaded. The cache timestamp now has an explicit
+  unloaded sentinel, making cold-start behavior independent of machine uptime.
 
 ### Validation
 

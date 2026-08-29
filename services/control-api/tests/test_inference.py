@@ -64,7 +64,11 @@ def test_free_catalog_rejects_paid_and_non_attested_models() -> None:
     assert ranked == ("z-ai/glm:free", "nvidia/nemotron:free")
 
 
-def test_openrouter_plan_caps_free_tier_and_completion_attests_zero_cost() -> None:
+def test_openrouter_plan_caps_free_tier_and_completion_attests_zero_cost(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A freshly booted host can have monotonic uptime below the metadata TTL.
+    monkeypatch.setattr("app.inference.time.monotonic", lambda: 1.0)
     catalog = [model("nvidia/nemotron:free"), model("z-ai/glm:free")]
     opener = FakeOpener(
         {"data": catalog},

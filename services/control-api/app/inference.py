@@ -164,7 +164,7 @@ class OpenRouterFreeClient:
         self._catalog: list[dict[str, Any]] = []
         self._catalog_loaded_at = 0.0
         self._free_tier: bool | None = None
-        self._key_info_loaded_at = 0.0
+        self._key_info_loaded_at: float | None = None
         self._model_cooldowns: dict[str, float] = {}
 
     @property
@@ -209,7 +209,10 @@ class OpenRouterFreeClient:
 
     def _load_key_tier(self) -> bool | None:
         now = time.monotonic()
-        if now - self._key_info_loaded_at < KEY_INFO_TTL_SECONDS:
+        if (
+            self._key_info_loaded_at is not None
+            and now - self._key_info_loaded_at < KEY_INFO_TTL_SECONDS
+        ):
             return self._free_tier
         request = Request(  # noqa: S310
             f"{OPENROUTER_BASE_URL}/key", headers=self._headers()

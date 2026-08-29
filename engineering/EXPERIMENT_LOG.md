@@ -294,8 +294,9 @@ Observed:
   listings, retained 38 against its synthetic zero-threshold target, and
   completed the draft through `ollama/qwen3:8b` because OpenRouter remained
   disabled. The recorded local latency was 47,697 ms and cost was zero.
-- The rebuilt final isolated test image passed 58 tests in 0.55 seconds. Playwright
-  rendered the authenticated inference status with zero console errors/warnings.
+- After the cold-start cache fix, rebuilt isolated test runs passed 58 tests in
+  0.61 and 0.66 seconds. Playwright rendered the authenticated inference status
+  with zero console errors/warnings.
 
 Result: live catalog discovery, strict local routing, durable route telemetry,
 and UI rendering passed. Authenticated OpenRouter generation did not run.
