@@ -2,9 +2,21 @@
 # onboarding; do not commit the rendered file or an actual API key.
 model:
   provider: custom
-  default: auto
+  # Use OmniRoute's explicit free route. A generic `auto` route could select a
+  # paid provider added later and cannot provide this project's zero-cost
+  # invariant.
+  default: free/default
   base_url: http://omniroute:20128/v1
   api_key: ${OMNIROUTE_API_KEY}
+
+# Preserve interactive continuity when the hosted free pools are unavailable.
+# This endpoint is internal-only and becomes usable when the local-model
+# profile is running with qwen3:8b installed.
+fallback_providers:
+  - provider: custom
+    model: qwen3:8b
+    base_url: http://ollama:11434/v1
+    key_env: HERMES_LOCAL_FALLBACK_KEY
 
 approvals:
   mode: manual
@@ -22,4 +34,3 @@ memory:
 
 # MCP remains disabled until a reviewed profile is deliberately rendered.
 mcp_servers: {}
-

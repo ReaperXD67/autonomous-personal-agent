@@ -1232,3 +1232,68 @@ configuration prompt and harmless zero-cost smoke, and separately add OpenRouter
 to OmniRoute if interactive Hermes sessions should use it. Free model inventory,
 shared quota, privacy-compatible endpoint availability, and third-party terms
 can change. Local Qwen remains required for guaranteed no-provider continuity.
+
+## Step 19 — Partition free inference pools by purpose and value
+
+Date: 2026-08-29
+
+### Objective
+
+Verify whether OpenRouter and OmniRoute were actually coordinated, prevent
+general agent traffic from wasting the career drafting allowance, direct
+bounded hosted drafts to the most valuable opportunities, and preserve a fully
+free local continuity path.
+
+### Research and decision
+
+Inspected the ignored environment only for boolean/key presence, the
+authenticated OmniRoute catalog, sanitized Hermes configuration, existing
+OpenRouter adapter, and official upstream routing/quota documentation. The
+workstation had OpenRouter disabled with no key. OmniRoute exposed 79 route IDs,
+including 40 concrete routes all owned by OVHfree and no OpenRouter route.
+
+Confirmed that OmniRoute's advertised aggregate free-token figure represents
+separately enrolled provider tiers, not a gateway-issued credit balance;
+OpenRouter's free allowance is account-wide; OmniRoute's budget header is
+positive-number/automatic-route scoped; and Hermes supports an ordered custom
+fallback chain. ADR-0013 records the purpose-aware allocation.
+
+### Implementation
+
+- Changed the committed Hermes primary from generic `auto` to explicit
+  `free/default` and added internal `qwen3:8b` as its custom fallback.
+- Recreated Hermes with a non-secret Ollama client-compatibility value and
+  rendered the fallback into the existing named volume without exposing its
+  configuration or credentials.
+- Kept direct strict-free OpenRouter exclusive to career drafts. The same
+  account is not intentionally connected to OmniRoute, so Hermes traffic cannot
+  bypass the PostgreSQL reservation ledger.
+- Extended the agent doctor to report concrete OmniRoute pool ownership, detect
+  OpenRouter overlap, enforce the Hermes primary, and inspect the local fallback
+  without printing credentials.
+- Sorted new opportunities by match score and then freshness before choosing
+  the bounded automatic-preparation set.
+- Added unit/repository contracts, ADR/research/operations documentation, and
+  synchronized architecture, security, roadmap, and system-evolution claims.
+
+### Validation
+
+- All Compose configurations passed.
+- The rebuilt Ruff/Pytest image passed 60 tests.
+- `scripts/verify.ps1` passed builds, six-service health, safe and approved
+  paths, lease recovery/exhaustion, cancellation, and dead-letter inspection.
+- `scripts/doctor.ps1 -Agent -LocalModel` reported 40 OVHfree concrete routes,
+  no OpenRouter overlap, Hermes `free/default`, the local fallback, and healthy
+  GPU-backed Ollama.
+- `scripts/agent-smoke.ps1` completed through `free/default`; Hermes returned
+  exactly `HERMES_READY_OK`; Qwen returned exactly `LOCAL_MODEL_OK` and reported
+  100% GPU placement.
+
+### Remaining boundary
+
+OpenRouter remains prepared but inactive until the user installs a scoped key
+and its authenticated smoke reports zero cost. The Hermes fallback configuration
+and local endpoint were each verified, but a forced real outage/failover was not
+induced against the working provider. Provider terms, quotas, and OmniRoute pool
+membership can change; the doctor detects local drift but cannot observe usage
+from other devices or applications.

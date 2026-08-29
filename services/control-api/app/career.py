@@ -347,6 +347,20 @@ def score_opportunity(job: dict[str, Any], profile: dict[str, Any]) -> dict[str,
     return scored if scored["score"] >= profile["min_score"] else None
 
 
+def prioritize_opportunities(
+    opportunities: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Spend bounded auto-prepare capacity on the strongest, freshest matches."""
+    return sorted(
+        opportunities,
+        key=lambda opportunity: (
+            int(opportunity["score"]),
+            opportunity["published_at"],
+        ),
+        reverse=True,
+    )
+
+
 APPLICATION_SCHEMA = {
     "type": "object",
     "properties": {

@@ -54,6 +54,13 @@ trusted core.
 Hermes can reach OmniRoute on isolated `model` network but cannot reach
 PostgreSQL or Redis directly.
 
+Inference pools are purpose-partitioned. Deterministic discovery, filtering,
+and scoring spend no tokens. Hermes uses OmniRoute `free/default`, with internal
+Qwen as a provider-failure fallback. Career drafts alone may consume the direct
+OpenRouter strict-free pool, ordered by opportunity score/freshness and bounded
+by PostgreSQL. The same OpenRouter account is not intentionally configured in
+OmniRoute because those two consumers cannot share one authoritative local cap.
+
 The career worker has a separate, narrow OpenRouter adapter because it can
 enforce exact live-catalog `:free` and zero-price invariants before résumé data
 leaves the host. It requests no-training/zero-retention endpoints, verifies the

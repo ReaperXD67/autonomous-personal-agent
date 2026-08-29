@@ -42,6 +42,10 @@ availability failure, the worker sends the selected job plus stored résumé to
 internal Ollama. It has outbound edge, data, and model networks but no host
 mount, Docker socket, or published port.
 
+New matches are ordered by score and then publication time before the bounded
+auto-prepare set is chosen, so hosted free reservations are spent on the
+strongest, freshest opportunities rather than source arrival order.
+
 The same bounded egress runtime handles `marketing.creator_discovery`. It calls
 only the fixed YouTube Data API host with a deployment-provided restricted key,
 bounded queries/results, strict safe search, and response/time limits. It stores
@@ -93,8 +97,10 @@ and AOF reduce accidental loss, but Redis remains non-authoritative.
 
 Nous Research Hermes Agent is optional orchestrator/brain. Foundation does not
 fork or fake its APIs. Release `v2026.8.3` is verified from official repository
-and Docker image. Its routed one-shot inference passed locally. Manual approval
-remains configured; MCP and messaging remain unprovisioned.
+and Docker image. Its routed one-shot inference passed locally. Its reviewed
+primary is OmniRoute `free/default`; internal `qwen3:8b` is the continuity
+fallback when the local-model profile is running. Manual approval remains
+configured; MCP and messaging remain unprovisioned.
 
 ### OmniRoute
 
@@ -102,6 +108,8 @@ OmniRoute is optional OpenAI-compatible model routing gateway. Release `3.8.49`
 is verified from official repository and Docker image. Dashboard binds to
 loopback, secrets stay in `.env`, and inference key enforcement is enabled. Its
 authenticated catalog and `free/default` inference path passed locally.
+Its provider quotas are kept separate from the direct career OpenRouter account
+so general Hermes traffic cannot evade the career usage ledger.
 
 ## Planned components
 

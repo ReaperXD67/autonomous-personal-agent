@@ -11,9 +11,18 @@ onboarding at `http://127.0.0.1:20128`; credentials are never committed.
 
 Upstream source: <https://github.com/diegosouzapw/OmniRoute/releases/tag/v3.8.49>
 
-Hermes continues to use this gateway. Career résumé drafting has a separate
-narrow OpenRouter adapter because it enforces live exact `:free`/zero-price and
+Hermes uses the explicit `free/default` route through this gateway. Career
+résumé drafting has a separate narrow OpenRouter adapter because it enforces
+live exact `:free`/zero-price and
 zero-returned-cost invariants that OmniRoute's fail-open automatic free-tier
-filter cannot guarantee. To use an OpenRouter account interactively in Hermes,
-add it here manually and create an exact `:free` priority or fill-first combo;
-never provide OpenRouter management credentials.
+filter cannot guarantee. Keep the career OpenRouter account out of OmniRoute by
+default: OpenRouter's free allowance is account-wide, while only direct career
+calls participate in the PostgreSQL reservation ledger.
+`./scripts/doctor.ps1 -Agent` warns if the same pool becomes reachable through
+both paths.
+
+OmniRoute does not grant a standalone 1.53-billion-token balance. That figure is
+an upstream theoretical aggregate of separately enrolled provider free tiers;
+actual usable quota depends on the connected provider accounts. On 2026-08-29
+this workstation exposed 40 concrete routes, all owned by OVHfree, and no
+OpenRouter route.

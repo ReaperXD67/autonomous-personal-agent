@@ -47,6 +47,15 @@ data collection without reviewing résumé privacy, disabling cost checks, or
 supplying a management key. Free inventory changes; catalog refresh drops
 missing or non-zero-cost entries. Keep local Ollama running for continuity.
 
+## Free quota disappears faster than the dashboard reports
+
+Run `./scripts/doctor.ps1 -Agent`. The dashboard's PostgreSQL ledger covers only
+the direct career adapter; OpenRouter's allowance is account-wide. If the doctor
+reports OpenRouter inside OmniRoute as well as the direct worker, remove it from
+OmniRoute or use a genuinely separate provider/account there. General Hermes
+traffic should use OmniRoute `free/default`; career drafting owns the strict
+OpenRouter pool.
+
 ## Docker Desktop file sharing
 
 Project should reside in a Docker-accessible Windows directory. Named volumes

@@ -15,6 +15,17 @@ function Write-Check {
     if ($Level -eq 'FAIL') { $script:failures++ }
 }
 
+function Read-EnvironmentFile {
+    param([Parameter(Mandatory)][string]$Path)
+    $values = @{}
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        if ($line -match '^\s*#' -or $line -notmatch '=') { continue }
+        $parts = $line.Split('=', 2)
+        $values[$parts[0].Trim()] = $parts[1]
+    }
+    return $values
+}
+
 Push-Location $projectRoot
 try {
     if (Get-Command docker -ErrorAction SilentlyContinue) {
@@ -79,21 +90,78 @@ try {
     else { Write-Check WARN 'NVIDIA GPU' 'not detected; local-model profile unavailable' }
 
     if (Test-Path -LiteralPath '.env') {
-        $keyLine = Get-Content -LiteralPath '.env' | Where-Object { $_ -match '^OMNIROUTE_API_KEY=' } | Select-Object -First 1
-        if ($keyLine -and $keyLine -notmatch 'CHANGE_ME') {
+        $environment = Read-EnvironmentFile -Path '.env'
+        $omniRouteKey = [string]$environment.OMNIROUTE_API_KEY
+        if ($omniRouteKey -and $omniRouteKey -notmatch 'CHANGE_ME') {
             Write-Check OK 'OmniRoute key' 'configured in ignored .env'
         }
         else { Write-Check WARN 'OmniRoute key' 'finish dashboard onboarding and create a scoped inference key' }
 
-        $openRouterEnabled = Get-Content -LiteralPath '.env' | Where-Object { $_ -match '^OPENROUTER_ENABLED=true$' } | Select-Object -First 1
-        $openRouterKey = Get-Content -LiteralPath '.env' | Where-Object { $_ -match '^OPENROUTER_API_KEY=' } | Select-Object -First 1
-        if ($openRouterEnabled -and $openRouterKey -and $openRouterKey -notmatch '^OPENROUTER_API_KEY=$|CHANGE_ME') {
+        $openRouterEnabled = [string]$environment.OPENROUTER_ENABLED -eq 'true'
+        $openRouterKey = [string]$environment.OPENROUTER_API_KEY
+        if ($openRouterEnabled -and $openRouterKey -and $openRouterKey -notmatch 'CHANGE_ME') {
             Write-Check OK 'OpenRouter route' 'enabled with an ignored worker-only key; run scripts/openrouter.ps1 -Smoke'
         }
         elseif ($openRouterEnabled) {
             Write-Check FAIL 'OpenRouter route' 'enabled without a usable key'
         }
         else { Write-Check INFO 'OpenRouter route' 'optional; configure with scripts/openrouter.ps1 -Configure' }
+
+        if ($Agent -and $omniRouteKey) {
+            try {
+                $headers = @{ Authorization = "Bearer $omniRouteKey" }
+                $catalog = Invoke-RestMethod -Uri 'http://127.0.0.1:20128/v1/models' -Headers $headers -TimeoutSec 15
+                $concreteModels = @($catalog.data | Where-Object {
+                    [string]$_.id -notmatch '^(auto|free)/'
+                })
+                $owners = @($concreteModels | ForEach-Object { [string]$_.owned_by } | Where-Object { $_ } | Sort-Object -Unique)
+                $ownerSummary = if ($owners.Count -gt 0) { $owners -join ', ' } else { 'unreported providers' }
+                Write-Check OK 'OmniRoute pool' ("{0} concrete routes across {1}" -f $concreteModels.Count, $ownerSummary)
+
+                $openRouterInOmniRoute = @($concreteModels | Where-Object {
+                    [string]$_.owned_by -match 'openrouter' -or [string]$_.id -match 'openrouter'
+                }).Count -gt 0
+                if ($openRouterEnabled -and $openRouterInOmniRoute) {
+                    Write-Check WARN 'Shared free quota' 'OpenRouter is enabled both directly and in OmniRoute; remove it from OmniRoute so the PostgreSQL daily cap stays authoritative'
+                }
+                else {
+                    Write-Check OK 'Quota isolation' 'OpenRouter career calls and OmniRoute interactive pools do not overlap'
+                }
+            }
+            catch {
+                Write-Check WARN 'OmniRoute pool' 'catalog unavailable; run scripts/agent-smoke.ps1 after the gateway is healthy'
+            }
+
+            $hermesContainer = docker compose --profile agent ps --quiet hermes 2>$null
+            if ($hermesContainer) {
+                $primaryRoute = (& docker compose --profile agent exec -T hermes hermes config get model.default 2>$null | Select-Object -Last 1).Trim()
+                if ($primaryRoute -eq 'free/default') {
+                    Write-Check OK 'Hermes primary route' 'free/default through OmniRoute'
+                }
+                else {
+                    Write-Check FAIL 'Hermes primary route' "expected free/default; found '$primaryRoute'"
+                }
+
+                try {
+                    $fallbackJson = (& docker compose --profile agent exec -T hermes hermes config get fallback_providers --json 2>$null) -join "`n"
+                    $fallbacks = @($fallbackJson | ConvertFrom-Json)
+                    $localFallback = @($fallbacks | Where-Object {
+                        [string]$_.provider -eq 'custom' -and
+                        [string]$_.model -eq 'qwen3:8b' -and
+                        ([string]$_.base_url).TrimEnd('/') -eq 'http://ollama:11434/v1'
+                    }).Count -gt 0
+                    if ($localFallback) {
+                        Write-Check OK 'Hermes continuity' 'internal qwen3:8b fallback configured'
+                    }
+                    else {
+                        Write-Check WARN 'Hermes continuity' 'local fallback not rendered; apply services/hermes/config.example.yaml'
+                    }
+                }
+                catch {
+                    Write-Check WARN 'Hermes continuity' 'fallback configuration could not be inspected'
+                }
+            }
+        }
     }
 }
 finally {

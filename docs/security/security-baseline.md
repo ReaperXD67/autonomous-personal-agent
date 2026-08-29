@@ -52,6 +52,9 @@ capability must enter this registry before its handler is reachable.
   provider filters, an atomic daily cap, and local fallback fail closed on cost;
 - OpenRouter inference key scoped to the career worker; model/prompt/response
   content is excluded from the inference invocation ledger;
+- provider-quota separation: Hermes uses OmniRoute `free/default`, direct
+  OpenRouter remains career-only, and diagnostics warn if the same account-wide
+  pool becomes reachable outside the PostgreSQL cap;
 - required immutable-action CI gates for dependency review, repository
   vulnerability/secret/misconfiguration scanning, runtime-image vulnerability
   scanning, and an SPDX JSON SBOM artifact;

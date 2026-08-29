@@ -301,6 +301,33 @@ Observed:
 Result: live catalog discovery, strict local routing, durable route telemetry,
 and UI rendering passed. Authenticated OpenRouter generation did not run.
 
+## EXP-015 — Purpose-aware free-pool and continuity observation
+
+Date: 2026-08-29
+
+Method: inspect the authenticated OmniRoute model catalog and sanitized Hermes
+route/fallback fields, run the extended agent doctor, then execute harmless
+OmniRoute, Hermes, and local Qwen exact-response probes. No provider credential,
+prompt content beyond the canaries, or persisted personal data was printed.
+
+Observed:
+
+- OmniRoute exposed 79 route IDs. Forty were concrete routes and all reported
+  `ovhfree` ownership; no OpenRouter route was present.
+- Ignored local configuration reported OpenRouter disabled and no key present.
+- The extended doctor accepted Hermes primary `free/default`, found exactly one
+  internal custom `qwen3:8b` fallback, and reported quota isolation.
+- OmniRoute completed the `free/default` canary and Hermes returned exactly
+  `HERMES_READY_OK` through its primary route.
+- Local `qwen3:8b` returned exactly `LOCAL_MODEL_OK`; Ollama reported a 6.2 GB
+  loaded model, 8,192-token context, and 100% GPU placement.
+- The rebuilt container suite passed Ruff and 60 tests. Complete lifecycle
+  verification passed after rebuilding the changed worker.
+
+Result: current hosted pools are non-overlapping, both primary routes and the
+local endpoint work, and the fallback is rendered. A forced provider outage was
+not performed, so automatic failover execution itself is not claimed.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

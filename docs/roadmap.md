@@ -31,6 +31,7 @@
 - [ ] Complete OmniRoute provider onboarding with cost budgets
 - [ ] Hermes adapter that creates control-plane tasks instead of bypassing policy
 - [x] Free-only OpenRouter catalog policy, ordered fallback tests, local continuity, and PostgreSQL usage/cost audit metadata
+- [x] Purpose-aware free-pool allocation, top-match reservation priority, Hermes local fallback, and shared-quota drift diagnostics
 - [ ] Install a scoped OpenRouter inference key and pass the harmless live fallback canary
 - [ ] Safe memory writer/retriever with provenance and deletion policy
 - [x] Career scheduler persists tasks through the policy/outbox path before queue publication
