@@ -19,11 +19,11 @@ The default gate requires all configured paths:
 |---|---|
 | Core lifecycle verification | Build, lint, tests, health, approval, retry, cancellation, dead letters |
 | Disposable restore drill | Latest authoritative state can be restored and read by application code |
-| Agent doctor | Docker/WSL/configuration/core/OmniRoute/Hermes/GPU readiness |
+| Agent doctor | Docker/WSL/configuration/core readiness plus OmniRoute pool ownership, explicit Hermes free route, local fallback, and OpenRouter overlap detection |
 | OmniRoute smoke | Authenticated `free/default` route returns a real completion |
 | OpenRouter free smoke | When enabled, the current ranked `:free` chain returns the exact harmless response and reports zero cost |
 | Local-model smoke | Qwen3 8B returns `LOCAL_MODEL_OK` and Ollama reports GPU placement |
-| Hermes one-shot | Hermes returns `HERMES_READY_OK` through its configured route |
+| Hermes one-shot | Hermes returns `HERMES_READY_OK` through its configured primary route |
 
 The script writes only check names, status, duration, error summary, timestamp,
 and Git commit to ignored `runtime/readiness/latest.json`. It does not write

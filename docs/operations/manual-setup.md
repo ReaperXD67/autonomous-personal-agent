@@ -81,6 +81,22 @@ Gmail and Microsoft also expose OAuth send APIs, but OAuth consent and token
 storage are not implemented here. Do not weaken account security by automating
 interactive login or storing a personal browser profile in the action worker.
 
+## Current free-pool allocation
+
+| Work | Route | Why |
+|---|---|---|
+| Job/creator discovery, freshness, matching, scoring, preflight | Deterministic code | Zero tokens and reproducible decisions |
+| General Hermes planning/chat | OmniRoute `free/default` | Uses the separately configured gateway pool |
+| Highest-score/freshest career drafts | Direct strict OpenRouter `:free` chain when enabled | Live price and returned-cost attestation plus a PostgreSQL daily cap |
+| Any hosted quota/outage/privacy failure | Internal `qwen3:8b` | No provider quota and résumé stays local |
+
+Do not connect the same OpenRouter account to OmniRoute by default. Free limits
+are shared across the OpenRouter account, but OmniRoute calls cannot participate
+in the career worker's PostgreSQL reservation counter. The “1.53B free tokens”
+shown in OmniRoute material is a theoretical sum across many separately enrolled
+provider tiers, not a credit grant from OmniRoute. This workstation currently
+has 40 concrete OVHfree routes and no OpenRouter route in OmniRoute.
+
 ## Path A — completely local inference
 
 This has no token charge and sends prompts only to the local Ollama container.
@@ -101,9 +117,10 @@ docker compose --profile local-model exec ollama ollama ps
 ```
 
 The `PROCESSOR` column should show GPU use. The internal OpenAI-compatible URL is
-`http://ollama:11434/v1`. In OmniRoute, add an Ollama/OpenAI-compatible provider
-using that internal URL and model `qwen3:8b`; then include it as the final
-fallback in `auto`. Do not publish port 11434.
+`http://ollama:11434/v1`. Hermes is configured to use it directly after
+OmniRoute provider failures; start both `agent` and `local-model` profiles for
+that chain. Do not publish port 11434 and do not switch the primary to generic
+`auto`.
 
 ## Path B — enable the ranked OpenRouter free chain
 
@@ -140,11 +157,11 @@ mode, fallback attempt, tokens, and zero recorded credits. Free model inventory
 is volatile. Switching models helps model/provider-specific limits, but it does
 not bypass the shared account-wide free quota; local Qwen is the final route.
 
-If you also want interactive Hermes conversations to consume this OpenRouter
-account, add OpenRouter separately in the loopback-only OmniRoute dashboard and
-build an exact `:free` priority/fill-first combo. Do not rely on
-`auto/<category>:free` as a hard spend boundary in OmniRoute 3.8.49 because its
-tier filtering is documented as fail-open when no candidates match.
+Do not also add this OpenRouter account to OmniRoute unless you deliberately
+accept uncoordinated account-wide quota consumption. A separate provider pool is
+preferred for interactive Hermes. Never rely on `auto/<category>:free` as a
+hard spend boundary in OmniRoute 3.8.49 because its tier filtering is documented
+as fail-open when no candidates match.
 
 ## Path C — add or replace another OmniRoute free-tier provider
 
@@ -158,6 +175,12 @@ tier filtering is documented as fail-open when no candidates match.
    documentation, logs, or chat.
 7. Run `./scripts/agent-smoke.ps1`.
 
+Keep Hermes on `free/default`. OmniRoute's per-request budget header accepts a
+positive budget and applies only to automatic routing; it is not an exact-zero
+attestation for this project's persisted route. If a newly added provider can
+charge, create and validate an explicit provider-only free combo before putting
+it anywhere in the Hermes path.
+
 ## Reconfigure Hermes (optional)
 
 Hermes is already connected to OmniRoute and returned `HERMES_OK`. Use these
@@ -165,11 +188,13 @@ steps only to repair it or switch the route:
 
 1. Run `docker compose --profile agent exec hermes hermes setup`.
 2. Select a custom OpenAI-compatible provider.
-3. Use `http://omniroute:20128/v1` and the scoped OmniRoute key for the routed
-   path, or `http://ollama:11434/v1` and `qwen3:8b` for local-only use.
-4. Keep command approval enabled.
-5. Do not mount the host filesystem or Docker socket.
-6. Test a harmless read-only prompt before adding messaging or MCP tools.
+3. Use `http://omniroute:20128/v1`, model `free/default`, and the scoped
+   OmniRoute key for the primary path.
+4. Keep the reviewed custom fallback at `http://ollama:11434/v1`, model
+   `qwen3:8b`.
+5. Keep command approval enabled.
+6. Do not mount the host filesystem or Docker socket.
+7. Test a harmless read-only prompt before adding messaging or MCP tools.
 
 ## Accounts intentionally not automated
 

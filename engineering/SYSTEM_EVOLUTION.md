@@ -143,6 +143,22 @@ ledger. Dashboard settings and metrics make the actual route and zero-cost claim
 inspectable. The live hosted path remains prepared/unverified until a user-owned
 inference key passes the harmless smoke.
 
+## v0.11 — Purpose-aware free-pool allocation (2026-08-29)
+
+Inference is now allocated by purpose instead of treating every free endpoint as
+one fungible pool. Deterministic discovery, scoring, and preflight use no LLM.
+Hermes' committed primary is OmniRoute `free/default`, with internal Qwen as its
+ordered provider-failure fallback. The direct strict-free OpenRouter path stays
+exclusive to career drafts so general agent traffic cannot consume its
+account-wide allowance outside PostgreSQL's reservation ledger.
+
+Automatic preparation now prioritizes new matches by score and freshness before
+spending its bounded draft capacity. The agent doctor inspects current
+OmniRoute ownership, enforces the live Hermes primary, verifies the local
+fallback shape, and warns about OpenRouter overlap. This preserves the exact
+cost/privacy attestation boundary from v0.10 while using the available gateway
+pool for general reasoning and the private GPU for continuity.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

@@ -22,6 +22,7 @@ from app.career import (
     fetch_lever,
     generate_application_draft_with_usage,
     parse_application_draft,
+    prioritize_opportunities,
     score_opportunity,
 )
 from app.inference import OpenRouterError, OpenRouterFreeClient
@@ -157,6 +158,10 @@ def execute_career_task(
             scored = score_opportunity(job, profile)
             if scored is not None:
                 matches.append(scored)
+        # save_opportunities selects the first bounded set for automatic
+        # preparation, so rank before persistence instead of spending scarce
+        # hosted free calls in provider arrival order.
+        matches = prioritize_opportunities(matches)
         save_result = database.save_opportunities(profile_id, matches)
         auto_prepared = 0
         if profile["resume_text"].strip():

@@ -208,6 +208,28 @@ def test_openrouter_route_is_free_only_private_and_audited() -> None:
     assert "CREATE TABLE IF NOT EXISTS inference_invocations" in migration
 
 
+def test_hermes_uses_explicit_free_primary_and_internal_local_fallback() -> None:
+    config = yaml.safe_load(
+        (ROOT / "services/hermes/config.example.yaml").read_text(encoding="utf-8")
+    )
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+
+    assert config["model"]["default"] == "free/default"
+    assert config["model"]["base_url"] == "http://omniroute:20128/v1"
+    assert config["fallback_providers"] == [
+        {
+            "provider": "custom",
+            "model": "qwen3:8b",
+            "base_url": "http://ollama:11434/v1",
+            "key_env": "HERMES_LOCAL_FALLBACK_KEY",
+        }
+    ]
+    assert (
+        compose["services"]["hermes"]["environment"]["HERMES_LOCAL_FALLBACK_KEY"]
+        == "local-ollama-no-auth"
+    )
+
+
 def test_repository_agent_guidance_enforces_engineering_records() -> None:
     guidance = (ROOT / "AGENTS.md").read_text(encoding="utf-8")
     for required in (

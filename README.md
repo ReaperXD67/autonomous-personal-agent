@@ -46,7 +46,7 @@ and human approval for high-impact actions.
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
-| Hermes + OmniRoute | Verified locally | Optional pinned profile; 79 routes, `free/default`, and Hermes one-shot inference passed |
+| Hermes + OmniRoute | Verified locally | Optional pinned profile; explicit `free/default` primary, 79 routes observed, Hermes one-shot passed, and internal Qwen continuity configured |
 | Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
 | Free hosted routing | Implemented, not live-verified | Live catalog price checks, ordered cross-model fallback, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
@@ -76,8 +76,9 @@ flowchart LR
     W --> AUDIT["Audit events"]
     AUDIT --> PG
 
-    H["Hermes (optional)"] --> O["OmniRoute (optional)"]
-    O --> LLM["Configured LLM providers"]
+    H["Hermes (optional)"] --> O["OmniRoute free/default"]
+    O --> LLM["Configured non-overlapping free providers"]
+    H -->|"hosted outage / rate limit"| LM
     H -. "future policy adapter" .-> POLICY
     H -. "reviewed profiles only" .-> MCP["MCP gateway / tools"]
 ```
@@ -109,9 +110,9 @@ without waiting; the exact final application still appears in **Approvals**.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
 
-Local Qwen is the default. To opt into stronger hosted free drafting without
-putting a key in Git or shell history, create a dedicated OpenRouter inference
-key and run:
+Local Qwen is the default for career drafting. To opt into stronger hosted free
+drafting without putting a key in Git or shell history, create a dedicated
+OpenRouter inference key and run:
 
 ```powershell
 ./scripts/openrouter.ps1 -Configure
@@ -190,6 +191,12 @@ This workstation is onboarded with a scoped inference-only key in ignored
 requires local administrator onboarding and a new scoped key. Use
 [services/hermes/config.example.yaml](services/hermes/config.example.yaml) as the
 reviewed boundary and never treat image health alone as inference readiness.
+The committed route policy assigns different pools to different work:
+deterministic discovery/scoring uses no LLM, Hermes uses OmniRoute's
+`free/default`, high-value career drafts may use the separately metered strict
+OpenRouter `:free` chain, and local Qwen is the final no-provider fallback. Do
+not add the same OpenRouter account to OmniRoute: that would consume the same
+account-wide quota outside the PostgreSQL reservation ledger.
 
 ## Complete test-readiness gate
 
@@ -219,11 +226,13 @@ placement. This workstation passed that check on 2026-08-15. It is private and
 has no token bill, but its 8K configured context and model quality are below
 strong hosted models.
 Use the verified OpenRouter free chain for current Nemotron or other larger
-models when available. Hermes still uses OmniRoute as its general gateway; add
-OpenRouter there separately if you also want interactive Hermes sessions to use
-that account.
-See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
-[remaining manual setup](docs/operations/manual-setup.md).
+models when available. Hermes uses OmniRoute's separate free pool and falls
+back directly to internal Qwen when that hosted pool is unavailable. This
+partition preserves OpenRouter's bounded allowance for the highest-ranked
+career matches instead of spending it on general chat.
+See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md),
+[free-pool allocation assessment](docs/research/free-pool-allocation-2026-08.md),
+and [remaining manual setup](docs/operations/manual-setup.md).
 
 ## Security defaults
 

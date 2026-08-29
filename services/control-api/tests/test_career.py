@@ -2,7 +2,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.career import parse_application_draft, score_opportunity
+from app.career import (
+    parse_application_draft,
+    prioritize_opportunities,
+    score_opportunity,
+)
 from app.career_models import CareerSourceConfig
 
 
@@ -57,6 +61,24 @@ def test_old_or_excluded_roles_are_rejected() -> None:
 def test_remote_only_profile_rejects_onsite_role() -> None:
     onsite = job(remote=False, location="Bengaluru, India")
     assert score_opportunity(onsite, profile(remote_only=True)) is None
+
+
+def test_auto_prepare_priority_prefers_score_then_freshness() -> None:
+    older = datetime.now(UTC) - timedelta(hours=8)
+    newer = datetime.now(UTC) - timedelta(hours=1)
+    opportunities = [
+        {"source_key": "low", "score": 70, "published_at": newer},
+        {"source_key": "older-high", "score": 90, "published_at": older},
+        {"source_key": "newer-high", "score": 90, "published_at": newer},
+    ]
+
+    ranked = prioritize_opportunities(opportunities)
+
+    assert [item["source_key"] for item in ranked] == [
+        "newer-high",
+        "older-high",
+        "low",
+    ]
 
 
 def test_career_source_config_requires_a_reviewed_source() -> None:
