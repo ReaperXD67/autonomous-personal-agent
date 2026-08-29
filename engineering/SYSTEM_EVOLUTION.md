@@ -121,9 +121,31 @@ shift future drafts to 80/20 exploitation/exploration. Results and suggestions
 are evidence-bearing operator aids, not permission for the agent to change code,
 policy, contacts, offers, budgets, approvals, or sending authority.
 
+## v0.10 — Attested free hosted inference with local continuity (2026-08-29)
+
+Career drafting can now opt into a narrow OpenRouter adapter without making a
+hosted key a core-stack requirement. The worker discovers the current text
+catalog, accepts only exact `:free` IDs whose prompt/completion/request prices
+are zero, applies a configurable quality order, and gives OpenRouter an explicit
+cross-model fallback chain. The actual selected model must remain in that chain
+and the completion must report zero cost or its output is rejected.
+
+Résumé privacy changed from an unconditional local-only boundary to an explicit
+operator choice. Hosted routing is disabled by default, requests no-training
+and zero-retention endpoints, and falls back locally rather than silently
+weakening those filters. Only the career worker receives the OpenRouter key.
+Hermes continues through OmniRoute; external-action authorization is unchanged.
+
+PostgreSQL now atomically reserves the local hosted-request allowance and owns
+route/provider/model, tokens, latency, fallback, privacy, status, and cost
+metadata. Prompts, résumés, job text, completions, and keys are absent from that
+ledger. Dashboard settings and metrics make the actual route and zero-cost claim
+inspectable. The live hosted path remains prepared/unverified until a user-owned
+inference key passes the harmless smoke.
+
 ## Next architectural pressure
 
-Per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling
+Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling
 for ambiguous provider state, real-ATS compatibility fixtures, scoped inbound
 OAuth mail/reply classification, first-party KarixMC attribution import,
 encrypted off-host backups, and the policy-bound Hermes adapter are next.

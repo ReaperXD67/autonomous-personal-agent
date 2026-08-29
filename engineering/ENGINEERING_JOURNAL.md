@@ -1131,3 +1131,100 @@ reply ingestion/classification, link analytics import, public social posting,
 payments/budget authority, creator contracts/disclosure review, regional legal
 review, and production KarixMC conversion attribution remain user-owned or
 future work.
+
+## Step 18 — Add attested free OpenRouter routing with local continuity
+
+Date: 2026-08-29
+
+### Objective
+
+Use a user-owned OpenRouter account for the strongest currently free hosted
+model, move through an ordered fallback chain when a model/provider is
+unavailable, prevent accidental paid-model use, preserve private local
+continuity, and make the actual route/cost visible to the operator.
+
+### Research and decision
+
+Reviewed official OpenRouter free-limit, model-fallback, free-variant, catalog,
+key-info, provider privacy, ZDR, usage accounting, router metadata, and Hermes
+integration documentation plus OmniRoute 3.8.49 combo documentation. Confirmed
+that free request quota is shared across free models (50/day below the stated
+credit threshold; 1,000/day after at least USD 10 purchased), so model switching
+improves model-specific availability but does not multiply account quota.
+
+Selected a narrow career-worker OpenRouter adapter. OmniRoute remains Hermes'
+general gateway, but its current automatic free-tier filter is documented as
+fail-open when no candidates match and therefore cannot be the sole paid-balance
+boundary. ADR-0012 records the decision.
+
+### Implementation
+
+- Added live text-catalog discovery and a strict eligibility rule: exact
+  `:free` ID plus zero prompt, completion, and request prices.
+- Added an overrideable current-quality order led by Nemotron 3 Ultra, native
+  ordered cross-model fallback, 15-minute cooldown of models skipped before a
+  successful fallback, and local Qwen continuity.
+- Defaulted remote résumé requests to provider no-training and zero-retention
+  filters. The returned model must map to the verified chain and usage cost must
+  be exactly zero before output is accepted.
+- Added normal-key status inspection and conservative atomic PostgreSQL daily
+  reservations. The default is 40; 900 requires explicit operator confirmation
+  of the USD 10 all-time purchase threshold because `/key.is_free_tier` proves
+  only that some credits were purchased. The cap cannot account for OpenRouter
+  usage outside this deployment; upstream enforcement remains authoritative.
+- Added migration 008 and an inference invocation ledger containing only route,
+  provider/model, privacy, token, latency, fallback, status, error, and cost
+  metadata. It stores no prompt, résumé, job text, completion, or key.
+- Added dashboard and Prometheus inference status, including the actual selected
+  route and recorded credits. Added a hidden-prompt configuration/status/smoke
+  PowerShell command that never accepts the key as a command argument.
+- Added unit/contract tests, operations/troubleshooting guidance, current-source
+  research, architecture/security updates, roadmap updates, and readiness-gate
+  integration.
+
+### Problems encountered and resolution
+
+- The first repository contract test counted a variable name appearing both as
+  a Compose key and inside interpolation. It now parses the Compose model and
+  proves that only `job-worker` receives the credential.
+- The first local status response rendered PostgreSQL zero as `0E-12`; API
+  formatting now normalizes zero for an operator-readable dashboard.
+- OpenRouter model responses may return a canonical slug instead of the exact
+  requested variant. Selection validation now accepts only canonical aliases of
+  a catalog-verified free route and still requires returned zero cost.
+- Final review found a displaced `else` branch in the unified readiness script;
+  the OmniRoute and OpenRouter checks are now independent and the script parses.
+  Hosted usage fields are also validated before changing route cooldown state,
+  so malformed or non-zero-cost responses retain the original safe route.
+- Final official-documentation review found that `/key.is_free_tier=false` does
+  not attest the USD 10 purchase threshold. Automatic 900-request selection was
+  removed; the safe 40-request default now increases only through an explicit
+  non-secret operator assertion, without exposing a management key.
+
+### Validation
+
+- Live catalog research returned 18 current text `:free` models with zero
+  prompt/completion price; no credential or completion was used for that query.
+- `docker compose config --quiet` and PowerShell/JavaScript syntax checks passed.
+- Ruff and Pytest passed 58 tests in the rebuilt final test image.
+- `scripts/verify.ps1` passed builds, six-service core health, safe/approval
+  paths, lease retry/exhaustion, queued/running cancellation, dead-letter
+  inspection, and lifecycle checks.
+- `scripts/doctor.ps1 -Agent` passed; existing OmniRoute exposed 79 models and
+  `free/default` returned a live completion through `agent-smoke.ps1`.
+- The applied migration served authenticated inference status. A disposable
+  career smoke fetched 100 current listings, retained 38 matches, and completed
+  the new route through local `ollama/qwen3:8b`; the ledger/UI showed one local
+  success and zero recorded credits.
+- Playwright authenticated to the dashboard, rendered the Free inference card
+  with the actual route, and reported zero console errors or warnings.
+
+### Remaining boundary
+
+No OpenRouter key was supplied, stored, or used, so hosted completion and live
+cross-model fallback remain prepared/unverified. The user must create a normal
+scoped inference key, set its provider-side spend limit/expiry, run the hidden
+configuration prompt and harmless zero-cost smoke, and separately add OpenRouter
+to OmniRoute if interactive Hermes sessions should use it. Free model inventory,
+shared quota, privacy-compatible endpoint availability, and third-party terms
+can change. Local Qwen remains required for guaranteed no-provider continuity.

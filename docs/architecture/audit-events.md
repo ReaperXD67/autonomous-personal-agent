@@ -17,6 +17,11 @@ and arbitrary tool payloads must not enter audit rows. Current API records
 payload keys, not values. Future tool adapters must define allowlisted metadata
 schemas and retention periods before activation.
 
+`inference_invocations` is a separate operational ledger rather than prompt
+telemetry. It contains task/purpose, requested and selected model/provider,
+status, privacy mode, token counts, latency, fallback attempt, error code, and
+provider-reported cost. It explicitly omits prompt/completion text and secrets.
+
 Audit events are append-oriented. Product tables may project current status,
 but forensic timelines use event rows ordered by `occurred_at`. Deletion and
 export policies remain planned because personal data retention requirements

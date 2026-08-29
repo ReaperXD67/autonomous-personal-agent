@@ -12,6 +12,7 @@ flowchart TB
     WORKER["worker"] --> DATA
     JOB["career worker"] --> DATA
     JOB --> EDGE
+    EDGE --> OPENROUTER["OpenRouter HTTPS (optional)"]
     JOB --> MODEL
     ACTION["action worker"] --> DATA
     ACTION --> EDGE
@@ -40,7 +41,9 @@ authentication provider is configured. `edge` provides intentional host binding
 and outbound connectivity. `data` and `model` are `internal: true`. Dispatcher
 and foundation worker have no outbound network. The career worker is the narrow
 exception: it joins `edge` for allowlisted public job requests, `data` for
-durable task/career state, and `model` for local drafting. Hermes has outbound
+durable task/career/inference state, and `model` for local drafting. When
+explicitly enabled, it also calls the fixed OpenRouter HTTPS origin with a key
+that no other core application service receives. Hermes has outbound
 access for eventual provider/tools but no data-plane network. OmniRoute bridges
 model requests and its own Redis rate-limit state.
 

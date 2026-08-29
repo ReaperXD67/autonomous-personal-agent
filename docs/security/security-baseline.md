@@ -47,6 +47,11 @@ capability must enter this registry before its handler is reachable.
   or sending authority;
 - résumé text excluded from queue/task/audit/public-source payloads and local
   draft output constrained to a structured schema;
+- hosted résumé drafting disabled by default; its only eligible model IDs end in
+  `:free`, carry zero catalog price, and return zero usage cost; no-training/ZDR
+  provider filters, an atomic daily cap, and local fallback fail closed on cost;
+- OpenRouter inference key scoped to the career worker; model/prompt/response
+  content is excluded from the inference invocation ledger;
 - required immutable-action CI gates for dependency review, repository
   vulnerability/secret/misconfiguration scanning, runtime-image vulnerability
   scanning, and an SPDX JSON SBOM artifact;

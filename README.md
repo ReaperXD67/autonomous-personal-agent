@@ -39,7 +39,7 @@ and human approval for high-impact actions.
 | Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080` |
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
 | Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
-| Application preparation | Verified locally | Qwen3 8B creates a truthful structured résumé/cover-letter pack locally; the agent can auto-preflight common hosted forms and prepare the exact action |
+| Application preparation | Local verified; hosted prepared | A live-ranked, zero-cost-only OpenRouter chain can use Nemotron/other current free models before Qwen3 8B local fallback; hosted path needs a user key and smoke. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
 | Creator outreach | Implemented, external discovery unverified | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, reply suppression, exact-email sequence, results funnel, and bounded A/B learning; needs a user-owned API key/SMTP for real use |
@@ -48,6 +48,7 @@ and human approval for high-impact actions.
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
 | Hermes + OmniRoute | Verified locally | Optional pinned profile; 79 routes, `free/default`, and Hermes one-shot inference passed |
 | Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
+| Free hosted routing | Implemented, not live-verified | Live catalog price checks, ordered cross-model fallback, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
 | External submission and messaging | Prepared/partially verified | Local end-to-end side effects pass; real ATS/provider compatibility and credentials remain manual gates |
@@ -66,7 +67,8 @@ flowchart LR
     Q --> JW["Career worker"]
     Q --> AW["Isolated action worker"]
     JW --> JS["Allowlisted public job APIs"]
-    JW --> LM["Local Qwen draft"]
+    JW --> OR["Verified OpenRouter :free chain"]
+    OR -->|"quota / outage / privacy filter"| LM["Local Qwen fallback"]
     AW --> ATS["Reviewed ATS form"]
     AW --> SMTP["Configured SMTP / Mailpit"]
     API --> PG[("PostgreSQL + pgvector")]
@@ -107,6 +109,23 @@ without waiting; the exact final application still appears in **Approvals**.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
 
+Local Qwen is the default. To opt into stronger hosted free drafting without
+putting a key in Git or shell history, create a dedicated OpenRouter inference
+key and run:
+
+```powershell
+./scripts/openrouter.ps1 -Configure
+./scripts/openrouter.ps1 -Smoke
+docker compose up -d --build --force-recreate job-worker control-api
+```
+
+The key prompt is hidden. The runtime accepts only current text models whose
+exact ID ends in `:free`, whose catalog prices are all zero, and whose response
+reports zero cost. The dashboard **Settings** view shows the actual selected
+model/provider, fallback attempt, daily usage, privacy mode, and recorded cost.
+Hosted drafting sends résumé/job text to OpenRouter and an upstream provider;
+leave it disabled to keep all drafting on-device.
+
 For KarixMC promotion, open **Creator campaigns**. The dashboard can discover
 public YouTube channels with a restricted user-owned API key, but it never
 discovers or guesses creator emails. A human must qualify a public business
@@ -143,6 +162,7 @@ Stop cleanly:
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
 | `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |
 | `./scripts/agent-smoke.ps1` | `make agent-smoke` | Verify configured OmniRoute model inference |
+| `./scripts/openrouter.ps1 -Smoke` | `make openrouter` | Verify the current ranked free-only chain with one harmless zero-cost request |
 | `./scripts/test.ps1` | `make test` | Run lint and tests in isolated container |
 | `./scripts/logs.ps1` | `make logs` | Follow bounded Docker logs |
 | `./scripts/backup.ps1` | `make backup` | Create ignored PostgreSQL custom dump + SHA-256 |
@@ -198,7 +218,10 @@ model, requires the exact harmless response `LOCAL_MODEL_OK`, and verifies GPU
 placement. This workstation passed that check on 2026-08-15. It is private and
 has no token bill, but its 8K configured context and model quality are below
 strong hosted models.
-Use OmniRoute free providers for Nemotron or larger coding models when available.
+Use the verified OpenRouter free chain for current Nemotron or other larger
+models when available. Hermes still uses OmniRoute as its general gateway; add
+OpenRouter there separately if you also want interactive Hermes sessions to use
+that account.
 See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
 [remaining manual setup](docs/operations/manual-setup.md).
 
@@ -229,7 +252,8 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 | Data | Store | Durability |
 |---|---|---|
 | Tasks, approvals, audits | PostgreSQL | Authoritative, backed up |
-| Career missions, matches, draft packs, form preflights | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads |
+| Career missions, matches, draft packs, form preflights | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads/audits, but opt-in hosted drafting transmits it to the selected provider |
+| Inference route/usage metadata | PostgreSQL | Authoritative; requested/selected models, provider, tokens, fallback, latency, privacy mode, and cost only—never prompt or output text |
 | Exact external actions and side-effect receipts | PostgreSQL | Authoritative; approval digest and duplicate guard survive restarts |
 | Creator campaigns, contact provenance, suppressions, messages, outcomes | PostgreSQL | Authoritative; YouTube metadata contains no discovered email and every send links to an exact action |
 | Long-term memory and embeddings | PostgreSQL + pgvector | Authoritative, backed up |

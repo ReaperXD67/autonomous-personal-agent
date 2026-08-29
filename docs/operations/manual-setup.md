@@ -17,6 +17,11 @@ The career smoke on the same date fetched 100 live public listings, retained 5
 fresh matches for its exact synthetic target, and persisted a structured local
 Qwen application draft.
 
+The OpenRouter free-only adapter, ordered fallback tests, usage ledger, and UI
+are implemented, but the hosted path is not operational until a user-owned
+inference key is installed and the harmless live smoke succeeds. No OpenRouter
+key was available during implementation, so this distinction is intentional.
+
 On 2026-08-25, the isolated side-effect smoke used a synthetic candidate and
 local fixtures to prepare and execute one exact application, deliver one exact
 email to Mailpit, and refuse a second application after finding the durable
@@ -100,7 +105,48 @@ The `PROCESSOR` column should show GPU use. The internal OpenAI-compatible URL i
 using that internal URL and model `qwen3:8b`; then include it as the final
 fallback in `auto`. Do not publish port 11434.
 
-## Path B — add or replace a stronger free-tier provider
+## Path B — enable the ranked OpenRouter free chain
+
+Do not send the key in chat. Create a dedicated normal inference key in the
+OpenRouter dashboard; do not create or supply a management key. Give the key the
+lowest practical spend limit/expiry that fits your use so an upstream policy
+mistake cannot consume the account balance freely.
+
+```powershell
+./scripts/openrouter.ps1 -Configure
+./scripts/openrouter.ps1 -Smoke
+docker compose up -d --build --force-recreate migrate control-api job-worker
+```
+
+`-Configure` reads the key through a hidden prompt, validates it with `/key`,
+fetches the current catalog, prints only non-secret tier/limit/model metadata,
+and writes the key to ignored `.env`. `-Smoke` makes one harmless request with
+no-training/ZDR filters and refuses success unless OpenRouter reports exact zero
+cost. The safe default is 40 local reservations below the shared 50-request
+allowance. If the account has purchased at least USD 10 in total, configure the
+documented 1,000-request tier explicitly and preserve 100 requests of headroom:
+
+```powershell
+./scripts/openrouter.ps1 -Configure -ConfirmTenCreditsPurchased
+```
+
+Do not infer that threshold merely because the account has some balance:
+`/key.is_free_tier` only reports whether credits were ever purchased, not the
+amount, and querying all-time purchases requires a management key that this
+agent deliberately refuses.
+
+After a draft, open **Settings** and verify the actual model, provider, privacy
+mode, fallback attempt, tokens, and zero recorded credits. Free model inventory
+is volatile. Switching models helps model/provider-specific limits, but it does
+not bypass the shared account-wide free quota; local Qwen is the final route.
+
+If you also want interactive Hermes conversations to consume this OpenRouter
+account, add OpenRouter separately in the loopback-only OmniRoute dashboard and
+build an exact `:free` priority/fill-first combo. Do not rely on
+`auto/<category>:free` as a hard spend boundary in OmniRoute 3.8.49 because its
+tier filtering is documented as fail-open when no candidates match.
+
+## Path C — add or replace another OmniRoute free-tier provider
 
 1. Open <http://127.0.0.1:20128>.
 2. Sign in to the existing local administrator account.

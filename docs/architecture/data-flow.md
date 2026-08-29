@@ -28,9 +28,12 @@ sequenceDiagram
 
 Career tasks use the same sequence but the dispatcher routes their task IDs to a
 dedicated Redis list and the career worker claims them. The caller supplies only
-profile/opportunity IDs. The worker loads résumé data from PostgreSQL only for a
-local draft; raw résumé text is absent from queue envelopes, task payloads,
-audit metadata, and public job-source requests.
+profile/opportunity IDs. The worker loads résumé data from PostgreSQL only when
+drafting. Raw résumé text is absent from queue envelopes, task payloads, audit
+metadata, and public job-source requests. Hosted drafting is explicit opt-in:
+the worker reserves the daily call, sends résumé/job text only through the
+preverified free/privacy route, records route metadata, and falls back locally
+on any policy or availability failure.
 
 ## Career mission schedule
 
@@ -95,6 +98,7 @@ thresholds; they never authorize or send an email.
 | Ready signal | Redis | May be reconstructed from queued tasks |
 | Agent memory | PostgreSQL + pgvector | Planned writers require provenance and policy |
 | Career profiles/opportunities/drafts | PostgreSQL | Résumé is returned only as presence/length metadata; draft access stays internal |
+| Inference invocations | PostgreSQL | Route/provider/model, privacy, tokens, latency, fallback, status, and cost only; no prompt/output text |
 | Preflights/exact actions/receipts | PostgreSQL | Approval context, expiry, execution state, and duplicate guard are authoritative |
 | Creator campaigns/prospects/outcomes | PostgreSQL | Contact provenance, authorization, suppression, stage links, attribution, and learning evidence are authoritative |
 | Embeddings | pgvector column | Model/version metadata must accompany future writes |

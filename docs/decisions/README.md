@@ -15,3 +15,4 @@ history.
 - [ADR-0009](ADR-0009-private-career-missions.md): private career missions and review-before-submission
 - [ADR-0010](ADR-0010-exact-external-actions.md): exact approval-bound application and email side effects
 - [ADR-0011](ADR-0011-governed-creator-outreach.md): governed creator discovery and adaptive outreach
+- [ADR-0012](ADR-0012-verified-free-openrouter-routing.md): live-attested free OpenRouter routing with local continuity

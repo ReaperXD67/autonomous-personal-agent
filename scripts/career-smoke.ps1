@@ -90,7 +90,7 @@ try {
         if (-not $drafted.latest_draft.fit_summary -or -not $drafted.latest_draft.cover_letter) {
             throw 'The local model task finished without a persisted structured application draft.'
         }
-        Write-Host "Private draft passed:   $($draftTask.id) (model $($draftTask.output.model))"
+        Write-Host "Draft route passed:     $($draftTask.id) ($($draftTask.output.model_provider)/$($draftTask.output.model))"
     }
 }
 finally {

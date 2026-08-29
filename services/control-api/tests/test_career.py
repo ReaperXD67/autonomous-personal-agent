@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from app.career import score_opportunity
+from app.career import parse_application_draft, score_opportunity
 from app.career_models import CareerSourceConfig
 
 
@@ -66,3 +66,19 @@ def test_career_source_config_requires_a_reviewed_source() -> None:
             ashby_boards=[],
             greenhouse_boards=[],
         )
+
+
+def test_application_draft_parser_accepts_fenced_json_and_bounds_lists() -> None:
+    draft = parse_application_draft(
+        """```json
+        {
+          "fit_summary": "evidence based",
+          "evidence": ["one"],
+          "honest_gaps": [],
+          "resume_keywords": ["Python"],
+          "cover_letter": "Hello"
+        }
+        ```"""
+    )
+    assert draft["fit_summary"] == "evidence based"
+    assert draft["resume_keywords"] == ["Python"]

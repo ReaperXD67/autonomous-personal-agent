@@ -201,9 +201,15 @@ def system_status(request: Request) -> dict[str, Any]:
     }
 
 
+@app.get("/v1/inference/status", dependencies=[Depends(require_api_token)])
+def inference_status(request: Request) -> dict[str, Any]:
+    return _career(request).inference_status()
+
+
 @app.get("/metrics", response_class=PlainTextResponse, dependencies=[Depends(require_api_token)])
 def metrics(request: Request) -> str:
     counts = _database(request).status_counts()
+    inference = _career(request).inference_status()
     lines = [
         "# HELP autonomous_agent_info Static service information.",
         "# TYPE autonomous_agent_info gauge",
@@ -223,6 +229,17 @@ def metrics(request: Request) -> str:
     lines.extend(
         f'autonomous_agent_tasks_total{{status="{task_status}"}} {count}'
         for task_status, count in sorted(counts.items())
+    )
+    lines.extend(
+        [
+            "# HELP autonomous_agent_openrouter_requests_today Reserved OpenRouter requests today.",
+            "# TYPE autonomous_agent_openrouter_requests_today gauge",
+            f"autonomous_agent_openrouter_requests_today {inference['openrouter_requests_today']}",
+            "# HELP autonomous_agent_inference_cost_credits_today "
+            "Recorded inference cost in provider credits today.",
+            "# TYPE autonomous_agent_inference_cost_credits_today gauge",
+            f"autonomous_agent_inference_cost_credits_today {inference['cost_today']}",
+        ]
     )
     return "\n".join(lines) + "\n"
 

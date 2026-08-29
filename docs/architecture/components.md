@@ -34,8 +34,12 @@ Consumes a separate career-ready queue but claims the same durable tasks and
 leases. It schedules due active profiles through the control-plane database
 policy/outbox path, reads only reviewed public Arbeitnow/Ashby/Greenhouse/Lever APIs,
 scores fresh listings deterministically, and persists opportunities. Draft tasks
-send the selected job plus the stored résumé only to internal Ollama and persist
-structured results. It has outbound edge, data, and model networks but no host
+prefer a live-ranked OpenRouter chain only after every candidate passes exact
+`:free`, text-modality, and zero-price catalog checks. Requests use ordered
+cross-model fallback plus no-training/ZDR provider filters; the returned model
+and zero cost are revalidated. On quota, privacy-filter, malformed-output, or
+availability failure, the worker sends the selected job plus stored résumé to
+internal Ollama. It has outbound edge, data, and model networks but no host
 mount, Docker socket, or published port.
 
 The same bounded egress runtime handles `marketing.creator_discovery`. It calls
@@ -63,7 +67,10 @@ before the receipt. A later opt-out invalidates an earlier approval.
 ### PostgreSQL + pgvector
 
 Owns durable tasks, approvals, audit events, outbox rows, career profiles,
-opportunities, application drafts, memory records, and embeddings.
+opportunities, application drafts, memory records, embeddings, and inference
+invocation metadata. Inference rows reserve the local hosted-call budget and
+store only route/provider/model, tokens, latency, fallback, privacy, status,
+error code, and provider-reported cost—never prompts, résumés, or completions.
 Schema is initialized and upgraded by a one-shot migration service before the
 runtime starts. PostgreSQL lifecycle stays independent
 from application images, upgrades, and backups.
