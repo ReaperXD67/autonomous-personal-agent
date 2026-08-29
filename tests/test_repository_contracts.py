@@ -172,6 +172,7 @@ def test_readiness_gate_covers_every_configured_runtime_path() -> None:
         "restore-drill.ps1",
         "doctor.ps1",
         "agent-smoke.ps1",
+        "openrouter.ps1",
         "local-model.ps1",
         "HERMES_READY_OK",
         "runtime/readiness",
@@ -184,6 +185,27 @@ def test_local_model_smoke_reuses_a_verified_cached_model() -> None:
     assert "ollama list" in source
     assert "modelInstalled" in source
     assert "ForcePull" in source
+
+
+def test_openrouter_route_is_free_only_private_and_audited() -> None:
+    settings = (ROOT / "services/control-api/app/settings.py").read_text(encoding="utf-8")
+    inference = (ROOT / "services/control-api/app/inference.py").read_text(encoding="utf-8")
+    compose = (ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    compose_model = yaml.safe_load(compose)
+    migration = (ROOT / "config/postgres/init/008_free_model_routing.sql").read_text(
+        encoding="utf-8"
+    )
+
+    assert "must end with :free" in settings
+    assert 'model_id.endswith(":free")' in inference
+    assert 'cost != 0' in inference
+    assert '"data_collection": self._data_collection' in inference
+    assert '"zdr": self._zdr' in inference
+    assert "OPENROUTER_API_KEY" in compose
+    assert "OPENROUTER_API_KEY" in compose_model["services"]["job-worker"]["environment"]
+    for service in ("control-api", "worker", "dispatcher", "action-worker"):
+        assert "OPENROUTER_API_KEY" not in compose_model["services"][service]["environment"]
+    assert "CREATE TABLE IF NOT EXISTS inference_invocations" in migration
 
 
 def test_repository_agent_guidance_enforces_engineering_records() -> None:

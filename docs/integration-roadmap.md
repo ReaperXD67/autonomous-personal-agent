@@ -14,6 +14,7 @@ Integration is added only when its threat model, credential scope, audit schema,
 failure behavior, disable path, and safe test are documented.
 
 Current jobs milestone: public Arbeitnow/Ashby/Greenhouse/Lever discovery,
-local Qwen drafting, and the first reviewed single-page hosted-form adapter are
-implemented. SMTP send is implemented with the same exact-action envelope. The
+opt-in attested-free OpenRouter drafting with local Qwen continuity, and the
+first reviewed single-page hosted-form adapter are implemented. The hosted
+route still needs a user key and live smoke. SMTP send is implemented with the same exact-action envelope. The
 generic browser MCP, email read/OAuth, and every unsupported site remain disabled.

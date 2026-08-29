@@ -84,6 +84,16 @@ try {
             Write-Check OK 'OmniRoute key' 'configured in ignored .env'
         }
         else { Write-Check WARN 'OmniRoute key' 'finish dashboard onboarding and create a scoped inference key' }
+
+        $openRouterEnabled = Get-Content -LiteralPath '.env' | Where-Object { $_ -match '^OPENROUTER_ENABLED=true$' } | Select-Object -First 1
+        $openRouterKey = Get-Content -LiteralPath '.env' | Where-Object { $_ -match '^OPENROUTER_API_KEY=' } | Select-Object -First 1
+        if ($openRouterEnabled -and $openRouterKey -and $openRouterKey -notmatch '^OPENROUTER_API_KEY=$|CHANGE_ME') {
+            Write-Check OK 'OpenRouter route' 'enabled with an ignored worker-only key; run scripts/openrouter.ps1 -Smoke'
+        }
+        elseif ($openRouterEnabled) {
+            Write-Check FAIL 'OpenRouter route' 'enabled without a usable key'
+        }
+        else { Write-Check INFO 'OpenRouter route' 'optional; configure with scripts/openrouter.ps1 -Configure' }
     }
 }
 finally {

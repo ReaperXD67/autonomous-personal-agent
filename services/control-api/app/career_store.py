@@ -499,6 +499,148 @@ class CareerStore(Database):
             connection.commit()
         return row
 
+    def start_inference_invocation(
+        self,
+        *,
+        task_id: UUID,
+        purpose: str,
+        provider: str,
+        requested_models: tuple[str, ...],
+        privacy_mode: str,
+        daily_limit: int | None = None,
+    ) -> UUID | None:
+        with self.connect() as connection:
+            if daily_limit is not None:
+                connection.execute(
+                    "SELECT pg_advisory_xact_lock(hashtext(%s))",
+                    (f"inference-daily:{provider}",),
+                )
+                count = connection.execute(
+                    """
+                    SELECT count(*)::int AS count
+                    FROM inference_invocations
+                    WHERE provider = %s
+                      AND created_at >= (
+                          date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+                      )
+                    """,
+                    (provider,),
+                ).fetchone()["count"]
+                if count >= daily_limit:
+                    connection.commit()
+                    return None
+            row = connection.execute(
+                """
+                INSERT INTO inference_invocations (
+                    task_id, purpose, provider, requested_models, privacy_mode
+                ) VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                (
+                    task_id,
+                    purpose,
+                    provider,
+                    Jsonb(list(requested_models)),
+                    privacy_mode,
+                ),
+            ).fetchone()
+            connection.commit()
+        return row["id"]
+
+    def complete_inference_invocation(
+        self,
+        invocation_id: UUID,
+        *,
+        selected_model: str,
+        selected_provider: str | None,
+        prompt_tokens: int,
+        completion_tokens: int,
+        total_tokens: int,
+        cost: Any,
+        latency_ms: int,
+        fallback_attempt: int,
+    ) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE inference_invocations
+                SET status = 'succeeded', selected_model = %s,
+                    selected_provider = %s, prompt_tokens = %s,
+                    completion_tokens = %s, total_tokens = %s, cost_credits = %s,
+                    latency_ms = %s, fallback_attempt = %s, completed_at = now()
+                WHERE id = %s AND status = 'started'
+                """,
+                (
+                    selected_model,
+                    selected_provider,
+                    prompt_tokens,
+                    completion_tokens,
+                    total_tokens,
+                    cost,
+                    latency_ms,
+                    fallback_attempt,
+                    invocation_id,
+                ),
+            )
+            connection.commit()
+
+    def fail_inference_invocation(self, invocation_id: UUID, error_code: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE inference_invocations
+                SET status = 'failed', error_code = %s, completed_at = now()
+                WHERE id = %s AND status = 'started'
+                """,
+                (error_code[:120], invocation_id),
+            )
+            connection.commit()
+
+    def inference_status(self) -> dict[str, Any]:
+        with self.connect() as connection:
+            summary = connection.execute(
+                """
+                SELECT
+                    count(*) FILTER (WHERE provider = 'openrouter')::int
+                        AS openrouter_requests_today,
+                    count(*) FILTER (
+                        WHERE provider = 'openrouter' AND status = 'succeeded'
+                    )::int AS openrouter_successes_today,
+                    count(*) FILTER (
+                        WHERE provider = 'ollama' AND status = 'succeeded'
+                    )::int AS local_successes_today,
+                    coalesce(sum(total_tokens), 0)::bigint AS total_tokens_today,
+                    coalesce(sum(cost_credits), 0)::numeric AS cost_today
+                FROM inference_invocations
+                WHERE created_at >= (
+                    date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
+                )
+                """
+            ).fetchone()
+            latest = connection.execute(
+                """
+                SELECT provider, selected_model, selected_provider, status,
+                       privacy_mode, prompt_tokens, completion_tokens, total_tokens,
+                       cost_credits, latency_ms, fallback_attempt, error_code, created_at,
+                       completed_at
+                FROM inference_invocations
+                ORDER BY created_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        cost_today = summary["cost_today"]
+        latest_result = dict(latest) if latest is not None else None
+        if latest_result is not None:
+            latest_cost = latest_result["cost_credits"]
+            latest_result["cost_credits"] = (
+                "0" if latest_cost == 0 else format(latest_cost.normalize(), "f")
+            )
+        return {
+            **summary,
+            "cost_today": "0" if cost_today == 0 else format(cost_today.normalize(), "f"),
+            "latest": latest_result,
+        }
+
     def recent_profile_scan_count(self, profile_id: UUID, hours: int = 24) -> int:
         cutoff = datetime.now(UTC) - timedelta(hours=hours)
         with self.connect() as connection:

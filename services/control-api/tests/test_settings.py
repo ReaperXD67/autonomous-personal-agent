@@ -20,6 +20,15 @@ def make_settings(**overrides: object) -> Settings:
         "worker_retry_max_seconds": 300,
         "career_scheduler_seconds": 30,
         "local_model": "qwen3:8b",
+        "openrouter_enabled": False,
+        "openrouter_api_key": "",
+        "openrouter_model_priority": ("nvidia/example:free", "qwen/example:free"),
+        "openrouter_max_models": 8,
+        "openrouter_free_daily_allowance": 50,
+        "openrouter_daily_request_cap": 900,
+        "openrouter_data_collection": "deny",
+        "openrouter_zdr": True,
+        "openrouter_local_fallback": True,
         "mail_transport": "disabled",
         "smtp_host": "",
         "smtp_port": 587,
@@ -65,6 +74,15 @@ def test_rejects_retry_max_below_retry_base() -> None:
 def test_rejects_overeager_career_scheduler() -> None:
     with pytest.raises(ConfigurationError, match="CAREER_SCHEDULER_SECONDS"):
         make_settings(career_scheduler_seconds=5).validate()
+
+
+def test_openrouter_requires_free_models_and_a_key_when_enabled() -> None:
+    with pytest.raises(ConfigurationError, match="OPENROUTER_API_KEY"):
+        make_settings(openrouter_enabled=True).validate()
+    with pytest.raises(ConfigurationError, match=":free"):
+        make_settings(openrouter_model_priority=("paid/model",)).validate()
+    with pytest.raises(ConfigurationError, match="50 or 1000"):
+        make_settings(openrouter_free_daily_allowance=900).validate()
 
 
 def test_external_smtp_requires_tls_and_complete_credentials() -> None:

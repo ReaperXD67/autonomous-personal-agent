@@ -23,13 +23,15 @@ agent; MCP gateway → external server; VPS → internet.
 | Malicious MCP server | Exfiltration/tool spoofing | Curated signed catalog, digest pin, disabled default, per-server secrets, sampling disabled for untrusted tools |
 | SSRF | Internal service/metadata access | Career fetches use fixed HTTPS hosts, validated redirects/slugs, size/time bounds; future generic browser still requires DNS/IP policy and egress proxy |
 | Unauthorized job application | Legal/reputation damage | Exact expiring approval digest, explicit unknown answers, form/resume/draft revalidation, one final click, durable receipt; unsupported forms stop |
-| Résumé disclosure | Identity/privacy loss | Raw résumé stays in PostgreSQL and internal local-model context; API exposes only presence/length; public sources/tasks/audits do not receive it |
+| Résumé disclosure | Identity/privacy loss | Raw résumé stays in PostgreSQL; API exposes only presence/length; public sources/tasks/audits do not receive it. Hosted drafting is off by default, uses no-training/ZDR filters, and falls back locally rather than weakening privacy |
+| Paid-model route drift | Unexpected credit spend | Runtime accepts only exact `:free` live-catalog IDs with zero prompt/completion/request prices, checks the actual selected model and zero returned cost, and keeps an atomic PostgreSQL daily cap |
+| OpenRouter key theft | Provider-account abuse | Dedicated inference key only in ignored `.env` and the career worker; never accept a management key; no key/header/body logging; use a user-configured key limit and rotate after exposure |
 | Accidental email send | Privacy/reputation damage | Exact sender/recipient/subject/body approval, fixed TLS SMTP configuration, one recipient, durable receipt |
 | Unsolicited creator outreach | Privacy/legal/reputation damage | Official metadata discovery has no email; operator records public contact provenance/basis; each send exact-approved; opt-out/bounce suppresses durably |
 | Stale creator approval after opt-out | Unwanted follow-up | Action worker locks and revalidates address, authorization, suppression, and reply state immediately before SMTP receipt |
 | Unsafe adaptive outreach | Manipulative spam or policy bypass | Minimum samples/effect threshold; choice limited to two fixed draft variants; 20% exploration; no autonomous send, spend, policy, code, or contact mutation |
 | GitHub destructive operation | Code/repo loss | Fine-grained token, repo allowlist, destructive tools disabled, protected branches |
-| Secret enters logs/audit | Persistent exposure | Structured allowlisted metadata, no payload/body logging, redaction tests |
+| Secret enters logs/audit | Persistent exposure | Structured allowlisted metadata, no payload/body logging, redaction tests; inference audit omits prompts/completions and records route metrics only |
 | Queue replay/duplication | Repeated side effect | DB state rejects stale entries; unique pre-click/pre-send receipt blocks retry and duplicate application |
 | Approval forgery | High-impact execution | Authenticated durable decision bound to exact context hash; future per-user identity, MFA, and signed approvals |
 | Supply-chain compromise | Malicious image/dependency | Release+digest pins, lockfile; future SBOM/signature verification and scanning |

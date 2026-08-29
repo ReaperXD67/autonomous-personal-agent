@@ -38,8 +38,10 @@ overdue active missions are picked up after restart.
 6. Keep the no-key Arbeitnow source enabled. Optionally add exact public Ashby,
    Greenhouse, or Lever employer board slugs.
 7. Paste plain résumé text. It is stored in PostgreSQL, hidden from profile API
-   responses, omitted from task payloads/audit metadata, and used only by local
-   Qwen for drafts.
+   responses, and omitted from task payloads/audit metadata. Drafting stays on
+   local Qwen unless you explicitly enable OpenRouter; hosted drafting sends the
+   résumé and selected job to the verified free model/provider under the
+   configured privacy policy.
 8. Complete the application identity. This supplies routine name/contact fields
    but never invents screening, legal, demographic, or consent answers.
 9. Enable **Automatically prepare strong fresh matches** if desired. Set its
@@ -51,7 +53,8 @@ overdue active missions are picked up after restart.
 Fresh matches appear under **Opportunities** with posting time, source link,
 score, and matching reasons. Shortlist or dismiss them. **Generate private
 draft** creates a truthful fit summary, résumé evidence, honest gaps, keywords,
-and cover-letter draft using local Qwen. **Inspect form** opens only a reviewed
+and cover-letter draft through the ranked free route with local Qwen continuity.
+The **Settings** page shows which route actually ran. **Inspect form** opens only a reviewed
 Greenhouse, Ashby, or Lever hosted form in the isolated worker. **Prepare exact
 submission** resolves routine fields and asks for every unknown required answer.
 It freezes the final host, form signature, values, résumé/draft hashes, and
@@ -96,7 +99,8 @@ With the core and local model running:
 
 The script retrieves a current listing from the reviewed public API, creates a
 synthetic inactive profile, queues a real policy-bound scan, requires at least
-one persisted attributable match, queues a local structured draft, then deletes
+one persisted attributable match, queues a structured draft through the
+configured route, then deletes
 only its exact synthetic profile. It never uses a real résumé.
 The second command uses a fake candidate, fake ATS, and local Mailpit inbox. It
 proves the exact digest, application click, email send, and duplicate receipt
@@ -140,6 +144,10 @@ privacy and free-tier terms.
 
 - The code, Docker stack, PostgreSQL, Redis, dashboard, scheduler, scoring, and
   local Ollama/Qwen inference have no per-token software charge.
+- Eligible OpenRouter `:free` variants report zero inference cost, but their
+  shared request quotas, availability, privacy endpoints, and terms can change.
+  The system validates current price and returned cost; it cannot promise
+  third-party free capacity.
 - Arbeitnow and public Ashby, Greenhouse, and Lever boards need no API key for
   discovery. Public hosted application forms do not guarantee automation
   compatibility or permission under every employer/site's terms.

@@ -1,4 +1,4 @@
-.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke side-effect-smoke recovery-smoke lifecycle-smoke agent-smoke backup restore-drill readiness agent-up local-model-up side-effects-up doctor clean
+.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke side-effect-smoke recovery-smoke lifecycle-smoke agent-smoke openrouter backup restore-drill readiness agent-up local-model-up side-effects-up doctor clean
 
 init:
 	powershell -ExecutionPolicy Bypass -File scripts/init-env.ps1
@@ -62,6 +62,9 @@ lifecycle-smoke:
 
 agent-smoke:
 	powershell -ExecutionPolicy Bypass -File scripts/agent-smoke.ps1
+
+openrouter:
+	powershell -ExecutionPolicy Bypass -File scripts/openrouter.ps1 -Smoke
 
 backup:
 	powershell -ExecutionPolicy Bypass -File scripts/backup.ps1

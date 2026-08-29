@@ -18,6 +18,11 @@ images support file-based secrets. If `.env` remains temporarily, restrict it to
 root/deploy user, exclude it from backups unless backup encryption is verified,
 and rotate after suspected exposure.
 
+Treat the OpenRouter inference key as worker-only and use a normal scoped key
+with a provider-side spend limit/expiry, never a management key. A CPU-only VPS
+also needs either this hosted route or enough resources for its local fallback;
+free hosted capacity is not an uptime guarantee.
+
 ## Ingress
 
 For the first private deployment, keep the command-center and OmniRoute ports on

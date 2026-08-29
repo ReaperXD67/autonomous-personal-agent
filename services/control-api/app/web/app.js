@@ -3,6 +3,7 @@
 const state = {
   token: "",
   status: null,
+  inference: null,
   profiles: [],
   opportunities: [],
   tasks: [],
@@ -121,6 +122,7 @@ function setConnection(connected, message = "") {
 function disconnect(showMessage = true) {
   state.token = "";
   state.status = null;
+  state.inference = null;
   state.profiles = [];
   state.opportunities = [];
   state.tasks = [];
@@ -141,8 +143,9 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults] = await Promise.all([
+    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults] = await Promise.all([
       api("/v1/system/status"),
+      api("/v1/inference/status"),
       api("/v1/career/profiles"),
       api("/v1/career/opportunities?limit=300"),
       api("/v1/tasks?limit=200"),
@@ -152,7 +155,7 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/marketing/prospects?limit=500"),
       api("/v1/marketing/results"),
     ]);
-    Object.assign(state, { status, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults });
+    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults });
     setConnection(true);
     renderAll();
     return true;
@@ -543,6 +546,23 @@ function renderProspects() {
   prospects.forEach((prospect) => list.append(prospectCard(prospect)));
 }
 
+function renderInferenceStatus() {
+  const latest = state.inference?.latest;
+  const route = $("#inference-route");
+  const usage = $("#inference-usage");
+  if (!route || !usage) return;
+  if (!latest) {
+    route.textContent = "No verified route has run yet.";
+    usage.textContent = "Configure the ignored .env key, restart the job worker, then run a harmless smoke or generate a draft.";
+    return;
+  }
+  const model = latest.selected_model || "no model selected";
+  route.textContent = `${titleCase(latest.provider)} · ${model} · ${titleCase(latest.status)}`;
+  const remote = state.inference.openrouter_requests_today || 0;
+  const local = state.inference.local_successes_today || 0;
+  usage.textContent = `${remote} OpenRouter request${remote === 1 ? "" : "s"} today · ${local} local run${local === 1 ? "" : "s"} · ${state.inference.cost_today} recorded credits · ${latest.privacy_mode}`;
+}
+
 function renderAll() {
   renderMetrics();
   renderProfileFilter();
@@ -555,6 +575,7 @@ function renderAll() {
   renderMarketingFilters();
   renderCampaigns();
   renderProspects();
+  renderInferenceStatus();
 }
 
 function profilePayload(profile, overrides = {}) {
@@ -861,7 +882,7 @@ async function updateOpportunity(id, status) {
 async function draftOpportunity(id) {
   try {
     await api(`/v1/career/opportunities/${id}/draft`, { method: "POST" });
-    toast("Private résumé-tailored draft queued on local Qwen");
+    toast("Résumé-tailored draft queued on the verified free route");
     await loadData({ quiet: true });
   } catch (error) { toast(error.message, true); }
 }

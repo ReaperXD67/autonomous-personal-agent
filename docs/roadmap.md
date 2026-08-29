@@ -30,7 +30,8 @@
 - [x] Optional pinned Ollama/Qwen3 8B local fallback with GPU-aware setup script
 - [ ] Complete OmniRoute provider onboarding with cost budgets
 - [ ] Hermes adapter that creates control-plane tasks instead of bypassing policy
-- [ ] Model routing tests, fallback canary, usage/cost audit metadata
+- [x] Free-only OpenRouter catalog policy, ordered fallback tests, local continuity, and PostgreSQL usage/cost audit metadata
+- [ ] Install a scoped OpenRouter inference key and pass the harmless live fallback canary
 - [ ] Safe memory writer/retriever with provenance and deletion policy
 - [x] Career scheduler persists tasks through the policy/outbox path before queue publication
 - [ ] General-purpose scheduler beyond career missions
@@ -56,7 +57,8 @@
 - [ ] Real-site compatibility suite and additional reviewed ATS adapters
 - [ ] Calendar/Drive/Notion/task-manager integrations by scoped profile
 - [x] Private web UI for missions, opportunities, tasks, approvals, and audit timelines
-- [ ] Budget/usage UI and per-user identity
+- [x] Private inference route/usage/cost status in the dashboard
+- [ ] Per-user budget policy and identity
 
 ## Never broad or unreviewed by default
 

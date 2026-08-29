@@ -2,6 +2,7 @@
 param(
     [switch]$SkipRestore,
     [switch]$SkipRemoteInference,
+    [switch]$SkipOpenRouter,
     [switch]$SkipLocalInference,
     [switch]$SkipHermes
 )
@@ -72,6 +73,23 @@ try {
     else {
         Invoke-ReadinessCheck 'OmniRoute free/default inference' {
             & (Join-Path $PSScriptRoot 'agent-smoke.ps1')
+        }
+    }
+
+    $openRouterEnabled = $false
+    if (Test-Path -LiteralPath '.env') {
+        $openRouterEnabled = [bool](
+            Get-Content -LiteralPath '.env' |
+                Where-Object { $_ -match '^OPENROUTER_ENABLED=true$' } |
+                Select-Object -First 1
+        )
+    }
+    if ($SkipOpenRouter -or -not $openRouterEnabled) {
+        Add-SkippedCheck 'OpenRouter attested-free inference'
+    }
+    else {
+        Invoke-ReadinessCheck 'OpenRouter attested-free inference' {
+            & (Join-Path $PSScriptRoot 'openrouter.ps1') -Smoke
         }
     }
 

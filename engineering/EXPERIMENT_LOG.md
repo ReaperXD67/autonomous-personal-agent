@@ -280,6 +280,27 @@ dashboard, and bounded local decision logic passed. Live YouTube API discovery,
 real SMTP delivery, inbound replies, and KarixMC conversion attribution were not
 tested and are not implied.
 
+## EXP-014 — Free catalog and hybrid draft-route observation
+
+Date: 2026-08-29
+
+Observed:
+
+- OpenRouter `GET /api/v1/models?output_modalities=text` returned 18 text models
+  whose exact IDs ended in `:free` and whose prompt/completion prices parsed as
+  zero at observation time. This did not prove authenticated completion
+  availability or ZDR-compatible endpoints.
+- The post-migration disposable career smoke fetched 100 current Arbeitnow
+  listings, retained 38 against its synthetic zero-threshold target, and
+  completed the draft through `ollama/qwen3:8b` because OpenRouter remained
+  disabled. The recorded local latency was 47,697 ms and cost was zero.
+- After the cold-start cache fix, rebuilt isolated test runs passed 58 tests in
+  0.61 and 0.66 seconds. Playwright rendered the authenticated inference status
+  with zero console errors/warnings.
+
+Result: live catalog discovery, strict local routing, durable route telemetry,
+and UI rendering passed. Authenticated OpenRouter generation did not run.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

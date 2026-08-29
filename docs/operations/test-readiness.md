@@ -21,6 +21,7 @@ The default gate requires all configured paths:
 | Disposable restore drill | Latest authoritative state can be restored and read by application code |
 | Agent doctor | Docker/WSL/configuration/core/OmniRoute/Hermes/GPU readiness |
 | OmniRoute smoke | Authenticated `free/default` route returns a real completion |
+| OpenRouter free smoke | When enabled, the current ranked `:free` chain returns the exact harmless response and reports zero cost |
 | Local-model smoke | Qwen3 8B returns `LOCAL_MODEL_OK` and Ollama reports GPU placement |
 | Hermes one-shot | Hermes returns `HERMES_READY_OK` through its configured route |
 
@@ -31,7 +32,7 @@ tokens, prompts, provider configuration, database content, or model output.
 Skip switches exist for diagnosing an intentionally unconfigured optional path:
 
 ```powershell
-./scripts/readiness.ps1 -SkipRemoteInference -SkipHermes
+./scripts/readiness.ps1 -SkipRemoteInference -SkipOpenRouter -SkipHermes
 ```
 
 A skipped check does not prove readiness. The default no-skip run is required

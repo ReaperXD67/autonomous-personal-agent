@@ -4,6 +4,36 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
+DEFAULT_OPENROUTER_PRIORITY = (
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "z-ai/glm-5.2:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "minimax/minimax-m3:free",
+    "google/gemma-4-31b-it:free",
+    "thinkingmachines/inkling:free",
+    "dots-studio/dots-3-note-preview:free",
+    "google/gemma-4-26b-a4b-it:free",
+)
+
+
+def _boolean_environment(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ConfigurationError(f"{name} must be true or false")
+
+
+def _model_priority_environment() -> tuple[str, ...]:
+    raw = os.getenv("OPENROUTER_MODEL_PRIORITY", "").strip()
+    if not raw:
+        return DEFAULT_OPENROUTER_PRIORITY
+    return tuple(item.strip() for item in raw.split(",") if item.strip())
+
 
 class ConfigurationError(RuntimeError):
     """Raised when required runtime configuration is unsafe or missing."""
@@ -26,6 +56,15 @@ class Settings:
     worker_retry_max_seconds: int
     career_scheduler_seconds: int
     local_model: str
+    openrouter_enabled: bool
+    openrouter_api_key: str
+    openrouter_model_priority: tuple[str, ...]
+    openrouter_max_models: int
+    openrouter_free_daily_allowance: int
+    openrouter_daily_request_cap: int
+    openrouter_data_collection: str
+    openrouter_zdr: bool
+    openrouter_local_fallback: bool
     mail_transport: str
     smtp_host: str
     smtp_port: int
@@ -53,6 +92,23 @@ class Settings:
             worker_retry_max_seconds=int(os.getenv("WORKER_RETRY_MAX_SECONDS", "300")),
             career_scheduler_seconds=int(os.getenv("CAREER_SCHEDULER_SECONDS", "30")),
             local_model=os.getenv("LOCAL_MODEL", "qwen3:8b").strip(),
+            openrouter_enabled=_boolean_environment("OPENROUTER_ENABLED", False),
+            openrouter_api_key=os.getenv("OPENROUTER_API_KEY", "").strip(),
+            openrouter_model_priority=_model_priority_environment(),
+            openrouter_max_models=int(os.getenv("OPENROUTER_MAX_MODELS", "8")),
+            openrouter_free_daily_allowance=int(
+                os.getenv("OPENROUTER_FREE_DAILY_ALLOWANCE", "50")
+            ),
+            openrouter_daily_request_cap=int(
+                os.getenv("OPENROUTER_DAILY_REQUEST_CAP", "900")
+            ),
+            openrouter_data_collection=os.getenv(
+                "OPENROUTER_DATA_COLLECTION", "deny"
+            ).strip().lower(),
+            openrouter_zdr=_boolean_environment("OPENROUTER_ZDR", True),
+            openrouter_local_fallback=_boolean_environment(
+                "OPENROUTER_LOCAL_FALLBACK", True
+            ),
             mail_transport=os.getenv("MAIL_TRANSPORT", "disabled").strip().lower(),
             smtp_host=os.getenv("SMTP_HOST", "").strip(),
             smtp_port=int(os.getenv("SMTP_PORT", "587")),
@@ -101,6 +157,34 @@ class Settings:
             )
         if not 10 <= self.career_scheduler_seconds <= 300:
             raise ConfigurationError("CAREER_SCHEDULER_SECONDS must be between 10 and 300")
+        if self.openrouter_enabled and (
+            not self.openrouter_api_key or self.openrouter_api_key.startswith("CHANGE_ME")
+        ):
+            # Only the egress-enabled career worker receives this key. Other services
+            # deliberately receive OPENROUTER_ENABLED=false in Compose.
+            raise ConfigurationError(
+                "OPENROUTER_ENABLED requires a real OPENROUTER_API_KEY"
+            )
+        if not self.openrouter_model_priority:
+            raise ConfigurationError("OPENROUTER_MODEL_PRIORITY cannot be empty")
+        if any(not model.endswith(":free") for model in self.openrouter_model_priority):
+            raise ConfigurationError(
+                "Every OPENROUTER_MODEL_PRIORITY entry must end with :free"
+            )
+        if not 2 <= self.openrouter_max_models <= 12:
+            raise ConfigurationError("OPENROUTER_MAX_MODELS must be between 2 and 12")
+        if self.openrouter_free_daily_allowance not in {50, 1000}:
+            raise ConfigurationError(
+                "OPENROUTER_FREE_DAILY_ALLOWANCE must be 50 or 1000"
+            )
+        if not 1 <= self.openrouter_daily_request_cap <= 950:
+            raise ConfigurationError(
+                "OPENROUTER_DAILY_REQUEST_CAP must be between 1 and 950"
+            )
+        if self.openrouter_data_collection not in {"allow", "deny"}:
+            raise ConfigurationError(
+                "OPENROUTER_DATA_COLLECTION must be allow or deny"
+            )
         if self.mail_transport not in {"disabled", "mailpit", "smtp"}:
             raise ConfigurationError("MAIL_TRANSPORT must be disabled, mailpit, or smtp")
         if not 1 <= self.smtp_port <= 65535:
