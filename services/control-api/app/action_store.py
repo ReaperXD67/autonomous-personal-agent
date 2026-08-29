@@ -214,7 +214,23 @@ class ActionStore(CareerStore):
         private_context: dict[str, Any],
         actor: str,
         approval_window_minutes: int,
+        connection: Any | None = None,
     ) -> dict[str, Any]:
+        if connection is None:
+            with self.connect() as owned_connection:
+                action = self._create_external_action(
+                    action_type=action_type,
+                    opportunity_id=opportunity_id,
+                    target_display=target_display,
+                    public_context=public_context,
+                    private_context=private_context,
+                    actor=actor,
+                    approval_window_minutes=approval_window_minutes,
+                    connection=owned_connection,
+                )
+                owned_connection.commit()
+                return action
+
         context_hash = canonical_hash(
             {
                 "action_type": action_type,
@@ -224,76 +240,74 @@ class ActionStore(CareerStore):
         )
         idempotency_key = f"external:{action_type}:{context_hash}"[:200]
         expires_at = datetime.now(UTC) + timedelta(minutes=approval_window_minutes)
-        with self.connect() as connection:
-            action = connection.execute(
-                """
-                INSERT INTO external_actions (
-                    opportunity_id, action_type, status, target_display,
-                    public_context, private_context, context_hash,
-                    idempotency_key, expires_at
-                ) VALUES (%s, %s, 'pending_approval', %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (idempotency_key) DO NOTHING
-                RETURNING *
-                """,
-                (
-                    opportunity_id,
-                    action_type,
-                    target_display,
-                    Jsonb(public_context),
-                    Jsonb(private_context),
-                    context_hash,
-                    idempotency_key,
-                    expires_at,
-                ),
+        action = connection.execute(
+            """
+            INSERT INTO external_actions (
+                opportunity_id, action_type, status, target_display,
+                public_context, private_context, context_hash,
+                idempotency_key, expires_at
+            ) VALUES (%s, %s, 'pending_approval', %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (idempotency_key) DO NOTHING
+            RETURNING *
+            """,
+            (
+                opportunity_id,
+                action_type,
+                target_display,
+                Jsonb(public_context),
+                Jsonb(private_context),
+                context_hash,
+                idempotency_key,
+                expires_at,
+            ),
+        ).fetchone()
+        if action is None:
+            existing = connection.execute(
+                "SELECT * FROM external_actions WHERE idempotency_key = %s",
+                (idempotency_key,),
             ).fetchone()
-            if action is None:
-                existing = connection.execute(
-                    "SELECT * FROM external_actions WHERE idempotency_key = %s",
-                    (idempotency_key,),
-                ).fetchone()
-                if existing is None or existing["task_id"] is None:
-                    raise RuntimeError("External action idempotency conflict is incomplete")
-                return existing
-            task = self._create_task_record(
-                connection,
-                TaskCreate(
-                    title=(
-                        "Submit one approved job application"
-                        if action_type == "career.application_submit"
-                        else "Send one approved email"
-                    ),
-                    kind=action_type,
-                    payload={
-                        "action_id": str(action["id"]),
-                        "action_digest": context_hash,
-                    },
-                    risk_level=RiskLevel.HIGH,
-                    requested_by=actor,
-                    idempotency_key=f"external-action-task:{action['id']}",
+            if existing is None or existing["task_id"] is None:
+                raise RuntimeError("External action idempotency conflict is incomplete")
+            return existing
+        task = self._create_task_record(
+            connection,
+            TaskCreate(
+                title=(
+                    "Submit one approved job application"
+                    if action_type == "career.application_submit"
+                    else "Send one approved email"
                 ),
-            )
-            action = connection.execute(
-                "UPDATE external_actions SET task_id = %s WHERE id = %s RETURNING *",
-                (task["id"], action["id"]),
-            ).fetchone()
-            self._append_audit(
-                connection,
-                correlation_id=task["correlation_id"],
-                task_id=task["id"],
-                actor_type="system",
-                actor_id="external-action-planner",
-                tool_name=action_type,
-                action="external_action.prepared",
-                risk_level="high",
-                approval_status="required",
-                execution_status="pending_approval",
-                input_metadata={
+                kind=action_type,
+                payload={
                     "action_id": str(action["id"]),
-                    "context_hash": context_hash,
-                    "target_type": action_type,
+                    "action_digest": context_hash,
                 },
-            )
-            connection.commit()
+                risk_level=RiskLevel.HIGH,
+                requested_by=actor,
+                idempotency_key=f"external-action-task:{action['id']}",
+            ),
+        )
+        action = connection.execute(
+            "UPDATE external_actions SET task_id = %s WHERE id = %s RETURNING *",
+            (task["id"], action["id"]),
+        ).fetchone()
+        self._append_audit(
+            connection,
+            correlation_id=task["correlation_id"],
+            task_id=task["id"],
+            actor_type="system",
+            actor_id="external-action-planner",
+            tool_name=action_type,
+            action="external_action.prepared",
+            risk_level="high",
+            approval_status="required",
+            execution_status="pending_approval",
+            input_metadata={
+                "action_id": str(action["id"]),
+                "context_hash": context_hash,
+                "target_type": action_type,
+            },
+        )
         return action
 
     def list_external_actions(
@@ -372,6 +386,35 @@ class ActionStore(CareerStore):
                 )
             if row["expires_at"] <= datetime.now(UTC):
                 raise SideEffectGuardError("Approved external action has expired")
+            marketing = row["private_context"].get("marketing")
+            if isinstance(marketing, dict):
+                prospect = connection.execute(
+                    """
+                    SELECT status, contact_email, contact_authorized_at, suppressed_at
+                    FROM marketing_prospects
+                    WHERE id = %s
+                    FOR UPDATE
+                    """,
+                    (marketing.get("prospect_id"),),
+                ).fetchone()
+                if (
+                    prospect is None
+                    or prospect["suppressed_at"] is not None
+                    or prospect["contact_authorized_at"] is None
+                    or prospect["contact_email"] != row["private_context"].get("recipient")
+                ):
+                    raise SideEffectGuardError(
+                        "Marketing contact was withdrawn, changed, or suppressed after approval"
+                    )
+                valid_statuses = {
+                    "initial": {"discovered", "qualified"},
+                    "question_reply": {"question"},
+                    "paid_offer": {"declined_unpaid"},
+                }
+                if prospect["status"] not in valid_statuses.get(marketing.get("stage"), set()):
+                    raise SideEffectGuardError(
+                        "Marketing reply state changed after the email was approved"
+                    )
             receipt = connection.execute(
                 "SELECT * FROM side_effect_receipts WHERE fingerprint = %s",
                 (fingerprint,),

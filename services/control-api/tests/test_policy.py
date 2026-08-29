@@ -25,6 +25,7 @@ def test_caller_can_escalate_but_not_lower_capability_risk() -> None:
     assert effective_risk("career.search", RiskLevel.LOW) == RiskLevel.LOW
     assert effective_risk("career.application_draft", RiskLevel.LOW) == RiskLevel.MEDIUM
     assert effective_risk("career.application_submit", RiskLevel.LOW) == RiskLevel.HIGH
+    assert effective_risk("marketing.creator_discovery", RiskLevel.LOW) == RiskLevel.LOW
     assert effective_risk("communications.email_send", RiskLevel.LOW) == RiskLevel.HIGH
 
 

@@ -24,8 +24,10 @@ execute tools.
 The outbox dispatcher reliably bridges durable PostgreSQL intent to Redis.
 Workers claim queue messages and perform allowlisted capabilities. The
 foundation worker implements `foundation.echo` and bounded `foundation.wait`.
-The dedicated career worker implements allowlisted fresh discovery and local
-application drafting while using the same lifecycle, policy, and audit model.
+The dedicated career worker implements allowlisted fresh discovery, local
+application drafting, and official YouTube creator discovery while using the
+same lifecycle, policy, and audit model. YouTube tasks carry only campaign IDs;
+the restricted API key exists only in this egress-enabled worker.
 The isolated action worker handles reviewed browser and email side effects only
 after an exact approval digest has entered the durable queue.
 
@@ -37,6 +39,9 @@ reconstructible ready queues and future cache state.
 Losing Redis may delay work but must not erase authoritative history.
 External-action envelopes, form preflights, and side-effect receipts also live
 in PostgreSQL so approval and duplicate prevention survive a crash.
+Creator campaigns, channel prospects, public-contact provenance, durable
+suppression, outreach/action links, reply classifications, and attributed
+results use the same authority.
 
 ### Agent and model plane
 

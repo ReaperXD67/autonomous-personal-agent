@@ -9,11 +9,11 @@ import socket
 import threading
 import time
 from types import FrameType
+from typing import Any
 from uuid import UUID
 
 import redis
 
-from app.action_store import ActionStore
 from app.career import (
     fetch_arbeitnow,
     fetch_ashby,
@@ -23,6 +23,8 @@ from app.career import (
     score_opportunity,
 )
 from app.logging_config import configure_logging
+from app.marketing import fetch_youtube_creators
+from app.marketing_store import MarketingStore
 from app.models import TaskCreate
 from app.policy import RiskLevel
 from app.settings import get_settings
@@ -41,7 +43,7 @@ def _stop(_signum: int, _frame: FrameType | None) -> None:
 
 def healthcheck() -> int:
     try:
-        database = ActionStore(settings.database_url)
+        database = MarketingStore(settings.database_url)
         client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
         healthy = database.check() and bool(client.ping())
         client.close()
@@ -52,17 +54,37 @@ def healthcheck() -> int:
 
 def _check_interrupted(interrupt: threading.Event | None) -> None:
     if interrupt is not None and interrupt.is_set():
-        raise TaskInterruptedError("Career task execution was interrupted")
+        raise TaskInterruptedError("Research task execution was interrupted")
 
 
 def execute_career_task(
     task: dict[str, object],
-    database: ActionStore,
+    database: MarketingStore,
     interrupt: threading.Event | None = None,
 ) -> dict[str, object]:
     payload = task["payload"]
     if not isinstance(payload, dict):
-        raise ValueError("Career task payload must be an object")
+        raise ValueError("Research task payload must be an object")
+
+    if task["kind"] == "marketing.creator_discovery":
+        campaign_id = UUID(str(payload["campaign_id"]))
+        if database.recent_marketing_scan_count() > 30:
+            raise RuntimeError("Daily YouTube discovery task limit reached")
+        campaign = database.get_campaign(campaign_id)
+        _check_interrupted(interrupt)
+        prospects = fetch_youtube_creators(settings.youtube_api_key, campaign)
+        _check_interrupted(interrupt)
+        saved = database.save_discovered_prospects(campaign_id, prospects)
+        return {
+            "handler": "marketing.creator_discovery",
+            "campaign_id": str(campaign_id),
+            "queries": len(campaign["discovery_queries"]),
+            "discovered": len(prospects),
+            "new": saved["new"],
+            "updated": saved["updated"],
+            "contact_emails_discovered": 0,
+        }
+
     profile_id = UUID(str(payload["profile_id"]))
 
     if task["kind"] == "career.search":
@@ -191,7 +213,7 @@ def execute_career_task(
     raise ValueError("Capability is not implemented in career worker")
 
 
-def _schedule_due_profiles(database: ActionStore) -> None:
+def _schedule_due_work(database: MarketingStore) -> None:
     for profile in database.claim_due_profiles():
         try:
             database.create_scheduled_search(profile)
@@ -205,12 +227,31 @@ def _schedule_due_profiles(database: ActionStore) -> None:
                 "career scan scheduling failed",
                 extra={"action": "career.schedule_failed", "profile_id": str(profile["id"])},
             )
+    for campaign in database.claim_due_campaigns():
+        try:
+            database.create_scheduled_discovery(campaign)
+            logger.info(
+                "creator discovery scheduled",
+                extra={
+                    "action": "marketing.discovery_scheduled",
+                    "campaign_id": str(campaign["id"]),
+                },
+            )
+        except Exception:
+            database.defer_campaign(campaign["id"])
+            logger.exception(
+                "creator discovery scheduling failed",
+                extra={
+                    "action": "marketing.schedule_failed",
+                    "campaign_id": str(campaign["id"]),
+                },
+            )
 
 
 def run() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
-    database = ActionStore(settings.database_url)
+    database = MarketingStore(settings.database_url)
     client = redis.Redis.from_url(
         settings.redis_url,
         decode_responses=True,
@@ -222,7 +263,7 @@ def run() -> None:
 
     while not stopping:
         if time.monotonic() >= next_schedule_check:
-            _schedule_due_profiles(database)
+            _schedule_due_work(database)
             next_schedule_check = time.monotonic() + settings.career_scheduler_seconds
         try:
             item = client.brpop(settings.job_queue_key, timeout=settings.worker_poll_seconds)
@@ -234,6 +275,7 @@ def run() -> None:
         task_id: UUID | None = None
         lease_id: UUID | None = None
         heartbeat: LeaseHeartbeat | None = None
+        task: dict[str, Any] | None = None
         try:
             envelope = json.loads(item[1])
             task_id = UUID(envelope["task_id"])
@@ -242,7 +284,7 @@ def run() -> None:
             )
             if task is None:
                 logger.warning(
-                    "discarded stale career queue item",
+                    "discarded stale research queue item",
                     extra={"task_id": str(task_id), "action": "task.discarded"},
                 )
                 continue
@@ -259,14 +301,14 @@ def run() -> None:
                 result = database.finalize_cancellation(task_id, lease_id)
             elif heartbeat.reason is not None:
                 logger.warning(
-                    "career task stopped after lease ownership was lost",
+                    "research task stopped after lease ownership was lost",
                     extra={"task_id": str(task_id), "action": "task.lease_lost"},
                 )
                 continue
             else:
                 result = database.complete_task(task_id, lease_id, output)
             logger.info(
-                "career task finished",
+                "research task finished",
                 extra={
                     "task_id": str(task_id),
                     "correlation_id": str(result["correlation_id"]),
@@ -279,22 +321,27 @@ def run() -> None:
                     database.finalize_cancellation(task_id, lease_id)
                 else:
                     logger.warning(
-                        "career task interrupted after lease monitor failure",
+                        "research task interrupted after lease monitor failure",
                         extra={"task_id": str(task_id), "action": "task.lease_lost"},
                     )
         except Exception as exc:
-            logger.exception("career task execution failed", extra={"action": "task.failed"})
+            logger.exception("research task execution failed", extra={"action": "task.failed"})
             if task_id is not None and lease_id is not None:
                 try:
-                    database.fail_task(task_id, lease_id, "CAREER_EXECUTION_FAILED", str(exc))
+                    error_code = (
+                        "MARKETING_EXECUTION_FAILED"
+                        if task is not None and task["kind"].startswith("marketing.")
+                        else "CAREER_EXECUTION_FAILED"
+                    )
+                    database.fail_task(task_id, lease_id, error_code, str(exc))
                 except Exception:
                     logger.exception(
-                        "failed to persist career task failure",
+                        "failed to persist research task failure",
                         extra={"action": "audit.failed"},
                     )
 
     client.close()
-    logger.info("career worker stopped", extra={"action": "shutdown"})
+    logger.info("research worker stopped", extra={"action": "shutdown"})
 
 
 def main() -> None:

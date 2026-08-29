@@ -44,6 +44,21 @@ See [dashboard and career missions](dashboard-and-career.md). The reviewed
 single-page adapter and duplicate protection are ready; real-site compatibility
 is still destination-specific and never bypasses exact approval.
 
+## KarixMC creator outreach
+
+Real creator discovery requires a user-owned Google Cloud project with YouTube
+Data API v3 enabled and a restricted API key in ignored `YOUTUBE_API_KEY`.
+External delivery also requires the SMTP setup below. Neither account, key, nor
+provider terms are created automatically.
+
+After adding the key, recreate the core stack, open **Creator campaigns**, and
+run one scan. Channel/video results prove discovery; container health alone does
+not. The API does not return creator emails. Add only a reviewed public business
+contact, source URL, and basis note, then approve each exact email separately.
+Reply reading/classification, compensation, contracts/disclosures, point grants,
+and placement-result entry remain manual. See
+[creator outreach operations](creator-outreach.md).
+
 ## Real email transport
 
 The local Mailpit path needs no account. To send real mail, the user must choose
@@ -114,11 +129,15 @@ steps only to repair it or switch the route:
 
 - Telegram bot creation and user allowlisting
 - Email/Google/GitHub OAuth consent
+- Google Cloud/YouTube Data API enablement, key creation, restriction, quota,
+  and acceptance of YouTube API terms
 - Provider sign-up and acceptance of provider terms
 - VPS purchase, DNS, TLS, WireGuard, and backup destination
 - job-site accounts, screening/legal/consent answers, CAPTCHA/identity checks,
   and each exact final application approval
 - Any secret, recovery code, payment method, or identity verification
+- Creator consent/contact-law review, sponsorship terms/disclosures, payment,
+  public posting, and KarixMC point issuance
 
 Those actions carry identity, legal, financial, or external-state consequences
 and must remain user-owned.

@@ -49,6 +49,7 @@
 - [ ] Telegram control with pairing and allowlist
 - [ ] Email read/classify and OAuth adapters
 - [x] Exact approval-gated single-recipient SMTP send adapter and local Mailpit proof
+- [x] Governed creator campaigns with official YouTube discovery, manual contact provenance/reply classification, exact-email sequencing, results, and bounded draft adaptation
 - [x] Fresh-job discovery/tracking from reviewed public sources
 - [x] Local résumé evidence and cover-letter drafting
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter
@@ -63,6 +64,8 @@ Purchases/transfers, mass communication, job submission, public publishing,
 production infrastructure changes, and destructive repository/data operations.
 Application/email preparation can be automatic; each exact external action
 requires its own unexpired approval and cannot borrow a blanket permission.
+Creator discovery may be scheduled, but business-contact qualification, every
+send, reply classification, paid terms, and public placement remain reviewed.
 
 ## Evaluated but deliberately deferred
 

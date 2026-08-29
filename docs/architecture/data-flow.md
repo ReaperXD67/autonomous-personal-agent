@@ -64,6 +64,26 @@ updates both receipt and action atomically. Any error after receipt creation is
 `ambiguous`; there is no automatic retry. A second plan for the same opportunity
 cannot click again because the application fingerprint is opportunity-scoped.
 
+## Creator discovery and outreach
+
+An active PostgreSQL campaign schedules `marketing.creator_discovery` through
+the policy/outbox path. The research worker loads the campaign by ID, calls only
+the official YouTube Data API, and upserts public channel/video metadata plus
+deterministic relevance evidence. The API key never enters the task, queue,
+audit, or dashboard. Discovery creates no contact authorization.
+
+An operator separately records a public business email, its source URL, a basis
+note, and an authorization timestamp. Planning freezes one sequence stage and
+one draft variant into the generic exact email action. The action worker locks
+the prospect and rechecks address, authorization, suppression, and the required
+reply state before the pre-SMTP receipt. `do_not_contact` and bounce outcomes
+clear authorization durably, so already-approved mail refuses to execute.
+
+Reply classifications and attributed promotion results are manual until a
+scoped inbound provider adapter exists. Aggregate campaign results select only
+between two fixed introduction templates after explicit sample/effect
+thresholds; they never authorize or send an email.
+
 ## State ownership
 
 | State | Authority | Notes |
@@ -76,6 +96,7 @@ cannot click again because the application fingerprint is opportunity-scoped.
 | Agent memory | PostgreSQL + pgvector | Planned writers require provenance and policy |
 | Career profiles/opportunities/drafts | PostgreSQL | Résumé is returned only as presence/length metadata; draft access stays internal |
 | Preflights/exact actions/receipts | PostgreSQL | Approval context, expiry, execution state, and duplicate guard are authoritative |
+| Creator campaigns/prospects/outcomes | PostgreSQL | Contact provenance, authorization, suppression, stage links, attribution, and learning evidence are authoritative |
 | Embeddings | pgvector column | Model/version metadata must accompany future writes |
 | Logs | Docker log driver | Operational, rotated, not authoritative audit storage |
 

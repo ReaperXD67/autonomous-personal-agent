@@ -38,6 +38,13 @@ send the selected job plus the stored résumé only to internal Ollama and persi
 structured results. It has outbound edge, data, and model networks but no host
 mount, Docker socket, or published port.
 
+The same bounded egress runtime handles `marketing.creator_discovery`. It calls
+only the fixed YouTube Data API host with a deployment-provided restricted key,
+bounded queries/results, strict safe search, and response/time limits. It stores
+public channel/video evidence but no discovered contact email. Reuse avoids a
+new service while lifecycle and network privileges are identical; the API key
+is not passed to other application services.
+
 ### Action worker
 
 Consumes a separate external-action queue. Playwright runs in a release/digest-
@@ -48,6 +55,10 @@ cross-host browser request. SMTP uses deployment-fixed transport settings; task
 input cannot select a server or sender. Exact-context approval, expiry, current
 résumé/draft hashes, current form signature, and a durable receipt are checked
 before a final click or send. Consequential tasks have no automatic retry.
+
+For creator email the worker also locks and revalidates the prospect's public-
+contact authorization, exact address, suppression, and reply state immediately
+before the receipt. A later opt-out invalidates an earlier approval.
 
 ### PostgreSQL + pgvector
 

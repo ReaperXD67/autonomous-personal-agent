@@ -1048,3 +1048,86 @@ forms, OIDC/step-up approval, private VPS ingress, egress firewalling,
 off-host encrypted backups, and ambiguous-action reconciliation remain manual
 or future work. Hermes still does not bypass the control plane, and the generic
 Playwright MCP candidate remains disabled.
+
+## Step 17 — Add governed creator outreach and bounded adaptation
+
+Date: 2026-08-29
+
+### Objective
+
+Turn KarixMC promotion into a measurable operator workflow: discover relevant
+YouTube creators without harvesting email addresses, record reviewed contact
+provenance, prepare the requested introduction/question/paid-option sequence,
+show funnel results, and adapt only within evidence-backed fixed variants.
+
+### Research and decision
+
+Reviewed the official YouTube Data API discovery/statistics surfaces and EU
+Commission direct-marketing/objection guidance. Selected official API discovery
+in the existing egress worker, manual public-business-email qualification,
+exact approval for every email, durable suppression, and a fixed two-variant
+bandit with an explicit evidence threshold. ADR-0011 records why inbound replies,
+public posting, contact scraping, self-modifying prompts/code, and automatic
+spending remain outside this milestone.
+
+### Implementation
+
+- Added migration 007 for campaigns, public creator prospects, outreach stages,
+  outcomes, attribution, suppression, indexes, and update triggers.
+- Added official YouTube discovery with a fixed host/path, strict SafeSearch,
+  response bounds, channel statistics, deterministic scoring, a 30-task daily
+  guard, and a worker-only optional API key.
+- Added authenticated campaign, prospect, result, outcome, scan, and exact email
+  planning APIs backed by PostgreSQL and the existing policy/outbox/audit path.
+- Added truthful fixed introduction variants, a manual question-answer stage,
+  one paid option only after an explicit unpaid-only decline, contact/privacy
+  footers, UTM tracking, and per-stage duplicate guards.
+- Added pre-SMTP revalidation of the approved address, authorization,
+  suppression, and reply state so later objections invalidate pending actions.
+- Added a responsive Creator campaigns dashboard with labeled forms, visible
+  funnel values, evidence-bearing suggestions, contact provenance, outcomes,
+  and results. Adaptation changes only future initial-draft selection after both
+  variants have ten deliveries and one leads by at least five percentage points
+  and 1.5x; exploitation remains capped at 80 percent.
+- Initialized one inactive `KarixMC creator pilot` in the local authoritative
+  database. It cannot scan or send until explicitly configured and activated.
+- Added operations, security review, ADR, architecture, roadmap, README, manual
+  setup, and evolution documentation.
+
+### Problems encountered and resolution
+
+- A rebuilt test image exposed eight line-length failures that a stale earlier
+  image had missed. The source was reformatted and the image rebuilt before
+  accepting the test result.
+- The authenticated browser check exposed an existing PostgreSQL ambiguous-null
+  parameter failure in unfiltered task listing. Optional task filters now use
+  explicit text casts, with a repository contract regression test.
+- Docker Desktop 4.78 initially crashed on inaccessible stale Unix-socket
+  entries. Only the verified disposable runtime sockets were removed, WSL was
+  reset, optional Docker AI was disabled in the workstation settings, and the
+  engine recovered without a factory reset or volume deletion.
+
+### Validation
+
+- `docker compose config --quiet` passed.
+- Ruff and Pytest passed 51 tests in 0.71 seconds in the final lifecycle build.
+- `scripts/verify.ps1` passed builds, health for all six core services,
+  safe/approval paths, lease retry/exhaustion, queued/running cancellation,
+  dead-letter inspection, and lifecycle checks.
+- The applied migration served campaign, prospect, and result lists over the
+  authenticated live API; the previously failing unfiltered task list also
+  returned successfully.
+- Playwright loaded the authenticated campaign dashboard and initialized pilot
+  with zero console errors/warnings. The 375x812 and 812x375 viewports had no
+  horizontal overflow, and the labeled campaign dialog rendered successfully.
+- The configured KarixMC product and privacy URLs both returned HTTP 200.
+- `git diff --check` is required again immediately before publication.
+
+### Remaining boundary
+
+Live YouTube discovery is prepared but unverified because no restricted API key
+was used. No creator email was discovered, guessed, or sent. Real SMTP delivery,
+reply ingestion/classification, link analytics import, public social posting,
+payments/budget authority, creator contracts/disclosure review, regional legal
+review, and production KarixMC conversion attribution remain user-owned or
+future work.

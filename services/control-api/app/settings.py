@@ -33,6 +33,7 @@ class Settings:
     smtp_password: str
     smtp_from: str
     smtp_tls_mode: str
+    youtube_api_key: str
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -59,6 +60,7 @@ class Settings:
             smtp_password=os.getenv("SMTP_PASSWORD", "").strip(),
             smtp_from=os.getenv("SMTP_FROM", "").strip(),
             smtp_tls_mode=os.getenv("SMTP_TLS_MODE", "starttls").strip().lower(),
+            youtube_api_key=os.getenv("YOUTUBE_API_KEY", "").strip(),
         )
         settings.validate()
         return settings

@@ -75,6 +75,16 @@ The **Tasks & audit** view can also assign harmless one-off `foundation.echo`
 or bounded wait tasks and shows execution history. The **Approvals** inbox is
 where future high-impact operations stop for a decision.
 
+## Creator campaigns
+
+The same command center now includes a separate **Creator campaigns** workspace
+for KarixMC promotion. It uses official YouTube metadata, manual public-contact
+qualification, exact approval per email, durable suppression, reply/result
+entry, and bounded draft-variant learning. It is intentionally separate from
+career profiles and never reuses résumé or opportunity data. See
+[creator outreach operations](creator-outreach.md) before configuring a real API
+key or SMTP destination.
+
 ## Repeatable engineering proof
 
 With the core and local model running:
