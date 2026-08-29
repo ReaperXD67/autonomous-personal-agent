@@ -17,6 +17,7 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
     "career.application_draft": RiskLevel.MEDIUM,
     "career.application_preflight": RiskLevel.MEDIUM,
     "career.application_submit": RiskLevel.HIGH,
+    "marketing.creator_discovery": RiskLevel.LOW,
     "communications.email_send": RiskLevel.HIGH,
 }
 

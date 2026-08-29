@@ -109,6 +109,27 @@ def test_external_actions_use_isolated_pinned_workers_and_exact_receipts() -> No
     assert "retry refused" in source
 
 
+def test_creator_outreach_is_durable_approval_bound_and_key_scoped() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    migration = (
+        ROOT / "config/postgres/init/007_creator_outreach.sql"
+    ).read_text(encoding="utf-8")
+    for table in (
+        "marketing_campaigns",
+        "marketing_prospects",
+        "marketing_outreach_messages",
+        "marketing_outcomes",
+    ):
+        assert table in migration
+    assert "contact_authorized_at" in migration
+    assert "suppressed_at" in migration
+    assert "YOUTUBE_API_KEY" in compose["services"]["job-worker"]["environment"]
+    for service in ("control-api", "worker", "dispatcher", "action-worker"):
+        assert "YOUTUBE_API_KEY" not in compose["services"][service]["environment"]
+    guard = (ROOT / "services/control-api/app/action_store.py").read_text(encoding="utf-8")
+    assert "Marketing contact was withdrawn, changed, or suppressed" in guard
+
+
 def test_action_image_scan_exceptions_are_exact_and_expiring() -> None:
     ignores = yaml.safe_load((ROOT / ".trivyignore.yaml").read_text(encoding="utf-8"))
     entries = ignores["vulnerabilities"]
@@ -119,6 +140,22 @@ def test_action_image_scan_exceptions_are_exact_and_expiring() -> None:
     assert all(entry.get("purls") and entry.get("expired_at") for entry in entries)
     dockerfile = (ROOT / "services/action-worker/Dockerfile").read_text(encoding="utf-8")
     assert "rm -rf /tmp/uv-cache" in dockerfile
+
+
+def test_optional_task_filters_have_explicit_postgres_types() -> None:
+    store = (ROOT / "services/control-api/app/store.py").read_text(encoding="utf-8")
+
+    assert "%s::text IS NULL OR status = %s::text" in store
+    assert "%s::text IS NULL OR kind LIKE (%s::text || '%%')" in store
+
+
+def test_manual_creator_answers_require_a_new_recorded_question() -> None:
+    store = (ROOT / "services/control-api/app/marketing_store.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'question_state["answered_questions"] >= question_state[' in store
+    assert "Record a new creator question before preparing another answer" in store
 
 
 def test_restore_drill_uses_a_disposable_database() -> None:

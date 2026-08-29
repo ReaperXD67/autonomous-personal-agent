@@ -85,7 +85,7 @@ class Database:
             "communications.email_send",
         }:
             topic = "action.ready"
-        elif task["kind"].startswith("career."):
+        elif task["kind"].startswith(("career.", "marketing.")):
             topic = "career.ready"
         else:
             topic = "task.ready"
@@ -196,8 +196,8 @@ class Database:
             return connection.execute(
                 """
                 SELECT * FROM agent_tasks
-                WHERE (%s IS NULL OR status = %s)
-                  AND (%s IS NULL OR kind LIKE (%s || '%%'))
+                WHERE (%s::text IS NULL OR status = %s::text)
+                  AND (%s::text IS NULL OR kind LIKE (%s::text || '%%'))
                 ORDER BY created_at DESC
                 LIMIT %s
                 """,

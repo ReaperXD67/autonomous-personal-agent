@@ -99,8 +99,31 @@ actions still require exact approval; generic browser/MCP access, OAuth email
 read, site accounts, and production identity/ingress remain outside this
 boundary.
 
+## v0.9 — Governed creator outreach and bounded learning (2026-08-28)
+
+The command center now models KarixMC promotion as durable campaigns, public
+creator prospects, exact email stages, reply classifications, suppression, and
+attributed placement results. The existing egress research worker can discover
+public YouTube channels through the official API with a worker-only restricted
+key; it does not discover email addresses. Contact provenance, a written basis,
+and operator authorization are required before any plan exists.
+
+Introduction, manual question answer, and one conditional paid-option message
+all reuse the exact-action SMTP boundary. The worker revalidates address,
+authorization, suppression, and reply state immediately before the receipt, so
+a later opt-out cancels an earlier approval. “No/do not contact” and bounces are
+durable terminal states; only an explicitly recorded unpaid-only decline can
+unlock one final paid draft.
+
+Adaptation is deliberately narrow: two fixed truthful introductions use balanced
+assignment until both have ten deliveries. A material positive-reply lead can
+shift future drafts to 80/20 exploitation/exploration. Results and suggestions
+are evidence-bearing operator aids, not permission for the agent to change code,
+policy, contacts, offers, budgets, approvals, or sending authority.
+
 ## Next architectural pressure
 
 Per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling
-for ambiguous provider state, real-ATS compatibility fixtures, OAuth mail,
+for ambiguous provider state, real-ATS compatibility fixtures, scoped inbound
+OAuth mail/reply classification, first-party KarixMC attribution import,
 encrypted off-host backups, and the policy-bound Hermes adapter are next.

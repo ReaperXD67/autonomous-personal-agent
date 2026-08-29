@@ -27,6 +27,7 @@ def make_settings(**overrides: object) -> Settings:
         "smtp_password": "",
         "smtp_from": "",
         "smtp_tls_mode": "starttls",
+        "youtube_api_key": "",
     }
     values.update(overrides)
     return Settings(**values)

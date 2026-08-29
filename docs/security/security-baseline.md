@@ -38,6 +38,13 @@ capability must enter this registry before its handler is reachable.
   revalidation, one-attempt policy, and durable pre-side-effect receipts;
 - deployment-fixed SMTP endpoint/sender, external TLS enforcement, single
   validated recipient, and local-only no-TLS Mailpit test mode;
+- official-host-only YouTube discovery with a worker-scoped API key, bounded
+  queries/results, and no email discovery;
+- operator-recorded public-contact source/basis/authorization, durable opt-out
+  and bounce suppression, and pre-SMTP reply-state revalidation;
+- evidence-thresholded creator-copy adaptation limited to fixed draft variants;
+  it cannot alter contacts, offers, budgets, capability risk, code, approvals,
+  or sending authority;
 - résumé text excluded from queue/task/audit/public-source payloads and local
   draft output constrained to a structured schema;
 - required immutable-action CI gates for dependency review, repository

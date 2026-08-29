@@ -33,6 +33,23 @@ from app.career_store import (
     OpportunityNotFoundError,
 )
 from app.logging_config import configure_logging
+from app.marketing_models import (
+    MarketingCampaignCreate,
+    MarketingCampaignUpdate,
+    MarketingCampaignView,
+    MarketingEmailPlanCreate,
+    MarketingOutcomeCreate,
+    MarketingProspectCreate,
+    MarketingProspectUpdate,
+    MarketingProspectView,
+    MarketingResultsView,
+)
+from app.marketing_store import (
+    MarketingCampaignNotFoundError,
+    MarketingOutreachError,
+    MarketingProspectNotFoundError,
+    MarketingStore,
+)
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate, TaskView
 from app.policy import RiskLevel
 from app.settings import get_settings
@@ -51,6 +68,7 @@ async def lifespan(application: FastAPI):
     application.state.database = Database(settings.database_url)
     application.state.career = CareerStore(settings.database_url)
     application.state.actions = ActionStore(settings.database_url)
+    application.state.marketing = MarketingStore(settings.database_url)
     application.state.redis = redis.Redis.from_url(settings.redis_url, decode_responses=True)
     logger.info("control plane starting", extra={"action": "startup"})
     yield
@@ -123,6 +141,10 @@ def _career(request: Request) -> CareerStore:
 
 def _actions(request: Request) -> ActionStore:
     return request.app.state.actions
+
+
+def _marketing(request: Request) -> MarketingStore:
+    return request.app.state.marketing
 
 
 @app.get("/", response_class=HTMLResponse, include_in_schema=False)
@@ -403,6 +425,165 @@ def plan_career_application(
             status_code=409,
             detail={"message": str(exc), "missing_fields": exc.missing_fields},
         ) from exc
+
+
+@app.post(
+    "/v1/marketing/campaigns",
+    response_model=MarketingCampaignView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def create_marketing_campaign(
+    request: Request, payload: MarketingCampaignCreate
+) -> dict[str, Any]:
+    return _marketing(request).create_campaign(payload)
+
+
+@app.get(
+    "/v1/marketing/campaigns",
+    response_model=list[MarketingCampaignView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_marketing_campaigns(request: Request) -> list[dict[str, Any]]:
+    return _marketing(request).list_campaigns()
+
+
+@app.put(
+    "/v1/marketing/campaigns/{campaign_id}",
+    response_model=MarketingCampaignView,
+    dependencies=[Depends(require_api_token)],
+)
+def update_marketing_campaign(
+    request: Request, campaign_id: UUID, payload: MarketingCampaignUpdate
+) -> dict[str, Any]:
+    try:
+        return _marketing(request).update_campaign(campaign_id, payload)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+
+
+@app.post(
+    "/v1/marketing/campaigns/{campaign_id}/scan",
+    response_model=TaskView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def scan_marketing_campaign(request: Request, campaign_id: UUID) -> dict[str, Any]:
+    try:
+        campaign = _marketing(request).get_campaign(campaign_id)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+    return _database(request).create_task(
+        TaskCreate(
+            title=f"Discover Minecraft creators for {campaign['name']}",
+            kind="marketing.creator_discovery",
+            payload={"campaign_id": str(campaign_id), "trigger": "manual"},
+            risk_level=RiskLevel.LOW,
+            requested_by="dashboard:marketing",
+            idempotency_key=f"marketing-manual-scan:{campaign_id}:{uuid4()}",
+        )
+    )
+
+
+@app.get(
+    "/v1/marketing/results",
+    response_model=list[MarketingResultsView],
+    dependencies=[Depends(require_api_token)],
+)
+def marketing_results(
+    request: Request, campaign_id: UUID | None = None
+) -> list[dict[str, Any]]:
+    try:
+        return _marketing(request).campaign_results(campaign_id)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+
+
+@app.post(
+    "/v1/marketing/prospects",
+    response_model=MarketingProspectView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def create_marketing_prospect(
+    request: Request, payload: MarketingProspectCreate
+) -> dict[str, Any]:
+    try:
+        return _marketing(request).create_prospect(payload)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+    except MarketingOutreachError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get(
+    "/v1/marketing/prospects",
+    response_model=list[MarketingProspectView],
+    dependencies=[Depends(require_api_token)],
+)
+def list_marketing_prospects(
+    request: Request,
+    campaign_id: UUID | None = None,
+    prospect_status: str | None = Query(default=None, alias="status", max_length=40),
+    limit: int = Query(default=300, ge=1, le=500),
+) -> list[dict[str, Any]]:
+    return _marketing(request).list_prospects(
+        campaign_id=campaign_id, prospect_status=prospect_status, limit=limit
+    )
+
+
+@app.put(
+    "/v1/marketing/prospects/{prospect_id}",
+    response_model=MarketingProspectView,
+    dependencies=[Depends(require_api_token)],
+)
+def update_marketing_prospect(
+    request: Request, prospect_id: UUID, payload: MarketingProspectUpdate
+) -> dict[str, Any]:
+    try:
+        return _marketing(request).update_prospect(prospect_id, payload)
+    except MarketingProspectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing prospect not found") from exc
+    except MarketingOutreachError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post(
+    "/v1/marketing/prospects/{prospect_id}/outcomes",
+    response_model=MarketingProspectView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def record_marketing_outcome(
+    request: Request, prospect_id: UUID, payload: MarketingOutcomeCreate
+) -> dict[str, Any]:
+    try:
+        return _marketing(request).record_outcome(prospect_id, payload)
+    except MarketingProspectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing prospect not found") from exc
+    except MarketingOutreachError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post(
+    "/v1/marketing/prospects/{prospect_id}/email-plan",
+    response_model=ExternalActionView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def plan_marketing_email(
+    request: Request, prospect_id: UUID, payload: MarketingEmailPlanCreate
+) -> dict[str, Any]:
+    if settings.mail_transport == "disabled" or not settings.smtp_from:
+        raise HTTPException(status_code=409, detail="Configure an email transport first")
+    try:
+        return _marketing(request).plan_outreach_email(
+            prospect_id, payload, sender=settings.smtp_from
+        )
+    except MarketingProspectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing prospect not found") from exc
+    except (MarketingOutreachError, ValueError) as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.post(

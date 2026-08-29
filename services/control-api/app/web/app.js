@@ -8,6 +8,9 @@ const state = {
   tasks: [],
   audits: [],
   actions: [],
+  campaigns: [],
+  prospects: [],
+  marketingResults: [],
   view: "overview",
 };
 
@@ -123,6 +126,9 @@ function disconnect(showMessage = true) {
   state.tasks = [];
   state.audits = [];
   state.actions = [];
+  state.campaigns = [];
+  state.prospects = [];
+  state.marketingResults = [];
   setConnection(false);
   renderAll();
   if (showMessage) toast("Disconnected this browser tab");
@@ -135,15 +141,18 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, profiles, opportunities, tasks, audits, actions] = await Promise.all([
+    const [status, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/career/profiles"),
       api("/v1/career/opportunities?limit=300"),
       api("/v1/tasks?limit=200"),
       api("/v1/audit-events?limit=100"),
       api("/v1/external-actions?limit=200"),
+      api("/v1/marketing/campaigns"),
+      api("/v1/marketing/prospects?limit=500"),
+      api("/v1/marketing/results"),
     ]);
-    Object.assign(state, { status, profiles, opportunities, tasks, audits, actions });
+    Object.assign(state, { status, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults });
     setConnection(true);
     renderAll();
     return true;
@@ -158,6 +167,7 @@ const viewCopy = {
   overview: ["Private agent workspace", "Turn intentions into <em>reviewable work.</em>", "Run continuous missions while every consequential action remains visible and controlled."],
   missions: ["Continuous operations", "Choose the <em>mission.</em>", "Activate, pause, or replace ongoing work without changing code."],
   opportunities: ["Career intelligence", "Review the <em>freshest fits.</em>", "Every result links back to the original job source and keeps its matching evidence."],
+  campaigns: ["Measured distribution", "Grow with <em>evidence.</em>", "Discover relevant creators, review each contact, and adapt drafts only when outcomes support it."],
   approvals: ["Human control", "Decide before <em>impact.</em>", "Approve or reject high-risk tasks before they can enter execution."],
   tasks: ["Durable execution", "Assign and <em>inspect work.</em>", "Create safe one-off tasks and follow every transition in the audit trail."],
   settings: ["Security boundaries", "Keep the agent <em>private.</em>", "Understand where data lives, which tools are enabled, and what VPS hosting still requires."],
@@ -365,6 +375,174 @@ function renderActivity() {
   });
 }
 
+function marketingResult(campaignId) {
+  return state.marketingResults.find((item) => item.campaign_id === campaignId) || {
+    metrics: {},
+    variants: [],
+    suggestions: [],
+  };
+}
+
+function renderMarketingMetrics() {
+  const totals = state.marketingResults.reduce((summary, result) => {
+    for (const key of ["discovered", "emails_sent", "replies", "initial_sent", "attributed_signups"]) {
+      summary[key] += Number(result.metrics[key] || 0);
+    }
+    return summary;
+  }, { discovered: 0, emails_sent: 0, replies: 0, initial_sent: 0, attributed_signups: 0 });
+  const replyRate = totals.initial_sent ? (totals.replies / totals.initial_sent) * 100 : 0;
+  $("#marketing-metric-found").textContent = totals.discovered.toLocaleString();
+  $("#marketing-metric-sent").textContent = totals.emails_sent.toLocaleString();
+  $("#marketing-metric-replies").textContent = `${replyRate.toFixed(1)}%`;
+  $("#marketing-metric-signups").textContent = totals.attributed_signups.toLocaleString();
+}
+
+function campaignCard(campaign) {
+  const result = marketingResult(campaign.id);
+  const metrics = result.metrics;
+  const card = node("article", `panel campaign-card${campaign.active ? "" : " inactive"}`);
+  const top = node("div", "campaign-card-top");
+  const copy = node("div");
+  copy.append(
+    node("span", "tag", campaign.active ? "Discovery running" : "Discovery paused"),
+    node("h3", "", campaign.name),
+    node("p", "", `${campaign.discovery_queries.join(" · ")} · ${campaign.min_subscribers.toLocaleString()}–${campaign.max_subscribers.toLocaleString()} subscribers`),
+  );
+  top.append(copy, node("span", "score", campaign.adaptive_mode ? "Adaptive drafts" : "Fixed A/B drafts"));
+  card.append(top);
+
+  const funnel = node("div", "funnel-list");
+  const stages = [
+    ["Found", metrics.discovered || 0],
+    ["Introductions", metrics.initial_sent || 0],
+    ["Replies", metrics.replies || 0],
+    ["Positive", metrics.positive_replies || 0],
+    ["Converted", metrics.converted || 0],
+  ];
+  const maximum = Math.max(1, ...stages.map((item) => Number(item[1])));
+  stages.forEach(([label, value]) => {
+    const row = node("div", "funnel-row");
+    row.append(node("span", "", label));
+    const track = node("span", "funnel-track");
+    const level = Number(value) === 0 ? 0 : Math.max(1, Math.round((Number(value) / maximum) * 10));
+    const fill = node("i", `funnel-fill level-${level}`);
+    track.append(fill);
+    row.append(track, node("strong", "", Number(value).toLocaleString()));
+    funnel.append(row);
+  });
+  card.append(funnel);
+
+  const learning = node("div", "campaign-learning");
+  learning.append(node("strong", "", "Agent suggestions"));
+  if (!result.suggestions.length) learning.append(node("p", "", "No change suggested yet. Keep recording real replies and conversions."));
+  result.suggestions.slice(0, 3).forEach((suggestion) => {
+    const item = node("div", `learning-item ${suggestion.priority}`);
+    item.append(node("span", "", titleCase(suggestion.priority)), node("strong", "", suggestion.message), node("small", "", suggestion.evidence));
+    learning.append(item);
+  });
+  card.append(learning);
+  const actions = node("div", "card-actions");
+  actions.append(
+    button("Find creators", "button", "scan-campaign", campaign.id),
+    button("Edit campaign", "text-button", "edit-campaign", campaign.id),
+  );
+  card.append(actions, node("p", "fine-print", `Last discovery: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
+  return card;
+}
+
+function renderCampaigns() {
+  const list = $("#campaign-list");
+  list.replaceChildren();
+  if (!state.campaigns.length) {
+    list.append(empty("No campaigns yet", "Create the KarixMC pilot, then add a restricted YouTube API key for official creator discovery.", true));
+    return;
+  }
+  state.campaigns.forEach((campaign) => list.append(campaignCard(campaign)));
+}
+
+function renderMarketingFilters() {
+  const filter = $("#marketing-campaign-filter");
+  const selected = filter.value;
+  filter.replaceChildren(new Option("All campaigns", ""));
+  state.campaigns.forEach((campaign) => filter.append(new Option(campaign.name, campaign.id)));
+  if ([...filter.options].some((option) => option.value === selected)) filter.value = selected;
+}
+
+function filteredProspects() {
+  const campaignId = $("#marketing-campaign-filter").value;
+  const status = $("#marketing-status-filter").value;
+  return state.prospects.filter((item) => (!campaignId || item.campaign_id === campaignId) && (!status || item.status === status));
+}
+
+function prospectCard(prospect) {
+  const campaign = state.campaigns.find((item) => item.id === prospect.campaign_id);
+  const card = node("article", `panel prospect-card${prospect.suppressed_at ? " suppressed" : ""}`);
+  const top = node("div", "prospect-card-top");
+  const copy = node("div");
+  copy.append(
+    node("span", "company-line", `${titleCase(prospect.platform)} · ${campaign?.name || "Unknown campaign"}`),
+    node("h3", "", prospect.display_name),
+    node("p", "", prospect.audience_size === null ? "Audience size unavailable" : `${prospect.audience_size.toLocaleString()} audience`),
+  );
+  top.append(copy, node("div", "opportunity-score", String(prospect.relevance_score)));
+  card.append(top);
+  const meta = node("div", "opportunity-meta");
+  meta.append(node("span", "chip status-chip", titleCase(prospect.status)));
+  meta.append(node("span", "chip", prospect.contact_authorized_at ? "Contact reviewed" : "Contact review needed"));
+  if (prospect.latest_message) meta.append(node("span", "chip", `${titleCase(prospect.latest_message.stage)} · ${titleCase(prospect.latest_message.action_status)}`));
+  card.append(meta);
+  if (prospect.latest_content_title) {
+    const content = node("p", "prospect-evidence", `Recent match: ${prospect.latest_content_title}`);
+    card.append(content);
+  }
+  const reasons = node("ul", "reason-list");
+  prospect.relevance_reasons.slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
+  card.append(reasons);
+  const links = node("div", "prospect-links");
+  const profile = node("a", "text-button", "Open public profile");
+  try { profile.href = safeExternalUrl(prospect.profile_url); }
+  catch (_error) { profile.removeAttribute("href"); profile.textContent = "Unsafe profile URL rejected"; }
+  profile.target = "_blank";
+  profile.rel = "noopener noreferrer";
+  links.append(profile);
+  if (prospect.contact_email) links.append(node("span", "fine-print", prospect.contact_email));
+  card.append(links);
+
+  const actions = node("div", "card-actions");
+  if (!prospect.suppressed_at) actions.append(button(prospect.contact_authorized_at ? "Edit evidence" : "Review contact", "button", "edit-prospect", prospect.id));
+  if (prospect.contact_authorized_at && ["discovered", "qualified"].includes(prospect.status)) {
+    const blocked = prospect.latest_message && ["pending_approval", "queued", "executing", "succeeded", "ambiguous"].includes(prospect.latest_message.action_status) && prospect.latest_message.stage === "initial";
+    if (!blocked) actions.append(button("Prepare introduction", "button primary", "plan-marketing-initial", prospect.id));
+  }
+  const answerRetryable = prospect.latest_message?.stage === "question_reply"
+    && ["failed", "cancelled", "expired"].includes(prospect.latest_message.action_status);
+  const newerQuestion = prospect.latest_outcome?.classification === "question"
+    && (!prospect.latest_message || new Date(prospect.latest_outcome.created_at) > new Date(prospect.latest_message.created_at));
+  const canAnswer = prospect.status === "question"
+    && (prospect.latest_message?.stage !== "question_reply" || answerRetryable || newerQuestion);
+  if (canAnswer) actions.append(button("Write manual answer", "button primary", "reply-prospect", prospect.id));
+  if (prospect.status === "declined_unpaid") {
+    const paidExists = prospect.latest_message?.stage === "paid_offer" && ["pending_approval", "queued", "executing", "succeeded", "ambiguous"].includes(prospect.latest_message.action_status);
+    if (!paidExists) actions.append(button("Prepare final paid option", "button primary", "plan-marketing-paid", prospect.id));
+  }
+  if (prospect.sent_message_count > 0 && !["suppressed", "bounced"].includes(prospect.status)) actions.append(button(prospect.status === "converted" ? "Update results" : "Record reply or result", "text-button", "outcome-prospect", prospect.id));
+  card.append(actions);
+  if (prospect.suppression_reason) card.append(node("p", "notice", prospect.suppression_reason));
+  return card;
+}
+
+function renderProspects() {
+  const list = $("#prospect-list");
+  list.replaceChildren();
+  const prospects = filteredProspects();
+  $("#marketing-prospect-count").textContent = `${prospects.length} creator${prospects.length === 1 ? "" : "s"}`;
+  if (!prospects.length) {
+    list.append(empty("No creators in this view", "Run discovery, add a prospect, or change the filters.", true));
+    return;
+  }
+  prospects.forEach((prospect) => list.append(prospectCard(prospect)));
+}
+
 function renderAll() {
   renderMetrics();
   renderProfileFilter();
@@ -373,6 +551,10 @@ function renderAll() {
   renderApprovals();
   renderTasks();
   renderActivity();
+  renderMarketingMetrics();
+  renderMarketingFilters();
+  renderCampaigns();
+  renderProspects();
 }
 
 function profilePayload(profile, overrides = {}) {
@@ -469,6 +651,184 @@ async function saveProfile(event) {
     toast(id ? "Career mission updated" : "Career mission created");
     await loadData({ quiet: true });
     switchView("missions");
+  } catch (error) { toast(error.message, true); }
+}
+
+function openCampaignDialog(campaign = null) {
+  if (!state.token) return $("#connect-dialog").showModal();
+  const form = $("#campaign-form");
+  form.reset();
+  form.elements.campaign_id.value = campaign?.id || "";
+  $("#campaign-dialog-title").textContent = campaign ? "Edit creator campaign" : "Create the KarixMC creator pilot";
+  if (campaign) {
+    for (const name of [
+      "name", "sender_name", "product_name", "product_url", "privacy_url",
+      "product_summary", "target_audience", "viewer_offer", "creator_offer",
+      "paid_offer_details", "relevance_language", "region_code", "min_subscribers",
+      "max_subscribers", "max_video_age_days", "results_per_query", "schedule_hours",
+    ]) form.elements[name].value = campaign[name] ?? "";
+    form.elements.discovery_queries.value = campaign.discovery_queries.join(", ");
+    form.elements.paid_offer_enabled.checked = campaign.paid_offer_enabled;
+    form.elements.adaptive_mode.checked = campaign.adaptive_mode;
+    form.elements.active.checked = campaign.active;
+  }
+  $("#campaign-dialog").showModal();
+}
+
+async function saveCampaign(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.elements.campaign_id.value;
+  const payload = {
+    name: form.elements.name.value.trim(),
+    product_name: form.elements.product_name.value.trim(),
+    product_url: form.elements.product_url.value.trim(),
+    privacy_url: form.elements.privacy_url.value.trim(),
+    product_summary: form.elements.product_summary.value.trim(),
+    target_audience: form.elements.target_audience.value.trim(),
+    viewer_offer: form.elements.viewer_offer.value.trim(),
+    creator_offer: form.elements.creator_offer.value.trim(),
+    paid_offer_enabled: form.elements.paid_offer_enabled.checked,
+    paid_offer_details: form.elements.paid_offer_details.value.trim() || null,
+    sender_name: form.elements.sender_name.value.trim(),
+    discovery_queries: csv(form.elements.discovery_queries.value),
+    relevance_language: form.elements.relevance_language.value.trim(),
+    region_code: form.elements.region_code.value.trim().toUpperCase() || null,
+    min_subscribers: Number(form.elements.min_subscribers.value),
+    max_subscribers: Number(form.elements.max_subscribers.value),
+    max_video_age_days: Number(form.elements.max_video_age_days.value),
+    results_per_query: Number(form.elements.results_per_query.value),
+    schedule_hours: Number(form.elements.schedule_hours.value),
+    adaptive_mode: form.elements.adaptive_mode.checked,
+    active: form.elements.active.checked,
+    ...(id ? { actor: "dashboard:marketing" } : { requested_by: "dashboard:marketing" }),
+  };
+  try {
+    await api(id ? `/v1/marketing/campaigns/${id}` : "/v1/marketing/campaigns", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
+    $("#campaign-dialog").close();
+    toast(id ? "Creator campaign updated" : "Creator campaign created");
+    await loadData({ quiet: true });
+    switchView("campaigns");
+  } catch (error) { toast(error.message, true); }
+}
+
+function populateCampaignSelect(select, selected = "") {
+  select.replaceChildren(new Option("Choose a campaign", ""));
+  state.campaigns.forEach((campaign) => select.append(new Option(campaign.name, campaign.id)));
+  select.value = selected;
+}
+
+function openProspectDialog(prospect = null) {
+  if (!state.token) return $("#connect-dialog").showModal();
+  if (!state.campaigns.length) {
+    toast("Create a creator campaign first", true);
+    return openCampaignDialog();
+  }
+  const form = $("#prospect-form");
+  form.reset();
+  form.elements.prospect_id.value = prospect?.id || "";
+  populateCampaignSelect(form.elements.campaign_id, prospect?.campaign_id || state.campaigns[0].id);
+  form.elements.campaign_id.disabled = Boolean(prospect);
+  form.elements.platform.disabled = Boolean(prospect);
+  $$(".new-prospect-only", form).forEach((element) => { element.hidden = Boolean(prospect); });
+  $("#prospect-dialog-title").textContent = prospect ? "Review creator contact evidence" : "Add a creator prospect";
+  if (prospect) {
+    form.elements.platform.value = prospect.platform;
+    form.elements.display_name.value = prospect.display_name;
+    form.elements.profile_url.value = prospect.profile_url;
+    form.elements.audience_size.value = prospect.audience_size ?? "";
+    form.elements.contact_email.value = prospect.contact_email || "";
+    form.elements.contact_source_url.value = prospect.contact_source_url || "";
+    form.elements.contact_basis_note.value = prospect.contact_basis_note || "";
+    form.elements.authorize_contact.checked = Boolean(prospect.contact_authorized_at);
+  }
+  $("#prospect-dialog").showModal();
+}
+
+async function saveProspect(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.elements.prospect_id.value;
+  const shared = {
+    display_name: form.elements.display_name.value.trim(),
+    profile_url: form.elements.profile_url.value.trim(),
+    audience_size: form.elements.audience_size.value ? Number(form.elements.audience_size.value) : null,
+    contact_email: form.elements.contact_email.value.trim() || null,
+    contact_source_url: form.elements.contact_source_url.value.trim() || null,
+    contact_basis_note: form.elements.contact_basis_note.value.trim() || null,
+    authorize_contact: form.elements.authorize_contact.checked,
+  };
+  const payload = id ? { ...shared, actor: "dashboard:marketing" } : {
+    ...shared,
+    campaign_id: form.elements.campaign_id.value,
+    platform: form.elements.platform.value,
+    latest_content_title: form.elements.latest_content_title.value.trim() || null,
+    latest_content_url: form.elements.latest_content_url.value.trim() || null,
+    requested_by: "dashboard:marketing",
+  };
+  try {
+    await api(id ? `/v1/marketing/prospects/${id}` : "/v1/marketing/prospects", { method: id ? "PUT" : "POST", body: JSON.stringify(payload) });
+    $("#prospect-dialog").close();
+    toast(id ? "Creator evidence updated" : "Creator prospect added");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+}
+
+async function scanCampaign(id) {
+  try {
+    await api(`/v1/marketing/campaigns/${id}/scan`, { method: "POST" });
+    toast("Official YouTube creator discovery queued");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+}
+
+async function planMarketingEmail(id, stage, subject = null, body = null) {
+  try {
+    await api(`/v1/marketing/prospects/${id}/email-plan`, { method: "POST", body: JSON.stringify({ stage, subject, body, actor: "dashboard:marketing", approval_window_minutes: 1440 }) });
+    $("#marketing-reply-dialog").close();
+    toast("Exact creator email is waiting for approval");
+    await loadData({ quiet: true });
+    switchView("approvals");
+  } catch (error) { toast(error.message, true); }
+}
+
+function openMarketingReply(prospect) {
+  const form = $("#marketing-reply-form");
+  form.reset();
+  form.elements.prospect_id.value = prospect.id;
+  form.elements.subject.value = `Re: ${prospect.display_name} × KarixMC`;
+  $("#marketing-reply-dialog").showModal();
+}
+
+function openMarketingOutcome(prospect) {
+  const form = $("#marketing-outcome-form");
+  form.reset();
+  form.elements.prospect_id.value = prospect.id;
+  if (prospect.status === "interested") form.elements.classification.value = "promotion_published";
+  if (prospect.status === "converted") form.elements.classification.value = "converted";
+  $("#marketing-outcome-dialog").showModal();
+}
+
+async function saveMarketingOutcome(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.elements.prospect_id.value;
+  const payload = {
+    classification: form.elements.classification.value,
+    note: form.elements.note.value.trim() || null,
+    promotion_url: form.elements.promotion_url.value.trim() || null,
+    attributed_views: Number(form.elements.attributed_views.value),
+    attributed_clicks: Number(form.elements.attributed_clicks.value),
+    attributed_signups: Number(form.elements.attributed_signups.value),
+    attributed_server_owners: Number(form.elements.attributed_server_owners.value),
+    viewer_points_issued: Number(form.elements.viewer_points_issued.value),
+    actor: "dashboard:marketing",
+  };
+  try {
+    await api(`/v1/marketing/prospects/${id}/outcomes`, { method: "POST", body: JSON.stringify(payload) });
+    $("#marketing-outcome-dialog").close();
+    toast(payload.classification === "do_not_contact" || payload.classification === "bounced" ? "Contact permanently suppressed" : "Creator outcome recorded");
+    await loadData({ quiet: true });
   } catch (error) { toast(error.message, true); }
 }
 
@@ -665,6 +1025,15 @@ document.addEventListener("click", async (event) => {
   if (action === "preflight-opportunity") return preflightOpportunity(id);
   if (action === "plan-opportunity") return planOpportunity(id);
   if (action === "email-opportunity") return showEmailDialog(id);
+  if (action === "new-campaign") return openCampaignDialog();
+  if (action === "edit-campaign") return openCampaignDialog(state.campaigns.find((item) => item.id === id));
+  if (action === "scan-campaign") return scanCampaign(id);
+  if (action === "new-prospect") return openProspectDialog();
+  if (action === "edit-prospect") return openProspectDialog(state.prospects.find((item) => item.id === id));
+  if (action === "plan-marketing-initial") return planMarketingEmail(id, "initial");
+  if (action === "plan-marketing-paid") return planMarketingEmail(id, "paid_offer");
+  if (action === "reply-prospect") return openMarketingReply(state.prospects.find((item) => item.id === id));
+  if (action === "outcome-prospect") return openMarketingOutcome(state.prospects.find((item) => item.id === id));
   if (action === "review-action") return showActionReview(id);
   if (action === "approve-task") return decideTask(id, "approved");
   if (action === "reject-task") return decideTask(id, "rejected");
@@ -690,6 +1059,14 @@ $("#connect-form").addEventListener("submit", async (event) => {
   }
 });
 $("#profile-form").addEventListener("submit", saveProfile);
+$("#campaign-form").addEventListener("submit", saveCampaign);
+$("#prospect-form").addEventListener("submit", saveProspect);
+$("#marketing-outcome-form").addEventListener("submit", saveMarketingOutcome);
+$("#marketing-reply-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  await planMarketingEmail(form.elements.prospect_id.value, "question_reply", form.elements.subject.value, form.elements.body.value);
+});
 $("#application-answer-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
@@ -720,6 +1097,8 @@ $("#task-form").elements.kind.addEventListener("change", (event) => {
 $("#refresh-button").addEventListener("click", () => loadData());
 $("#opportunity-profile-filter").addEventListener("change", renderOpportunities);
 $("#opportunity-status-filter").addEventListener("change", renderOpportunities);
+$("#marketing-campaign-filter").addEventListener("change", renderProspects);
+$("#marketing-status-filter").addEventListener("change", renderProspects);
 $("#scan-now-button").addEventListener("click", async () => {
   const profiles = state.profiles.filter((item) => item.active);
   if (!profiles.length) return toast("Activate at least one career mission first", true);

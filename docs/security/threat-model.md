@@ -25,6 +25,9 @@ agent; MCP gateway → external server; VPS → internet.
 | Unauthorized job application | Legal/reputation damage | Exact expiring approval digest, explicit unknown answers, form/resume/draft revalidation, one final click, durable receipt; unsupported forms stop |
 | Résumé disclosure | Identity/privacy loss | Raw résumé stays in PostgreSQL and internal local-model context; API exposes only presence/length; public sources/tasks/audits do not receive it |
 | Accidental email send | Privacy/reputation damage | Exact sender/recipient/subject/body approval, fixed TLS SMTP configuration, one recipient, durable receipt |
+| Unsolicited creator outreach | Privacy/legal/reputation damage | Official metadata discovery has no email; operator records public contact provenance/basis; each send exact-approved; opt-out/bounce suppresses durably |
+| Stale creator approval after opt-out | Unwanted follow-up | Action worker locks and revalidates address, authorization, suppression, and reply state immediately before SMTP receipt |
+| Unsafe adaptive outreach | Manipulative spam or policy bypass | Minimum samples/effect threshold; choice limited to two fixed draft variants; 20% exploration; no autonomous send, spend, policy, code, or contact mutation |
 | GitHub destructive operation | Code/repo loss | Fine-grained token, repo allowlist, destructive tools disabled, protected branches |
 | Secret enters logs/audit | Persistent exposure | Structured allowlisted metadata, no payload/body logging, redaction tests |
 | Queue replay/duplication | Repeated side effect | DB state rejects stale entries; unique pre-click/pre-send receipt blocks retry and duplicate application |

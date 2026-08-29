@@ -42,6 +42,7 @@ and human approval for high-impact actions.
 | Application preparation | Verified locally | Qwen3 8B creates a truthful structured résumé/cover-letter pack locally; the agent can auto-preflight common hosted forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
+| Creator outreach | Implemented, external discovery unverified | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, reply suppression, exact-email sequence, results funnel, and bounded A/B learning; needs a user-owned API key/SMTP for real use |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -105,6 +106,12 @@ identity and enable auto-prepare to generate drafts and inspect supported forms
 without waiting; the exact final application still appears in **Approvals**.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
+
+For KarixMC promotion, open **Creator campaigns**. The dashboard can discover
+public YouTube channels with a restricted user-owned API key, but it never
+discovers or guesses creator emails. A human must qualify a public business
+contact and every individual message remains exact-approval gated. See the
+[creator outreach guide](docs/operations/creator-outreach.md).
 
 Before using any real destination, prove the side-effect path entirely locally:
 
@@ -204,6 +211,9 @@ See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md) and
 - High-risk and destructive tasks require an explicit approval record.
 - Real side effects bind approval to a SHA-256 digest of the exact action and
   use a durable pre-click/pre-send receipt; they are never retried automatically.
+- Creator outreach revalidates contact provenance, authorization, suppression,
+  and reply state immediately before SMTP. Learning can select only fixed draft
+  variants and cannot send, spend, or change policy.
 - Audit metadata stores keys and outcomes, not raw secrets or request bodies.
 - Hermes receives no Docker socket or host filesystem mount.
 - MCP registry starts disabled; each server needs review and scoped credentials.
@@ -221,6 +231,7 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 | Tasks, approvals, audits | PostgreSQL | Authoritative, backed up |
 | Career missions, matches, draft packs, form preflights | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads |
 | Exact external actions and side-effect receipts | PostgreSQL | Authoritative; approval digest and duplicate guard survive restarts |
+| Creator campaigns, contact provenance, suppressions, messages, outcomes | PostgreSQL | Authoritative; YouTube metadata contains no discovered email and every send links to an exact action |
 | Long-term memory and embeddings | PostgreSQL + pgvector | Authoritative, backed up |
 | Ready queue, cache, transient state | Redis | Recoverable; AOF enabled, not authoritative |
 | Hermes state | `hermes_data` volume | Optional; back up after onboarding |
@@ -259,6 +270,7 @@ tests/                    repository security/Compose contracts
 - [Autonomous side-effect security review](docs/security/autonomous-side-effect-review.md)
 - [Local operations](docs/operations/local-development.md)
 - [Dashboard, job-hunt testing, and switching missions](docs/operations/dashboard-and-career.md)
+- [Creator discovery, outreach, results, and adaptation](docs/operations/creator-outreach.md)
 - [Manual setup remaining](docs/operations/manual-setup.md)
 - [Free agent/model research](docs/research/free-agent-stack-2026-08.md)
 - [Engineering journal](engineering/ENGINEERING_JOURNAL.md)

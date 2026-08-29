@@ -20,6 +20,7 @@ class TaskCreate(BaseModel):
         "career.application_draft",
         "career.application_preflight",
         "career.application_submit",
+        "marketing.creator_discovery",
         "communications.email_send",
     ] = "foundation.echo"
     payload: dict[str, Any] = Field(default_factory=dict)

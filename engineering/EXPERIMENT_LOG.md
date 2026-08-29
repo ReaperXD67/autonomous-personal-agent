@@ -243,6 +243,43 @@ Result: exact approval binding, isolated execution, local email delivery, and
 duplicate refusal passed without any real external side effect. Real ATS and
 mail-provider compatibility are not implied.
 
+## EXP-013 — Governed creator-outreach control-plane and dashboard proof
+
+Date: 2026-08-29
+
+Method: rebuild the test/control images, run the complete lifecycle gate, apply
+migration 007 to the local PostgreSQL volume, call the authenticated task and
+marketing list APIs, create one inactive KarixMC campaign through the API, and
+inspect the dashboard in a real Chromium session at desktop, 375x812, and
+812x375 viewport sizes.
+
+Observed:
+
+- The rebuilt container suite passed Ruff and 51 tests in 0.71 seconds in the
+  final lifecycle build.
+- Complete verification passed six service health checks, safe and approved
+  tasks, lease retry/exhaustion, queued/running cancellation, dead-letter
+  inspection, and lifecycle checks.
+- Before initialization, authenticated task, campaign, prospect, and result
+  list calls returned successfully with 82 tasks and zero marketing rows.
+- The API created one inactive adaptive `KarixMC creator pilot` with three
+  discovery queries; no discovery task or email action was created.
+- The authenticated dashboard rendered the persisted campaign, zero-result
+  metrics, discovery-paused state, and 10-send evidence threshold with zero
+  console errors or warnings.
+- Chromium reported `scrollWidth == innerWidth` at both 375 and 812 CSS pixels.
+  The campaign dialog exposed labeled offer, discovery, range, schedule, and
+  adaptation controls.
+- The configured KarixMC product and privacy URLs both returned HTTP 200.
+- CLI reduced-motion emulation was unavailable in this run; the static
+  `prefers-reduced-motion` rule was reviewed but is not claimed as an emulated
+  browser result.
+
+Result: the migration, authenticated APIs, inactive real campaign record,
+dashboard, and bounded local decision logic passed. Live YouTube API discovery,
+real SMTP delivery, inbound replies, and KarixMC conversion attribution were not
+tested and are not implied.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
