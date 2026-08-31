@@ -328,6 +328,35 @@ Result: current hosted pools are non-overlapping, both primary routes and the
 local endpoint work, and the fallback is rendered. A forced provider outage was
 not performed, so automatic failover execution itself is not claimed.
 
+## EXP-016 — Promotion-kit API and browser observation
+
+Date: 2026-08-31
+
+Method: rebuild the local control plane, call the authenticated promotion-kit
+endpoint for the existing inactive KarixMC campaign, and use a real Playwright
+browser to authenticate to the loopback dashboard and open the kit. No external
+post, email, creator discovery request, or provider credential was used.
+
+Observed:
+
+- readiness reported Docker and the control dashboard healthy while correctly
+  reporting YouTube discovery and real SMTP as unconfigured;
+- the endpoint returned five assets and all five URLs contained campaign ID,
+  source, medium, campaign, and content attribution parameters;
+- the first browser render exposed a repeated article (`a a verified`) caused
+  by composing around a summary that already included its article;
+- after correcting the templates and adding a regression assertion, the rebuilt
+  isolated suite passed Ruff and 62 tests in 1.80 seconds;
+- the authenticated dialog rendered all five copy actions and Playwright
+  reported zero console errors or warnings; and
+- complete lifecycle verification passed builds, six-service health, safe and
+  approval paths, lease retry/exhaustion, queued/running cancellation, and
+  dead-letter inspection.
+
+Result: deterministic generation, attribution completeness, the authenticated
+API, and dashboard interaction passed locally. External discovery and inbox
+delivery remain unverified because no YouTube or SMTP credential is configured.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

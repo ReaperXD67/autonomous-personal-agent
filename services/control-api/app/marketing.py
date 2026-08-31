@@ -236,6 +236,152 @@ def tracking_url(campaign: dict[str, Any], prospect: dict[str, Any]) -> str:
     return urlunparse(parsed._replace(query=urlencode(query)))
 
 
+def organic_tracking_url(
+    campaign: dict[str, Any],
+    *,
+    source: str,
+    medium: str,
+    content: str,
+) -> str:
+    """Build one stable first-party attribution URL without calling a provider."""
+    parsed = urlparse(campaign["product_url"])
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    slug = re.sub(r"[^a-z0-9]+", "-", campaign["name"].casefold()).strip("-")[:80]
+    query.update(
+        {
+            "utm_id": str(campaign["id"]),
+            "utm_source": source,
+            "utm_medium": medium,
+            "utm_campaign": slug or "creator-campaign",
+            "utm_source_platform": source,
+            "utm_content": content,
+        }
+    )
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def build_promotion_kit(campaign: dict[str, Any]) -> dict[str, Any]:
+    """Create truthful copy-and-paste promotion assets from reviewed campaign fields."""
+    product = campaign["product_name"]
+    summary = campaign["product_summary"].rstrip(".")
+    audience = campaign["target_audience"].rstrip(".")
+    viewer_offer = campaign["viewer_offer"].rstrip(".")
+    creator_offer = campaign["creator_offer"].rstrip(".")
+
+    specifications = (
+        (
+            "youtube_description",
+            "youtube",
+            "organic_social",
+            "YouTube description",
+            f"Try {product}: {summary}.",
+            (
+                f"{product} is {summary}. It is designed for {audience}.\n\n"
+                f"For this pilot, {viewer_offer}.\n\n"
+                "Test it here: {url}\n\n"
+                f"Privacy information: {campaign['privacy_url']}"
+            ),
+            "Place below the creator's own honest description; disclose any material relationship.",
+        ),
+        (
+            "youtube_community",
+            "youtube",
+            "organic_social",
+            "YouTube community post",
+            f"We are testing {product} with the community",
+            (
+                f"We are testing {product}, {summary}. "
+                f"For this pilot, {viewer_offer}. "
+                "Take a look and tell us what is useful or unclear: {url}"
+            ),
+            "Use only in a community that expects product/pilot posts; invite honest feedback.",
+        ),
+        (
+            "discord_community",
+            "discord",
+            "community",
+            "Discord community post",
+            f"{product} community pilot",
+            (
+                f"We are opening a small {product} pilot for {audience}. "
+                f"{product} is {summary}. {viewer_offer.capitalize()}.\n\n"
+                "Pilot link: {url}"
+            ),
+            "Post only with server-owner or moderator permission and in the correct channel.",
+        ),
+        (
+            "reddit_community",
+            "reddit",
+            "organic_social",
+            "Reddit/community post",
+            f"Looking for honest feedback on a {product} pilot",
+            (
+                f"I am working on {product}, {summary}, for {audience}. "
+                f"For the current pilot, {viewer_offer}.\n\n"
+                "I would value direct feedback from people who try it: {url}"
+            ),
+            (
+                "Read the community's self-promotion rules first; do not repost "
+                "where promotion is prohibited."
+            ),
+        ),
+        (
+            "partner_newsletter",
+            "newsletter",
+            "referral",
+            "Partner newsletter or blog",
+            f"A {product} pilot for Minecraft communities",
+            (
+                f"{product} is {summary} and is designed for {audience}. "
+                f"For participating communities, {creator_offer}. "
+                f"For viewers, {viewer_offer}. Learn more: {{url}}"
+            ),
+            (
+                "Give the publisher editorial control and require accurate disclosure "
+                "of any compensation or benefit."
+            ),
+        ),
+    )
+
+    assets: list[dict[str, str]] = []
+    for key, source, medium, channel, title, body, guidance in specifications:
+        url = organic_tracking_url(
+            campaign,
+            source=source,
+            medium=medium,
+            content=key,
+        )
+        assets.append(
+            {
+                "key": key,
+                "channel": channel,
+                "title": title,
+                "body": body.format(url=url),
+                "tracking_url": url,
+                "guidance": guidance,
+            }
+        )
+
+    return {
+        "campaign_id": campaign["id"],
+        "campaign_name": campaign["name"],
+        "product_name": product,
+        "product_url": campaign["product_url"],
+        "privacy_url": campaign["privacy_url"],
+        "key_messages": [
+            f"{product} is {summary}.",
+            f"It is designed for {audience}.",
+            f"Viewer pilot: {viewer_offer}.",
+            f"Creator/server pilot: {creator_offer}.",
+        ],
+        "disclosure_reminder": (
+            "Publish only where promotion is allowed. Be accurate, invite honest feedback, "
+            "and disclose compensation, free benefits, or other material relationships."
+        ),
+        "assets": assets,
+    }
+
+
 def _contact_footer(campaign: dict[str, Any], prospect: dict[str, Any]) -> str:
     return (
         "\n\nThis is a one-to-one business collaboration note. "

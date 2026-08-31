@@ -30,10 +30,11 @@ query, schedules no faster than daily, and caps discovery at 30 tasks per 24
 hours (at most 90 search calls). `channels.list` supplies public channel
 statistics; it does not supply a business email.
 
-Recreate the research worker after changing the secret:
+The guided command validates the key against one harmless official channel
+lookup, then writes it only to ignored `.env` without echoing it:
 
 ```powershell
-./scripts/up.ps1
+./scripts/promotion.ps1 -ConfigureYouTube
 ```
 
 ## 2. Create the KarixMC campaign
@@ -77,7 +78,25 @@ lawful ground, first-contact transparency, compliance with ePrivacy rules, and
 immediate respect for objections. See its [business guidance on marketing data](https://commission.europa.eu/law/law-topic/data-protection/information-business-and-organisations/legal-grounds-processing-data_en).
 Obtain local legal advice for the countries and contact types actually used.
 
-## 4. Run the sequence
+## 4. Use the free promotion kit
+
+Select **Promotion kit** on any campaign. The control API deterministically
+builds five copy-and-paste assets from the exact reviewed product, audience, and
+offer fields:
+
+- YouTube video description and community post;
+- Discord community post;
+- Reddit or similar community post; and
+- partner newsletter/blog paragraph.
+
+Every asset receives its own `utm_id`, source, medium, campaign, platform, and
+content parameters. This follows [Google Analytics' campaign URL guidance](https://support.google.com/analytics/answer/10917952?hl=en)
+and lets KarixMC distinguish channels after first-party attribution is wired.
+The kit does not call an LLM, use a quota, create an account, or post anywhere.
+Read each destination's self-promotion rules, edit for context, and disclose any
+payment, free benefit, or other material relationship.
+
+## 5. Run the email sequence
 
 Every step creates one frozen sender/recipient/subject/body action in
 **Approvals**. Nothing is delivered until that exact action is approved.
@@ -99,7 +118,7 @@ The action worker rechecks address, authorization, suppression, and reply state
 immediately before SMTP. A bounce or opt-out clears contact authorization and
 cannot be reversed through the dashboard.
 
-## 5. Record results and adapt
+## 6. Record results and adapt
 
 Use **Record reply or result** to capture question/interest/decline state,
 published placement URL, attributed views/clicks/signups/server owners, and
@@ -116,7 +135,7 @@ These are associations, not proof of causation. The agent never changes an
 offer, budget, contact, policy, code, or approval. An operator decides whether a
 suggestion justifies editing the campaign.
 
-## 6. Enable real delivery
+## 7. Enable real delivery
 
 First prove the mail path with Mailpit:
 
@@ -124,13 +143,18 @@ First prove the mail path with Mailpit:
 ./scripts/side-effect-smoke.ps1
 ```
 
-Then configure user-owned TLS SMTP as described in
-[manual setup](manual-setup.md#real-email-transport) and start the side-effect
-profile:
+For Gmail or Google Workspace, first enable two-step verification and create a
+user-owned app password. Google states that app passwords require two-step
+verification and recommends OAuth when available; this deployment does not yet
+hold mail OAuth tokens. The guided hidden prompt writes the fixed
+`smtp.gmail.com:587` STARTTLS settings only to ignored `.env`:
 
 ```powershell
-./scripts/up.ps1 -SideEffects
+./scripts/promotion.ps1 -ConfigureGmail
+./scripts/promotion.ps1 -OpenDashboard
 ```
+
+For another provider, use [manual setup](manual-setup.md#real-email-transport).
 
 Send a harmless message to an address you own before contacting a creator. A
 healthy container is not delivery proof; verify the provider inbox and receipt.

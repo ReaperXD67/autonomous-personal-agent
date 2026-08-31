@@ -6,6 +6,7 @@ from pydantic import ValidationError
 
 from app import marketing
 from app.marketing import (
+    build_promotion_kit,
     campaign_suggestions,
     choose_initial_variant,
     compose_initial_email,
@@ -108,6 +109,21 @@ def test_paid_offer_is_explicitly_the_final_follow_up() -> None:
     assert "paid video" in body
     assert "final outreach message" in body
     assert "agreed in writing" in body
+
+
+def test_promotion_kit_is_truthful_deterministic_and_attributable() -> None:
+    kit = build_promotion_kit(campaign())
+    assert kit == build_promotion_kit(campaign())
+    assert len(kit["assets"]) == 5
+    assert kit["campaign_id"] == campaign()["id"]
+    assert all("verified Minecraft reward network" in item["body"] for item in kit["assets"])
+    assert all("a a verified" not in item["body"] for item in kit["assets"])
+    for asset in kit["assets"]:
+        assert "utm_id=11111111-1111-1111-1111-111111111111" in asset["tracking_url"]
+        assert "utm_campaign=karixmc-creator-pilot" in asset["tracking_url"]
+        assert f"utm_content={asset['key']}" in asset["tracking_url"]
+        assert asset["tracking_url"] in asset["body"]
+    assert "disclose" in kit["disclosure_reminder"].casefold()
 
 
 def test_creator_scoring_rewards_target_range_and_recent_activity() -> None:

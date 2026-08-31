@@ -159,6 +159,22 @@ fallback shape, and warns about OpenRouter overlap. This preserves the exact
 cost/privacy attestation boundary from v0.10 while using the available gateway
 pool for general reasoning and the private GPU for continuity.
 
+## v0.12 — Promotion readiness and attribution kit (2026-08-31)
+
+Creator campaigns now expose deterministic, campaign-derived promotion assets
+for YouTube descriptions/community posts, Discord, Reddit/community use, and
+partner newsletters/blogs. Each asset has a stable first-party UTM URL with a
+campaign UUID and content key. Generation is authenticated but read-only,
+requires no model/provider, and cannot publish externally.
+
+A single promotion command reports Docker, dashboard, YouTube discovery, SMTP,
+and kit readiness without printing secrets. Hidden prompts validate and store a
+restricted YouTube key or configure Gmail STARTTLS in ignored `.env`; the same
+command can start Docker Desktop, launch the side-effect profile, copy the
+private dashboard token, and open the UI. Account creation, Google consent,
+provider-side key restrictions, contact/legal review, exact email approval,
+inbox delivery proof, and public posting remain user-owned boundaries.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

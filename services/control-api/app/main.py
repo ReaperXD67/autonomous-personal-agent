@@ -33,12 +33,14 @@ from app.career_store import (
     OpportunityNotFoundError,
 )
 from app.logging_config import configure_logging
+from app.marketing import build_promotion_kit
 from app.marketing_models import (
     MarketingCampaignCreate,
     MarketingCampaignUpdate,
     MarketingCampaignView,
     MarketingEmailPlanCreate,
     MarketingOutcomeCreate,
+    MarketingPromotionKitView,
     MarketingProspectCreate,
     MarketingProspectUpdate,
     MarketingProspectView,
@@ -477,6 +479,21 @@ def update_marketing_campaign(
         return _marketing(request).update_campaign(campaign_id, payload)
     except MarketingCampaignNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+
+
+@app.get(
+    "/v1/marketing/campaigns/{campaign_id}/promotion-kit",
+    response_model=MarketingPromotionKitView,
+    dependencies=[Depends(require_api_token)],
+)
+def marketing_promotion_kit(
+    request: Request, campaign_id: UUID
+) -> dict[str, Any]:
+    try:
+        campaign = _marketing(request).get_campaign(campaign_id)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+    return build_promotion_kit(campaign)
 
 
 @app.post(

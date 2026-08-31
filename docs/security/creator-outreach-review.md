@@ -76,6 +76,16 @@ a review of a configured mail provider's terms.
 - Residual risk: the operator must keep live adoption, reward availability,
   point issuance, compensation, and sponsorship disclosures truthful.
 
+### CO-008 — Cross-channel promotion could become automated spam
+
+- Severity: High
+- Status: Prevented by copy-only design
+- Evidence: the promotion-kit endpoint is deterministic and read-only. It
+  creates separate UTM links and browser-copyable text but has no platform
+  credential, posting client, scheduler, or public-write capability.
+- Residual risk: the operator must check each community's rules, contextualize
+  the copy, avoid repetitive posting, and disclose material relationships.
+
 ## Production blockers and operating limits
 
 - No inbound OAuth email reader or automatic reply classification is present.

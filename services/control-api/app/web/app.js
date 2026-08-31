@@ -69,6 +69,23 @@ function safeExternalUrl(value) {
   return parsed.toString();
 }
 
+async function copyText(value) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(value);
+    return;
+  }
+  const field = node("textarea");
+  field.value = value;
+  field.setAttribute("readonly", "");
+  field.style.position = "fixed";
+  field.style.opacity = "0";
+  document.body.append(field);
+  field.select();
+  const copied = document.execCommand("copy");
+  field.remove();
+  if (!copied) throw new Error("Copy was blocked by the browser");
+}
+
 let toastTimer;
 function toast(message, error = false) {
   const element = $("#toast");
@@ -447,6 +464,7 @@ function campaignCard(campaign) {
   const actions = node("div", "card-actions");
   actions.append(
     button("Find creators", "button", "scan-campaign", campaign.id),
+    button("Promotion kit", "button secondary", "promotion-kit", campaign.id),
     button("Edit campaign", "text-button", "edit-campaign", campaign.id),
   );
   card.append(actions, node("p", "fine-print", `Last discovery: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
@@ -461,6 +479,63 @@ function renderCampaigns() {
     return;
   }
   state.campaigns.forEach((campaign) => list.append(campaignCard(campaign)));
+}
+
+async function showPromotionKit(campaignId) {
+  const content = $("#promotion-kit-content");
+  content.replaceChildren(empty("Building kit", "Preparing deterministic copy and attribution links..."));
+  $("#promotion-kit-dialog").showModal();
+  try {
+    const kit = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/promotion-kit`);
+    content.replaceChildren();
+    content.append(node("p", "promotion-reminder", kit.disclosure_reminder));
+
+    const messages = node("section", "promotion-messages");
+    messages.append(node("strong", "", "Reviewed campaign messages"));
+    const list = node("ul");
+    kit.key_messages.forEach((message) => list.append(node("li", "", message)));
+    messages.append(list);
+    content.append(messages);
+
+    const fullKit = [];
+    kit.assets.forEach((asset) => {
+      const item = node("article", "promotion-asset");
+      const heading = node("div", "promotion-asset-head");
+      const copy = node("div");
+      copy.append(node("span", "tag", asset.channel), node("h3", "", asset.title));
+      const copyButton = node("button", "text-button", "Copy asset");
+      copyButton.type = "button";
+      const copyValue = `${asset.title}\n\n${asset.body}`;
+      copyButton.addEventListener("click", async () => {
+        try {
+          await copyText(copyValue);
+          toast(`${asset.channel} asset copied`);
+        } catch (error) { toast(error.message, true); }
+      });
+      heading.append(copy, copyButton);
+      item.append(
+        heading,
+        node("pre", "promotion-copy", asset.body),
+        node("p", "fine-print", asset.guidance),
+      );
+      content.append(item);
+      fullKit.push(`${asset.channel}\n${asset.title}\n\n${asset.body}\n\nGuidance: ${asset.guidance}`);
+    });
+
+    const allButton = node("button", "button primary", "Copy complete kit");
+    allButton.type = "button";
+    allButton.addEventListener("click", async () => {
+      try {
+        await copyText(`${kit.campaign_name}\n\n${fullKit.join("\n\n---\n\n")}`);
+        toast("Complete promotion kit copied");
+      } catch (error) { toast(error.message, true); }
+    });
+    const actions = node("div", "dialog-actions");
+    actions.append(allButton);
+    content.append(actions);
+  } catch (error) {
+    content.replaceChildren(empty("Could not build promotion kit", error.message));
+  }
 }
 
 function renderMarketingFilters() {
@@ -1049,6 +1124,7 @@ document.addEventListener("click", async (event) => {
   if (action === "new-campaign") return openCampaignDialog();
   if (action === "edit-campaign") return openCampaignDialog(state.campaigns.find((item) => item.id === id));
   if (action === "scan-campaign") return scanCampaign(id);
+  if (action === "promotion-kit") return showPromotionKit(id);
   if (action === "new-prospect") return openProspectDialog();
   if (action === "edit-prospect") return openProspectDialog(state.prospects.find((item) => item.id === id));
   if (action === "plan-marketing-initial") return planMarketingEmail(id, "initial");

@@ -42,7 +42,7 @@ and human approval for high-impact actions.
 | Application preparation | Local verified; hosted prepared | A live-ranked, zero-cost-only OpenRouter chain can use Nemotron/other current free models before Qwen3 8B local fallback; hosted path needs a user key and smoke. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
-| Creator outreach | Implemented, external discovery unverified | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, reply suppression, exact-email sequence, results funnel, and bounded A/B learning; needs a user-owned API key/SMTP for real use |
+| Creator outreach | Implemented, external activation pending | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, exact-email sequence, results funnel, bounded A/B learning, and a five-channel promotion kit with separate UTM links; needs a user-owned API key/SMTP for real discovery and delivery |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -127,10 +127,12 @@ model/provider, fallback attempt, daily usage, privacy mode, and recorded cost.
 Hosted drafting sends résumé/job text to OpenRouter and an upstream provider;
 leave it disabled to keep all drafting on-device.
 
-For KarixMC promotion, open **Creator campaigns**. The dashboard can discover
-public YouTube channels with a restricted user-owned API key, but it never
-discovers or guesses creator emails. A human must qualify a public business
-contact and every individual message remains exact-approval gated. See the
+For KarixMC promotion, run `./scripts/promotion.ps1` for a secret-safe readiness
+check, then open **Creator campaigns**. Each campaign now produces ready-to-copy
+YouTube, Discord, Reddit/community, and partner promotion assets with distinct
+UTM links at no provider cost. Official discovery still needs a restricted
+user-owned YouTube key, never discovers or guesses creator emails, and every
+individual email remains exact-approval gated. See the
 [creator outreach guide](docs/operations/creator-outreach.md).
 
 Before using any real destination, prove the side-effect path entirely locally:
@@ -159,6 +161,8 @@ Stop cleanly:
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
 | `./scripts/career-smoke.ps1 -Draft` | `make career-smoke` | Verify live fresh-job ingestion and a local structured draft using disposable synthetic data |
 | `./scripts/side-effect-smoke.ps1` | `make side-effect-smoke` | Verify local ATS submit, local email, exact approvals, and duplicate refusal with disposable data |
+| `./scripts/promotion.ps1` | — | Show secret-safe YouTube/SMTP/Docker promotion readiness and exact next steps |
+| `./scripts/promotion.ps1 -OpenDashboard` | — | Start Docker if needed, launch the promotion-capable stack, copy the private token, and open the dashboard |
 | `./scripts/up.ps1 -SideEffects` | `make side-effects-up` | Start the isolated browser/email executor for configured real destinations |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
 | `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |

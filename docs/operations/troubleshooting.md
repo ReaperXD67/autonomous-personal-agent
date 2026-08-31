@@ -61,3 +61,16 @@ OpenRouter pool.
 Project should reside in a Docker-accessible Windows directory. Named volumes
 avoid most bind-mount performance issues; only database bootstrap SQL is bound
 read-only from source.
+
+## Docker Desktop 4.78 crashes on `dockerInference` or `engine.sock`
+
+If the backend log says it cannot remove `Docker\run\dockerInference` or
+`docker-secrets-engine\engine.sock`, this matches a current [Docker Desktop Windows report](https://github.com/docker/desktop-feedback/issues/625)
+about malformed transient AF_UNIX endpoints. Do not choose **Factory reset** or
+delete Docker volumes to repair a runtime socket.
+
+On this workstation, Docker Desktop was fully stopped and only the two exact
+transient runtime directories were renamed to timestamped sibling backups. The
+next start recreated clean directories and all named volumes remained intact.
+Because the upstream issue is open, verify the exact backend error and paths
+before repeating that recovery; do not recursively delete a Docker data root.
