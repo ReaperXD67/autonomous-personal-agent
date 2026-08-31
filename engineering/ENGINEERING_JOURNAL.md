@@ -1297,3 +1297,85 @@ and local endpoint were each verified, but a forced real outage/failover was not
 induced against the working provider. Provider terms, quotas, and OmniRoute pool
 membership can change; the doctor detects local drift but cannot observe usage
 from other devices or applications.
+
+## Step 20 — Make creator promotion activation usable and measurable
+
+Date: 2026-08-31
+
+### Objective
+
+Reduce creator-promotion activation to the few account-owned inputs that cannot
+be automated, add useful zero-cost distribution functions before external email
+is ready, and prove the result in the real dashboard without weakening the exact
+email-approval boundary.
+
+### Research and decision
+
+Reviewed current official YouTube API setup/search quota, Google Analytics UTM,
+Google app-password, and Google Workspace SMTP documentation. Selected official
+YouTube metadata, fixed TLS SMTP, and first-party UTM links. Rejected account
+creation, interactive-login automation, email scraping/enrichment, bulk sending,
+and public-posting credentials. No ADR was added because the new generation path
+is read-only and preserves ADR-0011's outreach boundary.
+
+### Implementation
+
+- Added an authenticated deterministic promotion-kit endpoint with five assets:
+  YouTube description/community, Discord, Reddit/community, and partner
+  newsletter/blog copy.
+- Derived every asset from the durable reviewed campaign fields and attached a
+  distinct URL containing campaign UUID, source, medium, campaign slug,
+  source-platform, and content key. Generation has no LLM, quota, egress, or
+  mutation path.
+- Added a dashboard dialog with reviewed key messages, destination guidance,
+  per-asset copy, and complete-kit copy controls. No platform posting client or
+  credential was introduced.
+- Added `scripts/promotion.ps1` to show secret-safe readiness, validate a hidden
+  YouTube key before writing ignored `.env`, configure Gmail STARTTLS through a
+  hidden app-password prompt, start Docker Desktop if necessary, and open the
+  promotion-capable dashboard with its private token copied rather than printed.
+- Synchronized README, roadmap, architecture, security, operations, research,
+  system evolution, tests, and measured experiment evidence.
+
+### Problems encountered and resolution
+
+- Docker Desktop 4.78 initially failed before the engine started because two
+  transient AF_UNIX runtime endpoints had become invalid Windows reparse points.
+  Exact-file deletion was refused by Windows. With Docker fully stopped, only
+  the exact `Docker\\run` and `docker-secrets-engine` runtime directories were
+  renamed to timestamped, recoverable sibling backups. Docker recreated them;
+  images, named volumes, PostgreSQL, and repository data were not removed.
+- The first promotion status probe called `/health` instead of the implemented
+  `/health/ready`; the command now requires the explicit `ready` response.
+- The first real browser render found `a a verified` in three assets because the
+  stored product summary already began with an article. Templates were corrected
+  and a regression assertion now rejects that phrase.
+- The first test command used a previously built test image and still reported
+  the old 60-test count. Rebuilding the isolated target ran the actual changed
+  tree and exposed Ruff import/line-length findings, which were fixed before the
+  final test and lifecycle runs.
+
+### Validation
+
+- PowerShell and JavaScript syntax checks plus `git diff --check` passed.
+- The rebuilt isolated Ruff/Pytest image passed 62 tests.
+- `docker compose config --quiet` and `scripts/verify.ps1` passed builds,
+  six-service health, safe and approval paths, lease retry/exhaustion,
+  queued/running cancellation, dead-letter inspection, and lifecycle checks.
+- The authenticated endpoint returned five assets for the existing KarixMC
+  campaign; all five carried the complete measured UTM field set.
+- Playwright authenticated to the real loopback dashboard, opened the Promotion
+  kit, rendered all five assets/copy controls, and reported zero console errors
+  or warnings.
+- The readiness command correctly reported Docker/dashboard ready, the kit
+  available, and YouTube/real SMTP unconfigured.
+
+### Remaining boundary
+
+No YouTube API key or external SMTP credential was supplied, stored, or tested.
+The user must create/restrict the Google key, enable two-step verification and a
+mail credential or choose another TLS SMTP provider, enter both through hidden
+prompts, then approve one harmless email to an owned inbox before creator mail.
+Business-contact provenance, jurisdiction/terms review, each exact send,
+inbound reply classification, sponsorship terms/disclosures, and public posting
+remain operator work. First-party KarixMC conversion import is still pending.

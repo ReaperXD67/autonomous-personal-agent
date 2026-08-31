@@ -200,6 +200,14 @@ h1 em { color: var(--lime); font-style: normal; }
 .prospect-evidence { margin-top: 15px !important; padding: 11px 12px; border-radius: 10px; background: rgba(255, 255, 255, .025); font-size: 12px; }
 .prospect-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--line); }
 .contact-attestation { margin-top: 14px; line-height: 1.5; }
+.promotion-kit { display: grid; gap: 14px; margin-top: 20px; }
+.promotion-reminder { margin: 0; padding: 13px 15px; border: 1px solid rgba(255, 202, 115, .22); border-radius: 12px; background: rgba(255, 202, 115, .05); }
+.promotion-messages { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .12); }
+.promotion-messages ul { margin: 10px 0 0; padding-left: 20px; color: var(--muted); line-height: 1.6; }
+.promotion-asset { padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: #0e1216; }
+.promotion-asset-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.promotion-asset h3 { margin: 9px 0 0; font-size: 16px; }
+.promotion-copy { margin: 15px 0 12px; padding: 14px; border-radius: 10px; color: #cbd1cd; background: rgba(255, 255, 255, .035); font: inherit; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 .approval-card, .task-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .approval-card:last-child, .task-row:last-child { border-bottom: 0; }

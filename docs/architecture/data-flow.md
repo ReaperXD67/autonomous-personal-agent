@@ -95,6 +95,11 @@ scoped inbound provider adapter exists. Aggregate campaign results select only
 between two fixed introduction templates after explicit sample/effect
 thresholds; they never authorize or send an email.
 
+The authenticated promotion-kit endpoint derives channel-specific text and
+first-party UTM links entirely from the durable campaign record. It has no
+egress and no mutation path. The browser can copy these assets, but public
+posting remains outside Hermes and outside the action worker.
+
 ## State ownership
 
 | State | Authority | Notes |

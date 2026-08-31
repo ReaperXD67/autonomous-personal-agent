@@ -130,6 +130,21 @@ def test_creator_outreach_is_durable_approval_bound_and_key_scoped() -> None:
     assert "Marketing contact was withdrawn, changed, or suppressed" in guard
 
 
+def test_promotion_assets_are_local_copy_only_and_setup_hides_credentials() -> None:
+    marketing = (ROOT / "services/control-api/app/marketing.py").read_text(
+        encoding="utf-8"
+    )
+    dashboard = (ROOT / "services/control-api/app/web/app.js").read_text(
+        encoding="utf-8"
+    )
+    setup = (ROOT / "scripts/promotion.ps1").read_text(encoding="utf-8")
+    assert "def build_promotion_kit" in marketing
+    assert 'utm_source_platform' in marketing
+    assert 'showPromotionKit' in dashboard
+    assert 'Read-Host' in setup and '-AsSecureString' in setup
+    assert 'YOUTUBE_API_KEY' in setup and 'SMTP_PASSWORD' in setup
+
+
 def test_action_image_scan_exceptions_are_exact_and_expiring() -> None:
     ignores = yaml.safe_load((ROOT / ".trivyignore.yaml").read_text(encoding="utf-8"))
     entries = ignores["vulnerabilities"]

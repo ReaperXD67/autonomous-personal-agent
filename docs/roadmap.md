@@ -52,6 +52,7 @@
 - [ ] Email read/classify and OAuth adapters
 - [x] Exact approval-gated single-recipient SMTP send adapter and local Mailpit proof
 - [x] Governed creator campaigns with official YouTube discovery, manual contact provenance/reply classification, exact-email sequencing, results, and bounded draft adaptation
+- [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Fresh-job discovery/tracking from reviewed public sources
 - [x] Local résumé evidence and cover-letter drafting
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter

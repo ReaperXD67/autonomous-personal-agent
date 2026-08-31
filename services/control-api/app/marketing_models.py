@@ -133,6 +133,30 @@ class MarketingCampaignView(MarketingCampaignFields):
     updated_at: datetime
 
 
+class MarketingPromotionAsset(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    key: str
+    channel: str
+    title: str
+    body: str
+    tracking_url: str
+    guidance: str
+
+
+class MarketingPromotionKitView(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    campaign_id: UUID
+    campaign_name: str
+    product_name: str
+    product_url: str
+    privacy_url: str
+    key_messages: list[str]
+    disclosure_reminder: str
+    assets: list[MarketingPromotionAsset]
+
+
 class MarketingProspectCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

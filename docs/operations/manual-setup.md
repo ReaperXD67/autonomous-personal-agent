@@ -56,6 +56,21 @@ Data API v3 enabled and a restricted API key in ignored `YOUTUBE_API_KEY`.
 External delivery also requires the SMTP setup below. Neither account, key, nor
 provider terms are created automatically.
 
+After creating those user-owned credentials, the remaining local activation is
+guided and secret-safe:
+
+```powershell
+./scripts/promotion.ps1
+./scripts/promotion.ps1 -ConfigureYouTube
+./scripts/promotion.ps1 -ConfigureGmail
+./scripts/promotion.ps1 -OpenDashboard
+```
+
+The two credential prompts are hidden. The YouTube key is tested before it is
+saved; Gmail delivery is not claimed until one approved message reaches an
+inbox you own. Run commands separately so failures never require re-entering an
+already validated credential.
+
 After adding the key, recreate the core stack, open **Creator campaigns**, and
 run one scan. Channel/video results prove discovery; container health alone does
 not. The API does not return creator emails. Add only a reviewed public business
