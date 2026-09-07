@@ -20,7 +20,8 @@
 - [ ] Per-user OIDC auth, roles, rate limits, step-up approvals
 - [ ] OpenTelemetry traces/metrics/log correlation and alerts
 - [ ] Encrypted automated backups and restore drill
-- [ ] Reverse proxy/TLS/WireGuard deployment profile
+- [x] Private loopback VPS bootstrap, preflight, smoke, backup, and restore tooling
+- [ ] Public reverse proxy/TLS/OIDC/rate-limit deployment profile
 - [x] Required SBOM, dependency, vulnerability, secret, and configuration CI gates
 - [x] One-command workstation gate for lifecycle, restore, environment, and configured inference paths
 - [ ] Signed release images and upstream image-signature verification
@@ -53,6 +54,7 @@
 - [x] Exact approval-gated single-recipient SMTP send adapter and local Mailpit proof
 - [x] Governed creator campaigns with official YouTube discovery, manual contact provenance/reply classification, exact-email sequencing, results, and bounded draft adaptation
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
+- [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources
 - [x] Local résumé evidence and cover-letter drafting
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter

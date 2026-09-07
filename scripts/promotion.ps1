@@ -3,6 +3,7 @@ param(
     [switch]$Status,
     [switch]$ConfigureYouTube,
     [switch]$ConfigureGmail,
+    [switch]$LocalTest,
     [switch]$Start,
     [switch]$OpenDashboard
 )
@@ -81,6 +82,24 @@ function Start-DockerIfNeeded {
     throw 'Docker Desktop did not become ready within 40 seconds. Open it once, then rerun this command.'
 }
 
+function Get-RunningServiceEnvironment {
+    param([Parameter(Mandatory)][string]$Service)
+    try {
+        $containerId = @(& docker compose ps --status running -q $Service 2>$null) |
+            Select-Object -First 1
+        if (-not $containerId) { return $null }
+        $environmentJson = & docker inspect --format '{{json .Config.Env}}' $containerId 2>$null
+        if ($LASTEXITCODE -ne 0 -or -not $environmentJson) { return $null }
+        $environment = @{}
+        foreach ($entry in @($environmentJson | ConvertFrom-Json)) {
+            $parts = ([string]$entry).Split('=', 2)
+            $environment[$parts[0]] = if ($parts.Count -eq 2) { $parts[1] } else { '' }
+        }
+        return $environment
+    }
+    catch { return $null }
+}
+
 function Show-PromotionStatus {
     $values = Read-EnvironmentFile
     $youtubeReady = Test-ConfiguredSecret ([string]$values.YOUTUBE_API_KEY)
@@ -95,6 +114,8 @@ function Show-PromotionStatus {
     $dockerReady = Test-DockerReady
     $apiReady = $false
     $emailExecutorReady = $false
+    $jobWorkerEnvironment = $null
+    $actionWorkerEnvironment = $null
     if ($dockerReady) {
         $port = if ($values.CONTROL_API_PORT) { $values.CONTROL_API_PORT } else { '8080' }
         try {
@@ -102,6 +123,8 @@ function Show-PromotionStatus {
             $apiReady = $health.status -eq 'ready'
         }
         catch { $apiReady = $false }
+        $jobWorkerEnvironment = Get-RunningServiceEnvironment -Service 'job-worker'
+        $actionWorkerEnvironment = Get-RunningServiceEnvironment -Service 'action-worker'
         try {
             $actionState = @(& docker compose ps --status running --format json action-worker 2>$null)
             if ($LASTEXITCODE -eq 0 -and $actionState.Count -gt 0) {
@@ -114,16 +137,84 @@ function Show-PromotionStatus {
         catch { $emailExecutorReady = $false }
     }
 
+    $youtubeLoaded = (
+        $youtubeReady -and
+        $jobWorkerEnvironment -and
+        $jobWorkerEnvironment.YOUTUBE_API_KEY -eq $values.YOUTUBE_API_KEY
+    )
+    $smtpConfigurationLoaded = (
+        $smtpReady -and
+        $actionWorkerEnvironment -and
+        $actionWorkerEnvironment.MAIL_TRANSPORT -eq $values.MAIL_TRANSPORT -and
+        $actionWorkerEnvironment.SMTP_HOST -eq $values.SMTP_HOST -and
+        $actionWorkerEnvironment.SMTP_PORT -eq $values.SMTP_PORT -and
+        $actionWorkerEnvironment.SMTP_USERNAME -eq $values.SMTP_USERNAME -and
+        $actionWorkerEnvironment.SMTP_PASSWORD -eq $values.SMTP_PASSWORD -and
+        $actionWorkerEnvironment.SMTP_FROM -eq $values.SMTP_FROM -and
+        $actionWorkerEnvironment.SMTP_TLS_MODE -eq $values.SMTP_TLS_MODE
+    )
+    $smtpRuntimeMatches = $smtpConfigurationLoaded -and $emailExecutorReady
+    $localMailpitConfigurationLoaded = (
+        $actionWorkerEnvironment -and
+        $actionWorkerEnvironment.MAIL_TRANSPORT -eq 'mailpit' -and
+        -not $actionWorkerEnvironment.SMTP_USERNAME -and
+        -not $actionWorkerEnvironment.SMTP_PASSWORD
+    )
+    $youtubeStatus = if (-not $youtubeReady) {
+        'needs restricted API key'
+    }
+    elseif ($youtubeLoaded) {
+        'key loaded; one real scan still needs proof'
+    }
+    elseif ($jobWorkerEnvironment) {
+        'key saved; restart job-worker to load it'
+    }
+    else {
+        'key saved; it will load on start'
+    }
+    $smtpStatus = if ($smtpReady) {
+        'settings saved; owned-inbox proof still required'
+    }
+    else {
+        'needs provider credential after local proof'
+    }
+    $executorStatus = if ($smtpRuntimeMatches) {
+        'running with current SMTP settings'
+    }
+    elseif ($smtpConfigurationLoaded) {
+        'current SMTP settings loaded; health pending or failed'
+    }
+    elseif ($localMailpitConfigurationLoaded -and $emailExecutorReady) {
+        'running in isolated Mailpit test mode'
+    }
+    elseif ($localMailpitConfigurationLoaded) {
+        'Mailpit test mode loaded; health pending or failed'
+    }
+    elseif ($emailExecutorReady) {
+        'running with stale or different settings'
+    }
+    elseif ($actionWorkerEnvironment) {
+        'started with stale or different settings; health pending or failed'
+    }
+    else {
+        'not running'
+    }
+
     Write-Host 'Promotion readiness'
     Write-Host ("  Docker engine:        {0}" -f $(if ($dockerReady) { 'ready' } else { 'stopped' }))
     Write-Host ("  Control dashboard:    {0}" -f $(if ($apiReady) { 'ready' } else { 'not running' }))
-    Write-Host ("  YouTube discovery:    {0}" -f $(if ($youtubeReady) { 'configured' } else { 'needs restricted API key' }))
-    Write-Host ("  Real email transport: {0}" -f $(if ($smtpReady) { 'configured TLS SMTP' } else { 'needs provider credential' }))
-    Write-Host ("  Email executor:       {0}" -f $(if ($emailExecutorReady) { 'healthy' } else { 'not running' }))
+    Write-Host ("  YouTube discovery:    {0}" -f $youtubeStatus)
+    Write-Host ("  Real email transport: {0}" -f $smtpStatus)
+    Write-Host ("  Email executor:       {0}" -f $executorStatus)
     Write-Host '  Promotion kit:        built in; no account or API key required'
+    Write-Host 'Local proof: ./scripts/promotion.ps1 -LocalTest' -ForegroundColor Cyan
     if (-not $youtubeReady) { Write-Host 'Next: ./scripts/promotion.ps1 -ConfigureYouTube' -ForegroundColor Yellow }
-    if (-not $smtpReady) { Write-Host 'Next: ./scripts/promotion.ps1 -ConfigureGmail' -ForegroundColor Yellow }
-    if ($youtubeReady -and $smtpReady -and (-not $apiReady -or -not $emailExecutorReady)) {
+    if (-not $smtpReady) { Write-Host 'After local proof: ./scripts/promotion.ps1 -ConfigureGmail' -ForegroundColor Yellow }
+    if (
+        $youtubeReady -and
+        $smtpReady -and
+        (-not $apiReady -or -not $youtubeLoaded -or -not $smtpRuntimeMatches)
+    ) {
         Write-Host 'Next: ./scripts/promotion.ps1 -OpenDashboard' -ForegroundColor Cyan
     }
 }
@@ -177,6 +268,11 @@ try {
         Write-Host 'The first real proof must be one approved test email to an inbox you own.' -ForegroundColor Yellow
     }
 
+    if ($LocalTest) {
+        Start-DockerIfNeeded
+        & (Join-Path $PSScriptRoot 'creator-outreach-smoke.ps1')
+    }
+
     if ($OpenDashboard) {
         Start-DockerIfNeeded
         & (Join-Path $PSScriptRoot 'open-dashboard.ps1') -SideEffects -CopyToken
@@ -186,10 +282,16 @@ try {
         & (Join-Path $PSScriptRoot 'up.ps1') -SideEffects
     }
 
-    if ($Status -or -not ($ConfigureYouTube -or $ConfigureGmail -or $Start -or $OpenDashboard)) {
+    if ($Status -or -not (
+        $ConfigureYouTube -or
+        $ConfigureGmail -or
+        $LocalTest -or
+        $Start -or
+        $OpenDashboard
+    )) {
         Show-PromotionStatus
     }
-    elseif ($ConfigureYouTube -or $ConfigureGmail) {
+    elseif ($ConfigureYouTube -or $ConfigureGmail -or $LocalTest) {
         Show-PromotionStatus
     }
 }

@@ -31,12 +31,22 @@ try {
     $mailpitUrl = "http://127.0.0.1:$mailpitPort"
     $headers = @{ Authorization = "Bearer $($values.CONTROL_API_TOKEN)" }
 
-    foreach ($name in @('MAIL_TRANSPORT', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_FROM', 'SMTP_TLS_MODE')) {
+    foreach ($name in @(
+        'MAIL_TRANSPORT',
+        'SMTP_HOST',
+        'SMTP_PORT',
+        'SMTP_USERNAME',
+        'SMTP_PASSWORD',
+        'SMTP_FROM',
+        'SMTP_TLS_MODE'
+    )) {
         $savedProcessEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
     }
     $env:MAIL_TRANSPORT = 'mailpit'
     $env:SMTP_HOST = 'mailpit'
     $env:SMTP_PORT = '1025'
+    $env:SMTP_USERNAME = ''
+    $env:SMTP_PASSWORD = ''
     $env:SMTP_FROM = 'hermes@local.invalid'
     $env:SMTP_TLS_MODE = 'none'
 
@@ -217,6 +227,7 @@ DELETE FROM side_effect_receipts WHERE task_id IN (SELECT id FROM smoke_task_ids
 DELETE FROM external_actions WHERE task_id IN (SELECT id FROM smoke_task_ids);
 DELETE FROM job_application_preflights WHERE task_id IN (SELECT id FROM smoke_task_ids);
 DELETE FROM job_application_drafts WHERE task_id IN (SELECT id FROM smoke_task_ids);
+DELETE FROM inference_invocations WHERE task_id IN (SELECT id FROM smoke_task_ids);
 DELETE FROM career_profiles WHERE id = '$profileId'::uuid AND requested_by = 'local-side-effect-smoke:$runId';
 DELETE FROM task_outbox WHERE task_id IN (SELECT id FROM smoke_task_ids);
 DELETE FROM task_approvals WHERE task_id IN (SELECT id FROM smoke_task_ids);

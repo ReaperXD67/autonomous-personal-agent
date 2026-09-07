@@ -84,6 +84,19 @@ def test_dashboard_is_packaged_without_forbidden_static_file_surfaces() -> None:
         assert dangerous_sink not in javascript
 
 
+def test_control_api_disables_schema_discovery_and_validates_host_headers() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    main = (ROOT / "services/control-api/app/main.py").read_text(encoding="utf-8")
+    settings = (ROOT / "services/control-api/app/settings.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "TRUSTED_HOSTS" in compose["services"]["control-api"]["environment"]
+    assert "TrustedHostMiddleware" in main
+    assert "openapi_url=None" in main
+    assert 'host == "*"' in settings
+
+
 def test_external_actions_use_isolated_pinned_workers_and_exact_receipts() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     action_worker = compose["services"]["action-worker"]
@@ -145,6 +158,30 @@ def test_promotion_assets_are_local_copy_only_and_setup_hides_credentials() -> N
     assert 'YOUTUBE_API_KEY' in setup and 'SMTP_PASSWORD' in setup
 
 
+def test_creator_outreach_smoke_is_no_egress_and_blanks_real_mail_credentials() -> None:
+    smoke = (ROOT / "scripts/creator-outreach-smoke.ps1").read_text(
+        encoding="utf-8"
+    )
+    startup = (ROOT / "scripts/up.ps1").read_text(encoding="utf-8")
+
+    assert "side-effects-test" in smoke
+    assert "/v1/marketing/campaigns" in smoke
+    assert "/email-plan" in smoke
+    assert "classification = 'do_not_contact'" in smoke
+    assert "No discovery request or email left" in smoke
+    for source in (smoke, startup):
+        assert "SMTP_USERNAME = ''" in source
+        assert "SMTP_PASSWORD = ''" in source
+
+
+def test_side_effect_smoke_cleans_inference_ledger_before_tasks() -> None:
+    smoke = (ROOT / "scripts/side-effect-smoke.ps1").read_text(encoding="utf-8")
+
+    inference_cleanup = smoke.index("DELETE FROM inference_invocations")
+    task_cleanup = smoke.index("DELETE FROM agent_tasks")
+    assert inference_cleanup < task_cleanup
+
+
 def test_action_image_scan_exceptions_are_exact_and_expiring() -> None:
     ignores = yaml.safe_load((ROOT / ".trivyignore.yaml").read_text(encoding="utf-8"))
     entries = ignores["vulnerabilities"]
@@ -178,6 +215,35 @@ def test_restore_drill_uses_a_disposable_database() -> None:
     assert "agent_restore_" in source
     assert "dropdb" in source
     assert "RESTORE_DATABASE" in source
+
+
+def test_private_vps_tooling_fails_closed_and_preserves_private_ingress() -> None:
+    initializer = (ROOT / "scripts/vps-init-env.sh").read_text(encoding="utf-8")
+    preflight = (ROOT / "scripts/vps-preflight.sh").read_text(encoding="utf-8")
+    startup = (ROOT / "scripts/vps-up.sh").read_text(encoding="utf-8")
+    smoke = (ROOT / "scripts/vps-smoke.sh").read_text(encoding="utf-8")
+    backup = (ROOT / "scripts/vps-backup.sh").read_text(encoding="utf-8")
+    restore = (ROOT / "scripts/vps-restore-drill.sh").read_text(encoding="utf-8")
+
+    assert "APP_ENV=production" in initializer
+    assert "TRUSTED_HOSTS=localhost,127.0.0.1" in initializer
+    assert "chmod 600" in initializer
+    assert "refusing to overwrite" in initializer
+    for required in (
+        "git status --porcelain",
+        "host_ip: 127.0.0.1",
+        "/var/run/docker.sock",
+        "network_mode: host",
+        "privileged: true",
+        "Mailpit test transport must not",
+    ):
+        assert required in preflight
+    assert "vps-preflight.sh" in startup
+    assert "vps-smoke.sh" in startup
+    assert "ssh -L" in startup
+    assert "pending_approval" in smoke and "VPS_SMOKE_OK" in smoke
+    assert 'case "$destination"' in backup
+    assert "agent_restore_" in restore and "dropdb --if-exists" in restore
 
 
 def test_readiness_gate_covers_every_configured_runtime_path() -> None:

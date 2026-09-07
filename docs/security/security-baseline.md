@@ -17,6 +17,7 @@ capability must enter this registry before its handler is reachable.
 
 - generated local secrets; placeholder rejection in control API;
 - constant-time bearer token comparison;
+- disabled OpenAPI/docs routes and explicit Host-header allowlisting;
 - loopback-only published interfaces;
 - no PostgreSQL/Redis host ports;
 - password-protected Redis and PostgreSQL;
@@ -38,6 +39,8 @@ capability must enter this registry before its handler is reachable.
   revalidation, one-attempt policy, and durable pre-side-effect receipts;
 - deployment-fixed SMTP endpoint/sender, external TLS enforcement, single
   validated recipient, and local-only no-TLS Mailpit test mode;
+- test-profile startup explicitly blanks deployment SMTP username/password
+  before creating Mailpit-mode containers;
 - official-host-only YouTube discovery with a worker-scoped API key, bounded
   queries/results, and no email discovery;
 - operator-recorded public-contact source/basis/authorization, durable opt-out
@@ -58,6 +61,9 @@ capability must enter this registry before its handler is reachable.
 - required immutable-action CI gates for dependency review, repository
   vulnerability/secret/misconfiguration scanning, runtime-image vulnerability
   scanning, and an SPDX JSON SBOM artifact;
+- private-VPS scripts that generate owner-only secrets, reject dirty checkouts,
+  placeholders, Mailpit, non-loopback ports, host networking, privileged mode,
+  and Docker-socket mounts before deployment;
 
 ## Secrets
 
@@ -67,7 +73,7 @@ Provider keys must not share privileges with GitHub/email/admin tokens. Rotate
 after exposure, remove from history using approved incident procedure, and
 assume logs/artifacts containing a leaked value are compromised.
 
-## Actions still required before production
+## Actions still required before public production
 
 - HTTPS reverse proxy, authenticated admin access, and API rate limiting;
 - secrets manager/Docker secrets support;
