@@ -1379,3 +1379,179 @@ prompts, then approve one harmless email to an owned inbox before creator mail.
 Business-contact provenance, jurisdiction/terms review, each exact send,
 inbound reply classification, sponsorship terms/disclosures, and public posting
 remain operator work. First-party KarixMC conversion import is still pending.
+
+## Step 21 — Prove creator outreach locally and isolate test credentials
+
+Date: 2026-09-05
+
+### Objective
+
+Audit what remains before KarixMC creator outreach can be tested, close any
+avoidable local-verification gap, and give the operator a truthful setup path
+that separates local proof from YouTube discovery and real inbox delivery.
+
+### Research and decision
+
+Re-read the creator implementation, roadmap, architecture, side-effect review,
+manual setup, and latest engineering record. Checked current official YouTube
+Data API setup/quota documentation and Google app-password guidance. The
+ignored workstation environment contained a non-placeholder YouTube key but no
+real SMTP configuration. The product and privacy URLs remained reachable.
+
+The generic side-effect smoke proved SMTP mechanics but not the creator-specific
+campaign, generated introduction, metrics, or suppression path. Added a focused
+no-egress proof rather than weakening the real-send approval boundary. No ADR
+was needed because the production capability and authority boundaries did not
+change.
+
+### Implementation
+
+- Added `scripts/creator-outreach-smoke.ps1` and
+  `promotion.ps1 -LocalTest`. It creates an inactive synthetic campaign and
+  authorized `.test` contact, verifies five distinct promotion assets, prepares
+  and approves one exact introduction to Mailpit, records an opt-out, proves a
+  second plan is refused, checks metrics, and removes its own durable records.
+- Changed every Mailpit-mode startup to blank `SMTP_USERNAME` and
+  `SMTP_PASSWORD` before Compose resolves the test containers, then restore the
+  calling process environment.
+- Made promotion status compare saved settings with the actual running worker
+  configuration without printing secrets. It now distinguishes a loaded
+  YouTube key, stale worker configuration, Mailpit mode, current SMTP mode, and
+  the separate owned-inbox proof still required.
+- Fixed the older side-effect smoke cleanup to delete linked inference-ledger
+  rows before deleting its synthetic task records.
+- Added repository contracts plus synchronized README, roadmap, architecture,
+  operations, security, test-readiness, and system-evolution documentation.
+
+### Problems encountered and resolution
+
+- Docker Desktop 4.78 could not start because invalid transient
+  `dockerInference` and secrets-engine Unix endpoints reappeared. With Docker
+  stopped, only the exact local runtime directories were moved to timestamped,
+  recoverable siblings; WSL was shut down once so Docker could recreate clean
+  endpoints. Images, named volumes, PostgreSQL, and repository data were not
+  deleted.
+- The first rerun of the broad side-effect smoke passed its actions but cleanup
+  hit the inference ledger's restrictive task foreign key. The cleanup order
+  was corrected, the exact leftover synthetic profile was removed, and a second
+  run left zero matching profiles.
+- The first `scripts/test.ps1` invocation used the previous test image and
+  reported 62 tests. The test image was explicitly rebuilt; the changed tree
+  then ran 63 tests, and the complete verification rebuilt it again.
+
+### Validation
+
+- The creator smoke delivered exact task
+  `7bfcd01d-f5de-4c40-8ef9-10bd722d280e` to Mailpit, returned five distinct
+  attributed assets, persisted suppression, rejected another plan, and left
+  zero disposable creator campaigns.
+- Inspection of the running test action worker reported Mailpit transport,
+  blank SMTP username/password, the local invalid sender, and no TLS only for
+  that internal test mode.
+- The corrected broad side-effect smoke passed exact application
+  `d65a1fc0-b410-46be-a729-3814e3867224`, local email
+  `9e8539b2-88b4-4826-b16a-2c40d3aaa9f9`, and duplicate refusal
+  `b160e1e0-c4c0-4fd0-adcf-d2e795a137f4`; zero synthetic career profiles
+  remained.
+- `https://karixmc.pl/` and `https://karixmc.pl/privacy` both returned HTTP 200.
+- The rebuilt isolated suite passed Ruff and 64 tests. `docker compose config
+  --quiet`, `scripts/verify.ps1`, PowerShell parsing, and `git diff --check`
+  passed.
+- Final promotion status reported Docker/dashboard healthy, the saved YouTube
+  key loaded in `job-worker`, action execution in isolated Mailpit mode, and real
+  SMTP still unconfigured. No live creator-discovery scan or external email was
+  performed.
+
+### Remaining boundary
+
+The operator must verify Google-side key restriction, run one deliberate live
+campaign scan, choose/configure a TLS mail provider, deliver one approved test
+message to an owned inbox, and only then qualify and contact real creators.
+Public business-contact provenance and legal review, every exact approval,
+reply classification, compensation/contracts/disclosures, point grants,
+placement review, and attribution entry remain human-owned. OAuth mail reading
+and first-party KarixMC analytics import remain future work.
+
+## Step 22 — Validate the full local product and prepare a private VPS release path
+
+Date: 2026-09-07
+
+### Objective
+
+Rerun the complete local product proof, show the authenticated creator workflow
+in a real browser, automate every repository-owned step needed for a safe first
+VPS deployment, and distinguish private single-user readiness from unfinished
+public-production work.
+
+### Research and decision
+
+Re-read the roadmap, architecture, deployment, security, manual-setup, and
+latest engineering records. Applied the FastAPI/frontend security baseline and
+checked current official Docker Ubuntu, firewall, daemon, and rootless guidance.
+Kept the first VPS interface on loopback behind SSH/WireGuard/Tailscale. Rejected
+a public TLS proxy with the current bootstrap bearer token because it would not
+provide OIDC/RBAC, rate limiting, revocation, or step-up identity. Recorded the
+boundary in ADR-0014.
+
+### Implementation
+
+- Added explicit Host-header validation and disabled `/openapi.json` alongside
+  the already-disabled interactive docs.
+- Added Linux commands for secret-safe production `.env` creation, fail-closed
+  preflight, private stack startup, authenticated safe/approval smoke, owner-only
+  checksummed backup, and disposable restore validation.
+- Preflight inspects all Compose profiles and refuses dirty checkouts,
+  placeholders, broad secret permissions, Mailpit configuration, any published
+  port without `127.0.0.1`, host networking, privileged mode, or Docker-socket
+  mounts. Host/firewall/backup-alert checks remain explicit warnings.
+- Synchronized README, roadmap, architecture, security, deployment, backup,
+  readiness, manual-setup, ADR index, Make targets, tests, and system evolution.
+
+### Problems encountered and resolution
+
+Docker Desktop 4.78 again failed before WSL startup because stale AF_UNIX
+reparse points prevented its inference and secrets listeners from replacing
+their sockets. With Docker fully stopped, the exact transient `Docker\\run`
+directory and exact `docker-secrets-engine` directory were moved to timestamped,
+recoverable siblings. Docker recreated both. Images, volumes, PostgreSQL, source,
+and secrets were not deleted or reset.
+
+An isolated VPS initializer probe exposed that the first placeholder check also
+matched the explanatory `CHANGE_ME` comment. The preflight was narrowed to
+placeholder assignment lines, and the initializer then passed creation plus
+overwrite-refusal checks.
+
+### Validation
+
+- `promotion.ps1 -LocalTest` passed synthetic creator campaign
+  `5725b9c7-8658-418b-a44c-cd5b3368afa6`, exact Mailpit introduction task
+  `7701a79f-9728-43d6-849a-271063d3428b`, five distinct assets, suppression,
+  no-egress assertion, and cleanup.
+- The broad side-effect smoke passed fake ATS application
+  `a94e5402-855d-48a0-a49a-2d402855a20b`, local email
+  `9fb326d0-2229-4b65-8e39-2801d975f801`, and duplicate refusal
+  `ce41d58c-fda4-4d4c-bfd2-967a742d4f5e` with no external destination.
+- Rebuilt Ruff/Pytest passed 67 tests. PowerShell and Bash parsing, Compose
+  rendering, all-profile loopback inspection, and `git diff --check` passed.
+- Chromium authenticated without persisting the token, rendered the creator
+  campaign and five-channel Promotion kit, and reported zero console errors or
+  warnings. `/openapi.json` returned 404 and an untrusted Host returned 400.
+- The complete readiness gate passed core lifecycle (46.56 s), disposable
+  restore (8.56 s), doctor (9.24 s), OmniRoute (4.41 s), local Qwen GPU
+  inference (24.80 s), and Hermes (19.69 s). OpenRouter was correctly skipped
+  because it is not configured.
+- The Linux backup/restore scripts ran through Git Bash against the local
+  containers: checksum verification passed; the disposable restore contained 8
+  migrations, 150 tasks, 487 audits, and zero orphan audits, then was removed.
+  The VPS initializer passed an isolated create/refuse-overwrite probe.
+
+### Remaining boundary
+
+No actual VPS was supplied, so host hardening, Linux preflight/startup, encrypted
+off-host transfer, alert delivery, and rollback remain unverified on the target.
+Real creator activation still needs Google-side key restriction proof, one live
+YouTube scan, a user-owned TLS SMTP credential, and one approved delivery to an
+owned inbox. Real ATS destinations remain compatibility-specific and each final
+application/email requires exact approval. Public or multi-user exposure remains
+blocked on OIDC/RBAC, rate/body limits, TLS, step-up identity, centralized
+secrets, signed releases, and incident response.

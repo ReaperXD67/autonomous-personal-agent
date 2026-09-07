@@ -107,6 +107,23 @@ implementation review, not a penetration test of third-party ATS sites.
   runtime images. The remote clean-checkout CI result remains the authoritative
   merge evidence.
 
+### SE-008 — Local Mailpit startup could retain unused real SMTP credentials
+
+- Severity: Medium
+- Status: Fixed
+- Location: `scripts/up.ps1`, `scripts/side-effect-smoke.ps1`,
+  `scripts/creator-outreach-smoke.ps1`
+- Evidence: every Mailpit-mode startup now sets `SMTP_USERNAME` and
+  `SMTP_PASSWORD` to empty before Compose resolves container configuration and
+  restores the caller's process environment afterward. The creator smoke also
+  exercises the real campaign, exact-action, metrics, and suppression path
+  without a discovery request or external recipient.
+- Impact: although Mailpit mode never used those credentials, a test container
+  could previously receive values inherited from `.env`, unnecessarily
+  widening their exposure.
+- Resolution: strip external mail credentials at the test-profile boundary and
+  verify the invariant with a repository contract.
+
 ## Residual production blockers
 
 - The dashboard still uses one bootstrap bearer token and must stay loopback or

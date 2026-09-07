@@ -35,6 +35,11 @@ def _model_priority_environment() -> tuple[str, ...]:
     return tuple(item.strip() for item in raw.split(",") if item.strip())
 
 
+def _trusted_hosts_environment() -> tuple[str, ...]:
+    raw = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,testserver")
+    return tuple(item.strip().lower() for item in raw.split(",") if item.strip())
+
+
 class ConfigurationError(RuntimeError):
     """Raised when required runtime configuration is unsafe or missing."""
 
@@ -44,6 +49,7 @@ class Settings:
     environment: str
     log_level: str
     api_token: str
+    trusted_hosts: tuple[str, ...]
     database_url: str
     redis_url: str
     task_queue_key: str
@@ -80,6 +86,7 @@ class Settings:
             environment=os.getenv("APP_ENV", "development").strip().lower(),
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
             api_token=os.getenv("CONTROL_API_TOKEN", "").strip(),
+            trusted_hosts=_trusted_hosts_environment(),
             database_url=os.getenv("DATABASE_URL", "").strip(),
             redis_url=os.getenv("REDIS_URL", "").strip(),
             task_queue_key=os.getenv("TASK_QUEUE_KEY", "agent:tasks:ready").strip(),
@@ -141,6 +148,15 @@ class Settings:
             raise ConfigurationError("CONTROL_API_TOKEN still contains a placeholder")
         if len(self.api_token) < 32:
             raise ConfigurationError("CONTROL_API_TOKEN must contain at least 32 characters")
+        if not self.trusted_hosts:
+            raise ConfigurationError("TRUSTED_HOSTS must contain at least one host")
+        if any(
+            host == "*" or "://" in host or "/" in host or any(char.isspace() for char in host)
+            for host in self.trusted_hosts
+        ):
+            raise ConfigurationError(
+                "TRUSTED_HOSTS must contain explicit hostnames or IP addresses"
+            )
         if not 1 <= self.worker_poll_seconds <= 60:
             raise ConfigurationError("WORKER_POLL_SECONDS must be between 1 and 60")
         if not 30 <= self.worker_lease_seconds <= 3600:

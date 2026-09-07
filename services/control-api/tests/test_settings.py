@@ -8,6 +8,7 @@ def make_settings(**overrides: object) -> Settings:
         "environment": "test",
         "log_level": "INFO",
         "api_token": "x" * 32,
+        "trusted_hosts": ("localhost", "127.0.0.1", "testserver"),
         "database_url": "postgresql://user:pass@db/test",
         "redis_url": "redis://:pass@redis:6379/0",
         "task_queue_key": "agent:tasks:ready",
@@ -50,6 +51,13 @@ def test_rejects_placeholder_token() -> None:
 def test_rejects_short_token() -> None:
     with pytest.raises(ConfigurationError, match="at least 32"):
         make_settings(api_token="too-short").validate()  # noqa: S106
+
+
+def test_rejects_unbounded_or_url_shaped_trusted_hosts() -> None:
+    with pytest.raises(ConfigurationError, match="explicit hostnames"):
+        make_settings(trusted_hosts=("*",)).validate()
+    with pytest.raises(ConfigurationError, match="explicit hostnames"):
+        make_settings(trusted_hosts=("https://example.test",)).validate()
 
 
 def test_accepts_complete_configuration() -> None:

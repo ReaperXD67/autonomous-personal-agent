@@ -137,16 +137,27 @@ suggestion justifies editing the campaign.
 
 ## 7. Enable real delivery
 
-First prove the mail path with Mailpit:
+First prove the complete creator path with synthetic data and Mailpit:
 
 ```powershell
-./scripts/side-effect-smoke.ps1
+./scripts/promotion.ps1 -LocalTest
 ```
 
+This test creates an inactive synthetic campaign and reviewed synthetic contact,
+builds five attributed promotion assets, prepares and approves one introduction,
+verifies it in Mailpit, records an opt-out, proves further outreach is refused,
+and removes its durable records. It does not call YouTube or external SMTP. Any
+saved SMTP username/password is explicitly omitted from the test containers.
+
+Run `./scripts/side-effect-smoke.ps1` as the broader application-and-email proof
+when you also want to test the isolated ATS adapter and duplicate-submit guard.
+
 For Gmail or Google Workspace, first enable two-step verification and create a
-user-owned app password. Google states that app passwords require two-step
-verification and recommends OAuth when available; this deployment does not yet
-hold mail OAuth tokens. The guided hidden prompt writes the fixed
+user-owned [app password](https://support.google.com/accounts/answer/185833?hl=en).
+Google states that app passwords require two-step
+verification, may be unavailable for organization-managed or Advanced
+Protection accounts, and recommends OAuth when available; this deployment does
+not yet hold mail OAuth tokens. The guided hidden prompt writes the fixed
 `smtp.gmail.com:587` STARTTLS settings only to ignored `.env`:
 
 ```powershell
@@ -158,6 +169,9 @@ For another provider, use [manual setup](manual-setup.md#real-email-transport).
 
 Send a harmless message to an address you own before contacting a creator. A
 healthy container is not delivery proof; verify the provider inbox and receipt.
+The readiness command distinguishes saved settings, a Mailpit-mode worker, and
+a worker running the current SMTP settings, but it deliberately cannot claim
+provider delivery until that owned inbox receives the message.
 
 ## Known gaps
 

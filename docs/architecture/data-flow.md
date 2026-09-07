@@ -95,6 +95,11 @@ scoped inbound provider adapter exists. Aggregate campaign results select only
 between two fixed introduction templates after explicit sample/effect
 thresholds; they never authorize or send an email.
 
+The creator-outreach smoke follows this same durable path using an inactive
+synthetic campaign and a `.test` recipient, but replaces external SMTP with
+Mailpit, blanks deployment mail credentials, performs no discovery call, and
+deletes only its own campaign/action/audit records after verification.
+
 The authenticated promotion-kit endpoint derives channel-specific text and
 first-party UTM links entirely from the durable campaign record. It has no
 egress and no mutation path. The browser can copy these assets, but public

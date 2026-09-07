@@ -41,6 +41,7 @@ node_modules/
 playwright-report/
 test-results/
 .playwright-cli/
+output/
 
 # Editors and operating systems
 .idea/

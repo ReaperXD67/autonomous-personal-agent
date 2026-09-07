@@ -51,8 +51,21 @@ After the gate passes:
    `qwen3:8b`; expect different quality and latency.
 5. Run `./scripts/side-effect-smoke.ps1`. It uses only a fake ATS and local
    Mailpit sink, yet exercises the real approval and duplicate-guard code.
+6. Run `./scripts/promotion.ps1 -LocalTest`. It exercises the creator-specific
+   campaign, promotion-kit, exact introduction, metrics, and durable suppression
+   path without a YouTube request or external email.
 
 Do not use purchases, real email, real job submission, public publishing, host
 filesystem tools, or destructive operations as first tests. Application/email
 adapters exist, but real destinations remain exact-approval-gated and need
 destination-specific manual configuration/compatibility checks.
+
+## Private VPS gate
+
+On the chosen Linux VPS, run `./scripts/vps-preflight.sh`, then
+`./scripts/vps-up.sh`. Startup waits for readiness and executes a harmless
+authenticated safe task plus a separate approval-gated task inside the control
+container without printing the bearer token. Before relying on the host, run
+`./scripts/vps-backup.sh` and `./scripts/vps-restore-drill.sh`, then confirm the
+encrypted off-host copy and alert delivery manually. This proves the selected
+host; passing workstation tests alone does not.

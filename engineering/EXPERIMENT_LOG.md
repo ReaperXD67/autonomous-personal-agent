@@ -357,6 +357,75 @@ Result: deterministic generation, attribution completeness, the authenticated
 API, and dashboard interaction passed locally. External discovery and inbox
 delivery remain unverified because no YouTube or SMTP credential is configured.
 
+## EXP-017 — Creator-specific no-egress workflow proof
+
+Date: 2026-09-05
+
+Method: run `scripts/promotion.ps1 -LocalTest` against the real control plane and
+isolated Mailpit worker. Create an inactive synthetic campaign and authorized
+`.test` prospect, build its kit, prepare/approve one deterministic introduction,
+record a synthetic opt-out, try another plan, inspect aggregate results, and
+delete the exact campaign records. Separately rerun the broader side-effect
+smoke after updating its inference-ledger cleanup order.
+
+Observed:
+
+- Creator email task `7bfcd01d-f5de-4c40-8ef9-10bd722d280e` succeeded through
+  Mailpit; its unique generated subject appeared in the local inbox.
+- The kit contained five distinct tracking URLs. Campaign results recorded one
+  delivered email and one suppression, and the API refused another plan with
+  HTTP 409 after authorization was withdrawn.
+- The running test worker reported `mailpit`, internal host/sender settings,
+  and empty SMTP username/password. No YouTube task was queued and no external
+  email was sent.
+- Cleanup left zero `local-creator-outreach-smoke` campaigns. The first broad
+  side-effect rerun revealed one restrictive inference-ledger reference; after
+  correcting the order and removing that exact synthetic run, the second broad
+  smoke passed and left zero `local-side-effect-smoke` profiles.
+- The final rebuilt verification image passed Ruff and 64 tests in 0.63 seconds.
+  Complete lifecycle verification also passed. Both configured KarixMC URLs
+  returned HTTP 200.
+
+Result: the creator campaign, copy, exact approval, local delivery, metrics,
+opt-out enforcement, credential isolation, and cleanup paths passed. The
+workstation key is loaded but live YouTube discovery, real SMTP authentication,
+and provider-inbox delivery were not tested.
+
+## EXP-018 — Full local release and private-VPS portability proof
+
+Date: 2026-09-07
+
+Method: rebuild and run the creator-specific and broad side-effect smokes; run
+the full readiness gate with configured inference; authenticate a real Chromium
+session and open the Promotion kit; exercise web hardening; syntax-check every
+PowerShell/Bash script; probe VPS secret initialization in an isolated temporary
+directory; and execute the Linux backup/restore commands against local Docker.
+
+Observed:
+
+- Creator smoke generated five attributed assets, delivered one exact message
+  to Mailpit, enforced opt-out suppression, made no discovery request/external
+  send, and cleaned up its campaign.
+- Broad side-effect smoke completed one fake ATS submission and one Mailpit
+  email, then refused a second application using its durable receipt.
+- Rebuilt Ruff/Pytest passed 67 tests. The complete readiness result passed core
+  lifecycle, disposable restore, doctor, OmniRoute `free/default`, local Qwen on
+  the NVIDIA GPU, and Hermes. OpenRouter was skipped because it is unconfigured.
+- Chromium rendered the authenticated campaign and five-channel kit with zero
+  console errors/warnings. OpenAPI returned 404 and an untrusted Host returned
+  400.
+- The Bash backup checksum and disposable restore passed with 8 migrations, 150
+  tasks, 487 audit events, and zero orphan audits. The initializer generated a
+  production/loopback configuration and refused a second overwrite attempt.
+- Docker Desktop startup required recoverable relocation of exact stale
+  inference/secrets socket directories; no project or durable Docker data was
+  deleted.
+
+Result: the Windows workstation and Linux-oriented repository commands are
+locally validated for a private deployment. An actual VPS, external SMTP inbox,
+live YouTube scan, encrypted off-host retention, and public-production identity
+controls were not tested and are not implied.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

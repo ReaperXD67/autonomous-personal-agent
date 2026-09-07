@@ -11,6 +11,7 @@ import redis
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.responses import Response as FastAPIResponse
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from app.action_models import (
     ApplicationPlanCreate,
@@ -83,8 +84,10 @@ app = FastAPI(
     version="0.1.0",
     docs_url=None,
     redoc_url=None,
+    openapi_url=None,
     lifespan=lifespan,
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.trusted_hosts))
 
 
 def _correlation_id(value: str | None) -> UUID:

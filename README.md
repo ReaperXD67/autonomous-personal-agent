@@ -22,6 +22,8 @@ and a curated MCP policy layer before broad autonomy is enabled.
 > submission or email remains one-action/one-click approval-gated. Telegram,
 > generic browser automation, coding workers, and broad MCP access are not
 > enabled. Never expose the dashboard port directly to the internet.
+> The Linux VPS commands prepare a private single-operator deployment reached
+> through SSH/VPN; they do not turn this alpha into a public multi-user service.
 
 ## Why this exists
 
@@ -42,7 +44,7 @@ and human approval for high-impact actions.
 | Application preparation | Local verified; hosted prepared | A live-ranked, zero-cost-only OpenRouter chain can use Nemotron/other current free models before Qwen3 8B local fallback; hosted path needs a user key and smoke. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
-| Creator outreach | Implemented, external activation pending | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, exact-email sequence, results funnel, bounded A/B learning, and a five-channel promotion kit with separate UTM links; needs a user-owned API key/SMTP for real discovery and delivery |
+| Creator outreach | Implemented; external delivery pending | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, exact-email sequence, results funnel, bounded A/B learning, five-channel UTM kit, and a creator-specific no-egress smoke; needs TLS SMTP and owned-inbox proof for real delivery |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -51,6 +53,7 @@ and human approval for high-impact actions.
 | Free hosted routing | Implemented, not live-verified | Live catalog price checks, ordered cross-model fallback, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
+| Private VPS operations | Prepared; host proof pending | Linux secret bootstrap, fail-closed preflight, deployment smoke, checksummed backup, and disposable restore drill; dashboard stays loopback-only |
 | External submission and messaging | Prepared/partially verified | Local end-to-end side effects pass; real ATS/provider compatibility and credentials remain manual gates |
 
 ## Architecture
@@ -135,6 +138,18 @@ user-owned YouTube key, never discovers or guesses creator emails, and every
 individual email remains exact-approval gated. See the
 [creator outreach guide](docs/operations/creator-outreach.md).
 
+Prove the creator workflow locally before configuring or using external mail:
+
+```powershell
+./scripts/promotion.ps1 -LocalTest
+```
+
+It creates only synthetic campaign/contact data, generates the five promotion
+assets and one exact introduction, approves delivery to Mailpit, verifies a
+durable opt-out, and removes its PostgreSQL records. It makes no YouTube API
+request, sends no external email, and does not pass saved SMTP credentials into
+the test containers.
+
 Before using any real destination, prove the side-effect path entirely locally:
 
 ```powershell
@@ -150,6 +165,27 @@ Stop cleanly:
 ./scripts/down.ps1
 ```
 
+## Private Linux VPS deployment
+
+The supported first VPS shape is one dedicated Linux host with the dashboard
+still bound to `127.0.0.1`. After hardening the host and checking out an exact
+reviewed commit or release tag:
+
+```bash
+./scripts/vps-init-env.sh
+# Add only the provider credentials you intentionally enable, then:
+./scripts/vps-preflight.sh
+./scripts/vps-up.sh
+./scripts/vps-backup.sh
+./scripts/vps-restore-drill.sh
+```
+
+Connect from your workstation with
+`ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS`, then open
+`http://127.0.0.1:8080`. Add `--side-effects` only after TLS SMTP is configured;
+add `--agent` only after OmniRoute onboarding. The local-model flag requires a
+supported NVIDIA VPS. See the [VPS deployment guide](docs/operations/deployment.md).
+
 ## Useful commands
 
 | PowerShell | Make | Purpose |
@@ -161,7 +197,9 @@ Stop cleanly:
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
 | `./scripts/career-smoke.ps1 -Draft` | `make career-smoke` | Verify live fresh-job ingestion and a local structured draft using disposable synthetic data |
 | `./scripts/side-effect-smoke.ps1` | `make side-effect-smoke` | Verify local ATS submit, local email, exact approvals, and duplicate refusal with disposable data |
+| `./scripts/creator-outreach-smoke.ps1` | `make creator-outreach-smoke` | Verify synthetic creator campaign, promotion kit, exact Mailpit introduction, metrics, and suppression |
 | `./scripts/promotion.ps1` | — | Show secret-safe YouTube/SMTP/Docker promotion readiness and exact next steps |
+| `./scripts/promotion.ps1 -LocalTest` | — | Start Docker if needed and run the creator-specific no-egress proof |
 | `./scripts/promotion.ps1 -OpenDashboard` | — | Start Docker if needed, launch the promotion-capable stack, copy the private token, and open the dashboard |
 | `./scripts/up.ps1 -SideEffects` | `make side-effects-up` | Start the isolated browser/email executor for configured real destinations |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
@@ -175,6 +213,11 @@ Stop cleanly:
 | `./scripts/down.ps1` | `make down` | Stop stack without deleting volumes |
 | `./scripts/doctor.ps1` | `make doctor` | Diagnose Docker, WSL, configuration, services, GPU, and agent readiness |
 | `./scripts/readiness.ps1` | `make readiness` | Run the complete core, restore, local/routed-model, and Hermes readiness gate |
+| `./scripts/vps-init-env.sh` | `make vps-init` | Create an owner-only production `.env` on Linux without provider credentials |
+| `./scripts/vps-preflight.sh` | `make vps-preflight` | Refuse dirty, public-port, placeholder, test-mail, or privileged VPS configurations |
+| `./scripts/vps-up.sh` | `make vps-up` | Start the private VPS stack and prove safe + approval-gated paths |
+| `./scripts/vps-backup.sh` | `make vps-backup` | Create an owner-only PostgreSQL dump and SHA-256 sidecar |
+| `./scripts/vps-restore-drill.sh` | `make vps-restore-drill` | Restore and validate a disposable VPS database, then remove it |
 
 ## Optional Hermes + OmniRoute profile
 
@@ -255,6 +298,8 @@ and [remaining manual setup](docs/operations/manual-setup.md).
 - MCP registry starts disabled; each server needs review and scoped credentials.
 - Required CI rejects new fixed high/critical dependency or runtime-image
   vulnerabilities and repository secret/misconfiguration findings.
+- OpenAPI/schema discovery is disabled and Host headers are checked against an
+  explicit allowlist; the VPS bootstrap restricts that allowlist to loopback.
 
 This is not safe for public internet exposure without TLS, authenticated reverse
 proxy, rate limiting, secret management, and VPS hardening described in the
@@ -286,7 +331,7 @@ docs/                     architecture, ADRs, operations, security, roadmap
 engineering/              factual build and validation journal
 AGENTS.md                  durable rules for future coding agents
 mcp/                      curated tool registry, profiles, permission policy
-scripts/                  Windows-first lifecycle and verification commands
+scripts/                  Windows local and Linux private-VPS lifecycle commands
 services/control-api/     control API, outbox dispatcher, and worker image
 services/action-worker/   isolated Playwright/SMTP runtime and locked dependencies
 services/hermes/          verified upstream integration boundary

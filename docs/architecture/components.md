@@ -8,6 +8,9 @@ Responsibilities: authentication, request validation, correlation IDs, risk
 policy, task persistence, approval decisions, transactional outbox writes,
 career mission/opportunity APIs, the same-origin private dashboard, readiness,
 and minimal Prometheus-format metrics. It does not call LLMs or arbitrary tools.
+OpenAPI discovery is disabled and Starlette validates the Host header against
+the deployment allowlist. The Linux private-VPS bootstrap fixes that allowlist
+to `localhost,127.0.0.1`; public hostnames are outside the current profile.
 
 ### Outbox dispatcher
 
@@ -67,6 +70,9 @@ before a final click or send. Consequential tasks have no automatic retry.
 For creator email the worker also locks and revalidates the prospect's public-
 contact authorization, exact address, suppression, and reply state immediately
 before the receipt. A later opt-out invalidates an earlier approval.
+The `side-effects-test` profile replaces the transport with internal Mailpit and
+explicitly removes any deployment SMTP username/password from the test
+containers before creator or generic side-effect smoke execution.
 
 ### PostgreSQL + pgvector
 

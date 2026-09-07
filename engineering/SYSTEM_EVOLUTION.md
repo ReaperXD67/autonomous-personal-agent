@@ -175,6 +175,37 @@ private dashboard token, and open the UI. Account creation, Google consent,
 provider-side key restrictions, contact/legal review, exact email approval,
 inbox delivery proof, and public posting remain user-owned boundaries.
 
+## v0.13 — Creator-specific local proof and test credential isolation (2026-09-05)
+
+Promotion activation now has a dedicated no-egress smoke that creates an
+inactive synthetic campaign and authorized synthetic contact, generates all
+five attributed assets, prepares and approves one exact creator introduction to
+Mailpit, records a synthetic opt-out, proves suppression blocks another plan,
+checks campaign metrics, and removes its own durable records.
+
+Mailpit-mode startup now explicitly removes any configured SMTP username and
+password before Compose creates the test containers, then restores the caller's
+process environment. Promotion readiness distinguishes saved credentials from
+the configuration actually loaded by running workers and never treats a healthy
+container as proof of real provider delivery. The production authorization
+boundary is unchanged: YouTube discovery, contact qualification, each send,
+inbox proof, replies, terms, and public placement remain operator-controlled.
+
+## v0.14 — Private VPS release path (2026-09-07)
+
+The first hosted boundary is now explicitly private and single-operator. Linux
+commands generate owner-only production secrets, refuse unsafe or dirty Compose
+deployments, start the core, prove both queued and approval-gated task paths, and
+create/restore checksummed PostgreSQL dumps. Host-header validation and disabled
+OpenAPI discovery narrow the web surface. The dashboard and OmniRoute remain
+loopback-only and are reached through SSH/WireGuard/Tailscale.
+
+This does not reclassify the product as public production. Host hardening,
+encrypted off-host transfer, alerts, provider credentials/proofs, and external
+action reconciliation remain deployment-owned. Public ingress still requires
+OIDC/RBAC, rate/body limits, TLS, step-up identity, centralized secrets, signed
+releases, and incident response.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

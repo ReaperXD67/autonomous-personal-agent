@@ -56,20 +56,30 @@ Data API v3 enabled and a restricted API key in ignored `YOUTUBE_API_KEY`.
 External delivery also requires the SMTP setup below. Neither account, key, nor
 provider terms are created automatically.
 
+On this workstation, the readiness check on 2026-09-05 found a non-placeholder
+YouTube key in ignored `.env`; final validation loaded it into a healthy
+`job-worker`, but no real SMTP transport is configured. Presence/loading is not
+live discovery proof. The key must still be exercised by one deliberate
+campaign scan and checked for the intended provider-side API restriction
+without exposing it.
+
 After creating those user-owned credentials, the remaining local activation is
 guided and secret-safe:
 
 ```powershell
 ./scripts/promotion.ps1
+./scripts/promotion.ps1 -LocalTest
 ./scripts/promotion.ps1 -ConfigureYouTube
 ./scripts/promotion.ps1 -ConfigureGmail
 ./scripts/promotion.ps1 -OpenDashboard
 ```
 
-The two credential prompts are hidden. The YouTube key is tested before it is
-saved; Gmail delivery is not claimed until one approved message reaches an
-inbox you own. Run commands separately so failures never require re-entering an
-already validated credential.
+Run the local test before configuring external mail. It sends only to Mailpit,
+makes no YouTube discovery request, omits saved SMTP credentials from its test
+containers, and cleans up its synthetic campaign records. The two credential
+prompts are hidden. The YouTube key is tested before it is saved; Gmail delivery
+is not claimed until one approved message reaches an inbox you own. Run commands
+separately so failures never require re-entering an already validated credential.
 
 After adding the key, recreate the core stack, open **Creator campaigns**, and
 run one scan. Channel/video results prove discovery; container health alone does
@@ -95,6 +105,35 @@ The current implementation supports authenticated SMTP with verified TLS:
 Gmail and Microsoft also expose OAuth send APIs, but OAuth consent and token
 storage are not implemented here. Do not weaken account security by automating
 interactive login or storing a personal browser profile in the action worker.
+
+## First private VPS
+
+Repository work is prepared, but these host/account actions require the owner:
+
+1. Provision a dedicated supported 64-bit Linux VPS. Use SSH keys, a non-root
+   deploy user, disabled root/password login, automatic security updates, NTP,
+   and a provider firewall that admits SSH only from trusted source addresses.
+2. Install Docker Engine and the Compose plugin from Docker's official package
+   repository. Keep the Docker socket local and accessible only to trusted
+   operators; Docker access is effectively host-root authority.
+3. Clone the repository, check out the exact reviewed release commit/tag, run
+   `./scripts/vps-init-env.sh`, and keep `.env` mode `600`.
+4. Run `./scripts/vps-preflight.sh` and resolve every failure. Review its two
+   host-owned warnings rather than treating them as machine-proven.
+5. Start core with `./scripts/vps-up.sh`. Do not enable `--side-effects`,
+   `--agent`, or `--local-model` until its named prerequisite is satisfied.
+6. Run `./scripts/vps-backup.sh` and `./scripts/vps-restore-drill.sh`; then
+   configure encrypted off-host transfer, retention, scheduling, and alerts.
+7. Reach the dashboard only through SSH/WireGuard/Tailscale. With SSH, use
+   `ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS`; no domain or public TLS is
+   required for this private profile.
+8. Configure health/disk/queue/task-failure alerts and write down the rollback
+   commit plus the side-effect reconciliation procedure before daily use.
+
+The private single-user alpha can be used after those checks and the relevant
+provider proofs pass. Public or multi-user availability remains blocked on
+OIDC/RBAC, rate limits/body limits, TLS, step-up identity, centralized secret
+management, signed releases, and an incident-response runbook.
 
 ## Current free-pool allocation
 

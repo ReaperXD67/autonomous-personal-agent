@@ -1,4 +1,4 @@
-.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke side-effect-smoke recovery-smoke lifecycle-smoke agent-smoke openrouter backup restore-drill readiness agent-up local-model-up side-effects-up doctor clean
+.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke side-effect-smoke creator-outreach-smoke recovery-smoke lifecycle-smoke agent-smoke openrouter backup restore-drill readiness agent-up local-model-up side-effects-up doctor vps-init vps-preflight vps-up vps-smoke vps-backup vps-restore-drill clean
 
 init:
 	powershell -ExecutionPolicy Bypass -File scripts/init-env.ps1
@@ -54,6 +54,9 @@ career-smoke:
 side-effect-smoke:
 	powershell -ExecutionPolicy Bypass -File scripts/side-effect-smoke.ps1
 
+creator-outreach-smoke:
+	powershell -ExecutionPolicy Bypass -File scripts/creator-outreach-smoke.ps1
+
 recovery-smoke:
 	powershell -ExecutionPolicy Bypass -File scripts/recovery-smoke.ps1
 
@@ -74,6 +77,24 @@ restore-drill:
 
 readiness:
 	powershell -ExecutionPolicy Bypass -File scripts/readiness.ps1
+
+vps-init:
+	bash scripts/vps-init-env.sh
+
+vps-preflight:
+	bash scripts/vps-preflight.sh
+
+vps-up:
+	bash scripts/vps-up.sh
+
+vps-smoke:
+	bash scripts/vps-smoke.sh
+
+vps-backup:
+	bash scripts/vps-backup.sh
+
+vps-restore-drill:
+	bash scripts/vps-restore-drill.sh
 
 clean:
 	docker compose down --remove-orphans

@@ -108,6 +108,7 @@ services:
       APP_ENV: ${APP_ENV:-development}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1,testserver}
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}

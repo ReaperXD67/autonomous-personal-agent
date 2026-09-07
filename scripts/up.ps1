@@ -8,6 +8,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
+$savedProcessEnvironment = @{}
 Push-Location $projectRoot
 try {
     if ($SideEffects -and $SideEffectsTest) {
@@ -17,11 +18,26 @@ try {
         & (Join-Path $PSScriptRoot 'init-env.ps1')
     }
     if ($SideEffectsTest) {
-        $env:MAIL_TRANSPORT = 'mailpit'
-        $env:SMTP_HOST = 'mailpit'
-        $env:SMTP_PORT = '1025'
-        $env:SMTP_FROM = 'hermes@local.invalid'
-        $env:SMTP_TLS_MODE = 'none'
+        $testMailSettings = @{
+            MAIL_TRANSPORT = 'mailpit'
+            SMTP_HOST = 'mailpit'
+            SMTP_PORT = '1025'
+            SMTP_USERNAME = ''
+            SMTP_PASSWORD = ''
+            SMTP_FROM = 'hermes@local.invalid'
+            SMTP_TLS_MODE = 'none'
+        }
+        foreach ($name in $testMailSettings.Keys) {
+            $savedProcessEnvironment[$name] = [Environment]::GetEnvironmentVariable(
+                $name,
+                'Process'
+            )
+            [Environment]::SetEnvironmentVariable(
+                $name,
+                [string]$testMailSettings[$name],
+                'Process'
+            )
+        }
     }
     $arguments = @('compose')
     if ($Agent) { $arguments += @('--profile', 'agent') }
@@ -33,5 +49,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'docker compose up failed' }
 }
 finally {
+    foreach ($name in $savedProcessEnvironment.Keys) {
+        [Environment]::SetEnvironmentVariable(
+            $name,
+            $savedProcessEnvironment[$name],
+            'Process'
+        )
+    }
     Pop-Location
 }

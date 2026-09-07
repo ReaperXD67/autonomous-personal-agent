@@ -20,6 +20,16 @@ Script dumps inside container, copies exact binary to ignored `backups/`, remove
 the temporary container file, and writes a `.sha256` sidecar. Encrypt both before
 off-host transfer.
 
+On the Linux VPS, use the equivalent owner-only streaming backup:
+
+```bash
+./scripts/vps-backup.sh
+```
+
+The command refuses destinations outside ignored `backups/` and refuses to
+overwrite an existing dump or checksum. It deliberately does not claim
+encryption or off-host retention.
+
 ## Restore drill
 
 Run the automated drill against a randomly named disposable database, never the
@@ -35,6 +45,10 @@ linkage and the vector extension, probes it through application database code,
 then removes only the disposable database. Migration rollback policy is
 roll-forward by default; for incompatible changes, stop writers and restore the
 last verified dump into a new database before changing the application target.
+
+The Linux equivalent is `./scripts/vps-restore-drill.sh`. It enforces the same
+backup-root and random disposable-database boundaries, validates the database
+through application code, and removes only the generated restore database.
 
 ## Volume backup
 

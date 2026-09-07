@@ -62,4 +62,7 @@ On VPS, keep the control/dashboard port bound to loopback. Initially reach it
 through WireGuard/Tailscale or an SSH tunnel. A later public HTTPS reverse proxy
 requires OIDC/RBAC, rate limiting, and TLS; the bootstrap bearer token alone is
 not public-internet authentication. PostgreSQL and Redis must never bind public
-interfaces.
+interfaces. `vps-preflight.sh` renders the resolved Compose model privately and
+refuses any declared published port that is not explicitly bound to
+`127.0.0.1`, as well as host networking, privileged mode, or a Docker-socket
+mount.
