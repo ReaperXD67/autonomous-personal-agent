@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
+FROM ghcr.io/astral-sh/uv:0.12.10-python3.13-trixie@sha256:2006ff5be9541f0579d0d1800bc4009c5fdcbd69799df659a4fd14b1a8ae171e AS uv_source
 
 FROM mcr.microsoft.com/playwright/python:v1.62.0-noble@sha256:aa81288e738725378becba5b3e06cb0f3a7f012a610e87e8d767a090ea3f740d AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
