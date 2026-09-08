@@ -186,7 +186,8 @@ try {
     }
 
     if ($Configure) {
-        Write-Host 'Restart the job worker: docker compose up -d --force-recreate job-worker'
+        Write-Host 'Applying the key to the managed Hermes and career-worker routes.'
+        & (Join-Path $PSScriptRoot 'up.ps1') -Agent
     }
 }
 finally {

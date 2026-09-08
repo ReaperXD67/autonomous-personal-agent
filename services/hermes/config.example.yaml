@@ -1,5 +1,6 @@
-# Reference template only. Copy into the Hermes data volume after OmniRoute
-# onboarding; do not commit the rendered file or an actual API key.
+# Deployment-owned template. The networkless hermes-config service copies it
+# into the private Hermes volume on agent startup. Never place an actual key in
+# this file; runtime resolves the named environment values.
 model:
   provider: custom
   # Use OmniRoute's explicit free route. A generic `auto` route could select a
@@ -9,10 +10,12 @@ model:
   base_url: http://omniroute:20128/v1
   api_key: ${OMNIROUTE_API_KEY}
 
-# Preserve interactive continuity when the hosted free pools are unavailable.
-# This endpoint is internal-only and becomes usable when the local-model
-# profile is running with qwen3:8b installed.
+# Ordered continuity: OmniRoute is the primary above, OpenRouter's free-only
+# router is secondary, and internal Qwen is the final provider-independent path.
 fallback_providers:
+  - provider: openrouter
+    model: openrouter/free
+    key_env: OPENROUTER_API_KEY
   - provider: custom
     model: qwen3:8b
     base_url: http://ollama:11434/v1

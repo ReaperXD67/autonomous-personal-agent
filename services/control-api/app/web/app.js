@@ -2,6 +2,8 @@
 
 const state = {
   token: "",
+  browserSession: false,
+  csrfToken: "",
   status: null,
   inference: null,
   profiles: [],
@@ -14,6 +16,10 @@ const state = {
   marketingResults: [],
   view: "overview",
 };
+
+function isConnected() {
+  return Boolean(state.token || state.browserSession);
+}
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -97,14 +103,18 @@ function toast(message, error = false) {
 }
 
 async function api(path, options = {}) {
-  if (!state.token) throw new Error("Connect the workspace first");
+  if (!isConnected()) throw new Error("Connect the workspace first");
   const headers = new Headers(options.headers || {});
-  headers.set("Authorization", `Bearer ${state.token}`);
+  if (state.token) headers.set("Authorization", `Bearer ${state.token}`);
+  const method = String(options.method || "GET").toUpperCase();
+  if (state.browserSession && !["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers.set("X-Hermes-CSRF", state.csrfToken);
+  }
   if (options.body) headers.set("Content-Type", "application/json");
-  const response = await fetch(path, { ...options, headers });
-  if (response.status === 401) {
+  const response = await fetch(path, { ...options, headers, credentials: "same-origin" });
+  if (response.status === 401 || response.status === 403) {
     disconnect(false);
-    throw new Error("The control token was rejected");
+    throw new Error("The private browser session was rejected");
   }
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
@@ -129,7 +139,7 @@ function setConnection(connected, message = "") {
   const pulse = $("#rail-pulse");
   pulse.className = connected ? "pulse" : "pulse warning";
   $("#rail-status").textContent = connected ? "Control plane ready" : "Connect required";
-  $("#rail-copy").textContent = connected ? "Live state is refreshing automatically." : "Your token stays only in memory until this tab reloads.";
+  $("#rail-copy").textContent = connected ? "Live state is refreshing automatically." : "Launch with the helper for automatic private authentication.";
   $("#connect-button").textContent = connected ? "Connected" : "Connect workspace";
   $("#metric-health").textContent = connected ? "Ready" : "Locked";
   $("#metric-health").className = connected ? "green" : "amber";
@@ -138,6 +148,8 @@ function setConnection(connected, message = "") {
 
 function disconnect(showMessage = true) {
   state.token = "";
+  state.browserSession = false;
+  state.csrfToken = "";
   state.status = null;
   state.inference = null;
   state.profiles = [];
@@ -153,8 +165,50 @@ function disconnect(showMessage = true) {
   if (showMessage) toast("Disconnected this browser tab");
 }
 
+async function logoutBrowserSession() {
+  if (state.browserSession) {
+    try {
+      await api("/v1/auth/logout", { method: "POST" });
+    } catch (_error) { /* the local state is cleared even if the session expired */ }
+  }
+  disconnect();
+}
+
+async function initializeConnection() {
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const bootstrap = fragment.get("bootstrap");
+  if (bootstrap !== null) {
+    window.history.replaceState(null, document.title, `${window.location.pathname}${window.location.search}`);
+  }
+
+  try {
+    let response;
+    if (bootstrap && /^[A-Za-z0-9_-]{32,128}$/.test(bootstrap)) {
+      response = await fetch("/v1/auth/browser-session", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: bootstrap }),
+      });
+    } else {
+      response = await fetch("/v1/auth/session", { credentials: "same-origin" });
+    }
+    if (!response.ok) throw new Error("No active browser session");
+    const session = await response.json();
+    if (session.mode !== "browser_session" || !session.csrf_token) {
+      throw new Error("No browser session was returned");
+    }
+    state.browserSession = true;
+    state.csrfToken = session.csrf_token;
+    await loadData();
+    if (bootstrap) toast("Private browser session connected automatically");
+  } catch (_error) {
+    disconnect(false);
+  }
+}
+
 async function loadData({ quiet = false } = {}) {
-  if (!state.token) {
+  if (!isConnected()) {
     setConnection(false);
     renderAll();
     return false;
@@ -210,7 +264,7 @@ function renderMetrics() {
   const activeMatches = state.opportunities.filter((item) => ["new", "shortlisted"].includes(item.status));
   const approvals = state.tasks.filter((item) => item.status === "pending_approval");
   const activeMissions = state.profiles.filter((item) => item.active);
-  $("#metric-matches").textContent = state.token ? String(activeMatches.length) : "—";
+  $("#metric-matches").textContent = isConnected() ? String(activeMatches.length) : "—";
   $("#metric-approvals").textContent = String(approvals.length);
   $("#metric-missions").textContent = String(activeMissions.length);
   $("#approval-badge").hidden = approvals.length === 0;
@@ -366,7 +420,7 @@ function renderTasks() {
   const list = $("#task-list");
   list.replaceChildren();
   if (!state.tasks.length) {
-    list.append(empty("No tasks loaded", state.token ? "Assign a task to begin." : "Connect to inspect durable task state."));
+    list.append(empty("No tasks loaded", isConnected() ? "Assign a task to begin." : "Connect to inspect durable task state."));
     return;
   }
   state.tasks.slice(0, 100).forEach((task) => {
@@ -385,7 +439,7 @@ function renderActivity() {
   list.replaceChildren();
   if (!state.audits.length) {
     list.append(node("div", "event", ""));
-    list.firstChild.append(node("strong", "", "No activity loaded"), node("p", "", state.token ? "Actions will appear here." : "Connect the workspace first."));
+    list.firstChild.append(node("strong", "", "No activity loaded"), node("p", "", isConnected() ? "Actions will appear here." : "Connect the workspace first."));
     return;
   }
   state.audits.slice(0, 8).forEach((event) => {
@@ -680,7 +734,7 @@ function profilePayload(profile, overrides = {}) {
 }
 
 function openProfileDialog(profile = null) {
-  if (!state.token) return $("#connect-dialog").showModal();
+  if (!isConnected()) return $("#connect-dialog").showModal();
   const form = $("#profile-form");
   form.reset();
   form.elements.profile_id.value = profile?.id || "";
@@ -751,7 +805,7 @@ async function saveProfile(event) {
 }
 
 function openCampaignDialog(campaign = null) {
-  if (!state.token) return $("#connect-dialog").showModal();
+  if (!isConnected()) return $("#connect-dialog").showModal();
   const form = $("#campaign-form");
   form.reset();
   form.elements.campaign_id.value = campaign?.id || "";
@@ -815,7 +869,7 @@ function populateCampaignSelect(select, selected = "") {
 }
 
 function openProspectDialog(prospect = null) {
-  if (!state.token) return $("#connect-dialog").showModal();
+  if (!isConnected()) return $("#connect-dialog").showModal();
   if (!state.campaigns.length) {
     toast("Create a creator campaign first", true);
     return openCampaignDialog();
@@ -1139,10 +1193,17 @@ document.addEventListener("click", async (event) => {
 
 $("#connect-button").addEventListener("click", () => $("#connect-dialog").showModal());
 $("#settings-connect").addEventListener("click", () => $("#connect-dialog").showModal());
-$("#disconnect-button").addEventListener("click", () => disconnect());
+$("#disconnect-button").addEventListener("click", logoutBrowserSession);
 $("#connect-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const token = $("#token-input").value.trim();
+  if (state.browserSession) {
+    try {
+      await api("/v1/auth/logout", { method: "POST" });
+    } catch (_error) { /* recovery login can continue after an expired session */ }
+  }
+  state.browserSession = false;
+  state.csrfToken = "";
   state.token = token;
   try {
     const connected = await loadData();
@@ -1204,4 +1265,5 @@ $("#scan-now-button").addEventListener("click", async () => {
 
 renderAll();
 setConnection(false);
-setInterval(() => { if (state.token) loadData({ quiet: true }); }, 15000);
+initializeConnection();
+setInterval(() => { if (isConnected()) loadData({ quiet: true }); }, 15000);

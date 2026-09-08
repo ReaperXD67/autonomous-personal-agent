@@ -22,7 +22,7 @@
       <div class="nav-label">System</div>
       <button class="nav-item" data-view-target="tasks"><span>≋</span><span>Tasks & audit</span></button>
       <button class="nav-item" data-view-target="settings"><span>⚙</span><span>Settings</span></button>
-      <div class="rail-footer"><strong><span class="pulse warning" id="rail-pulse"></span><span id="rail-status">Connect required</span></strong><p id="rail-copy">Your control token is kept only for this browser tab.</p></div>
+      <div class="rail-footer"><strong><span class="pulse warning" id="rail-pulse"></span><span id="rail-status">Connect required</span></strong><p id="rail-copy">Use the launcher for an automatic private browser session.</p></div>
     </aside>
 
     <main>
@@ -89,17 +89,17 @@
 
       <section class="view" data-view="settings">
         <div class="settings-grid">
-          <article class="panel setting-card"><span class="tag">Local access</span><h2>Workspace connection</h2><p>The bootstrap token is held only in page memory. It disappears on reload and is never placed in a URL or browser storage.</p><button class="button" id="settings-connect">Connect or replace token</button><button class="text-button danger-text" id="disconnect-button">Disconnect this tab</button></article>
+          <article class="panel setting-card"><span class="tag">Private access</span><h2>Workspace connection</h2><p>The launcher exchanges a one-use, 90-second bootstrap code for an HttpOnly browser session. The long-lived machine token is never copied or stored by the browser.</p><button class="button" id="settings-connect">Manual recovery login</button><button class="text-button danger-text" id="disconnect-button">Disconnect this browser</button></article>
           <article class="panel setting-card"><span class="tag">Free sources</span><h2>Reviewed job access</h2><p>Arbeitnow is available without a key. Add employer board names for public Ashby and Greenhouse feeds; arbitrary URLs are rejected.</p><p class="fine-print">Arbeitnow is polled at most four times per day and must be attributed through its original listing link.</p></article>
-          <article class="panel setting-card"><span class="tag">Free inference</span><h2>Hosted quality, local continuity</h2><p id="inference-route">No verified route has run yet.</p><p class="fine-print" id="inference-usage">OpenRouter is opt-in because a hosted model receives the résumé and job description. Only live-catalog <code>:free</code> models with zero attested price are eligible; no-training and zero-retention routing are the defaults, then local Qwen takes over on quota or outage.</p></article>
+          <article class="panel setting-card"><span class="tag">Free inference</span><h2>OmniRoute → OpenRouter → Qwen</h2><p id="inference-route">No verified route has run yet.</p><p class="fine-print" id="inference-usage">Hermes uses OmniRoute first, then OpenRouter's free router, then local Qwen. The Ollama daemon is supervised, but Qwen loads only after the router reaches the final fallback and unloads after inactivity.</p></article>
           <article class="panel setting-card"><span class="tag">Creator discovery</span><h2>Official YouTube metadata only</h2><p>A restricted YouTube Data API key lets the research worker find relevant public channels and recent videos. The API does not provide creator email addresses.</p><p class="fine-print">Business contacts, provenance, and outreach authorization are reviewed manually. Every email still requires exact approval.</p></article>
-          <article class="panel setting-card warning-card"><span class="tag amber-tag">VPS boundary</span><h2>Do not expose port 8080 publicly yet</h2><p>For VPS testing, reach the dashboard through a private VPN or authenticated TLS reverse proxy. Shared-token access is not production identity.</p></article>
+          <article class="panel setting-card warning-card"><span class="tag amber-tag">VPS boundary</span><h2>Do not expose port 8080 publicly yet</h2><p>For VPS testing, reach the dashboard through SSH or a private VPN. This signed single-operator session is not production identity.</p></article>
         </div>
       </section>
     </main>
   </div>
 
-  <dialog id="connect-dialog" class="dialog compact-dialog"><form method="dialog" id="connect-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Private connection</span><h2>Connect this browser tab</h2><p>Paste the value of <code>CONTROL_API_TOKEN</code> from your ignored <code>.env</code> file.</p><label>Control token<input id="token-input" type="password" autocomplete="off" minlength="32" required></label><p class="fine-print">The token exists only in page memory and disappears when this page reloads.</p><button class="button primary full" type="submit">Connect securely</button></form></dialog>
+  <dialog id="connect-dialog" class="dialog compact-dialog"><form method="dialog" id="connect-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Recovery access</span><h2>Connect manually</h2><p>Normal launches authenticate automatically. Use the machine token only if the launcher cannot create a browser session.</p><label>Control token<input id="token-input" type="password" autocomplete="off" minlength="32" required></label><p class="fine-print">A manually entered token stays only in page memory and disappears on reload.</p><button class="button primary full" type="submit">Connect for this tab</button></form></dialog>
 
   <dialog id="profile-dialog" class="dialog wide-dialog">
     <form method="dialog" id="profile-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Career mission</span><h2 id="profile-dialog-title">Create a job-hunt mission</h2><input type="hidden" name="profile_id">

@@ -19,7 +19,15 @@ from app.action_models import (
     ExternalActionView,
 )
 from app.action_store import ActionPreparationError, ActionStore
-from app.auth import require_api_token
+from app.auth import (
+    BOOTSTRAP_TTL_SECONDS,
+    BROWSER_SESSION_COOKIE,
+    BrowserBootstrapExchange,
+    get_browser_sessions,
+    require_api_token,
+    require_bearer_token,
+    require_same_origin,
+)
 from app.career_models import (
     AuditEventView,
     CareerProfileCreate,
@@ -120,6 +128,8 @@ async def request_context(request: Request, call_next):
         "form-action 'none'; img-src 'self' data:; style-src 'self'; "
         "script-src 'self'; connect-src 'self'"
     )
+    if request.url.path.startswith("/v1/auth/"):
+        response.headers["cache-control"] = "no-store"
     logger.info(
         "request completed",
         extra={
@@ -170,6 +180,61 @@ def dashboard_script() -> FastAPIResponse:
 @app.get("/favicon.ico", include_in_schema=False, status_code=status.HTTP_204_NO_CONTENT)
 def dashboard_favicon() -> None:
     return None
+
+
+@app.post(
+    "/v1/auth/browser-bootstrap",
+    dependencies=[Depends(require_bearer_token)],
+)
+def create_browser_bootstrap() -> dict[str, Any]:
+    return {
+        "code": get_browser_sessions().issue_bootstrap(),
+        "expires_in": BOOTSTRAP_TTL_SECONDS,
+    }
+
+
+@app.post(
+    "/v1/auth/browser-session",
+    dependencies=[Depends(require_same_origin)],
+)
+def create_browser_session(
+    payload: BrowserBootstrapExchange, response: Response
+) -> dict[str, Any]:
+    session = get_browser_sessions().consume_bootstrap(payload.code)
+    response.set_cookie(
+        key=BROWSER_SESSION_COOKIE,
+        value=session.cookie,
+        max_age=session.max_age,
+        httponly=True,
+        secure=settings.dashboard_cookie_secure,
+        samesite="strict",
+        path="/",
+    )
+    return {
+        "authenticated": True,
+        "mode": "browser_session",
+        "csrf_token": session.csrf_token,
+        "expires_in": session.max_age,
+    }
+
+
+@app.get("/v1/auth/session", dependencies=[Depends(require_api_token)])
+def browser_session_status(request: Request) -> dict[str, Any]:
+    cookie = request.cookies.get(BROWSER_SESSION_COOKIE, "")
+    if cookie:
+        _payload, csrf_token = get_browser_sessions().validate_session(cookie)
+        return {
+            "authenticated": True,
+            "mode": "browser_session",
+            "csrf_token": csrf_token,
+        }
+    return {"authenticated": True, "mode": "bearer", "csrf_token": None}
+
+
+@app.post("/v1/auth/logout", dependencies=[Depends(require_api_token)])
+def browser_session_logout(response: Response) -> dict[str, bool]:
+    response.delete_cookie(BROWSER_SESSION_COOKIE, path="/")
+    return {"authenticated": False}
 
 
 @app.get("/health/live")

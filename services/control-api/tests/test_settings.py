@@ -9,6 +9,8 @@ def make_settings(**overrides: object) -> Settings:
         "log_level": "INFO",
         "api_token": "x" * 32,
         "trusted_hosts": ("localhost", "127.0.0.1", "testserver"),
+        "dashboard_session_ttl_seconds": 43200,
+        "dashboard_cookie_secure": False,
         "database_url": "postgresql://user:pass@db/test",
         "redis_url": "redis://:pass@redis:6379/0",
         "task_queue_key": "agent:tasks:ready",
@@ -62,6 +64,13 @@ def test_rejects_unbounded_or_url_shaped_trusted_hosts() -> None:
 
 def test_accepts_complete_configuration() -> None:
     make_settings().validate()
+
+
+def test_rejects_unbounded_browser_session_lifetime() -> None:
+    with pytest.raises(ConfigurationError, match="DASHBOARD_SESSION_TTL_SECONDS"):
+        make_settings(dashboard_session_ttl_seconds=120).validate()
+    with pytest.raises(ConfigurationError, match="DASHBOARD_SESSION_TTL_SECONDS"):
+        make_settings(dashboard_session_ttl_seconds=172800).validate()
 
 
 def test_rejects_unsafe_worker_lease() -> None:

@@ -21,6 +21,7 @@
 - [ ] OpenTelemetry traces/metrics/log correlation and alerts
 - [ ] Encrypted automated backups and restore drill
 - [x] Private loopback VPS bootstrap, preflight, smoke, backup, and restore tooling
+- [x] Managed VPS boot/recovery service and periodic model-provider health probe
 - [ ] Public reverse proxy/TLS/OIDC/rate-limit deployment profile
 - [x] Required SBOM, dependency, vulnerability, secret, and configuration CI gates
 - [x] One-command workstation gate for lifecycle, restore, environment, and configured inference paths
@@ -29,6 +30,7 @@
 ## Phase 2 — agent/model integration
 
 - [x] Optional pinned Ollama/Qwen3 8B local fallback with GPU-aware setup script
+- [x] Managed OmniRoute → OpenRouter free → lazy local Qwen hierarchy
 - [ ] Complete OmniRoute provider onboarding with cost budgets
 - [ ] Hermes adapter that creates control-plane tasks instead of bypassing policy
 - [x] Free-only OpenRouter catalog policy, ordered fallback tests, local continuity, and PostgreSQL usage/cost audit metadata
@@ -61,6 +63,7 @@
 - [ ] Real-site compatibility suite and additional reviewed ATS adapters
 - [ ] Calendar/Drive/Notion/task-manager integrations by scoped profile
 - [x] Private web UI for missions, opportunities, tasks, approvals, and audit timelines
+- [x] One-use launcher bootstrap and signed HttpOnly private dashboard session
 - [x] Private inference route/usage/cost status in the dashboard
 - [ ] Per-user budget policy and identity
 

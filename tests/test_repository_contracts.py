@@ -22,7 +22,7 @@ def test_only_loopback_ports_are_published() -> None:
 def test_every_long_running_service_has_healthcheck() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     for name, service in compose["services"].items():
-        if name not in {"test", "migrate"}:
+        if name not in {"test", "migrate", "hermes-config"}:
             assert "healthcheck" in service, name
 
 
@@ -222,6 +222,14 @@ def test_private_vps_tooling_fails_closed_and_preserves_private_ingress() -> Non
     preflight = (ROOT / "scripts/vps-preflight.sh").read_text(encoding="utf-8")
     startup = (ROOT / "scripts/vps-up.sh").read_text(encoding="utf-8")
     smoke = (ROOT / "scripts/vps-smoke.sh").read_text(encoding="utf-8")
+    local_model = (ROOT / "scripts/vps-local-model.sh").read_text(encoding="utf-8")
+    model_health = (ROOT / "scripts/vps-model-health.sh").read_text(encoding="utf-8")
+    dashboard_login = (ROOT / "scripts/vps-dashboard-login.sh").read_text(
+        encoding="utf-8"
+    )
+    service_installer = (ROOT / "scripts/vps-install-service.sh").read_text(
+        encoding="utf-8"
+    )
     backup = (ROOT / "scripts/vps-backup.sh").read_text(encoding="utf-8")
     restore = (ROOT / "scripts/vps-restore-drill.sh").read_text(encoding="utf-8")
 
@@ -240,8 +248,19 @@ def test_private_vps_tooling_fails_closed_and_preserves_private_ingress() -> Non
         assert required in preflight
     assert "vps-preflight.sh" in startup
     assert "vps-smoke.sh" in startup
+    assert "vps-model-health.sh" in startup
+    assert "--bootstrap-omniroute" in startup
     assert "ssh -L" in startup
     assert "pending_approval" in smoke and "VPS_SMOKE_OK" in smoke
+    assert "ollama stop" in local_model and "Qwen remains unloaded" in local_model
+    assert "MODEL_ROUTE_OK" in model_health
+    assert "OPENROUTER_HEALTH_OK" in model_health
+    assert "v1/auth/browser-bootstrap" in dashboard_login
+    assert "#bootstrap=" in dashboard_login
+    assert "WantedBy=multi-user.target" in service_installer
+    assert "Restart=on-failure" in service_installer
+    assert "OnUnitActiveSec=15min" in service_installer
+    assert "systemctl enable --now hermes.service" in service_installer
     assert 'case "$destination"' in backup
     assert "agent_restore_" in restore and "dropdb --if-exists" in restore
 
@@ -268,6 +287,19 @@ def test_local_model_smoke_reuses_a_verified_cached_model() -> None:
     assert "ForcePull" in source
 
 
+def test_powershell_gpu_detection_captures_native_exit_before_pipeline() -> None:
+    for relative_path in (
+        "scripts/up.ps1",
+        "scripts/doctor.ps1",
+        "scripts/local-model.ps1",
+    ):
+        source = (ROOT / relative_path).read_text(encoding="utf-8")
+        capture_index = source.index("$gpuCommandSucceeded = ($LASTEXITCODE -eq 0)")
+        selection_index = source.index("$gpu = $gpuOutput | Select-Object -First 1")
+        assert capture_index < selection_index
+        assert "--format=csv,noheader 2>$null |" not in source
+
+
 def test_openrouter_route_is_free_only_private_and_audited() -> None:
     settings = (ROOT / "services/control-api/app/settings.py").read_text(encoding="utf-8")
     inference = (ROOT / "services/control-api/app/inference.py").read_text(encoding="utf-8")
@@ -289,7 +321,7 @@ def test_openrouter_route_is_free_only_private_and_audited() -> None:
     assert "CREATE TABLE IF NOT EXISTS inference_invocations" in migration
 
 
-def test_hermes_uses_explicit_free_primary_and_internal_local_fallback() -> None:
+def test_hermes_uses_ordered_hosted_routes_then_lazy_local_fallback() -> None:
     config = yaml.safe_load(
         (ROOT / "services/hermes/config.example.yaml").read_text(encoding="utf-8")
     )
@@ -298,6 +330,11 @@ def test_hermes_uses_explicit_free_primary_and_internal_local_fallback() -> None
     assert config["model"]["default"] == "free/default"
     assert config["model"]["base_url"] == "http://omniroute:20128/v1"
     assert config["fallback_providers"] == [
+        {
+            "provider": "openrouter",
+            "model": "openrouter/free",
+            "key_env": "OPENROUTER_API_KEY",
+        },
         {
             "provider": "custom",
             "model": "qwen3:8b",
@@ -309,6 +346,37 @@ def test_hermes_uses_explicit_free_primary_and_internal_local_fallback() -> None
         compose["services"]["hermes"]["environment"]["HERMES_LOCAL_FALLBACK_KEY"]
         == "local-ollama-no-auth"
     )
+    assert "OPENROUTER_API_KEY" in compose["services"]["hermes"]["environment"]
+    config_init = compose["services"]["hermes-config"]
+    assert config_init["user"] == "10000:10000"
+    assert config_init["network_mode"] == "none"
+    assert config_init["cap_drop"] == ["ALL"]
+    assert config_init["entrypoint"] == ["/bin/sh", "-ec"]
+    assert "chmod 0600" in " ".join(config_init["command"])
+    assert set(compose["services"]["ollama"]["profiles"]) == {"agent", "local-model"}
+    assert compose["services"]["ollama"]["environment"]["OLLAMA_KEEP_ALIVE"]
+    assert (
+        compose["services"]["hermes"]["depends_on"]["ollama"]["condition"]
+        == "service_healthy"
+    )
+
+
+def test_dashboard_uses_one_time_bootstrap_and_http_only_session() -> None:
+    auth = (ROOT / "services/control-api/app/auth.py").read_text(encoding="utf-8")
+    main = (ROOT / "services/control-api/app/main.py").read_text(encoding="utf-8")
+    javascript = (ROOT / "services/control-api/app/web/app.js").read_text(
+        encoding="utf-8"
+    )
+    launcher = (ROOT / "scripts/open-dashboard.ps1").read_text(encoding="utf-8")
+
+    assert "BOOTSTRAP_TTL_SECONDS = 90" in auth
+    assert 'httponly=True' in main
+    assert 'samesite="strict"' in main
+    assert 'headers.get("x-hermes-csrf"' in auth
+    assert 'window.history.replaceState' in javascript
+    assert 'localStorage' not in javascript and 'sessionStorage' not in javascript
+    assert 'v1/auth/browser-bootstrap' in launcher
+    assert 'Set-Clipboard' in launcher  # explicit -CopyToken recovery remains available
 
 
 def test_repository_agent_guidance_enforces_engineering_records() -> None:

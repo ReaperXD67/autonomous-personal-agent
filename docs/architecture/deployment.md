@@ -20,7 +20,10 @@ up than premature orchestration. The prepared private profile generates
 owner-only secrets, requires `APP_ENV=production`, validates Host headers,
 refuses dirty checkouts/test mail/public port bindings/privileged boundaries,
 starts the stack, and proves both safe and approval-gated work. It is reached
-only through an SSH or VPN tunnel.
+only through an SSH or VPN tunnel. After the first successful full start, a
+managed systemd unit brings the Compose project up after Docker on every boot;
+Compose restart policies recover individual services. A persistent systemd
+timer verifies route order and provider health every 15 minutes.
 
 The deployable private-alpha gate still requires operator-owned host setup:
 
@@ -28,7 +31,8 @@ The deployable private-alpha gate still requires operator-owned host setup:
 2. exact release tag or reviewed commit plus rollback window;
 3. encrypted off-host copies of checksummed dumps and a tested restore drill;
 4. monitoring/alerts for health, disk, queue age, and task failures;
-5. capability-scoped provider credentials and external-action reconciliation.
+5. capability-scoped provider credentials and external-action reconciliation;
+6. enabled `hermes.service` and `hermes-model-health.timer` with reviewed logs.
 
 Public production remains a later boundary and additionally needs TLS, OIDC/RBAC,
 rate limits/body limits, step-up approval identity, centralized secrets, and

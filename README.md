@@ -38,7 +38,7 @@ and human approval for high-impact actions.
 |---|---|---|
 | Container-first local stack | Implemented | Docker Compose; no project Python, Node, Redis, or PostgreSQL install on Windows |
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
-| Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080` |
+| Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080`; launcher exchanges a one-use fragment for an HttpOnly session |
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
 | Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
 | Application preparation | Local verified; hosted prepared | A live-ranked, zero-cost-only OpenRouter chain can use Nemotron/other current free models before Qwen3 8B local fallback; hosted path needs a user key and smoke. The agent can auto-preflight common forms and prepare the exact action |
@@ -48,12 +48,12 @@ and human approval for high-impact actions.
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
-| Hermes + OmniRoute | Verified locally | Optional pinned profile; explicit `free/default` primary, 79 routes observed, Hermes one-shot passed, and internal Qwen continuity configured |
-| Local inference | Verified | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU |
+| Hermes model hierarchy | Primary previously verified; new chain prepared | Managed OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen; live OpenRouter proof still needs a user key |
+| Local inference | Verified; lazy lifecycle added | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU; normal startup keeps weights unloaded |
 | Free hosted routing | Implemented, not live-verified | Live catalog price checks, ordered cross-model fallback, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
-| Private VPS operations | Prepared; host proof pending | Linux secret bootstrap, fail-closed preflight, deployment smoke, checksummed backup, and disposable restore drill; dashboard stays loopback-only |
+| Private VPS operations | Prepared; host proof pending | Fail-closed deployment, systemd boot/recovery, provider-health timer, checksummed backup, and restore drill; dashboard stays loopback-only |
 | External submission and messaging | Prepared/partially verified | Local end-to-end side effects pass; real ATS/provider compatibility and credentials remain manual gates |
 
 ## Architecture
@@ -79,14 +79,16 @@ flowchart LR
     W --> AUDIT["Audit events"]
     AUDIT --> PG
 
-    H["Hermes (optional)"] --> O["OmniRoute free/default"]
-    O --> LLM["Configured non-overlapping free providers"]
-    H -->|"hosted outage / rate limit"| LM
+    H["Hermes interactive runtime"] --> O["OmniRoute free/default"]
+    O --> LLM["Configured OmniRoute providers"]
+    H -->|"primary unavailable"| ORF["OpenRouter openrouter/free"]
+    ORF -->|"secondary unavailable"| LM
     H -. "future policy adapter" .-> POLICY
     H -. "reviewed profiles only" .-> MCP["MCP gateway / tools"]
 ```
 
-Core stack runs without an LLM key. Optional `agent` profile is isolated from
+The policy/task core can still run without an LLM key. The normal dashboard
+launcher enables the isolated `agent` profile; Hermes remains outside
 PostgreSQL and receives only model-network access plus normal outbound access.
 
 ## Quick start: Windows + Docker Desktop
@@ -98,12 +100,16 @@ is already part of Windows.
 git clone https://github.com/ReaperXD67/autonomous-personal-agent.git
 cd autonomous-personal-agent
 ./scripts/init-env.ps1
-./scripts/open-dashboard.ps1 -LocalModel -CopyToken
+./scripts/open-dashboard.ps1 -SideEffectsTest
 ```
 
 The command starts and checks the stack, opens `http://127.0.0.1:8080`, and
-copies the private connection token without printing it. Paste that token into
-the dashboard. PostgreSQL, Redis, and Ollama have no published host ports.
+authenticates the browser with a 90-second one-use URL fragment. The fragment is
+removed immediately and exchanged for an HttpOnly session; the long-lived
+control token is neither copied nor stored by browser JavaScript. Email goes to
+Mailpit and applications go only to the fake site. PostgreSQL, Redis, and Ollama
+have no published host ports. Qwen stays unloaded unless both hosted routes
+fail. Add `-LocalModel` only when deliberately testing that final fallback.
 
 Create a career mission, paste résumé text, choose titles/skills/locations and a
 24–168 hour freshness window, then click **Scan now**. Activate the mission to
@@ -120,7 +126,6 @@ OpenRouter inference key and run:
 ```powershell
 ./scripts/openrouter.ps1 -Configure
 ./scripts/openrouter.ps1 -Smoke
-docker compose up -d --build --force-recreate job-worker control-api
 ```
 
 The key prompt is hidden. The runtime accepts only current text models whose
@@ -176,15 +181,20 @@ reviewed commit or release tag:
 # Add only the provider credentials you intentionally enable, then:
 ./scripts/vps-preflight.sh
 ./scripts/vps-up.sh
+./scripts/vps-install-service.sh
 ./scripts/vps-backup.sh
 ./scripts/vps-restore-drill.sh
 ```
 
 Connect from your workstation with
-`ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS`, then open
-`http://127.0.0.1:8080`. Add `--side-effects` only after TLS SMTP is configured;
-add `--agent` only after OmniRoute onboarding. The local-model flag requires a
-supported NVIDIA VPS. See the [VPS deployment guide](docs/operations/deployment.md).
+`ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS`, run
+`./scripts/vps-dashboard-login.sh` on the VPS, and open the one-use URL it
+prints. Full startup always includes the model hierarchy; a new VPS can use
+`./scripts/vps-up.sh --bootstrap-omniroute` before its scoped OmniRoute key
+exists. `--local-model` performs an explicit Qwen canary and is not required for
+normal operation. Real side effects are controlled by
+`VPS_SIDE_EFFECTS_ENABLED=true` only after TLS SMTP is configured. See the
+[VPS deployment guide](docs/operations/deployment.md).
 
 ## Useful commands
 
@@ -192,7 +202,7 @@ supported NVIDIA VPS. See the [VPS deployment guide](docs/operations/deployment.
 |---|---|---|
 | `./scripts/init-env.ps1` | `make init` | Create ignored `.env` with random local secrets |
 | `./scripts/up.ps1` | `make up` | Build and start core stack |
-| `./scripts/open-dashboard.ps1 -LocalModel -CopyToken` | `make dashboard` | Start, verify, and open the private website with local drafting |
+| `./scripts/open-dashboard.ps1 -SideEffectsTest` | `make dashboard` | Start the full agent hierarchy, safe side-effect fixtures, and an auto-authenticated private dashboard |
 | `./scripts/health.ps1` | `make health` | Check container and dependency readiness |
 | `./scripts/smoke.ps1` | `make smoke` | Verify safe path and approval-gated path |
 | `./scripts/career-smoke.ps1 -Draft` | `make career-smoke` | Verify live fresh-job ingestion and a local structured draft using disposable synthetic data |
@@ -200,7 +210,7 @@ supported NVIDIA VPS. See the [VPS deployment guide](docs/operations/deployment.
 | `./scripts/creator-outreach-smoke.ps1` | `make creator-outreach-smoke` | Verify synthetic creator campaign, promotion kit, exact Mailpit introduction, metrics, and suppression |
 | `./scripts/promotion.ps1` | — | Show secret-safe YouTube/SMTP/Docker promotion readiness and exact next steps |
 | `./scripts/promotion.ps1 -LocalTest` | — | Start Docker if needed and run the creator-specific no-egress proof |
-| `./scripts/promotion.ps1 -OpenDashboard` | — | Start Docker if needed, launch the promotion-capable stack, copy the private token, and open the dashboard |
+| `./scripts/promotion.ps1 -OpenDashboard` | — | Start Docker if needed and open an auto-authenticated promotion-capable dashboard |
 | `./scripts/up.ps1 -SideEffects` | `make side-effects-up` | Start the isolated browser/email executor for configured real destinations |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
 | `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |
@@ -216,10 +226,13 @@ supported NVIDIA VPS. See the [VPS deployment guide](docs/operations/deployment.
 | `./scripts/vps-init-env.sh` | `make vps-init` | Create an owner-only production `.env` on Linux without provider credentials |
 | `./scripts/vps-preflight.sh` | `make vps-preflight` | Refuse dirty, public-port, placeholder, test-mail, or privileged VPS configurations |
 | `./scripts/vps-up.sh` | `make vps-up` | Start the private VPS stack and prove safe + approval-gated paths |
+| `./scripts/vps-install-service.sh` | `make vps-install-service` | Install boot startup, failure recovery, and the provider-health timer |
+| `./scripts/vps-dashboard-login.sh` | `make vps-dashboard-login` | Mint a 90-second one-use private dashboard URL without exposing the control token |
+| `./scripts/vps-model-health.sh` | `make vps-model-health` | Check route order and all three model-provider endpoints without inference |
 | `./scripts/vps-backup.sh` | `make vps-backup` | Create an owner-only PostgreSQL dump and SHA-256 sidecar |
 | `./scripts/vps-restore-drill.sh` | `make vps-restore-drill` | Restore and validate a disposable VPS database, then remove it |
 
-## Optional Hermes + OmniRoute profile
+## Managed Hermes model profile
 
 ```powershell
 ./scripts/up.ps1 -Agent
@@ -238,12 +251,12 @@ This workstation is onboarded with a scoped inference-only key in ignored
 requires local administrator onboarding and a new scoped key. Use
 [services/hermes/config.example.yaml](services/hermes/config.example.yaml) as the
 reviewed boundary and never treat image health alone as inference readiness.
-The committed route policy assigns different pools to different work:
-deterministic discovery/scoring uses no LLM, Hermes uses OmniRoute's
-`free/default`, high-value career drafts may use the separately metered strict
-OpenRouter `:free` chain, and local Qwen is the final no-provider fallback. Do
-not add the same OpenRouter account to OmniRoute: that would consume the same
-account-wide quota outside the PostgreSQL reservation ledger.
+The committed interactive route is ordered: OmniRoute `free/default`, then
+OpenRouter `openrouter/free`, then local Qwen. Deterministic discovery/scoring
+still uses no LLM. Career drafting keeps its stricter direct OpenRouter adapter
+with live exact-`:free` validation and PostgreSQL accounting. General Hermes
+fallback calls are intentionally outside that career ledger, so set a
+provider-side key limit and monitor account-wide allowance.
 
 ## Complete test-readiness gate
 
@@ -267,16 +280,18 @@ checkpoints are too large for it, so the local fallback is Qwen3 8B Q4:
 ./scripts/local-model.ps1
 ```
 
-This starts a digest-pinned Ollama container, downloads the approximately 5.2 GB
-model, requires the exact harmless response `LOCAL_MODEL_OK`, and verifies GPU
-placement. This workstation passed that check on 2026-08-15. It is private and
-has no token bill, but its 8K configured context and model quality are below
-strong hosted models.
-Use the verified OpenRouter free chain for current Nemotron or other larger
-models when available. Hermes uses OmniRoute's separate free pool and falls
-back directly to internal Qwen when that hosted pool is unavailable. This
-partition preserves OpenRouter's bounded allowance for the highest-ranked
-career matches instead of spending it on general chat.
+This explicitly tests the digest-pinned Ollama/Qwen path, requires the exact
+harmless response `LOCAL_MODEL_OK`, verifies GPU placement when NVIDIA is
+available, and unloads Qwen afterward. Normal agent startup supervises only the
+small Ollama daemon and caches a missing model; weights/GPU memory are loaded by
+the first real fallback request and released after `LOCAL_MODEL_KEEP_ALIVE`.
+This workstation passed the inference check on 2026-08-15. The fallback is
+private and has no token bill, but its 8K configured context and model quality
+are below strong hosted models.
+Use OpenRouter free models for the secondary hosted route when available.
+Hermes reaches Qwen only after OmniRoute and OpenRouter fail. The career worker
+still applies stronger zero-price/privacy/cost controls than the interactive
+fallback, so the two consumers must be monitored separately.
 See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md),
 [free-pool allocation assessment](docs/research/free-pool-allocation-2026-08.md),
 and [remaining manual setup](docs/operations/manual-setup.md).

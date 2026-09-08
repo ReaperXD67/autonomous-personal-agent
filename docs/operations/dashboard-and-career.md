@@ -9,18 +9,21 @@ desktop-only executable and does not depend on a hosted SaaS frontend.
 From PowerShell in the repository:
 
 ```powershell
-./scripts/open-dashboard.ps1 -LocalModel -SideEffectsTest -CopyToken
+./scripts/open-dashboard.ps1 -SideEffectsTest
 ```
 
-This builds and starts the core stack, starts or reuses Qwen3 8B through Ollama,
-runs health checks, copies `CONTROL_API_TOKEN` without printing it, and opens
-<http://127.0.0.1:8080/>. Paste the clipboard value into **Connect workspace**,
-then overwrite the clipboard with ordinary text. The test profile also starts a
-fake ATS and Mailpit at <http://127.0.0.1:8025>; messages are captured inside
-Docker and never sent.
+This builds and starts the core stack plus the managed model hierarchy, runs
+health checks, and opens <http://127.0.0.1:8080/> already authenticated through
+a 90-second one-use fragment. The page removes the fragment immediately and
+uses an HttpOnly session; it does not receive the long-lived control token. The
+test profile independently starts a fake ATS and Mailpit at
+<http://127.0.0.1:8025>; messages are captured inside Docker and never sent.
+The Ollama daemon is ready, but Qwen weights remain unloaded unless both hosted
+routes fail.
 
-Use `./scripts/open-dashboard.ps1 -CopyToken` when discovery/tracking is enough
-and local drafting is not needed. `./scripts/down.ps1` stops compute while
+Use `-LocalModel` only to exercise the final Qwen fallback explicitly; the
+script unloads it after the canary. `-CopyToken` is a recovery option only.
+`./scripts/down.ps1` stops compute while
 preserving PostgreSQL data. The scheduler runs only while Docker and the stack
 are running. Laptop sleep, shutdown, or Docker Desktop shutdown pauses scans;
 overdue active missions are picked up after restart.
@@ -111,7 +114,7 @@ guard, then deletes only its own PostgreSQL records.
 Start the isolated executor without test fixtures:
 
 ```powershell
-./scripts/open-dashboard.ps1 -LocalModel -SideEffects -CopyToken
+./scripts/open-dashboard.ps1 -SideEffects
 ```
 
 Application preflight/submission needs no credential when the supported hosted
@@ -123,8 +126,8 @@ change. Never copy these credentials into a mission or chat.
 
 ## VPS access model
 
-Do not publish port 8080 to the public internet. The current bearer token is a
-single administrator bootstrap credential, not multi-user login. For a first
+Do not publish port 8080 to the public internet. The signed browser session is a
+single-operator convenience, not multi-user identity. For a first
 VPS test, bind the Compose port to loopback and use either:
 
 - an SSH tunnel: `ssh -L 8080:127.0.0.1:8080 deploy@your-vps`, then open the

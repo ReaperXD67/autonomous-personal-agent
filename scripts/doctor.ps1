@@ -69,8 +69,8 @@ try {
     else { Write-Check FAIL 'Compose model' 'invalid; run docker compose config' }
 
     $requiredServices = @('postgres', 'redis', 'control-api', 'dispatcher', 'worker')
-    if ($Agent) { $requiredServices += @('omniroute', 'hermes') }
-    if ($LocalModel) { $requiredServices += 'ollama' }
+    if ($Agent) { $requiredServices += @('omniroute', 'hermes', 'ollama') }
+    elseif ($LocalModel) { $requiredServices += 'ollama' }
     foreach ($service in $requiredServices) {
         $profiles = @()
         if ($Agent) { $profiles += @('--profile', 'agent') }
@@ -82,12 +82,20 @@ try {
         else { Write-Check FAIL $service $state }
     }
 
-    $gpu = & nvidia-smi --query-gpu=name,memory.total --format=csv,noheader 2>$null | Select-Object -First 1
-    if ($LASTEXITCODE -eq 0 -and $gpu) {
+    $gpu = $null
+    $gpuCommand = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+    if ($gpuCommand) {
+        $gpuOutput = @(& $gpuCommand.Source --query-gpu=name,memory.total --format=csv,noheader 2>$null)
+        $gpuCommandSucceeded = ($LASTEXITCODE -eq 0)
+        if ($gpuCommandSucceeded) {
+            $gpu = $gpuOutput | Select-Object -First 1
+        }
+    }
+    if ($gpu) {
         Write-Check OK 'NVIDIA GPU' $gpu
         Write-Check INFO 'Nemotron 3' 'use a remote free provider; current local checkpoints exceed 8 GB VRAM'
     }
-    else { Write-Check WARN 'NVIDIA GPU' 'not detected; local-model profile unavailable' }
+    else { Write-Check WARN 'NVIDIA GPU' 'not detected; lazy Qwen fallback will use slower CPU inference' }
 
     if (Test-Path -LiteralPath '.env') {
         $environment = Read-EnvironmentFile -Path '.env'
@@ -100,12 +108,13 @@ try {
         $openRouterEnabled = [string]$environment.OPENROUTER_ENABLED -eq 'true'
         $openRouterKey = [string]$environment.OPENROUTER_API_KEY
         if ($openRouterEnabled -and $openRouterKey -and $openRouterKey -notmatch 'CHANGE_ME') {
-            Write-Check OK 'OpenRouter route' 'enabled with an ignored worker-only key; run scripts/openrouter.ps1 -Smoke'
+            Write-Check OK 'OpenRouter route' 'enabled for the Hermes fallback and governed career drafting; run scripts/openrouter.ps1 -Smoke'
         }
         elseif ($openRouterEnabled) {
             Write-Check FAIL 'OpenRouter route' 'enabled without a usable key'
         }
-        else { Write-Check INFO 'OpenRouter route' 'optional; configure with scripts/openrouter.ps1 -Configure' }
+        elseif ($Agent) { Write-Check WARN 'OpenRouter route' 'fallback is prepared but unverified; configure with scripts/openrouter.ps1 -Configure' }
+        else { Write-Check INFO 'OpenRouter route' 'configure with scripts/openrouter.ps1 -Configure before full agent validation' }
 
         if ($Agent -and $omniRouteKey) {
             try {
@@ -122,10 +131,10 @@ try {
                     [string]$_.owned_by -match 'openrouter' -or [string]$_.id -match 'openrouter'
                 }).Count -gt 0
                 if ($openRouterEnabled -and $openRouterInOmniRoute) {
-                    Write-Check WARN 'Shared free quota' 'OpenRouter is enabled both directly and in OmniRoute; remove it from OmniRoute so the PostgreSQL daily cap stays authoritative'
+                    Write-Check INFO 'Route composition' 'OmniRoute currently exposes OpenRouter candidates; the explicit OpenRouter fallback remains the next independent route'
                 }
                 else {
-                    Write-Check OK 'Quota isolation' 'OpenRouter career calls and OmniRoute interactive pools do not overlap'
+                    Write-Check OK 'Route composition' 'OmniRoute primary and explicit OpenRouter fallback are independently configured'
                 }
             }
             catch {
@@ -145,20 +154,38 @@ try {
                 try {
                     $fallbackJson = (& docker compose --profile agent exec -T hermes hermes config get fallback_providers --json 2>$null) -join "`n"
                     $fallbacks = @($fallbackJson | ConvertFrom-Json)
+                    $openRouterFallback = @($fallbacks | Where-Object {
+                        [string]$_.provider -eq 'openrouter' -and
+                        [string]$_.model -eq 'openrouter/free' -and
+                        [string]$_.key_env -eq 'OPENROUTER_API_KEY'
+                    }).Count -gt 0
                     $localFallback = @($fallbacks | Where-Object {
                         [string]$_.provider -eq 'custom' -and
                         [string]$_.model -eq 'qwen3:8b' -and
                         ([string]$_.base_url).TrimEnd('/') -eq 'http://ollama:11434/v1'
                     }).Count -gt 0
-                    if ($localFallback) {
-                        Write-Check OK 'Hermes continuity' 'internal qwen3:8b fallback configured'
+                    $ordered = $fallbacks.Count -eq 2 -and
+                        [string]$fallbacks[0].provider -eq 'openrouter' -and
+                        [string]$fallbacks[0].model -eq 'openrouter/free' -and
+                        [string]$fallbacks[1].model -eq 'qwen3:8b'
+                    if ($openRouterFallback -and $localFallback -and $ordered) {
+                        Write-Check OK 'Hermes continuity' 'OmniRoute -> OpenRouter free -> local Qwen'
                     }
                     else {
-                        Write-Check WARN 'Hermes continuity' 'local fallback not rendered; apply services/hermes/config.example.yaml'
+                        Write-Check FAIL 'Hermes continuity' 'managed ordered fallback chain is not active'
                     }
                 }
                 catch {
                     Write-Check WARN 'Hermes continuity' 'fallback configuration could not be inspected'
+                }
+
+                $loadedModels = (& docker compose --profile agent exec -T ollama ollama ps 2>$null) -join "`n"
+                $localModelName = if ($environment.LOCAL_MODEL) { [string]$environment.LOCAL_MODEL } else { 'qwen3:8b' }
+                if ($loadedModels -match [regex]::Escape($localModelName)) {
+                    Write-Check INFO 'Qwen lifecycle' 'loaded by a recent request; Ollama will unload it after the configured idle period'
+                }
+                else {
+                    Write-Check OK 'Qwen lifecycle' 'cached but unloaded; lazy fallback is armed'
                 }
             }
         }

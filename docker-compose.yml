@@ -109,6 +109,8 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       CONTROL_API_TOKEN: ${CONTROL_API_TOKEN:?Run scripts/init-env.ps1 first}
       TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1,testserver}
+      DASHBOARD_SESSION_TTL_SECONDS: ${DASHBOARD_SESSION_TTL_SECONDS:-43200}
+      DASHBOARD_COOKIE_SECURE: ${DASHBOARD_COOKIE_SECURE:-false}
       DATABASE_URL: postgresql://${POSTGRES_USER:-agent_app}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-agent}
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       TASK_QUEUE_KEY: ${TASK_QUEUE_KEY:-agent:tasks:ready}
@@ -417,6 +419,25 @@ services:
       - no-new-privileges:true
     logging: *json-logging
 
+  hermes-config:
+    image: nousresearch/hermes-agent:v2026.8.3@sha256:16788311e2fa3035456bdc1bafb8ec2b1777db64ebf020af9bb7eb73c3712c9e
+    profiles:
+      - agent
+    restart: "no"
+    user: "10000:10000"
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    network_mode: none
+    entrypoint: ["/bin/sh", "-ec"]
+    command: ["umask 077; cp /managed/config.yaml /opt/data/config.yaml; chmod 0600 /opt/data/config.yaml"]
+    volumes:
+      - hermes_data:/opt/data
+      - ./services/hermes/config.example.yaml:/managed/config.yaml:ro
+    logging: *json-logging
+
   hermes:
     image: nousresearch/hermes-agent:v2026.8.3@sha256:16788311e2fa3035456bdc1bafb8ec2b1777db64ebf020af9bb7eb73c3712c9e
     profiles:
@@ -427,6 +448,8 @@ services:
       HERMES_GID: "10000"
       OPENAI_BASE_URL: http://omniroute:20128/v1
       OPENAI_API_KEY: ${OMNIROUTE_API_KEY:-CHANGE_ME_AFTER_OMNIROUTE_ONBOARDING}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      LOCAL_MODEL: ${LOCAL_MODEL:-qwen3:8b}
       # Ollama ignores this non-secret compatibility value, while OpenAI-style
       # clients require a non-empty key for the internal fallback endpoint.
       HERMES_LOCAL_FALLBACK_KEY: local-ollama-no-auth
@@ -434,7 +457,11 @@ services:
     volumes:
       - hermes_data:/opt/data
     depends_on:
+      hermes-config:
+        condition: service_completed_successfully
       omniroute:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     networks:
       - edge
@@ -452,6 +479,7 @@ services:
   ollama:
     image: ollama/ollama:0.32.5@sha256:4dea9fb511947e24a84237bb636b0203abcb2ff0d3fbc7b4ff865deb91362131
     profiles:
+      - agent
       - local-model
     restart: unless-stopped
     environment:
@@ -460,18 +488,12 @@ services:
       OLLAMA_MAX_LOADED_MODELS: "1"
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_NO_CLOUD: "1"
+      OLLAMA_KEEP_ALIVE: ${LOCAL_MODEL_KEEP_ALIVE:-5m}
     volumes:
       - ollama_data:/root/.ollama
     networks:
       - edge
       - model
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 15s

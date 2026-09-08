@@ -30,6 +30,7 @@ chmod 600 .env
 # Edit .env only for capability-scoped provider credentials you intend to use.
 ./scripts/vps-preflight.sh
 ./scripts/vps-up.sh
+./scripts/vps-install-service.sh
 ./scripts/vps-backup.sh
 ./scripts/vps-restore-drill.sh
 ```
@@ -41,14 +42,36 @@ permissions, a dirty checkout, Mailpit, non-loopback published ports, host
 networking, privileged containers, and Docker-socket mounts. Warnings identify
 the host/account checks that cannot be proven from the repository.
 
-`vps-up.sh` builds and starts core services, waits for database/Redis readiness,
-then creates one harmless safe task and one separately approved harmless task.
-It prints task IDs but never the bearer token. Use optional flags deliberately:
+`vps-up.sh` builds and starts the core services plus the complete managed model
+hierarchy, waits for readiness, creates one harmless safe task and one
+separately approved harmless task, and performs non-generating provider health
+checks. A new host whose OmniRoute administrator has not been onboarded uses
+the bootstrap mode first:
 
 ```bash
-./scripts/vps-up.sh --side-effects   # only after complete TLS SMTP setup
-./scripts/vps-up.sh --agent          # only after OmniRoute onboarding
-./scripts/vps-up.sh --local-model    # only on an NVIDIA-enabled VPS
+./scripts/vps-up.sh --bootstrap-omniroute
+# Complete loopback-only OmniRoute onboarding and add both scoped provider keys.
+./scripts/vps-up.sh
+./scripts/vps-up.sh --local-model    # optional explicit Qwen canary; CPU or NVIDIA
+```
+
+Normal startup does not need `--agent` or `--local-model`. The former is kept as
+a compatibility no-op; the latter deliberately loads Qwen once, checks the
+exact response and GPU placement when applicable, then unloads it. The Ollama
+daemon remains supervised so Hermes can reach it without Docker-socket access,
+while Qwen weights load only on demand and expire after the configured idle
+period. Set `VPS_SIDE_EFFECTS_ENABLED=true` only after complete TLS SMTP setup.
+
+After the first full deployment passes, `vps-install-service.sh` installs and
+enables `hermes.service` plus a persistent 15-minute
+`hermes-model-health.timer`. Compose restart policies recover individual
+containers; systemd starts the project after Docker on reboot and retries a
+failed startup. Inspect them with:
+
+```bash
+systemctl status hermes.service hermes-model-health.timer
+journalctl -u hermes.service -u hermes-model-health.service
+docker compose --profile agent logs --tail=200 hermes omniroute ollama
 ```
 
 From the workstation, open the private dashboard through a tunnel:
@@ -57,8 +80,10 @@ From the workstation, open the private dashboard through a tunnel:
 ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS
 ```
 
-Then browse to `http://127.0.0.1:8080`. Keep the bootstrap token in page memory
-only and clear the clipboard after pasting it.
+In another VPS shell, run `./scripts/vps-dashboard-login.sh` and open its URL
+within 90 seconds. The one-use fragment is removed from browser history and
+exchanged for an HttpOnly session. The service bearer token is not printed,
+copied, or stored by the page.
 
 ## Secrets
 
@@ -67,10 +92,11 @@ images support file-based secrets. If `.env` remains temporarily, restrict it to
 root/deploy user, exclude it from backups unless backup encryption is verified,
 and rotate after suspected exposure.
 
-Treat the OpenRouter inference key as worker-only and use a normal scoped key
-with a provider-side spend limit/expiry, never a management key. A CPU-only VPS
-also needs either this hosted route or enough resources for its local fallback;
-free hosted capacity is not an uptime guarantee.
+Treat the OpenRouter value as an inference-only secret used by Hermes and the
+career worker; use a provider-side spend limit/expiry, never a management key.
+General Hermes fallback calls do not participate in the career worker's local
+reservation ledger. A CPU-only VPS can run Qwen as a last resort, but it may be
+slow; free hosted capacity is not an uptime guarantee.
 
 ## Ingress
 
@@ -78,7 +104,7 @@ For the first private deployment, keep command-center and OmniRoute ports on
 loopback and use WireGuard/Tailscale or SSH tunnels. Do not publish upstream
 admin dashboards. Public HTTPS requires OIDC/RBAC in front of the command
 center, rate limits, body-size limits, secure headers, request timeouts, and TLS.
-The single bootstrap bearer token is insufficient for public internet exposure.
+The private signed browser session is insufficient for public internet exposure.
 
 ## Promotion
 

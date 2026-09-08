@@ -426,6 +426,49 @@ locally validated for a private deployment. An actual VPS, external SMTP inbox,
 live YouTube scan, encrypted off-host retention, and public-production identity
 controls were not tested and are not implied.
 
+## EXP-019 — Managed hierarchy pre-release validation
+
+Date: 2026-09-08
+
+Method: recover the stopped Docker engine without deleting durable data; render
+the base and NVIDIA Compose models; probe the managed configuration on a fresh
+named volume; run repository, lifecycle, provider, local-model, side-effect, and
+creator-specific smokes; then exercise the automatic browser session in Chromium.
+
+Observed:
+
+- Base and all-profile NVIDIA Compose configurations rendered successfully.
+- Every PowerShell and Bash script parsed, `git diff --check` passed, and the
+  changed Python and dashboard JavaScript passed syntax checks.
+- A direct browser-auth unit smoke proved one-use bootstrap consumption, signed
+  session validation, and cross-origin rejection without printing any token.
+- Docker Desktop 4.78 was initially stopped and its backend rejected malformed
+  transient AF_UNIX state. With Docker and WSL stopped, the exact `Docker\\run`
+  directory was moved to a recoverable timestamped sibling. Docker recreated it
+  and engine 29.5.3 started; images, named volumes, source, and secrets were not
+  reset.
+- The fresh-volume probe passed with a non-root UID 10000 copier and a readable
+  `0600` managed route file. Rebuilt Ruff/Pytest passed 73 tests in 1.05 seconds,
+  and the complete lifecycle verification passed all task-state paths.
+- Doctor proved the configured order and Qwen-unloaded state. OmniRoute listed
+  79 models and served the `free/default` canary; managed Hermes returned exactly
+  `HERMES_READY_OK` through that primary. The explicit Qwen canary
+  returned `LOCAL_MODEL_OK`, used the RTX 4070 Laptop GPU with all 37 model layers
+  offloaded, and unloaded afterward. A false CPU selection observed on the first
+  attempt was traced to PowerShell pipeline exit-status handling and corrected.
+- Normal safe startup made all 12 required services healthy while `ollama ps`
+  remained empty. The broad safe-side-effect proof passed fake application,
+  Mailpit delivery, and duplicate refusal; the creator proof passed campaign,
+  exact introduction, five attributed assets, and suppression without egress.
+- Chromium consumed a one-use code, scrubbed the URL fragment, remained signed
+  in after reload, submitted a CSRF-protected task that reached `Succeeded`, and
+  reported zero console errors or warnings.
+
+Result: the local implementation is validated for private single-operator use.
+The secondary OpenRouter route remains prepared but cannot be called until the
+operator supplies its key. Live YouTube discovery, real SMTP delivery, and an
+actual VPS remain deliberately unclaimed external proofs.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

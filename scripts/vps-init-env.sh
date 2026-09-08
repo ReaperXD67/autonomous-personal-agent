@@ -56,4 +56,4 @@ mv -- "$temporary_path" "$target_path"
 trap - EXIT
 
 printf '%s\n' 'Created ignored .env for a private production-mode VPS.'
-printf '%s\n' 'No provider key or SMTP credential was created; add those manually when needed.'
+printf '%s\n' 'No provider keys or SMTP credential were created; add those manually when needed.'

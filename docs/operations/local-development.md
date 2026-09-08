@@ -15,10 +15,15 @@ required on Windows.
 ```powershell
 ./scripts/init-env.ps1
 docker compose config --quiet
-./scripts/open-dashboard.ps1 -LocalModel -CopyToken
+./scripts/open-dashboard.ps1 -SideEffectsTest
 ```
 
-The private website opens at <http://127.0.0.1:8080/>. See
+The private website opens at <http://127.0.0.1:8080/> already authenticated.
+The launcher mints a 90-second one-use URL fragment, and the page immediately
+exchanges it for an HttpOnly SameSite session. It does not copy the long-lived
+control token. Safe test mode independently routes mail to Mailpit and
+applications to the local fixture. Qwen weights stay unloaded; pass
+`-LocalModel` only to test that final fallback explicitly. See
 [dashboard and career missions](dashboard-and-career.md) for the first real
 job-hunt test and how to change ongoing work without editing code.
 
@@ -67,9 +72,11 @@ safe first manual tests.
 ```
 
 `agent-smoke.ps1` requires the user-created scoped OmniRoute key in ignored
-`.env`. `local-model.ps1` starts GPU-backed Ollama, downloads a missing selected
-model or reuses the cached one, requires `LOCAL_MODEL_OK`, and verifies reported
-GPU placement. See
+`.env`. The agent profile always renders the committed OmniRoute → OpenRouter
+free → Qwen route and supervises Ollama, but does not load Qwen weights.
+`local-model.ps1` downloads a missing model or reuses the cache, requires
+`LOCAL_MODEL_OK`, verifies reported GPU placement when available, and unloads
+the model afterward. See
 [manual setup](manual-setup.md).
 
 ## Logs and status

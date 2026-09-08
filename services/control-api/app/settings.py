@@ -50,6 +50,8 @@ class Settings:
     log_level: str
     api_token: str
     trusted_hosts: tuple[str, ...]
+    dashboard_session_ttl_seconds: int
+    dashboard_cookie_secure: bool
     database_url: str
     redis_url: str
     task_queue_key: str
@@ -87,6 +89,12 @@ class Settings:
             log_level=os.getenv("LOG_LEVEL", "INFO").strip().upper(),
             api_token=os.getenv("CONTROL_API_TOKEN", "").strip(),
             trusted_hosts=_trusted_hosts_environment(),
+            dashboard_session_ttl_seconds=int(
+                os.getenv("DASHBOARD_SESSION_TTL_SECONDS", "43200")
+            ),
+            dashboard_cookie_secure=_boolean_environment(
+                "DASHBOARD_COOKIE_SECURE", False
+            ),
             database_url=os.getenv("DATABASE_URL", "").strip(),
             redis_url=os.getenv("REDIS_URL", "").strip(),
             task_queue_key=os.getenv("TASK_QUEUE_KEY", "agent:tasks:ready").strip(),
@@ -156,6 +164,10 @@ class Settings:
         ):
             raise ConfigurationError(
                 "TRUSTED_HOSTS must contain explicit hostnames or IP addresses"
+            )
+        if not 300 <= self.dashboard_session_ttl_seconds <= 86400:
+            raise ConfigurationError(
+                "DASHBOARD_SESSION_TTL_SECONDS must be between 300 and 86400"
             )
         if not 1 <= self.worker_poll_seconds <= 60:
             raise ConfigurationError("WORKER_POLL_SECONDS must be between 1 and 60")

@@ -206,6 +206,31 @@ action reconciliation remain deployment-owned. Public ingress still requires
 OIDC/RBAC, rate/body limits, TLS, step-up identity, centralized secrets, signed
 releases, and incident response.
 
+## v0.15 — Managed model hierarchy and private browser sessions (2026-09-08)
+
+Hermes now receives a deployment-owned ordered route on every start:
+OmniRoute `free/default`, OpenRouter `openrouter/free`, then internal Qwen3 8B.
+The agent profile supervises an empty Ollama daemon and ensures the model is
+cached, but it does not load Qwen weights. The first final-fallback request
+loads them, and Ollama unloads them after the configured idle period. Explicit
+local-model mode is now a canary that unloads on completion. This preserves the
+no-Docker-socket boundary while making the final route available without a
+special normal-startup flag.
+
+Dashboard startup no longer places the service bearer token on the clipboard or
+inside browser JavaScript. A bearer-authenticated launcher mints a 90-second
+one-use fragment, which the same-origin page removes and exchanges for a signed
+HttpOnly SameSite session. Cookie-authenticated writes require exact origin and
+an HMAC-derived CSRF header. Bearer auth remains for scripts and recovery.
+
+The private VPS lifecycle is now boot managed. Compose restart policies recover
+containers, `hermes.service` starts and retries the full stack after Docker, and
+a persistent timer checks route order and all three providers every 15 minutes.
+This extends private single-operator operability; it does not provide public or
+multi-user identity. General Hermes OpenRouter calls also sit outside the career
+worker's PostgreSQL quota ledger, so inference-only provider limits and external
+account monitoring remain deployment requirements.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

@@ -88,6 +88,19 @@ else
   else
     pass 'Mailpit is not configured for VPS delivery'
   fi
+  if [[ "$(env_value DASHBOARD_COOKIE_SECURE)" == 'false' ]]; then
+    pass 'Browser-session cookie is compatible with the private HTTP tunnel'
+  else
+    fail 'DASHBOARD_COOKIE_SECURE must be false for the loopback HTTP/SSH profile'
+  fi
+  side_effects_enabled="$(env_value VPS_SIDE_EFFECTS_ENABLED)"
+  if [[ "$side_effects_enabled" != 'true' && "$side_effects_enabled" != 'false' ]]; then
+    fail 'VPS_SIDE_EFFECTS_ENABLED must be true or false'
+  elif [[ "$side_effects_enabled" == 'true' && "$(env_value MAIL_TRANSPORT)" != 'smtp' ]]; then
+    fail 'VPS side effects require MAIL_TRANSPORT=smtp'
+  else
+    pass "VPS side effects are explicitly $side_effects_enabled"
+  fi
 fi
 
 if [[ -n "$(git status --porcelain --untracked-files=normal)" ]]; then
@@ -102,7 +115,7 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && [[ -f .en
   cleanup_rendered_config() { rm -f -- "$rendered_config"; }
   trap cleanup_rendered_config EXIT
   compose_model=(
-    docker compose
+    docker compose -f docker-compose.yml -f docker-compose.gpu.yml
     --profile agent
     --profile local-model
     --profile side-effects
@@ -127,6 +140,12 @@ if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1 && [[ -f .en
   fi
   rm -f -- "$rendered_config"
   trap - EXIT
+fi
+
+if command -v systemctl >/dev/null 2>&1 && systemctl is-enabled hermes.service >/dev/null 2>&1; then
+  pass 'hermes.service is enabled for boot'
+else
+  warn 'install and enable hermes.service after the first full startup passes'
 fi
 
 warn 'verify SSH key-only login, disabled root/password login, automatic updates, NTP, and provider firewall rules manually'
