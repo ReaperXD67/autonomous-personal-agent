@@ -1,4 +1,4 @@
-.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke side-effect-smoke creator-outreach-smoke recovery-smoke lifecycle-smoke agent-smoke openrouter backup restore-drill readiness agent-up local-model-up side-effects-up doctor vps-init vps-preflight vps-up vps-smoke vps-backup vps-restore-drill clean
+.PHONY: init config build up dashboard down logs ps health test lint smoke career-smoke side-effect-smoke creator-outreach-smoke recovery-smoke lifecycle-smoke agent-smoke openrouter backup restore-drill readiness agent-up local-model-up side-effects-up doctor vps-init vps-preflight vps-up vps-smoke vps-local-model vps-model-health vps-dashboard-login vps-install-service vps-backup vps-restore-drill clean
 
 init:
 	powershell -ExecutionPolicy Bypass -File scripts/init-env.ps1
@@ -13,7 +13,7 @@ up:
 	docker compose up -d --build
 
 dashboard:
-	powershell -ExecutionPolicy Bypass -File scripts/open-dashboard.ps1 -LocalModel -CopyToken
+	powershell -ExecutionPolicy Bypass -File scripts/open-dashboard.ps1 -SideEffectsTest
 
 agent-up:
 	docker compose --profile agent up -d
@@ -89,6 +89,18 @@ vps-up:
 
 vps-smoke:
 	bash scripts/vps-smoke.sh
+
+vps-local-model:
+	bash scripts/vps-local-model.sh --smoke
+
+vps-model-health:
+	bash scripts/vps-model-health.sh
+
+vps-dashboard-login:
+	bash scripts/vps-dashboard-login.sh
+
+vps-install-service:
+	bash scripts/vps-install-service.sh
 
 vps-backup:
 	bash scripts/vps-backup.sh

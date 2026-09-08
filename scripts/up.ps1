@@ -39,7 +39,19 @@ try {
             )
         }
     }
-    $arguments = @('compose')
+    $arguments = @('compose', '-f', 'docker-compose.yml')
+    $gpu = $null
+    $gpuCommand = Get-Command nvidia-smi -ErrorAction SilentlyContinue
+    if ($gpuCommand) {
+        $gpuOutput = @(& $gpuCommand.Source --query-gpu=name --format=csv,noheader 2>$null)
+        $gpuCommandSucceeded = ($LASTEXITCODE -eq 0)
+        if ($gpuCommandSucceeded) {
+            $gpu = $gpuOutput | Select-Object -First 1
+        }
+    }
+    if ($gpu) {
+        $arguments += @('-f', 'docker-compose.gpu.yml')
+    }
     if ($Agent) { $arguments += @('--profile', 'agent') }
     if ($LocalModel) { $arguments += @('--profile', 'local-model') }
     if ($SideEffects) { $arguments += @('--profile', 'side-effects') }
@@ -47,6 +59,12 @@ try {
     $arguments += @('up', '-d', '--build')
     & docker $arguments
     if ($LASTEXITCODE -ne 0) { throw 'docker compose up failed' }
+
+    if ($Agent -or $LocalModel) {
+        $localArguments = @{}
+        if (-not $LocalModel) { $localArguments.SkipSmoke = $true }
+        & (Join-Path $PSScriptRoot 'local-model.ps1') @localArguments
+    }
 }
 finally {
     foreach ($name in $savedProcessEnvironment.Keys) {

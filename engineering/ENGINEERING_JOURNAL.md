@@ -1555,3 +1555,106 @@ owned inbox. Real ATS destinations remain compatibility-specific and each final
 application/email requires exact approval. Public or multi-user exposure remains
 blocked on OIDC/RBAC, rate/body limits, TLS, step-up identity, centralized
 secrets, signed releases, and incident response.
+
+## Step 23 — Manage the model hierarchy, local login, and VPS lifecycle
+
+Date: 2026-09-08
+
+### Objective
+
+Make normal local startup one command without explicit Qwen or clipboard flags;
+route Hermes through OmniRoute, OpenRouter free, and local Qwen in that order;
+keep Qwen weights lazy; and make the private VPS recover after reboot or process
+failure without an interactive launch script.
+
+### Research and decision
+
+Re-read the repository architecture, security, operations, roadmap, ADRs, and
+latest engineering record. Applied the FastAPI/general frontend security
+baseline. Confirmed from upstream Hermes documentation that ordered top-level
+fallback providers are supported and from OpenRouter documentation that
+`openrouter/free` is its free-model router. ADR-0015 records the chosen boundary:
+supervise a small empty Ollama daemon instead of exposing Docker control to
+Hermes, load Qwen weights only on the final request, and replace normal bearer
+copy/paste with a one-use browser exchange.
+
+### Implementation
+
+- Added a networkless, capability-dropped one-shot configuration service that
+  renders the committed OmniRoute `free/default` → OpenRouter
+  `openrouter/free` → internal Qwen policy into the private Hermes volume.
+- Made the agent profile supervise Ollama on CPU or an automatically selected
+  NVIDIA override. Normal startup caches but does not invoke Qwen; explicit
+  local-model canaries unload it after success and the idle timeout covers real
+  fallback calls.
+- Added 90-second one-use browser bootstraps, signed HttpOnly SameSite sessions,
+  exact-origin/CSRF enforcement for cookie writes, automatic launcher exchange,
+  and retained bearer auth only for scripts/manual recovery.
+- Made safe side-effect fixtures independent of model selection and extended
+  launcher health checks to the agent and selected action profile.
+- Added fail-closed VPS full startup, first-host OmniRoute bootstrap mode,
+  provider/route health checks, one-use tunnel login, a managed systemd service,
+  and a persistent 15-minute health timer. Compose restart policies remain the
+  per-container recovery layer.
+- Updated tests, examples, Make targets, README, roadmap, architecture,
+  operations, security, ADR index, system evolution, and experiment record.
+
+### Problems encountered and resolution
+
+- An upstream Hermes configuration diagnostic unexpectedly expanded and printed
+  the locally configured scoped OmniRoute key. The value was not added to any
+  repository file or documentation. It must be rotated in OmniRoute before VPS
+  deployment; later inspection uses only named fields and non-secret route
+  output.
+- A fresh-volume probe first exposed the upstream image's init system failing in
+  a read-only one-shot container. An explicit minimal shell entrypoint fixed
+  that boundary. The same probe then measured `/opt/data` as UID 10000 mode
+  `0700`, so the copier remains non-root UID 10000 and writes the managed config
+  mode `0600`; no privilege or Docker-socket mount was added.
+- Docker Desktop 4.78 again encountered malformed transient inference and
+  secrets-engine endpoints. After Docker and WSL were stopped, the exact
+  transient `Docker\\run` directory was moved to a timestamped recoverable
+  sibling without deleting images, volumes, source, or secrets. Docker recreated
+  it correctly and engine 29.5.3 became available.
+- The first full test used a stale test image and repeated an already-fixed import
+  ordering report. Rebuilding the test image made the source under test explicit.
+  A later fallback canary exposed a separate PowerShell bug: piping
+  `nvidia-smi` through `Select-Object` could leave `$LASTEXITCODE` unset, causing
+  a false CPU selection. GPU output and exit status are now captured before any
+  pipeline in the launcher, doctor, and local-model helper.
+
+### Validation
+
+- Base and NVIDIA/all-profile Compose rendering passed. A disposable fresh named
+  volume proved the non-root configuration copier writes a readable `0600`
+  managed file containing the ordered hosted/local routes, then the probe volume
+  was removed.
+- Rebuilt `scripts/test.ps1` passed Ruff and 73 tests in 1.05 seconds.
+  `scripts/verify.ps1` passed the same suite plus live safe-task, approval,
+  retry/exhaustion, cancellation, and dead-letter paths.
+- `scripts/doctor.ps1 -Agent` proved the exact OmniRoute → OpenRouter free →
+  Qwen order and found Qwen cached but unloaded. `scripts/agent-smoke.ps1`
+  listed 79 routes and completed inference through `free/default`; the managed
+  Hermes CLI then returned exactly `HERMES_READY_OK` through its primary route.
+- The explicit local fallback returned exactly `LOCAL_MODEL_OK`, Ollama reported
+  all 37 model layers offloaded to the RTX 4070 Laptop GPU, and the helper then
+  unloaded Qwen. A normal agent plus side-effect-test restart left `ollama ps`
+  empty while all 12 required services were healthy.
+- A real Chromium session exchanged the one-use launch code, immediately
+  removed it from the URL, survived reload through the HttpOnly session, and
+  submitted an authenticated task that reached `Succeeded`. Browser console
+  errors and warnings were both zero.
+- The broad safe side-effect smoke passed one exact fake application, one
+  Mailpit message, and duplicate refusal with no egress. The creator-specific
+  smoke passed campaign creation, exact Mailpit introduction, five attributed
+  assets, opt-out suppression, and no discovery/email egress.
+
+### Remaining boundary
+
+The operator must still create/configure a scoped OpenRouter inference key, rotate
+the exposed OmniRoute key, prove one live YouTube campaign scan, restrict the
+YouTube key provider-side, configure TLS SMTP, and deliver the first canary only
+to an owned inbox. An actual VPS, encrypted off-host backup, alert delivery, and
+rollback drill remain target-host proofs; public/multi-user service still needs
+OIDC/RBAC, rate limits, TLS, step-up identity, centralized secrets, and incident
+response.

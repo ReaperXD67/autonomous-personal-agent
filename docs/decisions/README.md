@@ -18,3 +18,4 @@ history.
 - [ADR-0012](ADR-0012-verified-free-openrouter-routing.md): live-attested free OpenRouter routing with local continuity
 - [ADR-0013](ADR-0013-purpose-aware-free-pool-allocation.md): purpose-aware provider quota partitioning and local continuity
 - [ADR-0014](ADR-0014-private-vps-first.md): private loopback VPS before public production
+- [ADR-0015](ADR-0015-managed-lazy-model-routing.md): managed OmniRoute/OpenRouter/Qwen routing, lazy local weights, private browser sessions, and VPS service lifecycle

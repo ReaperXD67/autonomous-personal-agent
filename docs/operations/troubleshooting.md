@@ -50,11 +50,11 @@ missing or non-zero-cost entries. Keep local Ollama running for continuity.
 ## Free quota disappears faster than the dashboard reports
 
 Run `./scripts/doctor.ps1 -Agent`. The dashboard's PostgreSQL ledger covers only
-the direct career adapter; OpenRouter's allowance is account-wide. If the doctor
-reports OpenRouter inside OmniRoute as well as the direct worker, remove it from
-OmniRoute or use a genuinely separate provider/account there. General Hermes
-traffic should use OmniRoute `free/default`; career drafting owns the strict
-OpenRouter pool.
+the direct career adapter; OpenRouter's allowance is account-wide. Hermes also
+uses the inference key for its explicit second route, so dashboard totals do not
+represent total account consumption. Use provider-side limits/usage monitoring.
+If OpenRouter is additionally connected inside OmniRoute, remove that third
+consumer or deliberately isolate it with another account/key.
 
 ## Docker Desktop file sharing
 
@@ -74,3 +74,5 @@ transient runtime directories were renamed to timestamped sibling backups. The
 next start recreated clean directories and all named volumes remained intact.
 Because the upstream issue is open, verify the exact backend error and paths
 before repeating that recovery; do not recursively delete a Docker data root.
+If Docker immediately recreates malformed endpoints, restart the Windows WSL
+service from an elevated terminal or reboot Windows before retrying Docker.

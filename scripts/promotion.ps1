@@ -275,7 +275,7 @@ try {
 
     if ($OpenDashboard) {
         Start-DockerIfNeeded
-        & (Join-Path $PSScriptRoot 'open-dashboard.ps1') -SideEffects -CopyToken
+        & (Join-Path $PSScriptRoot 'open-dashboard.ps1') -SideEffects
     }
     elseif ($Start) {
         Start-DockerIfNeeded

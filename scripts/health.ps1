@@ -1,19 +1,38 @@
 [CmdletBinding()]
 param(
-    [ValidateRange(5, 300)][int]$TimeoutSeconds = 90
+    [ValidateRange(5, 300)][int]$TimeoutSeconds = 90,
+    [switch]$Agent,
+    [switch]$SideEffects,
+    [switch]$SideEffectsTest
 )
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $projectRoot
 try {
+    if ($SideEffects -and $SideEffectsTest) {
+        throw 'Choose either -SideEffects or -SideEffectsTest, not both.'
+    }
     $required = @('postgres', 'redis', 'control-api', 'dispatcher', 'worker', 'job-worker')
+    $profiles = @()
+    if ($Agent) {
+        $required += @('omniroute', 'hermes', 'ollama')
+        $profiles += @('--profile', 'agent')
+    }
+    if ($SideEffects) {
+        $required += 'action-worker'
+        $profiles += @('--profile', 'side-effects')
+    }
+    if ($SideEffectsTest) {
+        $required += @('action-worker', 'mailpit', 'application-fixture')
+        $profiles += @('--profile', 'side-effects-test')
+    }
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     $states = @{}
     do {
         $allHealthy = $true
         foreach ($service in $required) {
-            $containerId = docker compose ps --quiet $service
+            $containerId = & docker compose @profiles ps --quiet $service
             if (-not $containerId) {
                 $states[$service] = 'not-running'
                 $allHealthy = $false

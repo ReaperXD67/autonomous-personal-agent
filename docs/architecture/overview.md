@@ -48,18 +48,19 @@ results use the same authority.
 
 ### Agent and model plane
 
-Hermes is the optional agent brain. OmniRoute is its general model gateway. Both run in
-an optional profile, use official pinned images, and remain outside the default
-trusted core.
+Hermes is the agent brain. OmniRoute is its primary model gateway. They run in
+the `agent` profile, use official pinned images, and remain outside the trusted
+control/data core.
 Hermes can reach OmniRoute on isolated `model` network but cannot reach
 PostgreSQL or Redis directly.
 
-Inference pools are purpose-partitioned. Deterministic discovery, filtering,
-and scoring spend no tokens. Hermes uses OmniRoute `free/default`, with internal
-Qwen as a provider-failure fallback. Career drafts alone may consume the direct
-OpenRouter strict-free pool, ordered by opportunity score/freshness and bounded
-by PostgreSQL. The same OpenRouter account is not intentionally configured in
-OmniRoute because those two consumers cannot share one authoritative local cap.
+Deterministic discovery, filtering, and scoring spend no tokens. Hermes uses an
+ordered OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen
+chain. The Ollama daemon is supervised, but Qwen weights load only at the final
+fallback and expire after idle time. Career drafts also have a narrow direct
+OpenRouter strict-free path ordered by opportunity score/freshness and bounded
+by PostgreSQL. General Hermes fallback calls are outside that ledger and must be
+bounded by the provider-side key policy.
 
 The career worker has a separate, narrow OpenRouter adapter because it can
 enforce exact live-catalog `:free` and zero-price invariants before résumé data

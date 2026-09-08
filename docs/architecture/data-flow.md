@@ -38,10 +38,12 @@ The worker sorts new matches by score and publication time before selecting the
 bounded auto-prepare set. Search, filtering, scoring, and form preflight remain
 deterministic and consume neither hosted pool.
 
-Hermes traffic follows a separate chain: `free/default` through OmniRoute, then
-internal `qwen3:8b` for eligible provider failures. The direct OpenRouter key is
-not shared with that chain, preserving its account-wide allowance for career
-drafts that are atomically reserved in PostgreSQL.
+Hermes traffic follows a separate ordered chain: `free/default` through
+OmniRoute, then OpenRouter `openrouter/free`, then internal `qwen3:8b`. Ollama
+is reachable throughout, but Qwen weights remain unloaded until the final route
+receives a request and are released after idle time. The direct career adapter
+still applies stricter exact-model, privacy, zero-cost, and PostgreSQL
+reservation policy; general Hermes OpenRouter calls do not join that ledger.
 
 ## Career mission schedule
 

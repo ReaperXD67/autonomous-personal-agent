@@ -5,14 +5,14 @@ flowchart TB
     HOST["Host: loopback only"] --> EDGE["edge bridge"]
     EDGE --> API["control-api :8000"]
     EDGE --> OR["OmniRoute :20128 (optional)"]
-    EDGE --> OL["Ollama :11434 (optional, not published)"]
+    EDGE --> OL["Ollama daemon :11434 (not published; Qwen lazy)"]
 
     API --> DATA["data network (internal)"]
     DISPATCHER["dispatcher"] --> DATA
     WORKER["worker"] --> DATA
     JOB["career worker"] --> DATA
     JOB --> EDGE
-    EDGE --> OPENROUTER["OpenRouter HTTPS (optional)"]
+    EDGE --> OPENROUTER["OpenRouter HTTPS"]
     JOB --> MODEL
     ACTION["action worker"] --> DATA
     ACTION --> EDGE
@@ -42,13 +42,15 @@ and outbound connectivity. `data` and `model` are `internal: true`. Dispatcher
 and foundation worker have no outbound network. The career worker is the narrow
 exception: it joins `edge` for allowlisted public job requests, `data` for
 durable task/career/inference state, and `model` for local drafting. When
-explicitly enabled, it also calls the fixed OpenRouter HTTPS origin with a key
-that no other core application service receives. Hermes has outbound
-access for eventual provider/tools but no data-plane network. OmniRoute bridges
+explicitly enabled, it also calls the fixed OpenRouter HTTPS origin. The Hermes
+container receives the same inference-only key for its second fallback route
+and has outbound access, but no data-plane network. OmniRoute bridges primary
 model requests and its own Redis rate-limit state.
 
 Ollama joins `edge` only for model downloads and `model` so Hermes/OmniRoute can
-reach it; it receives no data-network access.
+reach it; it receives no data-network access. Starting the daemon does not load
+Qwen weights. No agent receives Docker-socket access to start containers on
+demand.
 
 The action worker joins `edge` and `data`: `edge` is needed for reviewed ATS or
 configured SMTP endpoints, while `data` provides PostgreSQL/Redis. In-process
@@ -60,7 +62,7 @@ Mailpit's SMTP port is not published to the host.
 
 On VPS, keep the control/dashboard port bound to loopback. Initially reach it
 through WireGuard/Tailscale or an SSH tunnel. A later public HTTPS reverse proxy
-requires OIDC/RBAC, rate limiting, and TLS; the bootstrap bearer token alone is
+requires OIDC/RBAC, rate limiting, and TLS; the private signed browser session is
 not public-internet authentication. PostgreSQL and Redis must never bind public
 interfaces. `vps-preflight.sh` renders the resolved Compose model privately and
 refuses any declared published port that is not explicitly bound to

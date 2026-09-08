@@ -16,7 +16,10 @@ capability must enter this registry before its handler is reachable.
 ## Implemented controls
 
 - generated local secrets; placeholder rejection in control API;
-- constant-time bearer token comparison;
+- constant-time bearer/session/CSRF comparisons;
+- 90-second one-use browser bootstraps, immediate URL-fragment scrubbing,
+  signed HttpOnly SameSite=Strict sessions, exact same-origin checks, and CSRF
+  headers on cookie-authenticated writes; bearer auth remains for scripts;
 - disabled OpenAPI/docs routes and explicit Host-header allowlisting;
 - loopback-only published interfaces;
 - no PostgreSQL/Redis host ports;
@@ -53,22 +56,27 @@ capability must enter this registry before its handler is reachable.
 - hosted résumé drafting disabled by default; its only eligible model IDs end in
   `:free`, carry zero catalog price, and return zero usage cost; no-training/ZDR
   provider filters, an atomic daily cap, and local fallback fail closed on cost;
-- OpenRouter inference key scoped to the career worker; model/prompt/response
-  content is excluded from the inference invocation ledger;
-- provider-quota separation: Hermes uses OmniRoute `free/default`, direct
-  OpenRouter remains career-only, and diagnostics warn if the same account-wide
-  pool becomes reachable outside the PostgreSQL cap;
+- OpenRouter inference key scoped to the career worker and Hermes only;
+  model/prompt/response content is excluded from the career inference ledger;
+- explicit Hermes routing order: OmniRoute `free/default`, OpenRouter
+  `openrouter/free`, then local Qwen; diagnostics report route composition and
+  production startup refuses a missing secondary key;
+- local Qwen weights load on the first final-fallback request and expire after
+  idle time; no Docker socket or host controller is exposed to the agent;
 - required immutable-action CI gates for dependency review, repository
   vulnerability/secret/misconfiguration scanning, runtime-image vulnerability
   scanning, and an SPDX JSON SBOM artifact;
 - private-VPS scripts that generate owner-only secrets, reject dirty checkouts,
   placeholders, Mailpit, non-loopback ports, host networking, privileged mode,
   and Docker-socket mounts before deployment;
+- boot-managed systemd startup plus a persistent non-generating provider-health
+  timer; Compose retains per-container restart policies;
 
 ## Secrets
 
 Never commit `.env`, private keys, OAuth tokens, browser profiles, database
-files, or rendered Hermes config. Use scoped credentials per integration.
+files, rendered Hermes config, session cookies, or one-use login URLs. Use
+scoped credentials per integration.
 Provider keys must not share privileges with GitHub/email/admin tokens. Rotate
 after exposure, remove from history using approved incident procedure, and
 assume logs/artifacts containing a leaked value are compromised.

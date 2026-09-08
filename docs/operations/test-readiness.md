@@ -19,10 +19,10 @@ The default gate requires all configured paths:
 |---|---|
 | Core lifecycle verification | Build, lint, tests, health, approval, retry, cancellation, dead letters |
 | Disposable restore drill | Latest authoritative state can be restored and read by application code |
-| Agent doctor | Docker/WSL/configuration/core readiness plus OmniRoute pool ownership, explicit Hermes free route, local fallback, and OpenRouter overlap detection |
+| Agent doctor | Docker/WSL/configuration/core readiness plus the managed OmniRoute → OpenRouter free → Qwen order and lazy Qwen state |
 | OmniRoute smoke | Authenticated `free/default` route returns a real completion |
 | OpenRouter free smoke | When enabled, the current ranked `:free` chain returns the exact harmless response and reports zero cost |
-| Local-model smoke | Qwen3 8B returns `LOCAL_MODEL_OK` and Ollama reports GPU placement |
+| Local-model smoke | Qwen3 8B returns `LOCAL_MODEL_OK`, reports GPU placement when available, and unloads afterward |
 | Hermes one-shot | Hermes returns `HERMES_READY_OK` through its configured primary route |
 
 The script writes only check names, status, duration, error summary, timestamp,
@@ -63,9 +63,11 @@ destination-specific manual configuration/compatibility checks.
 ## Private VPS gate
 
 On the chosen Linux VPS, run `./scripts/vps-preflight.sh`, then
-`./scripts/vps-up.sh`. Startup waits for readiness and executes a harmless
+`./scripts/vps-up.sh`. Startup waits for readiness, validates the managed route
+and all provider endpoints without generation, and executes a harmless
 authenticated safe task plus a separate approval-gated task inside the control
-container without printing the bearer token. Before relying on the host, run
-`./scripts/vps-backup.sh` and `./scripts/vps-restore-drill.sh`, then confirm the
-encrypted off-host copy and alert delivery manually. This proves the selected
-host; passing workstation tests alone does not.
+container without printing the bearer token. Install and inspect
+`./scripts/vps-install-service.sh`, then run `./scripts/vps-backup.sh` and
+`./scripts/vps-restore-drill.sh`. Confirm the encrypted off-host copy and alert
+delivery manually. This proves the selected host; passing workstation tests
+alone does not.

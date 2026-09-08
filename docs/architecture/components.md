@@ -85,12 +85,15 @@ Schema is initialized and upgraded by a one-shot migration service before the
 runtime starts. PostgreSQL lifecycle stays independent
 from application images, upgrades, and backups.
 
-### Ollama (optional)
+### Ollama / Qwen
 
-The `local-model` profile provides a GPU-backed, internal-only OpenAI-compatible
-endpoint. It has no published host port and no access to PostgreSQL or Redis.
-The default Qwen3 8B Q4 model is a constrained offline fallback, not the main
-reasoning route.
+The agent profile supervises an internal-only Ollama daemon; `local-model` is an
+explicit canary profile, not a normal-startup requirement. The endpoint has no
+published host port and no access to PostgreSQL or Redis. Normal startup may
+cache the default Qwen3 8B Q4 artifact but does not load its weights. Ollama
+loads it only on the first final-fallback request and releases it after the
+configured idle period. This avoids Docker-socket access while keeping the
+model itself lazy.
 
 ### Redis
 
@@ -104,9 +107,11 @@ and AOF reduce accidental loss, but Redis remains non-authoritative.
 Nous Research Hermes Agent is optional orchestrator/brain. Foundation does not
 fork or fake its APIs. Release `v2026.8.3` is verified from official repository
 and Docker image. Its routed one-shot inference passed locally. Its reviewed
-primary is OmniRoute `free/default`; internal `qwen3:8b` is the continuity
-fallback when the local-model profile is running. Manual approval remains
-configured; MCP and messaging remain unprovisioned.
+primary is OmniRoute `free/default`, its second route is OpenRouter
+`openrouter/free`, and internal `qwen3:8b` is the last-resort fallback. A
+networkless one-shot service renders this committed order into the private
+Hermes volume at startup. Manual approval remains configured; MCP and messaging
+remain unprovisioned.
 
 ### OmniRoute
 
@@ -114,8 +119,10 @@ OmniRoute is optional OpenAI-compatible model routing gateway. Release `3.8.49`
 is verified from official repository and Docker image. Dashboard binds to
 loopback, secrets stay in `.env`, and inference key enforcement is enabled. Its
 authenticated catalog and `free/default` inference path passed locally.
-Its provider quotas are kept separate from the direct career OpenRouter account
-so general Hermes traffic cannot evade the career usage ledger.
+The explicit Hermes OpenRouter fallback can share an account with the direct
+career adapter, but general interactive calls are outside the career worker's
+PostgreSQL reservation ledger. Provider-side key limits therefore remain
+required.
 
 ## Planned components
 

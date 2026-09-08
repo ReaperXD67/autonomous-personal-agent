@@ -17,10 +17,11 @@ The career smoke on the same date fetched 100 live public listings, retained 5
 fresh matches for its exact synthetic target, and persisted a structured local
 Qwen application draft.
 
-The OpenRouter free-only adapter, ordered fallback tests, usage ledger, and UI
-are implemented, but the hosted path is not operational until a user-owned
-inference key is installed and the harmless live smoke succeeds. No OpenRouter
-key was available during implementation, so this distinction is intentional.
+The OpenRouter free-only adapter, managed Hermes fallback position, ordered
+fallback tests, usage ledger, and UI are implemented, but the hosted path is not
+operational until a user-owned inference key is installed and the harmless live
+smoke succeeds. No OpenRouter key was available during implementation, so this
+distinction is intentional.
 
 On 2026-08-25, the isolated side-effect smoke used a synthetic candidate and
 local fixtures to prepare and execute one exact application, deliver one exact
@@ -32,8 +33,9 @@ the mechanism, not every real employer form or an external mailbox.
 
 This is the only personal-data input needed for the current workflow:
 
-1. Run `./scripts/open-dashboard.ps1 -LocalModel -SideEffectsTest -CopyToken`.
-2. Paste the token into the local dashboard and clear the clipboard.
+1. Run `./scripts/open-dashboard.ps1 -SideEffectsTest`.
+2. Confirm the dashboard opens as connected. The one-use URL fragment is
+   exchanged automatically; no token paste or clipboard cleanup is needed.
 3. Create a mission with your actual target titles, locations, true skills, and
    plain-text résumé.
 4. Choose a freshness window and activate the mission.
@@ -118,17 +120,26 @@ Repository work is prepared, but these host/account actions require the owner:
    operators; Docker access is effectively host-root authority.
 3. Clone the repository, check out the exact reviewed release commit/tag, run
    `./scripts/vps-init-env.sh`, and keep `.env` mode `600`.
-4. Run `./scripts/vps-preflight.sh` and resolve every failure. Review its two
+4. On a new host, run `./scripts/vps-up.sh --bootstrap-omniroute`, tunnel port
+   20128, complete OmniRoute onboarding, and securely add its scoped inference
+   key plus a dedicated OpenRouter inference key to `.env`. Rotate any key after
+   suspected terminal/log exposure.
+5. Run `./scripts/vps-preflight.sh` and resolve every failure. Review its two
    host-owned warnings rather than treating them as machine-proven.
-5. Start core with `./scripts/vps-up.sh`. Do not enable `--side-effects`,
-   `--agent`, or `--local-model` until its named prerequisite is satisfied.
-6. Run `./scripts/vps-backup.sh` and `./scripts/vps-restore-drill.sh`; then
+6. Start the full stack with `./scripts/vps-up.sh`. It always includes Hermes,
+   OmniRoute, OpenRouter fallback configuration, and an idle Ollama daemon.
+   `--local-model` is only an explicit Qwen canary. Set
+   `VPS_SIDE_EFFECTS_ENABLED=true` only after TLS SMTP is ready.
+7. Install boot/recovery management with `./scripts/vps-install-service.sh`,
+   then confirm `hermes.service` and `hermes-model-health.timer` are enabled.
+8. Run `./scripts/vps-backup.sh` and `./scripts/vps-restore-drill.sh`; then
    configure encrypted off-host transfer, retention, scheduling, and alerts.
-7. Reach the dashboard only through SSH/WireGuard/Tailscale. With SSH, use
-   `ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS`; no domain or public TLS is
-   required for this private profile.
-8. Configure health/disk/queue/task-failure alerts and write down the rollback
-   commit plus the side-effect reconciliation procedure before daily use.
+9. Reach the dashboard only through SSH/WireGuard/Tailscale. With SSH, use
+   `ssh -L 8080:127.0.0.1:8080 deploy@YOUR_VPS`, then run
+   `./scripts/vps-dashboard-login.sh` and open its one-use URL; no domain or
+   public TLS is required for this private profile.
+10. Configure health/disk/queue/task-failure alerts and write down the rollback
+    commit plus the side-effect reconciliation procedure before daily use.
 
 The private single-user alpha can be used after those checks and the relevant
 provider proofs pass. Public or multi-user availability remains blocked on
@@ -140,16 +151,18 @@ management, signed releases, and an incident-response runbook.
 | Work | Route | Why |
 |---|---|---|
 | Job/creator discovery, freshness, matching, scoring, preflight | Deterministic code | Zero tokens and reproducible decisions |
-| General Hermes planning/chat | OmniRoute `free/default` | Uses the separately configured gateway pool |
+| General Hermes planning/chat | OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen | Ordered availability fallback; general OpenRouter calls are outside the career ledger |
 | Highest-score/freshest career drafts | Direct strict OpenRouter `:free` chain when enabled | Live price and returned-cost attestation plus a PostgreSQL daily cap |
 | Any hosted quota/outage/privacy failure | Internal `qwen3:8b` | No provider quota and résumé stays local |
 
-Do not connect the same OpenRouter account to OmniRoute by default. Free limits
-are shared across the OpenRouter account, but OmniRoute calls cannot participate
-in the career worker's PostgreSQL reservation counter. The “1.53B free tokens”
-shown in OmniRoute material is a theoretical sum across many separately enrolled
-provider tiers, not a credit grant from OmniRoute. This workstation currently
-has 40 concrete OVHfree routes and no OpenRouter route in OmniRoute.
+Do not separately connect the same OpenRouter account inside OmniRoute unless
+you intentionally accept a third consumer of its account-wide quota. The
+explicit Hermes fallback and career adapter already share that account, while
+only career calls participate in the PostgreSQL reservation counter. The
+“1.53B free tokens” shown in OmniRoute material is a theoretical sum across many
+separately enrolled provider tiers, not a credit grant from OmniRoute. The last
+observed workstation catalog had 40 concrete OVHfree routes and no OpenRouter
+route inside OmniRoute.
 
 ## Path A — completely local inference
 
@@ -170,11 +183,12 @@ only when deliberately refreshing it. Verify GPU placement afterward:
 docker compose --profile local-model exec ollama ollama ps
 ```
 
-The `PROCESSOR` column should show GPU use. The internal OpenAI-compatible URL is
-`http://ollama:11434/v1`. Hermes is configured to use it directly after
-OmniRoute provider failures; start both `agent` and `local-model` profiles for
-that chain. Do not publish port 11434 and do not switch the primary to generic
-`auto`.
+The `PROCESSOR` column should show GPU use during the canary. The internal
+OpenAI-compatible URL is `http://ollama:11434/v1`. Hermes uses it only after
+OmniRoute and the explicit OpenRouter free fallback fail. Normal agent startup
+supervises Ollama and caches Qwen but does not load its weights;
+`local-model.ps1` deliberately exercises the route and unloads it afterward.
+Do not publish port 11434 and do not switch the primary to generic `auto`.
 
 ## Path B — enable the ranked OpenRouter free chain
 
@@ -186,7 +200,6 @@ mistake cannot consume the account balance freely.
 ```powershell
 ./scripts/openrouter.ps1 -Configure
 ./scripts/openrouter.ps1 -Smoke
-docker compose up -d --build --force-recreate migrate control-api job-worker
 ```
 
 `-Configure` reads the key through a hidden prompt, validates it with `/key`,
@@ -211,11 +224,13 @@ mode, fallback attempt, tokens, and zero recorded credits. Free model inventory
 is volatile. Switching models helps model/provider-specific limits, but it does
 not bypass the shared account-wide free quota; local Qwen is the final route.
 
-Do not also add this OpenRouter account to OmniRoute unless you deliberately
-accept uncoordinated account-wide quota consumption. A separate provider pool is
-preferred for interactive Hermes. Never rely on `auto/<category>:free` as a
-hard spend boundary in OmniRoute 3.8.49 because its tier filtering is documented
-as fail-open when no candidates match.
+The same key is available to Hermes for its second interactive route. Those
+general calls do not reserve from the career worker's PostgreSQL counter, so
+apply a provider-side limit and monitor total key usage. Do not also add the
+account inside OmniRoute unless you deliberately accept another uncoordinated
+consumer. Never rely on `auto/<category>:free` as a hard spend boundary in
+OmniRoute 3.8.49 because its tier filtering is documented as fail-open when no
+candidates match.
 
 ## Path C — add or replace another OmniRoute free-tier provider
 
@@ -244,11 +259,14 @@ steps only to repair it or switch the route:
 2. Select a custom OpenAI-compatible provider.
 3. Use `http://omniroute:20128/v1`, model `free/default`, and the scoped
    OmniRoute key for the primary path.
-4. Keep the reviewed custom fallback at `http://ollama:11434/v1`, model
-   `qwen3:8b`.
+4. Keep ordered fallbacks: OpenRouter `openrouter/free` first, then the reviewed
+   custom endpoint `http://ollama:11434/v1` with model `qwen3:8b`.
 5. Keep command approval enabled.
 6. Do not mount the host filesystem or Docker socket.
 7. Test a harmless read-only prompt before adding messaging or MCP tools.
+
+Normal startup rewrites the private Hermes config from the committed template,
+so manual changes are repair-only and will not become deployment policy.
 
 ## Accounts intentionally not automated
 

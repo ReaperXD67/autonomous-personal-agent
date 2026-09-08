@@ -126,9 +126,9 @@ implementation review, not a penetration test of third-party ATS sites.
 
 ## Residual production blockers
 
-- The dashboard still uses one bootstrap bearer token and must stay loopback or
-  behind an SSH/VPN tunnel until OIDC/RBAC, rate limiting, and step-up approval
-  are implemented.
+- The dashboard now uses a one-use fragment and signed HttpOnly browser session,
+  but it remains single-operator and must stay loopback or behind an SSH/VPN
+  tunnel until OIDC/RBAC, rate limiting, and step-up approval are implemented.
 - Real ATS behavior is prepared but not universally verified. Unsupported,
   login-gated, multi-page, CAPTCHA, or changed forms stop for manual handling.
 - Real email requires user-owned SMTP/OAuth credentials and provider terms.
