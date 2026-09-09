@@ -1734,6 +1734,12 @@ executable-bit metadata, so final tests used the rebuilt canonical test image.
 The browser probe used its existing shared-memory temporary space after its
 small `/tmp` filled; no production container permissions were widened.
 
+The first expanded GitHub runtime gate passed application/unit checks but found
+that the recovery smoke read missing database-name/user entries directly from
+the minimal CI `.env`, while Compose correctly used defaults. The helper now
+uses the same `agent`/`agent_app` defaults. The failure did not involve task or
+workflow execution and was not bypassed; CI is rerun with the corrected helper.
+
 Plans remain explicit recipes with fixed inputs. Model-authored planning,
 replanning, dynamic result binding, safe memory retrieval, general scheduling,
 and the policy-bound Hermes adapter remain future work. Cancellation is

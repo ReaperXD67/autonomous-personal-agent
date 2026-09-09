@@ -9,6 +9,8 @@ try {
         $values[$parts[0].Trim()] = $parts[1].Trim()
     }
     $port = if ($values.CONTROL_API_PORT) { $values.CONTROL_API_PORT } else { '8080' }
+    $postgresUser = if ($values.POSTGRES_USER) { $values.POSTGRES_USER } else { 'agent_app' }
+    $postgresDatabase = if ($values.POSTGRES_DB) { $values.POSTGRES_DB } else { 'agent' }
     $headers = @{ Authorization = "Bearer $($values.CONTROL_API_TOKEN)" }
     $baseUrl = "http://127.0.0.1:$port"
 
@@ -28,7 +30,7 @@ try {
     function Set-ExpiredLease {
         param([string]$TaskId, [string]$AttemptsExpression)
         $sql = "UPDATE agent_tasks SET status='running', attempt_count=$AttemptsExpression, started_at=now()-interval '5 minutes', last_heartbeat_at=now()-interval '5 minutes', lease_expires_at=now()-interval '1 second' WHERE id='$TaskId';"
-        docker compose exec -T postgres psql -U $values.POSTGRES_USER -d $values.POSTGRES_DB -v ON_ERROR_STOP=1 -c $sql | Out-Null
+        docker compose exec -T postgres psql -U $postgresUser -d $postgresDatabase -v ON_ERROR_STOP=1 -c $sql | Out-Null
         if ($LASTEXITCODE -ne 0) { throw "Could not create expired lease for $TaskId" }
     }
 
