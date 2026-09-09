@@ -14,6 +14,7 @@ const state = {
   campaigns: [],
   prospects: [],
   marketingResults: [],
+  workflows: [],
   view: "overview",
 };
 
@@ -160,6 +161,8 @@ function disconnect(showMessage = true) {
   state.campaigns = [];
   state.prospects = [];
   state.marketingResults = [];
+  state.workflows = [];
+  $("#workflow-dialog").close();
   setConnection(false);
   renderAll();
   if (showMessage) toast("Disconnected this browser tab");
@@ -214,7 +217,7 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults] = await Promise.all([
+    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/inference/status"),
       api("/v1/career/profiles"),
@@ -225,8 +228,9 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/marketing/campaigns"),
       api("/v1/marketing/prospects?limit=500"),
       api("/v1/marketing/results"),
+      api("/v1/workflows"),
     ]);
-    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults });
+    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows });
     setConnection(true);
     renderAll();
     return true;
@@ -240,6 +244,7 @@ async function loadData({ quiet = false } = {}) {
 const viewCopy = {
   overview: ["Private agent workspace", "Turn intentions into <em>reviewable work.</em>", "Run continuous missions while every consequential action remains visible and controlled."],
   missions: ["Continuous operations", "Choose the <em>mission.</em>", "Activate, pause, or replace ongoing work without changing code."],
+  workflows: ["Coordinated autonomy", "Plan. Execute. <em>Verify.</em>", "Turn a multi-step objective into durable work with dependencies, result checks, and a clear stopping point."],
   opportunities: ["Career intelligence", "Review the <em>freshest fits.</em>", "Every result links back to the original job source and keeps its matching evidence."],
   campaigns: ["Measured distribution", "Grow with <em>evidence.</em>", "Discover relevant creators, review each contact, and adapt drafts only when outcomes support it."],
   approvals: ["Human control", "Decide before <em>impact.</em>", "Approve or reject high-risk tasks before they can enter execution."],
@@ -432,6 +437,279 @@ function renderTasks() {
     row.append(copy, button("Audit", "text-button", "view-audit", task.id));
     list.append(row);
   });
+}
+
+const workflowKinds = new Set(["foundation.echo", "foundation.wait", "career.search", "career.application_draft", "career.application_preflight", "marketing.creator_discovery"]);
+const workflowCancellations = new Set();
+let workflowDetailId = null;
+let workflowSubmission = null;
+let workflowSubmitting = false;
+
+function demoWorkflowSteps() {
+  return [
+    { key: "start", title: "Verify the starting signal", kind: "foundation.echo", payload: { message: "WORKFLOW_READY" }, depends_on: [], expect_output: { echo: "WORKFLOW_READY" } },
+    { key: "pause", title: "Run a cooperative wait", kind: "foundation.wait", payload: { seconds: 3 }, depends_on: ["start"], expect_output: { waited_seconds: 3 } },
+    { key: "check", title: "Verify the parallel branch", kind: "foundation.echo", payload: { message: "BRANCH_CHECKED" }, depends_on: ["start"], expect_output: { echo: "BRANCH_CHECKED" } },
+    { key: "finish", title: "Finish after both branches pass", kind: "foundation.echo", payload: { message: "WORKFLOW_COMPLETE" }, depends_on: ["pause", "check"], expect_output: { echo: "WORKFLOW_COMPLETE" } },
+  ];
+}
+
+function applicationWorkflowSteps() {
+  const id = $("#workflow-form").elements.opportunity_id.value;
+  const opportunity = state.opportunities.find((item) => item.id === id);
+  if (!opportunity) throw new Error("Choose a saved opportunity before starting this recipe.");
+  return [
+    { key: "draft", title: "Prepare an evidence-based application draft", kind: "career.application_draft", payload: { profile_id: opportunity.profile_id, opportunity_id: opportunity.id }, depends_on: [], expect_output: { draft_created: true } },
+    { key: "preflight", title: "Inspect the application form", kind: "career.application_preflight", payload: { opportunity_id: opportunity.id }, depends_on: ["draft"], expect_output: { blocked_reason: null } },
+  ];
+}
+
+function workflowSteps() {
+  const form = $("#workflow-form");
+  if (form.elements.recipe.value === "application") return applicationWorkflowSteps();
+  if (form.elements.recipe.value !== "custom") return demoWorkflowSteps();
+  let steps;
+  try { steps = JSON.parse(form.elements.steps_json.value); }
+  catch (_error) { throw new Error("Steps must be valid JSON. Start with the example and check its commas and quotes."); }
+  if (!Array.isArray(steps) || steps.length < 1 || steps.length > 32) throw new Error("Use an array with 1–32 steps.");
+  const keys = new Set();
+  for (const step of steps) {
+    if (!step || typeof step !== "object" || Array.isArray(step) || typeof step.key !== "string" || !/^[A-Za-z][A-Za-z0-9_-]{0,39}$/.test(step.key)) throw new Error("Each step needs a key starting with a letter, up to 40 letters, numbers, underscores, or hyphens.");
+    if (keys.has(step.key)) throw new Error(`Step key “${step.key}” is repeated.`);
+    keys.add(step.key);
+    if (typeof step.title !== "string" || !step.title.trim() || step.title.length > 200) throw new Error(`Step “${step.key}” needs a title of 1–200 characters.`);
+    if (!workflowKinds.has(step.kind)) throw new Error(`Step “${step.key}” must use an enabled workflow capability: ${[...workflowKinds].join(", ")}.`);
+    if (!step.payload || typeof step.payload !== "object" || Array.isArray(step.payload)) throw new Error(`Step “${step.key}” needs a payload object.`);
+    if (step.depends_on !== undefined && (!Array.isArray(step.depends_on) || step.depends_on.some((key) => typeof key !== "string"))) throw new Error(`Step “${step.key}” needs an array of dependency keys.`);
+    if (step.expect_output !== undefined && (!step.expect_output || typeof step.expect_output !== "object" || Array.isArray(step.expect_output) || Object.values(step.expect_output).some((value) => value !== null && !["string", "number", "boolean"].includes(typeof value)))) throw new Error(`Step “${step.key}” result checks must be an object of exact scalar values, such as {"draft_created": true}.`);
+  }
+  const visited = new Set();
+  const visiting = new Set();
+  const byKey = new Map(steps.map((step) => [step.key, step]));
+  function visit(key) {
+    if (visiting.has(key)) throw new Error("Step dependencies contain a cycle. Every branch needs a starting point.");
+    if (visited.has(key)) return;
+    visiting.add(key);
+    for (const dependency of byKey.get(key).depends_on || []) {
+      if (!keys.has(dependency)) throw new Error(`Step “${key}” refers to missing dependency “${dependency}”.`);
+      visit(dependency);
+    }
+    visiting.delete(key);
+    visited.add(key);
+  }
+  steps.forEach((step) => visit(step.key));
+  return steps;
+}
+
+function renderWorkflowOpportunityOptions() {
+  const select = $("#workflow-form").elements.opportunity_id;
+  const selected = select.value;
+  const options = state.opportunities.filter((item) => !["dismissed", "applied"].includes(item.status) || item.id === selected);
+  const signature = JSON.stringify(options.map((item) => [item.id, item.title, item.company]));
+  if (select.dataset.options === signature) return;
+  select.dataset.options = signature;
+  select.replaceChildren(new Option(options.length ? "Choose an opportunity" : "Create a mission and scan for opportunities first", ""));
+  options.forEach((item) => select.append(new Option(`${item.title} · ${item.company}`, item.id)));
+  select.value = selected;
+}
+
+function updateWorkflowRecipe() {
+  const form = $("#workflow-form");
+  const recipe = form.elements.recipe.value;
+  const application = recipe === "application";
+  const custom = recipe === "custom";
+  $("#workflow-opportunity-field").hidden = !application;
+  form.elements.opportunity_id.disabled = !application;
+  form.elements.opportunity_id.required = application;
+  $("#workflow-custom-fields").hidden = !custom;
+  form.elements.steps_json.disabled = !custom;
+  form.elements.steps_json.required = custom;
+  if (custom && !form.elements.steps_json.value) form.elements.steps_json.value = JSON.stringify(demoWorkflowSteps(), null, 2);
+  const titles = { demo: "Verified parallel demo", application: "Prepare an application", custom: "Custom workflow" };
+  if (Object.values(titles).includes(form.elements.title.value)) form.elements.title.value = titles[recipe];
+  $("#workflow-recipe-help").textContent = application
+    ? "Generate a résumé-based draft, then inspect the selected application form. The run passes only when a draft exists and inspection reports no blocking reason."
+    : custom
+      ? "Compose enabled research and preparation capabilities. Each step has a stable key; depends_on lists the steps that must pass first."
+      : "A harmless four-step run: verify a message, run two branches, then check the final result. No model or provider account needed.";
+  const preview = $("#workflow-plan-preview");
+  preview.replaceChildren();
+  if (!custom) {
+    const titles = application ? ["Draft application", "Check form"] : ["Verify signal", "Wait + check in parallel", "Verify completion"];
+    preview.append(node("strong", "", "Recipe path"));
+    const list = node("ol");
+    titles.forEach((title) => list.append(node("li", "", title)));
+    preview.append(list);
+  }
+  preview.hidden = custom;
+}
+
+function workflowProgress(workflow) {
+  const done = workflow.steps.filter((step) => step.status === "succeeded").length;
+  const wrapper = node("div", "workflow-progress");
+  const progress = node("progress");
+  progress.max = workflow.steps.length || 1;
+  progress.value = done;
+  progress.setAttribute("aria-label", `${workflow.title}: ${done} of ${workflow.steps.length} steps passed`);
+  wrapper.append(progress, node("span", "", `${done} / ${workflow.steps.length} passed`));
+  return wrapper;
+}
+
+function workflowCancelButton(workflow) {
+  const cancelling = workflow.status === "cancelling" || workflowCancellations.has(workflow.id);
+  const element = button(cancelling ? "Stopping…" : "Stop workflow", "text-button danger-text", "cancel-workflow", workflow.id);
+  element.disabled = cancelling;
+  return element;
+}
+
+function workflowCard(workflow) {
+  const card = node("article", "panel workflow-card");
+  const heading = node("div", "workflow-card-head");
+  const title = node("h3", "", workflow.title);
+  heading.append(title, node("span", `status ${workflow.status}`, titleCase(workflow.status)));
+  card.append(heading);
+  if (workflow.objective) card.append(node("p", "workflow-objective", workflow.objective));
+  card.append(workflowProgress(workflow));
+  const next = workflow.steps.filter((step) => step.status === "dispatched");
+  const failed = workflow.steps.find((step) => step.status === "failed");
+  if (failed) card.append(node("p", "workflow-run-note red", `${failed.title}: ${titleCase(failed.error_code || "step failed")}`));
+  else if (next.length) card.append(node("p", "workflow-run-note", `In progress: ${next.map((step) => step.title).join(" · ")}`));
+  else if (workflow.status === "running") card.append(node("p", "workflow-run-note", "Waiting for the coordinator to advance ready steps."));
+  const meta = node("p", "workflow-meta", `${workflow.max_parallel} parallel max · ${Math.round(workflow.timeout_seconds / 60)} min limit · ${timeAgo(workflow.created_at)}`);
+  const actions = node("div", "card-actions");
+  actions.append(button("Inspect steps", "button compact", "view-workflow", workflow.id));
+  if (["running", "cancelling"].includes(workflow.status)) actions.append(workflowCancelButton(workflow));
+  card.append(meta, actions);
+  return card;
+}
+
+function renderWorkflowDetails(workflow) {
+  $("#workflow-detail-title").textContent = workflow.title;
+  const content = $("#workflow-detail-content");
+  content.replaceChildren(node("span", `status ${workflow.status}`, titleCase(workflow.status)));
+  if (workflow.objective) content.append(node("p", "workflow-objective", workflow.objective));
+  content.append(workflowProgress(workflow));
+  const metadata = node("dl", "action-summary");
+  const entries = [["Started", formatDate(workflow.created_at)], ["Deadline", formatDate(workflow.deadline_at)], ["Requested by", workflow.requested_by], ["Concurrency", `Up to ${workflow.max_parallel} steps`]];
+  if (workflow.completed_at) entries.push(["Completed", formatDate(workflow.completed_at)]);
+  entries.forEach(([name, value]) => metadata.append(node("dt", "", name), node("dd", "", value)));
+  content.append(metadata);
+  const steps = node("ol", "workflow-steps");
+  workflow.steps.forEach((step) => {
+    const item = node("li", `workflow-step ${step.status}`);
+    const head = node("div", "workflow-step-head");
+    head.append(node("h3", "", step.title), node("span", `status ${step.status}`, titleCase(step.status)));
+    item.append(head, node("p", "workflow-meta", `${step.key} · ${step.kind} · ${titleCase(step.risk_level)} risk`));
+    const dependencies = step.depends_on?.length ? `Requires: ${step.depends_on.join(", ")}` : "Starting step · no dependencies";
+    item.append(node("p", "workflow-dependencies", dependencies));
+    const checks = Object.entries(step.expect_output || {});
+    if (checks.length) {
+      const checkList = node("ul", "workflow-checks");
+      checks.forEach(([key, value]) => {
+        const label = step.status === "succeeded" ? "Passed" : "Expected";
+        checkList.append(node("li", "", `${label}: ${key} = ${JSON.stringify(value)}`));
+      });
+      item.append(checkList);
+    }
+    if (step.error_code) item.append(node("p", "workflow-step-error", titleCase(step.error_code)));
+    if (step.task_id) {
+      const link = button("Task audit", "text-button", "view-audit", step.task_id);
+      link.setAttribute("aria-label", `View task audit for ${step.title}`);
+      const task = node("div", "workflow-task-link");
+      task.append(link, node("span", "", `Task: ${titleCase(step.task_status || "queued")}`));
+      item.append(task);
+    }
+    steps.append(item);
+  });
+  content.append(steps);
+  if (["running", "cancelling"].includes(workflow.status)) {
+    const footer = node("div", "dialog-actions");
+    footer.append(workflowCancelButton(workflow));
+    content.append(footer);
+  }
+}
+
+function renderWorkflows() {
+  renderWorkflowOpportunityOptions();
+  const filter = $("#workflow-status-filter").value;
+  const workflows = state.workflows.filter((workflow) => !filter
+    || (filter === "active" && ["running", "cancelling"].includes(workflow.status))
+    || (filter === "attention" && ["failed", "timed_out"].includes(workflow.status))
+    || workflow.status === filter);
+  const list = $("#workflow-list");
+  list.replaceChildren();
+  $("#workflow-count").textContent = `${workflows.length} workflow${workflows.length === 1 ? "" : "s"}`;
+  if (workflows.length) workflows.forEach((workflow) => list.append(workflowCard(workflow)));
+  else list.append(empty(filter ? "No matching workflows" : "No workflows yet", isConnected() ? "Start the demo or choose a recipe to coordinate your next task." : "Connect the workspace to load and start durable workflows.", true));
+  if ($("#workflow-dialog").open && workflowDetailId) {
+    const selected = state.workflows.find((workflow) => workflow.id === workflowDetailId);
+    if (selected) renderWorkflowDetails(selected);
+  }
+}
+
+async function showWorkflow(id) {
+  workflowDetailId = id;
+  const content = $("#workflow-detail-content");
+  $("#workflow-detail-title").textContent = "Workflow details";
+  content.replaceChildren(empty("Loading workflow", "Fetching its durable steps and result checks…"));
+  $("#workflow-dialog").showModal();
+  try {
+    const workflow = await api(`/v1/workflows/${encodeURIComponent(id)}`);
+    if (workflowDetailId === id && $("#workflow-dialog").open) renderWorkflowDetails(workflow);
+  } catch (error) {
+    if (workflowDetailId === id) content.replaceChildren(empty("Could not load workflow", error.message));
+  }
+}
+
+async function cancelWorkflow(id) {
+  if (workflowCancellations.has(id)) return;
+  workflowCancellations.add(id);
+  renderWorkflows();
+  try {
+    const workflow = await api(`/v1/workflows/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ actor: "dashboard:user", reason: "Stopped from the workflow dashboard" }) });
+    const index = state.workflows.findIndex((item) => item.id === id);
+    if (index !== -1) state.workflows[index] = workflow;
+    toast(workflow.status === "cancelled" ? "Workflow stopped" : "Workflow stop requested; active tasks are being interrupted.");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+  finally { workflowCancellations.delete(id); renderWorkflows(); }
+}
+
+async function createWorkflow(event) {
+  event.preventDefault();
+  if (workflowSubmitting) return;
+  const form = event.currentTarget;
+  const submit = $("#workflow-submit");
+  const feedback = $("#workflow-form-status");
+  feedback.hidden = true;
+  try {
+    const payload = { title: form.elements.title.value.trim(), objective: form.elements.objective.value.trim(), requested_by: form.elements.requested_by.value.trim(), max_parallel: Number(form.elements.max_parallel.value), timeout_seconds: Number(form.elements.timeout_seconds.value), steps: workflowSteps() };
+    if (!payload.title || !payload.requested_by) throw new Error("Enter a workflow title and requester.");
+    const fingerprint = JSON.stringify(payload);
+    if (workflowSubmission?.fingerprint !== fingerprint) workflowSubmission = { fingerprint, key: `dashboard-workflow-${crypto.randomUUID()}` };
+    payload.idempotency_key = workflowSubmission.key;
+    workflowSubmitting = true;
+    submit.disabled = true;
+    submit.textContent = "Starting…";
+    const workflow = await api("/v1/workflows", { method: "POST", body: JSON.stringify(payload) });
+    workflowSubmission = null;
+    state.workflows = [workflow, ...state.workflows.filter((item) => item.id !== workflow.id)];
+    $("#workflow-status-filter").value = "";
+    renderWorkflows();
+    feedback.textContent = `Started “${workflow.title}”. Inspect its steps to follow the result checks.`;
+    feedback.classList.remove("error");
+    feedback.hidden = false;
+    toast("Workflow started");
+    await loadData({ quiet: true });
+  } catch (error) {
+    feedback.textContent = error.message;
+    feedback.classList.add("error");
+    feedback.hidden = false;
+  } finally {
+    workflowSubmitting = false;
+    submit.disabled = false;
+    submit.textContent = "Start workflow";
+  }
 }
 
 function renderActivity() {
@@ -699,6 +977,7 @@ function renderAll() {
   renderOpportunities();
   renderApprovals();
   renderTasks();
+  renderWorkflows();
   renderActivity();
   renderMarketingMetrics();
   renderMarketingFilters();
@@ -1189,6 +1468,9 @@ document.addEventListener("click", async (event) => {
   if (action === "approve-task") return decideTask(id, "approved");
   if (action === "reject-task") return decideTask(id, "rejected");
   if (action === "view-audit") return showAudit(id);
+  if (action === "view-workflow") return showWorkflow(id);
+  if (action === "cancel-workflow") return cancelWorkflow(id);
+  if (action === "close-workflow") return $("#workflow-dialog").close();
 });
 
 $("#connect-button").addEventListener("click", () => $("#connect-dialog").showModal());
@@ -1247,6 +1529,11 @@ $("#email-action-form").addEventListener("submit", async (event) => {
   } catch (error) { toast(error.message, true); }
 });
 $("#task-form").addEventListener("submit", assignTask);
+$("#workflow-form").addEventListener("submit", createWorkflow);
+$("#workflow-form").elements.recipe.addEventListener("change", updateWorkflowRecipe);
+$("#workflow-status-filter").addEventListener("change", renderWorkflows);
+$("#workflow-refresh").addEventListener("click", () => loadData());
+$("#workflow-dialog").addEventListener("close", () => { workflowDetailId = null; });
 $("#task-form").elements.kind.addEventListener("change", (event) => {
   const waiting = event.target.value === "foundation.wait";
   $("#task-message-field").hidden = waiting;
@@ -1263,6 +1550,7 @@ $("#scan-now-button").addEventListener("click", async () => {
   for (const profile of profiles) await scanProfile(profile.id);
 });
 
+updateWorkflowRecipe();
 renderAll();
 setConnection(false);
 initializeConnection();

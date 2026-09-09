@@ -65,6 +65,8 @@ from app.models import ApprovalDecision, TaskCancellation, TaskCreate, TaskView
 from app.policy import RiskLevel
 from app.settings import get_settings
 from app.store import Database, InvalidTaskStateError, TaskNotFoundError
+from app.workflow_models import WorkflowCreate, WorkflowView
+from app.workflow_store import WorkflowConflictError, WorkflowNotFoundError, WorkflowStore
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -80,6 +82,7 @@ async def lifespan(application: FastAPI):
     application.state.career = CareerStore(settings.database_url)
     application.state.actions = ActionStore(settings.database_url)
     application.state.marketing = MarketingStore(settings.database_url)
+    application.state.workflows = WorkflowStore(settings.database_url)
     application.state.redis = redis.Redis.from_url(settings.redis_url, decode_responses=True)
     logger.info("control plane starting", extra={"action": "startup"})
     yield
@@ -322,6 +325,48 @@ def metrics(request: Request) -> str:
 )
 def create_task(request: Request, payload: TaskCreate) -> dict[str, Any]:
     return _database(request).create_task(payload)
+
+
+@app.post(
+    "/v1/workflows", response_model=WorkflowView, status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def create_workflow(request: Request, payload: WorkflowCreate) -> dict[str, Any]:
+    try:
+        return request.app.state.workflows.create_workflow(payload)
+    except WorkflowConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.get(
+    "/v1/workflows", response_model=list[WorkflowView], dependencies=[Depends(require_api_token)],
+)
+def list_workflows(request: Request, limit: int = Query(default=50, ge=1, le=100)):
+    return request.app.state.workflows.list_workflows(limit=limit)
+
+
+@app.get(
+    "/v1/workflows/{workflow_id}", response_model=WorkflowView,
+    dependencies=[Depends(require_api_token)],
+)
+def get_workflow(request: Request, workflow_id: UUID):
+    try:
+        return request.app.state.workflows.get_workflow(workflow_id)
+    except WorkflowNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Workflow not found") from exc
+
+
+@app.post(
+    "/v1/workflows/{workflow_id}/cancel", response_model=WorkflowView,
+    dependencies=[Depends(require_api_token)],
+)
+def cancel_workflow(request: Request, workflow_id: UUID, payload: TaskCancellation):
+    try:
+        return request.app.state.workflows.cancel_workflow(workflow_id, payload)
+    except WorkflowNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Workflow not found") from exc
+    except InvalidTaskStateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get(

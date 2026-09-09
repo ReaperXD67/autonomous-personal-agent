@@ -1658,3 +1658,91 @@ to an owned inbox. An actual VPS, encrypted off-host backup, alert delivery, and
 rollback drill remain target-host proofs; public/multi-user service still needs
 OIDC/RBAC, rate limits, TLS, step-up identity, centralized secrets, and incident
 response.
+
+## Step 24 — Durable workflows and reconstructible task delivery
+
+Date: 2026-09-09
+
+### Objective
+
+Improve useful autonomy with dependency-aware, bounded plans that retain task
+policy, approval, and audit guarantees. Address a discovered reliability gap
+where a lost Redis signal or a crash before PostgreSQL claim stranded queued
+work. This milestone implements deterministic coordination, not AGI or a
+model-driven planner.
+
+### Implementation
+
+- Added migrations 009/010 for immutable workflow/step state and outbox delivery
+  generations. Plans allow up to 32 steps, four concurrent task slots, and a
+  one-day deadline, with validated DAGs and bounded capability-specific inputs.
+- Added authenticated create/list/detail/cancel APIs and dispatcher reconciliation
+  under PostgreSQL row locks. Task creation, step binding, outbox, and audit
+  share one transaction. Idempotency distinguishes identical requests from
+  changed plans.
+- Added exact scalar result checks, transitive failure suppression, independent
+  branch continuation, approval waiting, cooperative cancellation, late-completion
+  deadline checks, and quarantine of steps rejected by a later capability policy.
+- Kept workflow-managed career handlers from creating hidden preparation or
+  approval tasks. Raw email send and application submit remain outside plans and
+  retain the existing exact-action authorization path.
+- Added bounded replay of old published signals for due queued tasks, generation
+  guards on publisher success/failure, and expired-owner refusal for heartbeat,
+  completion, and failure. Refactored cancellation to support caller transactions.
+- Added a dashboard workflow composer, safe parallel demo, draft/preflight
+  recipe, custom plan editor, progress/step/check inspection, task audit links,
+  cancellation, refresh-preserved form state, and mobile layout.
+- Made the test command rebuild by default, wired isolated PostgreSQL workflow
+  and queue probes into verification and CI, and excluded ignored browser
+  artifacts from Docker build context. No runtime dependency or image pin changed.
+- Updated README, roadmap, operations, architecture, security, system evolution,
+  and ADR-0016. Documented the separately discovered career/creator schedule
+  advancement crash gap as remaining work instead of claiming it solved.
+
+### Validation
+
+- Rebuilt containerized Ruff/Pytest passed 110 tests; the final full verification
+  invocation reported 0.87 seconds for Pytest. New handler tests prove managed
+  workflows suppress hidden children while ordinary career behavior remains.
+- `docker compose config --quiet`, `scripts/test.ps1`, `scripts/verify.ps1`,
+  changed PowerShell parsing, JavaScript syntax, and `git diff --check` passed.
+- Full verification proved safe/approved tasks, lease retry/exhaustion, queued
+  and running cancellation, and dead-letter inspection.
+- The new workflow probe applied every migration to an empty disposable database
+  and passed 12 scenario groups: DAG/fork/join/restart, capacity, evidence failure,
+  approvals/rejection, idempotency conflict, cancellation, deadlines, on-time vs.
+  late completion, six concurrent reconcilers, atomic rollback, and retired
+  capability quarantine. Its database was removed afterward.
+- The queue probe passed replay, stale generation refusal, due/approval/lease
+  guards, and cancellation rollback in its own synthetic schema, then removed it.
+- Chromium passed 12 mocked UI paths and a live four-step demo with four exact
+  checks, one-use login/URL scrub, HttpOnly session/reload, task audit navigation,
+  390-pixel layout, and zero page errors. Only the probe's synthetic live records
+  were removed; screenshots remain in ignored local output.
+- The rebuilt isolated action runtime passed the existing fake-ATS submission,
+  local Mailpit delivery, and duplicate refusal smoke; no application or email
+  left the Docker test network.
+
+### Problems and remaining boundaries
+
+Docker Desktop again failed on malformed transient inference and Secrets Engine
+socket directories. With the backend stopped, only those verified transient
+directories were preserved as timestamped siblings; engine 29.5.3 then started.
+Images, volumes, configuration, and secrets were not deleted. Initial lint found
+three long lines, which were corrected. A mounted-source check exposed Windows
+executable-bit metadata, so final tests used the rebuilt canonical test image.
+The browser probe used its existing shared-memory temporary space after its
+small `/tmp` filled; no production container permissions were widened.
+
+The first expanded GitHub runtime gate passed application/unit checks but found
+that the recovery smoke read missing database-name/user entries directly from
+the minimal CI `.env`, while Compose correctly used defaults. The helper now
+uses the same `agent`/`agent_app` defaults. The failure did not involve task or
+workflow execution and was not bypassed; CI is rerun with the corrected helper.
+
+Plans remain explicit recipes with fixed inputs. Model-authored planning,
+replanning, dynamic result binding, safe memory retrieval, general scheduling,
+and the policy-bound Hermes adapter remain future work. Cancellation is
+cooperative and cannot undo a handler already in flight. This milestone does
+not claim a new model benchmark, live external provider delivery, public
+production readiness, or target-VPS validation.

@@ -9,13 +9,17 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Compose validation failed' }
     docker compose build control-api dispatcher worker job-worker test
     if ($LASTEXITCODE -ne 0) { throw 'Image build failed' }
-    & (Join-Path $PSScriptRoot 'test.ps1')
+    & (Join-Path $PSScriptRoot 'test.ps1') -SkipBuild
     docker compose up -d
     if ($LASTEXITCODE -ne 0) { throw 'Stack startup failed' }
     & (Join-Path $PSScriptRoot 'health.ps1')
     & (Join-Path $PSScriptRoot 'smoke.ps1')
     & (Join-Path $PSScriptRoot 'recovery-smoke.ps1')
     & (Join-Path $PSScriptRoot 'lifecycle-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'workflow-smoke.ps1')
+    Get-Content -Raw (Join-Path $PSScriptRoot 'queue-recovery-smoke.py') |
+        docker compose exec -T control-api python -
+    if ($LASTEXITCODE -ne 0) { throw 'Queue recovery smoke failed' }
 }
 finally {
     Pop-Location

@@ -469,6 +469,39 @@ The secondary OpenRouter route remains prepared but cannot be called until the
 operator supplies its key. Live YouTube discovery, real SMTP delivery, and an
 actual VPS remain deliberately unclaimed external proofs.
 
+## Experiment 24 — Durable dependency plans and lost-signal recovery
+
+Date: 2026-09-09
+
+Method: rebuild the containerized runtime/tests, run the full lifecycle gate,
+apply all migrations to a fresh disposable PostgreSQL database for workflow
+failure/concurrency probes, test queue recovery in a synthetic schema, and
+exercise the workflow dashboard in Chromium.
+
+Observed:
+
+- Ruff and 110 tests passed; the final full verification test phase took 0.87 s.
+- Twelve workflow scenario groups passed, including six simultaneous
+  reconcilers with exactly four task/outbox rows, no partial writes after an
+  injected dispatch failure, approval rejection, evidence mismatch, cancellation,
+  on-time and late completion, and invalidated capability quarantine.
+- Queued signal replay passed while preserving approval, due-time, attempt,
+  ownership, and generation boundaries. The disposable database and synthetic
+  schema were removed successfully.
+- Existing lifecycle smokes passed safe execution, explicit approval, retry,
+  exhaustion, queued/running cancellation, and dead-letter inspection.
+- Twelve mocked UI paths passed. Live Chromium completed a four-step workflow
+  with four exact output checks, retained its signed HttpOnly session on reload,
+  navigated task audit, rendered at 390 px without horizontal overflow, and
+  reported zero page errors. Synthetic live test records were removed.
+- The rebuilt side-effect runtime passed fake-ATS submission, Mailpit delivery,
+  and duplicate refusal without application/email egress.
+
+Result: bounded multi-step coordination and queued-signal reconstruction are
+verified locally without new executor privileges. These measurements do not
+establish model intelligence, general-purpose planning quality, or real external
+application/email compatibility.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

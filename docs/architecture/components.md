@@ -22,6 +22,18 @@ requeued with exponential delay until their bounded attempt budget is exhausted,
 then become inspectable dead letters. Cancellation requests on an abandoned
 claim are finalized during the same reconciliation. Every outcome is audited.
 
+The same dispatcher coordinates `agent_workflows` and `workflow_steps` under
+workflow row locks. Each immutable plan has at most 32 steps, 1–4 simultaneous
+task slots, and a 60–86,400 second deadline. Dependencies must pass both task
+execution and any explicit scalar output checks. It creates no more than one
+durable task per step, including across concurrent reconcilers or restart.
+Pending approval holds a slot; this component never grants approval.
+
+Due queued tasks with published signals older than 60 seconds are rearmed in
+bounded batches. Task claim remains authoritative, so duplicates cannot grant a
+second execution. Outbox generation numbers prevent a late publisher from
+acknowledging a newer delivery. Expired workers cannot renew or record failure.
+
 ### Worker
 
 Consumes Redis queue, atomically transitions `queued → running` with a unique

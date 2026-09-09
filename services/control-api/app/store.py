@@ -100,7 +100,8 @@ class Database:
                 payload = EXCLUDED.payload,
                 available_at = EXCLUDED.available_at,
                 published_at = NULL,
-                last_error = NULL
+                last_error = NULL,
+                generation = task_outbox.generation + 1
             """,
             (
                 task["id"],
@@ -232,73 +233,82 @@ class Database:
 
     def cancel_task(self, task_id: UUID, request: TaskCancellation) -> dict[str, Any]:
         with self.connect() as connection:
-            task = connection.execute(
-                "SELECT * FROM agent_tasks WHERE id = %s FOR UPDATE", (task_id,)
-            ).fetchone()
-            if task is None:
-                raise TaskNotFoundError(str(task_id))
-            if task["status"] == "cancelled":
-                return task
-            if task["status"] in {
-                "succeeded",
-                "failed",
-                "rejected",
-                "dead_lettered",
-            }:
-                raise InvalidTaskStateError(f"Task is already {task['status']}")
-
-            immediate = task["status"] in {"pending_approval", "queued"}
-            row = connection.execute(
-                """
-                UPDATE agent_tasks
-                SET status = CASE WHEN %s THEN 'cancelled' ELSE status END,
-                    cancellation_requested_at = now(),
-                    cancellation_requested_by = %s,
-                    cancellation_reason = %s,
-                    completed_at = CASE WHEN %s THEN now() ELSE completed_at END,
-                    lease_expires_at = CASE WHEN %s THEN NULL ELSE lease_expires_at END,
-                    lease_id = CASE WHEN %s THEN NULL ELSE lease_id END,
-                    claimed_by = CASE WHEN %s THEN NULL ELSE claimed_by END
-                WHERE id = %s
-                RETURNING *
-                """,
-                (
-                    immediate,
-                    request.actor,
-                    request.reason,
-                    immediate,
-                    immediate,
-                    immediate,
-                    immediate,
-                    task_id,
-                ),
-            ).fetchone()
-            if immediate:
-                connection.execute("DELETE FROM task_outbox WHERE task_id = %s", (task_id,))
-                connection.execute(
-                    """
-                    UPDATE external_actions
-                    SET status = 'cancelled'
-                    WHERE task_id = %s AND status IN ('pending_approval', 'queued')
-                    """,
-                    (task_id,),
-                )
-            action = "task.cancelled" if immediate else "task.cancellation_requested"
-            self._append_audit(
-                connection,
-                correlation_id=row["correlation_id"],
-                task_id=row["id"],
-                actor_type="user",
-                actor_id=request.actor,
-                tool_name=row["kind"],
-                action=action,
-                risk_level=row["risk_level"],
-                approval_status="approved" if row["approved_by"] else "not_required",
-                execution_status=row["status"],
-                input_metadata={"reason_provided": request.reason is not None},
-            )
+            row = self._cancel_task_record(connection, task_id, request)
             connection.commit()
             return row
+
+    def _cancel_task_record(
+        self,
+        connection: psycopg.Connection[Any],
+        task_id: UUID,
+        request: TaskCancellation,
+    ) -> dict[str, Any]:
+        task = connection.execute(
+            "SELECT * FROM agent_tasks WHERE id = %s FOR UPDATE", (task_id,)
+        ).fetchone()
+        if task is None:
+            raise TaskNotFoundError(str(task_id))
+        if task["status"] == "cancelled":
+            return task
+        if task["status"] in {
+            "succeeded",
+            "failed",
+            "rejected",
+            "dead_lettered",
+        }:
+            raise InvalidTaskStateError(f"Task is already {task['status']}")
+
+        immediate = task["status"] in {"pending_approval", "queued"}
+        row = connection.execute(
+            """
+            UPDATE agent_tasks
+            SET status = CASE WHEN %s THEN 'cancelled' ELSE status END,
+                cancellation_requested_at = now(),
+                cancellation_requested_by = %s,
+                cancellation_reason = %s,
+                completed_at = CASE WHEN %s THEN now() ELSE completed_at END,
+                lease_expires_at = CASE WHEN %s THEN NULL ELSE lease_expires_at END,
+                lease_id = CASE WHEN %s THEN NULL ELSE lease_id END,
+                claimed_by = CASE WHEN %s THEN NULL ELSE claimed_by END
+            WHERE id = %s
+            RETURNING *
+            """,
+            (
+                immediate,
+                request.actor,
+                request.reason,
+                immediate,
+                immediate,
+                immediate,
+                immediate,
+                task_id,
+            ),
+        ).fetchone()
+        if immediate:
+            connection.execute("DELETE FROM task_outbox WHERE task_id = %s", (task_id,))
+            connection.execute(
+                """
+                UPDATE external_actions
+                SET status = 'cancelled'
+                WHERE task_id = %s AND status IN ('pending_approval', 'queued')
+                """,
+                (task_id,),
+            )
+        action = "task.cancelled" if immediate else "task.cancellation_requested"
+        self._append_audit(
+            connection,
+            correlation_id=row["correlation_id"],
+            task_id=row["id"],
+            actor_type="user",
+            actor_id=request.actor,
+            tool_name=row["kind"],
+            action=action,
+            risk_level=row["risk_level"],
+            approval_status="approved" if row["approved_by"] else "not_required",
+            execution_status=row["status"],
+            input_metadata={"reason_provided": request.reason is not None},
+        )
+        return row
 
     def decide_task(self, task_id: UUID, request: ApprovalDecision) -> dict[str, Any]:
         with self.connect() as connection:
@@ -412,24 +422,33 @@ class Database:
         with self.connect() as connection:
             task = connection.execute(
                 """
-                SELECT status, lease_id, cancellation_requested_at
+                SELECT status, lease_id, cancellation_requested_at,
+                       lease_expires_at > clock_timestamp() AS lease_valid
                 FROM agent_tasks WHERE id = %s FOR UPDATE
                 """,
                 (task_id,),
             ).fetchone()
-            if task is None or task["status"] != "running" or task["lease_id"] != lease_id:
+            if (
+                task is None
+                or task["status"] != "running"
+                or task["lease_id"] != lease_id
+                or not task["lease_valid"]
+            ):
                 return "lost"
             if task["cancellation_requested_at"] is not None:
                 return "cancel_requested"
-            connection.execute(
+            renewed = connection.execute(
                 """
                 UPDATE agent_tasks
-                SET last_heartbeat_at = now(),
-                    lease_expires_at = now() + make_interval(secs => %s)
+                SET last_heartbeat_at = clock_timestamp(),
+                    lease_expires_at = clock_timestamp() + make_interval(secs => %s)
                 WHERE id = %s AND lease_id = %s AND status = 'running'
+                  AND lease_expires_at > clock_timestamp()
                 """,
                 (lease_seconds, task_id, lease_id),
             )
+            if renewed.rowcount != 1:
+                return "lost"
             connection.commit()
             return "renewed"
 
@@ -449,7 +468,7 @@ class Database:
             if task["cancellation_requested_at"] is not None:
                 return self._finalize_cancellation(connection, task, lease_id)
             if task["lease_expires_at"] is None or task["lease_expires_at"] <= connection.execute(
-                "SELECT now() AS now"
+                "SELECT clock_timestamp() AS now"
             ).fetchone()["now"]:
                 raise InvalidTaskStateError("Worker task lease expired before completion")
 
@@ -540,6 +559,10 @@ class Database:
                 raise InvalidTaskStateError("Worker no longer owns the task during failure")
             if task["cancellation_requested_at"] is not None:
                 return self._finalize_cancellation(connection, task, lease_id)
+            if task["lease_expires_at"] is None or task["lease_expires_at"] <= connection.execute(
+                "SELECT clock_timestamp() AS now"
+            ).fetchone()["now"]:
+                raise InvalidTaskStateError("Worker task lease expired before failure")
             row = connection.execute(
                 """
                 UPDATE agent_tasks
@@ -695,11 +718,47 @@ class Database:
             connection.commit()
         return {"recovered": recovered, "exhausted": exhausted, "cancelled": cancelled}
 
+    def recover_queued_tasks(self, limit: int = 50, stale_seconds: int = 60) -> int:
+        """Replay old ready signals lost by Redis or a worker before its durable claim."""
+        if not 1 <= limit <= 500 or not 1 <= stale_seconds <= 86400:
+            raise ValueError("Queued recovery requires bounded batch and staleness values")
+        with self.connect() as connection:
+            tasks = connection.execute(
+                """
+                SELECT task.*
+                FROM agent_tasks AS task
+                JOIN task_outbox AS outbox ON outbox.task_id = task.id
+                WHERE task.status = 'queued' AND task.next_attempt_at <= now()
+                  AND outbox.published_at <= now() - make_interval(secs => %s)
+                ORDER BY outbox.published_at, task.created_at
+                FOR UPDATE OF task, outbox SKIP LOCKED
+                LIMIT %s
+                """,
+                (stale_seconds, limit),
+            ).fetchall()
+            for task in tasks:
+                self._add_outbox(connection, task)
+                self._append_audit(
+                    connection,
+                    correlation_id=task["correlation_id"],
+                    task_id=task["id"],
+                    actor_type="dispatcher",
+                    actor_id="outbox-dispatcher",
+                    tool_name=task["kind"],
+                    action="task.ready_recovered",
+                    risk_level=task["risk_level"],
+                    approval_status="approved" if task["approved_by"] else "not_required",
+                    execution_status="queued",
+                    result_metadata={"stale_seconds": stale_seconds},
+                )
+            connection.commit()
+            return len(tasks)
+
     def pending_outbox(self, limit: int) -> list[dict[str, Any]]:
         with self.connect() as connection:
             return connection.execute(
                 """
-                SELECT id, task_id, correlation_id, topic, payload, attempt_count
+                SELECT id, task_id, correlation_id, topic, payload, attempt_count, generation
                 FROM task_outbox
                 WHERE published_at IS NULL AND available_at <= now()
                 ORDER BY available_at, created_at
@@ -708,15 +767,15 @@ class Database:
                 (limit,),
             ).fetchall()
 
-    def mark_outbox_published(self, event_id: int) -> None:
+    def mark_outbox_published(self, event_id: int, generation: int) -> None:
         with self.connect() as connection:
             connection.execute(
                 """
                 UPDATE task_outbox
                 SET published_at = now(), attempt_count = attempt_count + 1, last_error = NULL
-                WHERE id = %s AND published_at IS NULL
+                WHERE id = %s AND generation = %s AND published_at IS NULL
                 """,
-                (event_id,),
+                (event_id, generation),
             )
             connection.commit()
 
@@ -726,6 +785,8 @@ class Database:
         message: str,
         retry_base_seconds: int = 5,
         retry_max_seconds: int = 300,
+        *,
+        generation: int,
     ) -> None:
         with self.connect() as connection:
             connection.execute(
@@ -736,9 +797,9 @@ class Database:
                     available_at = now() + make_interval(
                         secs => LEAST(%s, %s * power(2, LEAST(attempt_count, 10)))::int
                     )
-                WHERE id = %s AND published_at IS NULL
+                WHERE id = %s AND generation = %s AND published_at IS NULL
                 """,
-                (message[:1000], retry_max_seconds, retry_base_seconds, event_id),
+                (message[:1000], retry_max_seconds, retry_base_seconds, event_id, generation),
             )
             connection.commit()
 

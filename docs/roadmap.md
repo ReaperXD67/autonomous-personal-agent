@@ -17,6 +17,8 @@
 - [x] Migration rollback policy and disposable restore drill
 - [x] Worker lease, bounded crash retry, expired-claim reconciliation, and audit events
 - [x] Periodic heartbeat for long tools, delayed backoff, cancellation, and dead-letter inspection
+- [x] Recover lost ready signals from PostgreSQL; fence stale outbox acknowledgments and expired workers
+- [x] Durable bounded workflow DAGs, parallel dispatch, explicit result checks, deadlines, cancellation, and restart recovery
 - [ ] Per-user OIDC auth, roles, rate limits, step-up approvals
 - [ ] OpenTelemetry traces/metrics/log correlation and alerts
 - [ ] Encrypted automated backups and restore drill
@@ -39,6 +41,8 @@
 - [ ] Safe memory writer/retriever with provenance and deletion policy
 - [x] Career scheduler persists tasks through the policy/outbox path before queue publication
 - [ ] General-purpose scheduler beyond career missions
+- [ ] Make career/creator schedule advancement atomic with task creation to close the pre-task crash gap
+- [ ] Policy-bound model planner that proposes reviewed workflows using the immutable plan API
 
 ## Phase 3 — curated tools
 

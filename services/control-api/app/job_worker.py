@@ -164,7 +164,7 @@ def execute_career_task(
         matches = prioritize_opportunities(matches)
         save_result = database.save_opportunities(profile_id, matches)
         auto_prepared = 0
-        if profile["resume_text"].strip():
+        if profile["resume_text"].strip() and not payload.get("workflow_managed"):
             for opportunity_id in save_result["auto_prepare_ids"]:
                 _check_interrupted(interrupt)
                 database.create_task(
@@ -306,7 +306,10 @@ def execute_career_task(
             model=selected_model,
             content=content,
         )
-        auto_action = database.try_create_automatic_application_action(opportunity_id)
+        auto_action = (
+            None if payload.get("workflow_managed")
+            else database.try_create_automatic_application_action(opportunity_id)
+        )
         return {
             "handler": "career.application_draft",
             "profile_id": str(profile_id),

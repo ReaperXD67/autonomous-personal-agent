@@ -93,6 +93,22 @@ assume logs/artifacts containing a leaked value are compromised.
   crash at the external boundary;
 - backup encryption, off-host retention/scheduling, and incident response;
 
+## Workflow authority
+
+Workflow plans can invoke only foundation echo/wait, allowlisted career search,
+draft/preflight, and creator discovery. Each step derives risk from capability
+policy; caller risk can only increase it. Raw email send and application submit
+are excluded. Exact external actions must still be prepared and individually
+approved through the existing action path. A workflow does not authorize an
+external action or allow an LLM to change its own policy.
+
+Plans reject cycles, unknown references, oversized inputs, and arbitrary result
+expressions. Result checks compare explicit top-level scalar values without
+string/boolean coercion. Workflow audit stores IDs/statuses, not objectives,
+payload values, or expected evidence. Workflow creation/read/cancel uses the
+existing bearer or same-origin session/CSRF controls. No new credentials,
+networks, mounts, model providers, or executor capabilities are granted.
+
 ## Unsafe configurations
 
 Never mount `/var/run/docker.sock` into Hermes or general workers; never mount

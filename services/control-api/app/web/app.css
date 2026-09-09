@@ -219,6 +219,55 @@ h1 em { color: var(--lime); font-style: normal; }
 .status.failed, .status.dead_lettered { color: var(--danger); background: rgba(255, 124, 119, .08); }
 .status.running, .status.queued { color: var(--cyan); background: rgba(105, 230, 212, .08); }
 .status.pending_approval { color: var(--amber); background: rgba(255, 202, 115, .08); }
+.status.dispatched { color: var(--cyan); background: rgba(105, 230, 212, .08); }
+.status.timed_out { color: var(--danger); background: rgba(255, 124, 119, .08); }
+.status.cancelling { color: var(--amber); background: rgba(255, 202, 115, .08); }
+
+.workflow-layout { grid-template-columns: minmax(300px, .85fr) minmax(0, 1.15fr); align-items: start; }
+.workflow-composer, .workflow-layout > section { min-width: 0; }
+.workflow-help { margin: 12px 0 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.workflow-composer label small { line-height: 1.5; }
+#workflow-custom-fields { margin-top: 16px; }
+#workflow-custom-fields textarea { font-family: "Cascadia Code", ui-monospace, monospace; font-size: 12px; tab-size: 2; }
+.workflow-preview { margin-top: 20px; padding: 15px; border: 1px solid rgba(105, 230, 212, .15); border-radius: 12px; background: rgba(105, 230, 212, .04); }
+.workflow-preview > strong { color: var(--cyan); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+.workflow-preview ol { margin: 12px 0 0; padding-left: 21px; color: var(--muted); font-size: 12px; line-height: 1.8; }
+.workflow-preview li::marker { color: var(--cyan); }
+.workflow-form-status { margin: 16px 0 0; padding: 12px; color: var(--lime); border: 1px solid rgba(200, 255, 98, .2); border-radius: 10px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.workflow-form-status.error { color: var(--danger); border-color: rgba(255, 124, 119, .25); }
+.workflow-filters { padding-top: 0; }
+.workflow-list { display: grid; gap: 16px; }
+.workflow-card { min-width: 0; padding: 21px; }
+.workflow-card-head, .workflow-step-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.workflow-card-head h3 { margin: 0; font-size: 19px; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.workflow-card-head .status, .workflow-step-head .status { flex: none; margin-right: 0; }
+.workflow-objective { color: var(--muted); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.workflow-card .workflow-objective { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; }
+.workflow-progress { display: flex; align-items: center; gap: 14px; margin-top: 19px; }
+.workflow-progress progress { appearance: none; width: 100%; min-width: 0; height: 7px; border: 0; border-radius: 99px; overflow: hidden; background: rgba(255, 255, 255, .065); accent-color: var(--lime); }
+.workflow-progress progress::-webkit-progress-bar { background: rgba(255, 255, 255, .065); border-radius: 99px; }
+.workflow-progress progress::-webkit-progress-value { background: linear-gradient(90deg, var(--cyan), var(--lime)); border-radius: 99px; }
+.workflow-progress progress::-moz-progress-bar { background: var(--lime); border-radius: 99px; }
+.workflow-progress > span { flex: none; color: var(--muted); font-size: 11px; }
+.workflow-run-note { margin: 14px 0 0; color: var(--cyan); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.workflow-run-note.red { color: var(--danger); }
+.workflow-meta { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+.workflow-card .card-actions { align-items: center; }
+.workflow-detail-body { position: relative; padding: 28px; }
+.workflow-steps { display: grid; gap: 13px; margin: 24px 0 0; padding: 0; list-style: none; }
+.workflow-step { padding: 16px; border: 1px solid var(--line); border-left: 3px solid #4b545d; border-radius: 11px; background: #0e1216; }
+.workflow-step.succeeded { border-left-color: var(--lime); }
+.workflow-step.dispatched { border-left-color: var(--cyan); }
+.workflow-step.failed { border-left-color: var(--danger); }
+.workflow-step-head h3 { margin: 0; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.workflow-dependencies { margin: 10px 0 0; color: var(--cyan); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.workflow-checks { display: grid; gap: 7px; margin: 12px 0 0; padding: 12px 12px 12px 27px; border-radius: 8px; background: rgba(255, 255, 255, .025); color: var(--muted); font-family: "Cascadia Code", ui-monospace, monospace; font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.workflow-step.succeeded .workflow-checks { color: var(--lime); }
+.workflow-step-error { color: var(--danger); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.workflow-task-link { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
+.workflow-task-link span { color: var(--muted); font-size: 11px; }
+.workflow-task-link .text-button { padding-left: 0; }
+.nav-item:focus-visible, .button:focus-visible, .text-button:focus-visible, .dialog-close:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
 
 .form-body { padding: 22px; }
 label { display: grid; gap: 7px; color: #c5c9cc; font-size: 12px; font-weight: 650; }
@@ -270,7 +319,7 @@ code { color: var(--lime); font-family: "Cascadia Code", ui-monospace, monospace
 .toast.error { border-color: rgba(255, 124, 119, .3); background: #29191b; }
 
 @media (max-width: 1050px) {
-  .primary-grid, .split-grid { grid-template-columns: 1fr; }
+  .primary-grid, .split-grid, .workflow-layout { grid-template-columns: 1fr; }
   .summary { grid-template-columns: repeat(2, 1fr); }
   .mission-grid, .opportunity-grid, .campaign-grid, .prospect-grid { grid-template-columns: 1fr; }
 }
@@ -302,6 +351,9 @@ code { color: var(--lime); font-family: "Cascadia Code", ui-monospace, monospace
   .span-2 { grid-column: 1; }
   .filters span { width: 100%; margin: 0; }
   .button.compact { min-height: 44px; }
+  .workflow-card-head, .workflow-step-head { flex-wrap: wrap; }
+  .workflow-detail-body { padding: 22px 18px; }
+  .workflow-detail-body .action-summary { grid-template-columns: minmax(110px, .45fr) minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

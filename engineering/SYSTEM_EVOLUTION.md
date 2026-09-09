@@ -231,6 +231,27 @@ multi-user identity. General Hermes OpenRouter calls also sit outside the career
 worker's PostgreSQL quota ledger, so inference-only provider limits and external
 account monitoring remain deployment requirements.
 
+## v0.16 — Bounded durable workflow coordination (2026-09-09)
+
+The existing dispatcher now coordinates immutable PostgreSQL dependency graphs.
+Ready steps enter the existing policy/task/audit/outbox transaction; the agent
+does not gain a second execution channel. A plan permits at most 32 steps, four
+task slots, and one day. Exact top-level result checks distinguish successful
+execution from expected evidence. Failed dependencies skip descendants while
+independent branches finish. Cancellation and deadlines use owned cooperative
+task cancellation and remain visibly pending until every child is terminal.
+
+Workflow-managed career handlers suppress implicit preparation/action children,
+so their bounded plan does not expand into hidden tasks. Raw external send and
+submit are excluded; future model-generated plans must use the same immutable
+API and approval boundaries. The Hermes adapter, dynamic replanning, safe memory
+retrieval, and general-purpose scheduling remain future work.
+
+PostgreSQL also reconstructs stale queued signals after Redis loss or a
+pre-claim worker crash. Outbox generations fence old acknowledgments and
+expired workers cannot revive a lease or persist a failure. No new service,
+dependency, host access, model route, or external authority was introduced.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling
