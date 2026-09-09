@@ -24,6 +24,12 @@ execute tools.
 The outbox dispatcher reliably bridges durable PostgreSQL intent to Redis.
 Workers claim queue messages and perform allowlisted capabilities. The
 foundation worker implements `foundation.echo` and bounded `foundation.wait`.
+The dispatcher also reconciles immutable workflow dependency graphs in
+PostgreSQL. Ready steps become ordinary policy-classified tasks in the same
+transaction as their step binding and audit; it executes no tools itself.
+Result checks, concurrency limits, cancellation, and deadlines govern further
+dispatch. Published queue signals can be reconstructed from durable queued
+tasks; delivery generations fence stale acknowledgments.
 The dedicated career worker implements allowlisted fresh discovery, verified
 free-only hosted drafting with local fallback, and official YouTube creator
 discovery while using the

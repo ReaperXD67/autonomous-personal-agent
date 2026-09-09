@@ -16,6 +16,7 @@
       <div class="nav-label">Workspace</div>
       <button class="nav-item active" data-view-target="overview"><span>⌂</span><span>Overview</span></button>
       <button class="nav-item" data-view-target="missions"><span>◎</span><span>Missions</span></button>
+      <button class="nav-item" data-view-target="workflows" aria-label="Workflows"><span aria-hidden="true">⇶</span><span>Workflows</span></button>
       <button class="nav-item" data-view-target="opportunities"><span>↗</span><span>Opportunities</span></button>
       <button class="nav-item" data-view-target="campaigns"><span>K</span><span>Creator campaigns</span></button>
       <button class="nav-item" data-view-target="approvals"><span>✓</span><span>Approvals</span><b id="approval-badge" hidden>0</b></button>
@@ -78,6 +79,29 @@
       <section class="view" data-view="approvals">
         <div class="section-bar"><div><h2>Approval inbox</h2><p>High-impact work cannot enter execution until you approve its exact task.</p></div></div>
         <div class="approval-list" id="approval-list"><div class="empty-state panel"><strong>Nothing waiting</strong><p>Pending approvals will appear here.</p></div></div>
+      </section>
+
+      <section class="view" data-view="workflows">
+        <div class="section-bar"><div><h2>Work that follows through</h2><p>Connect steps, check their results, and let ready work run automatically.</p></div><button class="button" id="workflow-refresh">Refresh workflows</button></div>
+        <div class="grid workflow-layout">
+          <article class="panel workflow-composer"><div class="panel-head"><div><h2>Create a workflow</h2><small>Start with a recipe, then set its limits</small></div></div>
+            <form id="workflow-form" class="form-body">
+              <label>Recipe<select name="recipe"><option value="demo">Verified parallel demo</option><option value="application">Prepare an application</option><option value="custom">Custom steps (JSON)</option></select></label>
+              <p class="workflow-help" id="workflow-recipe-help">A harmless four-step run: verify a message, run two branches, then check the final result. No model or provider account needed.</p>
+              <label id="workflow-opportunity-field" hidden>Opportunity<select name="opportunity_id" disabled><option value="">Choose an opportunity</option></select><small>A saved résumé, working draft model, and running application worker are needed.</small></label>
+              <label>Workflow title<input name="title" required maxlength="200" value="Verified parallel demo"></label>
+              <label>Objective <small>optional context for your records</small><textarea name="objective" rows="2" maxlength="2000" placeholder="What should this workflow achieve?"></textarea></label>
+              <div id="workflow-custom-fields" hidden><label>Steps JSON<textarea name="steps_json" rows="14" spellcheck="false" maxlength="64000" disabled aria-describedby="workflow-json-help"></textarea><small id="workflow-json-help">An array of 1–32 steps. Each has a unique key, title, kind, payload, and depends_on. Optional expect_output checks exact top-level scalar values.</small></label></div>
+              <div class="form-grid compact-grid"><label>Parallel steps<select name="max_parallel"><option value="1">1 — sequential</option><option value="2" selected>2 at a time</option><option value="3">3 at a time</option><option value="4">4 at a time</option></select></label><label>Time limit<select name="timeout_seconds"><option value="300">5 minutes</option><option value="900">15 minutes</option><option value="3600" selected>1 hour</option><option value="21600">6 hours</option><option value="86400">24 hours</option></select></label></div>
+              <label>Requested by<input name="requested_by" required maxlength="120" value="dashboard:user"></label>
+              <div class="workflow-preview" id="workflow-plan-preview" aria-label="Recipe steps"></div>
+              <p class="workflow-help">Steps start only after their dependencies pass. A failed step or result check skips dependent work; independent branches continue. Application submission and email still need separate exact approval.</p>
+              <p class="workflow-form-status" id="workflow-form-status" role="status" aria-live="polite" hidden></p>
+              <button class="button primary full" id="workflow-submit" type="submit">Start workflow</button>
+            </form>
+          </article>
+          <section aria-label="Workflow runs"><div class="filters workflow-filters"><select id="workflow-status-filter" aria-label="Filter workflows"><option value="">All runs</option><option value="active">In progress</option><option value="attention">Needs attention</option><option value="succeeded">Succeeded</option><option value="cancelled">Cancelled</option></select><span id="workflow-count" aria-live="polite">0 workflows</span></div><div class="workflow-list" id="workflow-list"><div class="empty-state panel"><strong>No workflows yet</strong><p>Connect and start the demo to see dependencies and result checks in action.</p></div></div></section>
+        </div>
       </section>
 
       <section class="view" data-view="tasks">
@@ -153,6 +177,7 @@
   <dialog id="marketing-reply-dialog" class="dialog wide-dialog"><form method="dialog" id="marketing-reply-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag amber-tag">Manual answer, exact approval</span><h2>Answer the creator's question</h2><input type="hidden" name="prospect_id"><label>Subject<input name="subject" maxlength="240" required></label><label>Plain-text answer<textarea name="body" rows="12" maxlength="20000" required></textarea></label><p class="fine-print">Answer only what you know. The contact-provenance and opt-out footer is added automatically, and the exact email still waits for approval.</p><div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit" value="default">Prepare exact answer</button></div></form></dialog>
   <dialog id="promotion-kit-dialog" class="dialog wide-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Free distribution assets</span><h2>Promotion kit</h2><p>Copy truthful, campaign-specific posts with separate analytics links. Hermes never posts these publicly for you.</p><div id="promotion-kit-content" class="promotion-kit"></div></form></dialog>
   <dialog id="audit-dialog" class="dialog detail-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Audit trail</span><h2 id="audit-title">Task history</h2><div class="activity" id="audit-list"></div></form></dialog>
+  <dialog id="workflow-dialog" class="dialog wide-dialog" aria-labelledby="workflow-detail-title"><div class="workflow-detail-body"><button class="dialog-close" type="button" data-action="close-workflow" aria-label="Close workflow details">×</button><span class="tag">Durable workflow</span><h2 id="workflow-detail-title">Workflow details</h2><div id="workflow-detail-content"></div></div></dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

@@ -4,6 +4,12 @@ The command center is a website served by the control API. It works on the
 current Windows machine now and can use the same UI on a VPS later. It is not a
 desktop-only executable and does not depend on a hosted SaaS frontend.
 
+The **Workflows** view coordinates dependent tasks with explicit result checks,
+parallel limits, deadlines, and cancellation. Use its safe demo or the
+application draft → form inspection recipe; see the
+[workflow guide](workflows.md). Workflow-managed preparation creates only its
+listed steps; preparing an exact submission remains a separate reviewed action.
+
 ## Start the complete local test
 
 From PowerShell in the repository:

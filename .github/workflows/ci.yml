@@ -38,6 +38,12 @@ jobs:
       - name: Run lint and tests
         run: docker compose --profile tools run --rm test
 
+      - name: Verify task lifecycle and durable workflow recovery
+        shell: pwsh
+        run: |
+          @("CONTROL_API_PORT=8080", "CONTROL_API_TOKEN=$env:CONTROL_API_TOKEN") | Set-Content .env
+          ./scripts/verify.ps1
+
       - name: Review dependency changes
         if: github.event_name == 'pull_request'
         uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0

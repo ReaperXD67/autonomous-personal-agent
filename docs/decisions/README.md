@@ -19,3 +19,4 @@ history.
 - [ADR-0013](ADR-0013-purpose-aware-free-pool-allocation.md): purpose-aware provider quota partitioning and local continuity
 - [ADR-0014](ADR-0014-private-vps-first.md): private loopback VPS before public production
 - [ADR-0015](ADR-0015-managed-lazy-model-routing.md): managed OmniRoute/OpenRouter/Qwen routing, lazy local weights, private browser sessions, and VPS service lifecycle
+- [ADR-0016](ADR-0016-bounded-durable-workflows.md): immutable bounded workflow plans, result checks, cancellation, and reconstructible ready signals

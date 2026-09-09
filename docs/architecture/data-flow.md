@@ -45,13 +45,35 @@ receives a request and are released after idle time. The direct career adapter
 still applies stricter exact-model, privacy, zero-cost, and PostgreSQL
 reservation policy; general Hermes OpenRouter calls do not join that ledger.
 
+## Durable workflow
+
+`POST /v1/workflows` validates an immutable acyclic plan and stores its steps,
+deadline, idempotency hash, and audit in PostgreSQL. The dispatcher locks each
+active workflow, observes child outcomes, checks exact top-level scalar result
+fields, skips descendants of unsuccessful steps, and materializes ready tasks
+through the existing capability policy and transactional outbox. Independent
+branches continue within the plan's concurrency cap. No model output can select
+a new tool, interpolate a payload, or modify the plan after creation.
+
+Cancellation locks the workflow before its children, cancels undispatched and
+queued work, and requests cooperative cancellation for running tasks. A plan
+remains `cancelling` until those tasks finish or lease recovery resolves them.
+Deadline expiry uses the same path and ends as `timed_out`; late completion is
+not accepted as on-time success. Workflow-managed career handlers suppress their
+usual automatic child preparation/action creation, keeping workflow tasks
+inside the submitted plan. Independent career missions retain their existing
+automatic preparation behavior.
+
 ## Career mission schedule
 
 An active PostgreSQL profile holds `next_scan_at`. The career worker atomically
-claims due profiles, advances the next schedule, and calls the same durable task
-creation method as the API. The transactional outbox is committed before any
-queue publication. Restarting the stack may delay a scan but does not lose the
-mission. Fresh source records are filtered and upserted by profile/source key.
+claims due profiles and advances the next schedule, then calls the same durable
+task creation method as the API. Those two operations currently use separate
+transactions: a crash between them can miss that occurrence, although the
+mission and its future schedule remain durable. The task/outbox transaction is
+committed before queue publication. Fresh source records are filtered and
+upserted by profile/source key. Workflow dispatch uses a single transaction for
+its task and step binding and does not share this schedule-advance gap.
 
 ## High/destructive-risk task
 

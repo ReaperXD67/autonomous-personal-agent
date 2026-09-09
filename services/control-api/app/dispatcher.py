@@ -12,6 +12,7 @@ import redis
 from app.logging_config import configure_logging
 from app.settings import get_settings
 from app.store import Database
+from app.workflow_store import WorkflowStore
 
 settings = get_settings()
 configure_logging(settings.log_level)
@@ -39,10 +40,18 @@ def run() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
     database = Database(settings.database_url)
+    workflows = WorkflowStore(settings.database_url)
     client = redis.Redis.from_url(settings.redis_url, decode_responses=True)
     logger.info("outbox dispatcher started", extra={"action": "startup"})
 
     while not stopping:
+        workflows.reconcile_workflows()
+        replayed = database.recover_queued_tasks()
+        if replayed:
+            logger.warning(
+                "lost or stale ready signals rearmed",
+                extra={"action": "queue.recovered", "count": replayed},
+            )
         recovery = database.recover_expired_tasks(
             retry_base_seconds=settings.worker_retry_base_seconds,
             retry_max_seconds=settings.worker_retry_max_seconds,
@@ -70,7 +79,7 @@ def run() -> None:
                     )
                 )
                 client.lpush(queue_key, json.dumps(event["payload"]))
-                database.mark_outbox_published(event["id"])
+                database.mark_outbox_published(event["id"], event["generation"])
                 logger.info(
                     "outbox event published",
                     extra={
@@ -85,6 +94,7 @@ def run() -> None:
                     str(exc),
                     retry_base_seconds=settings.worker_retry_base_seconds,
                     retry_max_seconds=settings.worker_retry_max_seconds,
+                    generation=event["generation"],
                 )
                 logger.exception(
                     "outbox publish failed",

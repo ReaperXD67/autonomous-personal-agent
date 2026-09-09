@@ -40,6 +40,7 @@ and human approval for high-impact actions.
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
 | Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080`; launcher exchanges a one-use fragment for an HttpOnly session |
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
+| Durable workflows | Implemented | Dependency-aware plans, parallel ready steps, explicit result checks, deadlines, restart recovery, cancellation, and dashboard recipes; at most 32 steps and 4 concurrent tasks |
 | Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
 | Application preparation | Local verified; hosted prepared | A live-ranked, zero-cost-only OpenRouter chain can use Nemotron/other current free models before Qwen3 8B local fallback; hosted path needs a user key and smoke. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
@@ -118,6 +119,14 @@ identity and enable auto-prepare to generate drafts and inspect supported forms
 without waiting; the exact final application still appears in **Approvals**.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
+
+Open **Workflows** to coordinate several tasks into one durable plan. The safe
+demo verifies a message, runs two independent branches, and checks the final
+result without a model or provider account. The application recipe generates a
+draft before inspecting the selected form, and checks both results. A failed
+check blocks dependent steps; independent branches can finish. Plans resume from
+PostgreSQL after restart and have explicit time and concurrency limits.
+See the [workflow guide](docs/operations/workflows.md) for recipes and API examples.
 
 Local Qwen is the default for career drafting. To opt into stronger hosted free
 drafting without putting a key in Git or shell history, create a dedicated
@@ -214,6 +223,7 @@ normal operation. Real side effects are controlled by
 | `./scripts/up.ps1 -SideEffects` | `make side-effects-up` | Start the isolated browser/email executor for configured real destinations |
 | `./scripts/recovery-smoke.ps1` | `make recovery-smoke` | Verify expired leases retry and exhaust safely |
 | `./scripts/lifecycle-smoke.ps1` | `make lifecycle-smoke` | Verify queued/running cancellation and dead-letter inspection |
+| `./scripts/workflow-smoke.ps1` | — | Prove dependencies, result checks, approvals, cancellation, deadlines, rollback, and concurrent reconciliation in a disposable database |
 | `./scripts/agent-smoke.ps1` | `make agent-smoke` | Verify configured OmniRoute model inference |
 | `./scripts/openrouter.ps1 -Smoke` | `make openrouter` | Verify the current ranked free-only chain with one harmless zero-cost request |
 | `./scripts/test.ps1` | `make test` | Run lint and tests in isolated container |
@@ -367,6 +377,7 @@ tests/                    repository security/Compose contracts
 - [Autonomous side-effect security review](docs/security/autonomous-side-effect-review.md)
 - [Local operations](docs/operations/local-development.md)
 - [Dashboard, job-hunt testing, and switching missions](docs/operations/dashboard-and-career.md)
+- [Durable workflows, result checks, and recovery](docs/operations/workflows.md)
 - [Creator discovery, outreach, results, and adaptation](docs/operations/creator-outreach.md)
 - [Manual setup remaining](docs/operations/manual-setup.md)
 - [Free agent/model research](docs/research/free-agent-stack-2026-08.md)

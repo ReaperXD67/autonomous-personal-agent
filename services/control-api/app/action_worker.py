@@ -123,7 +123,10 @@ def execute_action_task(
             task_id=task_id,
             result=result,
         )
-        auto_action = database.try_create_automatic_application_action(opportunity_id)
+        auto_action = (
+            None if payload.get("workflow_managed")
+            else database.try_create_automatic_application_action(opportunity_id)
+        )
         return {
             "handler": "career.application_preflight",
             "opportunity_id": str(opportunity_id),
