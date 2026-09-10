@@ -16,5 +16,7 @@ failure behavior, disable path, and safe test are documented.
 Current jobs milestone: public Arbeitnow/Ashby/Greenhouse/Lever discovery,
 opt-in attested-free OpenRouter drafting with local Qwen continuity, and the
 first reviewed single-page hosted-form adapter are implemented. The hosted
-route still needs a user key and live smoke. SMTP send is implemented with the same exact-action envelope. The
-generic browser MCP, email read/OAuth, and every unsupported site remain disabled.
+route passed a user-key, strict-ZDR, reported-zero-cost canary on 2026-09-10;
+free inventory and real résumé-draft quality still require ongoing observation.
+SMTP send is implemented with the same exact-action envelope. The generic
+browser MCP, email read/OAuth, and every unsupported site remain disabled.

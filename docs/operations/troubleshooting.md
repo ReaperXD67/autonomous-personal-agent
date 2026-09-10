@@ -42,6 +42,15 @@ quota, no provider satisfying both no-training and ZDR, upstream saturation, or
 invalid model JSON. The dashboard **Settings** card and the latest
 `inference_invocations.error_code` show the route outcome without prompt text.
 
+An HTTP 400 saying the `models` array must contain three items or fewer came
+from an older Hermes request builder that sent seven fallback entries. Current
+code discovers a larger pool if configured but caps the wire request at one
+primary plus three fallbacks. A separate HTTP 400 about no endpoint matching the
+data policy means the named free models are not present in the current active
+ZDR endpoint inventory; current discovery intersects that inventory before it
+sends. Update to the fixed release and rerun the smoke—do not remove the privacy
+filters merely to make the canary green.
+
 Do not fix availability by changing an ID to a paid model, allowing provider
 data collection without reviewing résumé privacy, disabling cost checks, or
 supplying a management key. Free inventory changes; catalog refresh drops

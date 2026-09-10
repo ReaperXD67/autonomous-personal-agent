@@ -100,6 +100,7 @@ def test_openrouter_requires_free_models_and_a_key_when_enabled() -> None:
         make_settings(openrouter_model_priority=("paid/model",)).validate()
     with pytest.raises(ConfigurationError, match="50 or 1000"):
         make_settings(openrouter_free_daily_allowance=900).validate()
+    make_settings(openrouter_model_priority=()).validate()
 
 
 def test_external_smtp_requires_tls_and_complete_credentials() -> None:

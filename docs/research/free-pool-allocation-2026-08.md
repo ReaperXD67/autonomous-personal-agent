@@ -69,3 +69,9 @@ No OpenRouter credential or authenticated completion was available during this
 assessment. The direct hosted career path remains prepared, not operational,
 until the user installs a scoped inference key and
 `./scripts/openrouter.ps1 -Smoke` returns an exact zero-cost result.
+
+Update (2026-09-10): the user installed a scoped inference key and the corrected
+strict-ZDR smoke returned the exact canary through an eligible `:free` model at
+provider-reported cost zero. ADR-0017 records the provider's three-fallback
+limit, live ZDR intersection, and dynamic benchmark/capability ordering. The
+historical allocation finding above remains valid for its 2026-08-29 snapshot.

@@ -4,16 +4,7 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 
-DEFAULT_OPENROUTER_PRIORITY = (
-    "nvidia/nemotron-3-ultra-550b-a55b:free",
-    "z-ai/glm-5.2:free",
-    "nvidia/nemotron-3-super-120b-a12b:free",
-    "minimax/minimax-m3:free",
-    "google/gemma-4-31b-it:free",
-    "thinkingmachines/inkling:free",
-    "dots-studio/dots-3-note-preview:free",
-    "google/gemma-4-26b-a4b-it:free",
-)
+DEFAULT_OPENROUTER_PRIORITY: tuple[str, ...] = ()
 
 
 def _boolean_environment(name: str, default: bool) -> bool:
@@ -110,7 +101,7 @@ class Settings:
             openrouter_enabled=_boolean_environment("OPENROUTER_ENABLED", False),
             openrouter_api_key=os.getenv("OPENROUTER_API_KEY", "").strip(),
             openrouter_model_priority=_model_priority_environment(),
-            openrouter_max_models=int(os.getenv("OPENROUTER_MAX_MODELS", "8")),
+            openrouter_max_models=int(os.getenv("OPENROUTER_MAX_MODELS", "4")),
             openrouter_free_daily_allowance=int(
                 os.getenv("OPENROUTER_FREE_DAILY_ALLOWANCE", "50")
             ),
@@ -193,8 +184,6 @@ class Settings:
             raise ConfigurationError(
                 "OPENROUTER_ENABLED requires a real OPENROUTER_API_KEY"
             )
-        if not self.openrouter_model_priority:
-            raise ConfigurationError("OPENROUTER_MODEL_PRIORITY cannot be empty")
         if any(not model.endswith(":free") for model in self.openrouter_model_priority):
             raise ConfigurationError(
                 "Every OPENROUTER_MODEL_PRIORITY entry must end with :free"

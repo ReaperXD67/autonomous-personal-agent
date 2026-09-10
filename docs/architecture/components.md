@@ -50,11 +50,18 @@ leases. It schedules due active profiles through the control-plane database
 policy/outbox path, reads only reviewed public Arbeitnow/Ashby/Greenhouse/Lever APIs,
 scores fresh listings deterministically, and persists opportunities. Draft tasks
 prefer a live-ranked OpenRouter chain only after every candidate passes exact
-`:free`, text-modality, and zero-price catalog checks. Requests use ordered
-cross-model fallback plus no-training/ZDR provider filters; the returned model
-and zero cost are revalidated. On quota, privacy-filter, malformed-output, or
-availability failure, the worker sends the selected job plus stored résumé to
-internal Ollama. It has outbound edge, data, and model networks but no host
+`:free`, text-modality, and zero-price catalog checks. With ZDR enabled, the
+candidate must also have a currently active entry in OpenRouter's ZDR endpoint
+inventory. A bounded score uses reported intelligence/coding/agentic benchmarks;
+declared structured-output/tool/reasoning support and context break ties, while
+an explicit exact-model operator order can override it. Each request contains
+one primary and no more than OpenRouter's three supported fallback entries.
+Requests retain no-training/ZDR filters; the returned model and zero cost are
+revalidated. Empty or malformed structured output marks that reserved attempt
+failed, cools the selected model for 15 minutes, and tries the next ranked route
+under a new daily reservation. On exhausted candidates, quota, privacy-filter,
+or availability failure, the worker sends the selected job plus stored résumé
+to internal Ollama. It has outbound edge, data, and model networks but no host
 mount, Docker socket, or published port.
 
 New matches are ordered by score and then publication time before the bounded

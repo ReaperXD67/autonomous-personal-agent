@@ -1,4 +1,6 @@
+import json
 from datetime import UTC, datetime
+from decimal import Decimal
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -6,6 +8,7 @@ import pytest
 
 from app import action_worker, job_worker
 from app.action_store import ActionStore
+from app.inference import InferenceResult, OpenRouterPlan
 from app.marketing_store import MarketingStore
 
 
@@ -118,6 +121,90 @@ def test_draft_saves_model_result_without_preparing_unplanned_workflow_action(
         database.try_create_automatic_application_action.assert_not_called()
     else:
         database.try_create_automatic_application_action.assert_called_once_with(opportunity_id)
+
+
+def test_draft_switches_to_next_ranked_model_after_invalid_output(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    profile_id, opportunity_id, task_id = uuid4(), uuid4(), uuid4()
+    database = Mock(spec=MarketingStore)
+    database.get_draft_context.return_value = {
+        "candidate_name": "Synthetic Candidate",
+        "company": "Synthetic Company",
+        "title": "Software Engineer",
+        "location": "Remote",
+        "description": "Build Python services.",
+        "resume_text": "Synthetic Python experience.",
+    }
+    invocation_ids = [uuid4(), uuid4()]
+    database.start_inference_invocation.side_effect = invocation_ids
+    database.try_create_automatic_application_action.return_value = None
+    valid = {
+        "fit_summary": "Synthetic fit",
+        "evidence": ["Python"],
+        "honest_gaps": [],
+        "resume_keywords": ["Python"],
+        "cover_letter": "Synthetic draft.",
+    }
+
+    class SmartClient:
+        privacy_mode = "no_collection+zdr"
+
+        def __init__(self) -> None:
+            self.rejected: list[str] = []
+
+        def plan(self) -> OpenRouterPlan:
+            return OpenRouterPlan(
+                models=("provider/strongest:free", "provider/second:free"),
+                daily_limit=40,
+                free_tier=True,
+            )
+
+        def complete(
+            self, _messages: list[dict[str, str]], plan: OpenRouterPlan
+        ) -> InferenceResult:
+            selected = plan.models[0]
+            content = "not json" if selected.endswith("strongest:free") else valid
+            return InferenceResult(
+                content=content if isinstance(content, str) else json.dumps(content),
+                selected_model=selected,
+                selected_route=selected,
+                selected_provider="synthetic",
+                prompt_tokens=10,
+                completion_tokens=20,
+                total_tokens=30,
+                cost=Decimal("0"),
+                latency_ms=5,
+                fallback_attempt=1,
+            )
+
+        def reject_model(self, model: str) -> None:
+            self.rejected.append(model)
+
+    client = SmartClient()
+    monkeypatch.setattr(job_worker, "openrouter_client", client)
+
+    output = job_worker.execute_career_task(
+        {
+            "id": task_id,
+            "kind": "career.application_draft",
+            "payload": {
+                "profile_id": str(profile_id),
+                "opportunity_id": str(opportunity_id),
+            },
+        },
+        database,
+    )
+
+    assert client.rejected == ["provider/strongest:free"]
+    assert database.start_inference_invocation.call_count == 2
+    database.fail_inference_invocation.assert_called_once_with(
+        invocation_ids[0],
+        "OPENROUTER_DRAFT_INVALID",
+    )
+    database.complete_inference_invocation.assert_called_once()
+    assert output["model"] == "provider/second:free"
+    assert output["model_fallback_attempt"] == 2
 
 
 @pytest.mark.parametrize("managed", [None, False, True])

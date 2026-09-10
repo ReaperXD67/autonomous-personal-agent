@@ -33,7 +33,12 @@ drafting. Raw résumé text is absent from queue envelopes, task payloads, audit
 metadata, and public job-source requests. Hosted drafting is explicit opt-in:
 the worker reserves the daily call, sends résumé/job text only through the
 preverified free/privacy route, records route metadata, and falls back locally
-on any policy or availability failure.
+on any policy or availability failure. Candidate selection refreshes from the
+live catalog and active ZDR endpoint inventory, uses benchmark/capability order,
+and caps the wire request at one primary plus three fallbacks. If the served
+model returns empty or schema-invalid output, that attempt remains counted and
+audited, the route cools, and the next candidate gets a separately reserved
+request before local fallback.
 The worker sorts new matches by score and publication time before selecting the
 bounded auto-prepare set. Search, filtering, scoring, and form preflight remain
 deterministic and consume neither hosted pool.

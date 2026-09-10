@@ -54,8 +54,10 @@ capability must enter this registry before its handler is reachable.
 - résumé text excluded from queue/task/audit/public-source payloads and local
   draft output constrained to a structured schema;
 - hosted résumé drafting disabled by default; its only eligible model IDs end in
-  `:free`, carry zero catalog price, and return zero usage cost; no-training/ZDR
-  provider filters, an atomic daily cap, and local fallback fail closed on cost;
+  `:free`, carry zero catalog price, appear in the active ZDR endpoint inventory,
+  and return zero usage cost; no-training/ZDR provider filters, an atomic daily
+  cap, separately reserved semantic retries, and local fallback fail closed on
+  cost, invalid output, or privacy availability;
 - OpenRouter inference key scoped to the career worker and Hermes only;
   model/prompt/response content is excluded from the career inference ledger;
 - explicit Hermes routing order: OmniRoute `free/default`, OpenRouter
