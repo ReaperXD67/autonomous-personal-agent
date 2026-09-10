@@ -1746,3 +1746,83 @@ and the policy-bound Hermes adapter remain future work. Cancellation is
 cooperative and cannot undo a handler already in flight. This milestone does
 not claim a new model benchmark, live external provider delivery, public
 production readiness, or target-VPS validation.
+
+## Step 25 — Repair and harden smart free-model switching
+
+Date: 2026-09-10
+
+### Objective
+
+Diagnose the first user-key OpenRouter HTTP 400, complete a harmless live proof,
+and replace the decaying fixed free-model order with a policy-constrained smart
+switch. Preserve the established OmniRoute → OpenRouter → lazy-Qwen hierarchy,
+the exact-free/cost attestation, résumé privacy, daily accounting, and secret
+boundaries.
+
+### Implementation
+
+- Reproduced the 400 without printing the key. OpenRouter's safe error field
+  showed that the `models` array now accepts no more than three entries; the old
+  request supplied seven. Capped the request at one primary plus three
+  fallbacks, including when an existing `.env` still asks to discover eight.
+- A second bounded probe showed the highest-ranked catalog models had no
+  endpoint matching combined no-training/ZDR policy. Added a cached intersection
+  with `/endpoints/zdr`, accepting only active exact `:free` models before a
+  prompt can leave the worker.
+- Replaced the stale built-in priority with dynamic bounded scoring from the
+  catalog's Artificial Analysis intelligence/coding/agentic fields at 50/30/20.
+  Declared structured-output, response-format, tool, reasoning, and context
+  capabilities break ties. Explicit exact-`:free` operator order remains an
+  override; missing benchmark values are missing evidence.
+- Added low reasoning effort/exclusion when every candidate supports the portable
+  parameter so reasoning-first models retain room for visible structured output.
+- Added semantic failover. Empty or application-schema-invalid output is counted
+  and audited as a failed reservation, the selected route cools for 15 minutes,
+  and the next remaining ranked route receives a separate reservation. This
+  prevents a syntactically successful weak response from becoming a draft or
+  consuming an unaccounted retry.
+- Classified known OpenRouter failures without emitting raw response envelopes,
+  account identifiers, prompts, or keys. Made the OmniRoute canary report only
+  its bounded selected-model field and safe error classes.
+- Added ADR-0017 and synchronized configuration defaults, README, roadmap,
+  architecture, security, operations, research, and integration claims. The
+  interactive route remains OmniRoute `free/default` first because OmniRoute
+  lacks equivalent benchmark telemetry and its automatic free filter can fail
+  open; the general OpenRouter router remains random among compatible models.
+
+### Validation
+
+- The original live smoke reproduced HTTP 400 with the provider's three-fallback
+  limit. A four-route diagnostic then reached the separate ZDR policy failure.
+  The corrected strict-ZDR script returned exactly `OPENROUTER_FREE_OK` through
+  `inclusionai/ling-3.0-flash-fin:free` at provider-reported cost zero.
+- The rebuilt Python career adapter independently returned the same exact canary,
+  selected model, two-route strict-ZDR plan, and zero cost without printing the
+  key.
+- OmniRoute listed 79 routes and `free/default` returned `ROUTE_OK`, reporting
+  `aphrodite/TheDrummer/Cydonia-24B-v4.3` as the concrete selected model.
+- A synthetic full career run fetched 100 public listings and matched 39. The
+  first strict-ZDR hosted model returned schema-invalid output and the second
+  returned empty output; both reservations were recorded, then local
+  `qwen3:8b` produced the valid draft. This proves semantic/provider/local
+  continuity, not hosted draft quality.
+- Rebuilt containerized Ruff/Pytest passed 116 tests including the final
+  empty-output attribution and single-hosted-route regressions. Final
+  `docker compose config --quiet`, `scripts/test.ps1`, `scripts/verify.ps1`,
+  agent doctor, OmniRoute canary, PowerShell parsing, and `git diff --check`
+  passed.
+
+### Problems and remaining boundaries
+
+The first ad-hoc test invocation used a nonexistent `-NoBuild` switch; the
+documented `scripts/test.ps1` command was then used and passed. Under the strict
+privacy defaults, only two active free text endpoints were eligible during the
+observation and neither published benchmark values. Their order therefore used
+capability/context/stable tie-breaks, and neither produced an acceptable full
+synthetic career draft on that run. Local Qwen preserved correctness.
+
+The harmless OpenRouter canary proves authentication, routing, privacy
+compatibility, and reported zero cost; it does not prove provider uptime,
+benchmark truth, full-draft quality, forced Hermes cross-provider failover, or
+future free inventory. The interactive OpenRouter free router remains outside
+the career PostgreSQL ledger, so provider-side limits remain required.

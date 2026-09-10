@@ -252,6 +252,30 @@ pre-claim worker crash. Outbox generations fence old acknowledgments and
 expired workers cannot revive a lease or persist a failure. No new service,
 dependency, host access, model route, or external authority was introduced.
 
+## v0.17 — Policy-aware model ranking and semantic failover (2026-09-10)
+
+The governed career OpenRouter adapter now builds its order from current
+zero-cost text catalog entries and, under the default privacy mode, the live
+active-ZDR endpoint inventory. An explicit operator order still wins; otherwise
+bounded intelligence/coding/agentic benchmark metadata determines quality, with
+declared capabilities and context as tie-breakers. Benchmark data changes order
+only and cannot override price, privacy, selected-model, or returned-cost checks.
+
+OpenRouter's current API allows one primary plus three fallback models, so every
+wire request is capped at four routes even if an older environment requests a
+larger discovery pool. HTTP 200 is no longer treated as sufficient model
+success: empty or application-schema-invalid output records a failed reserved
+attempt, cools that route for 15 minutes, and tries the next ranked model under
+a separate daily reservation. Exhausted or policy-incompatible hosted routes
+still end at local Qwen.
+
+The interactive provider hierarchy is unchanged: OmniRoute `free/default`,
+OpenRouter's capability-filtered free router, then lazy local Qwen. This avoids
+fabricating a cross-provider benchmark where OmniRoute exposes no equivalent
+quality telemetry, and avoids the pinned `auto/*:free` fail-open cost behavior.
+No new service, key scope, tool authority, database schema, or host access was
+introduced.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

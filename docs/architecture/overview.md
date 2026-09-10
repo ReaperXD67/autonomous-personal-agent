@@ -70,8 +70,13 @@ bounded by the provider-side key policy.
 
 The career worker has a separate, narrow OpenRouter adapter because it can
 enforce exact live-catalog `:free` and zero-price invariants before résumé data
-leaves the host. It requests no-training/zero-retention endpoints, verifies the
-actual selected model and returned cost, and falls back to internal Ollama.
+leaves the host. It intersects the catalog with active zero-retention endpoints,
+ranks the remaining candidates by bounded live benchmark metadata and declared
+capabilities, and sends one primary plus at most three provider-supported
+fallbacks. It requests no-training/zero-retention endpoints, verifies the actual
+selected model and returned cost, and validates the task schema. Empty or
+invalid structured output cools that route and receives a separately reserved
+attempt through the next ranked model before internal Ollama.
 
 ### Tool plane
 

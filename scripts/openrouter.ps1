@@ -9,17 +9,8 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $envPath = Join-Path $projectRoot '.env'
 $apiBase = 'https://openrouter.ai/api/v1'
-$defaultPriority = @(
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'z-ai/glm-5.2:free',
-    'nvidia/nemotron-3-super-120b-a12b:free',
-    'minimax/minimax-m3:free',
-    'google/gemma-4-31b-it:free',
-    'thinkingmachines/inkling:free',
-    'dots-studio/dots-3-note-preview:free',
-    'google/gemma-4-26b-a4b-it:free'
-)
-$activePriority = $defaultPriority
+$maxModelsPerRequest = 4
+$activePriority = @()
 
 function Read-EnvironmentFile {
     $values = @{}
@@ -57,8 +48,34 @@ function Convert-SecureValue {
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
 }
 
+function Get-ModelPowerScore {
+    param([Parameter(Mandatory)][object]$Model)
+    $analysis = $Model.benchmarks.artificial_analysis
+    if ($null -eq $analysis) { return $null }
+    $values = @{}
+    foreach ($name in @('intelligence_index', 'coding_index', 'agentic_index')) {
+        $value = $analysis.$name
+        if ($null -ne $value) {
+            try {
+                $number = [double]$value
+                if (-not [double]::IsNaN($number) -and -not [double]::IsInfinity($number) -and $number -ge 0 -and $number -le 100) {
+                    $values[$name] = $number
+                }
+            }
+            catch { }
+        }
+    }
+    if ($values.Count -eq 0) { return $null }
+    return 0.50 * $(if ($values.ContainsKey('intelligence_index')) { $values.intelligence_index } else { 0 }) +
+        0.30 * $(if ($values.ContainsKey('coding_index')) { $values.coding_index } else { 0 }) +
+        0.20 * $(if ($values.ContainsKey('agentic_index')) { $values.agentic_index } else { 0 })
+}
+
 function Get-RankedFreeModels {
-    param([Parameter(Mandatory)][object[]]$Models)
+    param(
+        [Parameter(Mandatory)][object[]]$Models,
+        [Collections.Generic.HashSet[string]]$AvailableModels
+    )
     $priority = @{}
     for ($index = 0; $index -lt $activePriority.Count; $index++) {
         $priority[$activePriority[$index]] = $index
@@ -73,18 +90,63 @@ function Get-RankedFreeModels {
             $inputs -contains 'text' -and $outputs -contains 'text' -and
             [decimal]$pricing.prompt -eq 0 -and
             [decimal]$pricing.completion -eq 0 -and
-            [decimal]$(if ($null -eq $pricing.request) { '0' } else { $pricing.request }) -eq 0
+            [decimal]$(if ($null -eq $pricing.request) { '0' } else { $pricing.request }) -eq 0 -and
+            ($null -eq $AvailableModels -or $AvailableModels.Contains($id))
     })
     return @($eligible | Sort-Object @{
+        Expression = { if ($priority.ContainsKey([string]$_.id)) { 0 } else { 1 } }
+    }, @{
         Expression = {
             if ($priority.ContainsKey([string]$_.id)) { $priority[[string]$_.id] }
-            else { $activePriority.Count + 1 }
+            else { $activePriority.Count }
+        }
+    }, @{
+        Expression = { if ($null -eq (Get-ModelPowerScore -Model $_)) { 1 } else { 0 } }
+    }, @{
+        Expression = {
+            $score = Get-ModelPowerScore -Model $_
+            if ($null -eq $score) { 0 } else { -$score }
+        }
+    }, @{
+        Expression = {
+            $parameters = @($_.supported_parameters)
+            $score = 0
+            if ($parameters -contains 'structured_outputs') { $score += 2 }
+            if ($parameters -contains 'response_format') { $score += 1 }
+            if ($parameters -contains 'tools') { $score += 1 }
+            if ($parameters -contains 'reasoning') { $score += 0.5 }
+            -$score
         }
     }, @{
         Expression = { -[int64]$_.context_length }
     }, @{
         Expression = { [string]$_.id }
-    } | Select-Object -First 8)
+    } | Select-Object -First $maxModelsPerRequest)
+}
+
+function Get-SafeOpenRouterFailure {
+    param([Parameter(Mandatory)][System.Management.Automation.ErrorRecord]$ErrorRecord)
+    $status = $null
+    if ($ErrorRecord.Exception.Response) {
+        $status = [int]$ErrorRecord.Exception.Response.StatusCode
+    }
+    $message = ''
+    if ($ErrorRecord.ErrorDetails.Message) {
+        try {
+            $envelope = $ErrorRecord.ErrorDetails.Message | ConvertFrom-Json
+            $message = [string]$envelope.error.message
+        }
+        catch { }
+    }
+    if ($message -match "models.*3 items or fewer") {
+        return 'OpenRouter rejected too many fallbacks; this build now caps the request at three fallback entries.'
+    }
+    if ($message -match 'data policy') {
+        return 'No zero-retention/no-training endpoint is currently available for the selected free models.'
+    }
+    if ($status -eq 429) { return 'The shared OpenRouter free request limit is currently exhausted.' }
+    if ($status -in @(401, 403)) { return 'The OpenRouter inference key was rejected.' }
+    return "OpenRouter returned HTTP $(if ($status) { $status } else { 'error' })."
 }
 
 Push-Location $projectRoot
@@ -108,6 +170,12 @@ try {
             throw 'Every OPENROUTER_MODEL_PRIORITY entry must end with :free.'
         }
     }
+    $zdrRequired = $true
+    if ($values.OPENROUTER_ZDR) {
+        if ($values.OPENROUTER_ZDR -match '^(?i:true|1|yes|on)$') { $zdrRequired = $true }
+        elseif ($values.OPENROUTER_ZDR -match '^(?i:false|0|no|off)$') { $zdrRequired = $false }
+        else { throw 'OPENROUTER_ZDR must be true or false.' }
+    }
     $apiKey = [string]$values.OPENROUTER_API_KEY
     if ($Configure) {
         $secure = Read-Host 'Paste a scoped OpenRouter inference API key (input is hidden)' -AsSecureString
@@ -121,11 +189,32 @@ try {
     }
 
     $headers = @{ Authorization = "Bearer $apiKey"; Accept = 'application/json' }
-    $keyInfo = (Invoke-RestMethod -Uri "$apiBase/key" -Headers $headers -TimeoutSec 20).data
-    $catalog = Invoke-RestMethod -Uri "$apiBase/models?output_modalities=text" -Headers $headers -TimeoutSec 30
-    $models = @(Get-RankedFreeModels -Models @($catalog.data))
-    if ($models.Count -lt 2) {
-        throw 'OpenRouter returned fewer than two verified zero-cost text models.'
+    try {
+        $keyInfo = (Invoke-RestMethod -Uri "$apiBase/key" -Headers $headers -TimeoutSec 20).data
+        $catalog = Invoke-RestMethod -Uri "$apiBase/models?output_modalities=text" -Headers $headers -TimeoutSec 30
+    }
+    catch {
+        throw "OpenRouter discovery failed safely: $(Get-SafeOpenRouterFailure -ErrorRecord $_)"
+    }
+    $availableModels = $null
+    if ($zdrRequired) {
+        $availableModels = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        try {
+            $zdrEndpoints = Invoke-RestMethod -Uri "$apiBase/endpoints/zdr" -Headers $headers -TimeoutSec 30
+        }
+        catch {
+            throw "OpenRouter privacy discovery failed safely: $(Get-SafeOpenRouterFailure -ErrorRecord $_)"
+        }
+        foreach ($endpoint in @($zdrEndpoints.data)) {
+            $modelId = [string]$endpoint.model_id
+            if ($modelId.EndsWith(':free') -and ($null -eq $endpoint.status -or [string]$endpoint.status -eq '0')) {
+                $null = $availableModels.Add($modelId)
+            }
+        }
+    }
+    $models = @(Get-RankedFreeModels -Models @($catalog.data) -AvailableModels $availableModels)
+    if ($models.Count -eq 0) {
+        throw 'OpenRouter returned no verified zero-cost text model compatible with the configured privacy policy.'
     }
     if ($publishedLimit -eq 1000 -and $keyInfo.is_free_tier) {
         throw 'The key reports that no credits were purchased; the 1,000-request allowance cannot be enabled.'
@@ -148,9 +237,12 @@ try {
     if ($null -ne $keyInfo.limit) {
         Write-Host "Key spend limit:    `$$($keyInfo.limit) ($$($keyInfo.limit_remaining) remaining)"
     }
-    Write-Host 'Verified fallback order:'
+    Write-Host "Privacy route:      $(if ($zdrRequired) { 'no-training + live ZDR endpoints only' } else { 'no-training; provider retention allowed by configuration' })"
+    Write-Host 'Smart fallback order (live benchmark/capability rank):'
     for ($index = 0; $index -lt $models.Count; $index++) {
-        Write-Host ("  {0}. {1} ({2:N0} context)" -f ($index + 1), $models[$index].id, $models[$index].context_length)
+        $power = Get-ModelPowerScore -Model $models[$index]
+        $powerText = if ($null -eq $power) { 'benchmark pending' } else { "power $($power.ToString('0.0'))" }
+        Write-Host ("  {0}. {1} ({2}, {3:N0} context)" -f ($index + 1), $models[$index].id, $powerText, $models[$index].context_length)
     }
 
     if ($Smoke) {
@@ -160,21 +252,31 @@ try {
             messages = @(@{ role = 'user'; content = 'Reply with exactly OPENROUTER_FREE_OK and nothing else.' })
             stream = $false
             temperature = 0
-            max_tokens = 32
+            max_tokens = 256
             provider = @{
                 allow_fallbacks = $true
                 require_parameters = $true
                 data_collection = 'deny'
-                zdr = $true
+                zdr = $zdrRequired
             }
         } | ConvertTo-Json -Depth 8
+        if (@($models | Where-Object { @($_.supported_parameters) -notcontains 'reasoning' }).Count -eq 0) {
+            $bodyObject = $body | ConvertFrom-Json
+            $bodyObject | Add-Member -NotePropertyName reasoning -NotePropertyValue @{ effort = 'minimal'; exclude = $true }
+            $body = $bodyObject | ConvertTo-Json -Depth 8
+        }
         $smokeHeaders = @{
             Authorization = "Bearer $apiKey"
             'X-OpenRouter-Metadata' = 'enabled'
             'HTTP-Referer' = 'https://github.com/ReaperXD67/autonomous-personal-agent'
             'X-Title' = 'Hermes Autonomous Personal Agent'
         }
-        $response = Invoke-RestMethod -Method Post -Uri "$apiBase/chat/completions" -Headers $smokeHeaders -ContentType 'application/json' -Body $body -TimeoutSec 180
+        try {
+            $response = Invoke-RestMethod -Method Post -Uri "$apiBase/chat/completions" -Headers $smokeHeaders -ContentType 'application/json' -Body $body -TimeoutSec 180
+        }
+        catch {
+            throw "OpenRouter smoke failed safely: $(Get-SafeOpenRouterFailure -ErrorRecord $_)"
+        }
         if ([decimal]$response.usage.cost -ne 0) {
             throw "OpenRouter smoke unexpectedly reported non-zero cost; routing remains disabled until investigated."
         }

@@ -21,7 +21,7 @@ The default gate requires all configured paths:
 | Disposable restore drill | Latest authoritative state can be restored and read by application code |
 | Agent doctor | Docker/WSL/configuration/core readiness plus the managed OmniRoute → OpenRouter free → Qwen order and lazy Qwen state |
 | OmniRoute smoke | Authenticated `free/default` route returns a real completion |
-| OpenRouter free smoke | When enabled, the current ranked `:free` chain returns the exact harmless response and reports zero cost |
+| OpenRouter free smoke | When enabled, the current privacy-compatible ranked `:free` chain returns the exact harmless response and reports zero cost |
 | Local-model smoke | Qwen3 8B returns `LOCAL_MODEL_OK`, reports GPU placement when available, and unloads afterward |
 | Hermes one-shot | Hermes returns `HERMES_READY_OK` through its configured primary route |
 

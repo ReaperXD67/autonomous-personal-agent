@@ -42,16 +42,16 @@ and human approval for high-impact actions.
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
 | Durable workflows | Implemented | Dependency-aware plans, parallel ready steps, explicit result checks, deadlines, restart recovery, cancellation, and dashboard recipes; at most 32 steps and 4 concurrent tasks |
 | Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
-| Application preparation | Local verified; hosted prepared | A live-ranked, zero-cost-only OpenRouter chain can use Nemotron/other current free models before Qwen3 8B local fallback; hosted path needs a user key and smoke. The agent can auto-preflight common forms and prepare the exact action |
+| Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
 | Creator outreach | Implemented; external delivery pending | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, exact-email sequence, results funnel, bounded A/B learning, five-channel UTM kit, and a creator-specific no-egress smoke; needs TLS SMTP and owned-inbox proof for real delivery |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
-| Hermes model hierarchy | Primary previously verified; new chain prepared | Managed OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen; live OpenRouter proof still needs a user key |
+| Hermes model hierarchy | Provider canaries verified; forced failover prepared | Managed OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen; OmniRoute and OpenRouter each passed harmless live requests |
 | Local inference | Verified; lazy lifecycle added | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU; normal startup keeps weights unloaded |
-| Free hosted routing | Implemented, not live-verified | Live catalog price checks, ordered cross-model fallback, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
+| Free hosted routing | Verified live | Live benchmark/capability ranking, active-ZDR endpoint checks, a provider-valid four-model chain, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |
 | Private VPS operations | Prepared; host proof pending | Fail-closed deployment, systemd boot/recovery, provider-health timer, checksummed backup, and restore drill; dashboard stays loopback-only |
@@ -71,7 +71,7 @@ flowchart LR
     Q --> JW["Career worker"]
     Q --> AW["Isolated action worker"]
     JW --> JS["Allowlisted public job APIs"]
-    JW --> OR["Verified OpenRouter :free chain"]
+    JW --> OR["Smart-ranked OpenRouter :free chain"]
     OR -->|"quota / outage / privacy filter"| LM["Local Qwen fallback"]
     AW --> ATS["Reviewed ATS form"]
     AW --> SMTP["Configured SMTP / Mailpit"]
@@ -139,10 +139,16 @@ OpenRouter inference key and run:
 
 The key prompt is hidden. The runtime accepts only current text models whose
 exact ID ends in `:free`, whose catalog prices are all zero, and whose response
-reports zero cost. The dashboard **Settings** view shows the actual selected
-model/provider, fallback attempt, daily usage, privacy mode, and recorded cost.
-Hosted drafting sends résumé/job text to OpenRouter and an upstream provider;
-leave it disabled to keep all drafting on-device.
+reports zero cost. It intersects that set with active zero-retention endpoints,
+ranks candidates by live benchmark metadata plus capabilities/context, and sends
+one primary plus no more than OpenRouter's three allowed fallbacks. An explicit
+`OPENROUTER_MODEL_PRIORITY` still overrides that quality order. A completion
+that is empty or fails the application schema is cooled and the next ranked
+model gets its own accounted attempt before local fallback. The dashboard
+**Settings** view shows the selected model/provider, fallback attempt, daily
+usage, privacy mode, and recorded cost. Hosted drafting sends résumé/job text to
+OpenRouter and an upstream provider; leave it disabled to keep all drafting
+on-device.
 
 For KarixMC promotion, run `./scripts/promotion.ps1` for a secret-safe readiness
 check, then open **Creator campaigns**. Each campaign now produces ready-to-copy
@@ -263,10 +269,13 @@ requires local administrator onboarding and a new scoped key. Use
 reviewed boundary and never treat image health alone as inference readiness.
 The committed interactive route is ordered: OmniRoute `free/default`, then
 OpenRouter `openrouter/free`, then local Qwen. Deterministic discovery/scoring
-still uses no LLM. Career drafting keeps its stricter direct OpenRouter adapter
-with live exact-`:free` validation and PostgreSQL accounting. General Hermes
-fallback calls are intentionally outside that career ledger, so set a
-provider-side key limit and monitor account-wide allowance.
+still uses no LLM. Career drafting keeps its stricter direct OpenRouter adapter:
+it ranks the current verified-free/privacy-compatible pool, tries no more than
+the provider's supported one-plus-three chain, and records usage in PostgreSQL.
+General Hermes fallback calls use OpenRouter's capability-filtered free router
+(which selects randomly among compatible candidates) and remain outside that
+career ledger, so set a provider-side key limit and monitor account-wide
+allowance.
 
 ## Complete test-readiness gate
 
@@ -300,8 +309,8 @@ private and has no token bill, but its 8K configured context and model quality
 are below strong hosted models.
 Use OpenRouter free models for the secondary hosted route when available.
 Hermes reaches Qwen only after OmniRoute and OpenRouter fail. The career worker
-still applies stronger zero-price/privacy/cost controls than the interactive
-fallback, so the two consumers must be monitored separately.
+applies stronger benchmark ranking and zero-price/privacy/cost controls than the
+interactive fallback, so the two consumers must be monitored separately.
 See the [free-stack assessment](docs/research/free-agent-stack-2026-08.md),
 [free-pool allocation assessment](docs/research/free-pool-allocation-2026-08.md),
 and [remaining manual setup](docs/operations/manual-setup.md).

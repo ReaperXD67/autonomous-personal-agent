@@ -20,3 +20,4 @@ history.
 - [ADR-0014](ADR-0014-private-vps-first.md): private loopback VPS before public production
 - [ADR-0015](ADR-0015-managed-lazy-model-routing.md): managed OmniRoute/OpenRouter/Qwen routing, lazy local weights, private browser sessions, and VPS service lifecycle
 - [ADR-0016](ADR-0016-bounded-durable-workflows.md): immutable bounded workflow plans, result checks, cancellation, and reconstructible ready signals
+- [ADR-0017](ADR-0017-policy-aware-smart-model-ranking.md): live benchmark/capability ranking constrained by free-price, endpoint privacy, and provider fallback limits

@@ -27,6 +27,12 @@ first final-fallback request loads weights and the idle timeout unloads them.
 `HERMES_LOCAL_FALLBACK_KEY` value only satisfies OpenAI-client compatibility;
 Ollama does not authenticate it.
 
+`openrouter/free` filters for request capabilities but OpenRouter documents its
+final compatible-model choice as random. The career worker therefore keeps a
+separate stricter adapter that ranks current free models by benchmark/capability,
+checks active ZDR endpoints, and sends no more than one primary plus three
+fallbacks. Do not describe the interactive free router itself as benchmark-best.
+
 Approval mode stays manual. MCP stays empty. Terminal, host filesystem, and
 external messaging credentials are intentionally not provisioned here.
 

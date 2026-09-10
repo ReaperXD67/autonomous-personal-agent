@@ -62,8 +62,11 @@ overdue active missions are picked up after restart.
 Fresh matches appear under **Opportunities** with posting time, source link,
 score, and matching reasons. Shortlist or dismiss them. **Generate private
 draft** creates a truthful fit summary, résumé evidence, honest gaps, keywords,
-and cover-letter draft through the ranked free route with local Qwen continuity.
-The **Settings** page shows which route actually ran. **Inspect form** opens only a reviewed
+and cover-letter draft through the policy-compatible benchmark/capability-ranked
+free route with local Qwen continuity. Provider errors, empty output, and
+schema-invalid output move to the next ranked candidate under a separately
+counted reservation; exhausted hosted candidates move to Qwen. The **Settings**
+page shows which route actually ran. **Inspect form** opens only a reviewed
 Greenhouse, Ashby, or Lever hosted form in the isolated worker. **Prepare exact
 submission** resolves routine fields and asks for every unknown required answer.
 It freezes the final host, form signature, values, résumé/draft hashes, and
@@ -155,8 +158,9 @@ privacy and free-tier terms.
   local Ollama/Qwen inference have no per-token software charge.
 - Eligible OpenRouter `:free` variants report zero inference cost, but their
   shared request quotas, availability, privacy endpoints, and terms can change.
-  The system validates current price and returned cost; it cannot promise
-  third-party free capacity.
+  The system validates current price, active ZDR compatibility, returned model,
+  and returned cost; it cannot promise third-party free capacity or output
+  quality. Invalid hosted output is rejected before it becomes a draft.
 - Arbeitnow and public Ashby, Greenhouse, and Lever boards need no API key for
   discovery. Public hosted application forms do not guarantee automation
   compatibility or permission under every employer/site's terms.

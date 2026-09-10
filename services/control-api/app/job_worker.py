@@ -25,7 +25,7 @@ from app.career import (
     prioritize_opportunities,
     score_opportunity,
 )
-from app.inference import OpenRouterError, OpenRouterFreeClient
+from app.inference import OpenRouterError, OpenRouterFreeClient, OpenRouterPlan
 from app.logging_config import configure_logging
 from app.marketing import fetch_youtube_creators
 from app.marketing_store import MarketingStore
@@ -222,22 +222,43 @@ def execute_career_task(
         if openrouter_client is not None:
             try:
                 plan = openrouter_client.plan()
-                invocation_id = database.start_inference_invocation(
-                    task_id=task_id,
-                    purpose="career.application_draft",
-                    provider="openrouter",
-                    requested_models=plan.models,
-                    privacy_mode=openrouter_client.privacy_mode,
-                    daily_limit=plan.daily_limit,
-                )
-                if invocation_id is None:
-                    route_warning = "OPENROUTER_LOCAL_DAILY_CAP_REACHED"
-                else:
+                remaining_models = plan.models
+                route_offset = 0
+                while remaining_models and content is None:
+                    attempt_plan = OpenRouterPlan(
+                        models=remaining_models,
+                        daily_limit=plan.daily_limit,
+                        free_tier=plan.free_tier,
+                    )
+                    invocation_id = database.start_inference_invocation(
+                        task_id=task_id,
+                        purpose="career.application_draft",
+                        provider="openrouter",
+                        requested_models=attempt_plan.models,
+                        privacy_mode=openrouter_client.privacy_mode,
+                        daily_limit=attempt_plan.daily_limit,
+                    )
+                    if invocation_id is None:
+                        route_warning = "OPENROUTER_LOCAL_DAILY_CAP_REACHED"
+                        break
                     try:
                         remote = openrouter_client.complete(
-                            application_draft_messages(context), plan
+                            application_draft_messages(context), attempt_plan
                         )
-                        content = parse_application_draft(remote.content)
+                        try:
+                            content = parse_application_draft(remote.content)
+                        except ValueError:
+                            database.fail_inference_invocation(
+                                invocation_id, "OPENROUTER_DRAFT_INVALID"
+                            )
+                            route_warning = "OPENROUTER_DRAFT_INVALID"
+                            openrouter_client.reject_model(remote.selected_route)
+                            selected_index = remaining_models.index(
+                                remote.selected_route
+                            )
+                            route_offset += selected_index + 1
+                            remaining_models = remaining_models[selected_index + 1 :]
+                            continue
                         database.complete_inference_invocation(
                             invocation_id,
                             selected_model=remote.selected_model,
@@ -251,15 +272,21 @@ def execute_career_task(
                         )
                         selected_model = remote.selected_model
                         selected_provider = remote.selected_provider or "openrouter"
-                        fallback_attempt = remote.fallback_attempt
+                        fallback_attempt = (
+                            route_offset
+                            + attempt_plan.models.index(remote.selected_route)
+                            + 1
+                        )
                     except OpenRouterError as exc:
                         database.fail_inference_invocation(invocation_id, exc.code)
                         route_warning = exc.code
-                    except ValueError:
-                        database.fail_inference_invocation(
-                            invocation_id, "OPENROUTER_DRAFT_INVALID"
-                        )
-                        route_warning = "OPENROUTER_DRAFT_INVALID"
+                        if exc.failed_model in remaining_models:
+                            openrouter_client.reject_model(exc.failed_model)
+                            selected_index = remaining_models.index(exc.failed_model)
+                            route_offset += selected_index + 1
+                            remaining_models = remaining_models[selected_index + 1 :]
+                            continue
+                        break
             except OpenRouterError as exc:
                 route_warning = exc.code
 

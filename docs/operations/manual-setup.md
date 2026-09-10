@@ -18,10 +18,14 @@ fresh matches for its exact synthetic target, and persisted a structured local
 Qwen application draft.
 
 The OpenRouter free-only adapter, managed Hermes fallback position, ordered
-fallback tests, usage ledger, and UI are implemented, but the hosted path is not
-operational until a user-owned inference key is installed and the harmless live
-smoke succeeds. No OpenRouter key was available during implementation, so this
-distinction is intentional.
+fallback tests, usage ledger, and UI are implemented. On 2026-09-10, the
+user-owned inference key passed the harmless live smoke through
+`inclusionai/ling-3.0-flash-fin:free` at provider-reported cost zero. This proves
+the direct governed provider path, not a forced end-to-end Hermes failover. A
+synthetic full career draft later exercised both strict-ZDR candidates; the
+first returned schema-invalid output, the second returned empty output, and the
+audited chain correctly completed through local Qwen. Hosted draft quality is
+therefore not claimed from the canary alone.
 
 On 2026-08-25, the isolated side-effect smoke used a synthetic candidate and
 local fixtures to prepare and execute one exact application, deliver one exact
@@ -204,11 +208,18 @@ mistake cannot consume the account balance freely.
 
 `-Configure` reads the key through a hidden prompt, validates it with `/key`,
 fetches the current catalog, prints only non-secret tier/limit/model metadata,
-and writes the key to ignored `.env`. `-Smoke` makes one harmless request with
-no-training/ZDR filters and refuses success unless OpenRouter reports exact zero
-cost. The safe default is 40 local reservations below the shared 50-request
-allowance. If the account has purchased at least USD 10 in total, configure the
-documented 1,000-request tier explicitly and preserve 100 requests of headroom:
+and writes the key to ignored `.env`. The default selector intersects exact
+zero-cost `:free` text models with the live active-ZDR endpoint inventory, then
+ranks by the catalog's intelligence/coding/agentic benchmark fields with
+capability/context tie-breakers. An explicit `OPENROUTER_MODEL_PRIORITY` remains
+the operator override. `-Smoke` sends one primary plus at most three fallbacks,
+keeps no-training/ZDR filters, and refuses success unless OpenRouter reports
+exact zero cost. Career drafts also treat empty/schema-invalid output as a
+failure, cool that model, and reserve a separate attempt for the next-ranked
+candidate before using local Qwen. The safe default is 40 local reservations below the shared
+50-request allowance. If the account has purchased at least USD 10 in total,
+configure the documented 1,000-request tier explicitly and preserve 100
+requests of headroom:
 
 ```powershell
 ./scripts/openrouter.ps1 -Configure -ConfirmTenCreditsPurchased
@@ -220,9 +231,13 @@ amount, and querying all-time purchases requires a management key that this
 agent deliberately refuses.
 
 After a draft, open **Settings** and verify the actual model, provider, privacy
-mode, fallback attempt, tokens, and zero recorded credits. Free model inventory
-is volatile. Switching models helps model/provider-specific limits, but it does
-not bypass the shared account-wide free quota; local Qwen is the final route.
+mode, fallback attempt, tokens, and zero recorded credits. Free model inventory,
+endpoint privacy, availability, and benchmark metadata are volatile. On
+2026-09-10 the strict privacy intersection contained two eligible routes; both
+lacked published benchmark values, so capability/context and a stable tie-break
+determined their order. Switching models helps model/provider-specific limits,
+but it does not bypass the shared account-wide free quota; local Qwen is the
+final route.
 
 The same key is available to Hermes for its second interactive route. Those
 general calls do not reserve from the career worker's PostgreSQL counter, so

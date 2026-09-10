@@ -41,17 +41,18 @@ try {
         $result = Invoke-RestMethod -Method Post -Uri "$baseUrl/chat/completions" -Headers $headers -ContentType 'application/json' -Body $body -TimeoutSec 120
     }
     catch {
-        $detail = $_.Exception.Message
-        if ($_.Exception.Response) {
-            $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
-            $responseBody = $reader.ReadToEnd()
-            if ($responseBody) { $detail = $responseBody.Substring(0, [Math]::Min(1000, $responseBody.Length)) }
-        }
-        throw "OmniRoute inference failed for '$Model': $detail"
+        $status = if ($_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { $null }
+        $classification = if ($status -in @(401, 403)) { 'the scoped inference key was rejected' }
+            elseif ($status -eq 429) { 'the selected free route is rate-limited' }
+            elseif ($status) { "the gateway returned HTTP $status" }
+            else { 'the gateway was unavailable or timed out' }
+        throw "OmniRoute inference failed for '$Model': $classification. Inspect bounded container logs locally for the correlation-safe cause."
     }
     $content = [string]$result.choices[0].message.content
     if (-not $content.Trim()) { throw 'OmniRoute returned an empty model response.' }
-    Write-Host "Inference passed through model route '$Model'."
+    $selectedModel = [string]$result.model
+    if ($selectedModel.Length -gt 160) { $selectedModel = $selectedModel.Substring(0, 160) }
+    Write-Host "Inference passed through route '$Model'; gateway reported '$selectedModel'."
 }
 finally {
     Pop-Location

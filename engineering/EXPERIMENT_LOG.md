@@ -502,6 +502,42 @@ verified locally without new executor privileges. These measurements do not
 establish model intelligence, general-purpose planning quality, or real external
 application/email compatibility.
 
+## Experiment 25 — Live OpenRouter contract and semantic-failover proof
+
+Date: 2026-09-10
+
+Method: reproduce the user-key smoke with raw provider envelopes kept out of
+logs; query the official model/ZDR inventories; run corrected PowerShell and
+rebuilt Python canaries; exercise OmniRoute independently; run a synthetic full
+career draft; then execute repository, inference, and Compose gates.
+
+Observed:
+
+- The original completion failed before inference because seven fallback models
+  exceeded the provider's maximum of three. After capping that field, the next
+  request failed because none of the benchmark leaders matched the combined ZDR
+  policy.
+- The live active-ZDR/free/text intersection contained two routes, both without
+  published benchmark values. The corrected script and rebuilt Python adapter
+  each returned the exact harmless marker through
+  `inclusionai/ling-3.0-flash-fin:free` at reported cost zero.
+- OmniRoute `free/default` independently returned the exact canary and reported
+  `aphrodite/TheDrummer/Cydonia-24B-v4.3` from its 79-route catalog.
+- A synthetic full draft fetched 100 listings and matched 39. The first hosted
+  output was schema-invalid and the second was empty; both were rejected and
+  recorded before local Qwen completed the structured draft.
+- Unit coverage proves dynamic benchmark order, ZDR intersection, the four-route
+  provider cap, retention of one viable hosted route before local fallback,
+  semantic second-model selection, and failed-model attribution for empty
+  completions. Final Ruff/Pytest passed 116 tests; Compose rendering, complete
+  lifecycle/workflow/queue verification, agent doctor, OmniRoute canary,
+  PowerShell parsing, and whitespace checks passed.
+
+Result: the credential and strict-free provider canary are operational, and the
+complete draft path remains available when current privacy-compatible hosted
+quality is insufficient. This does not establish hosted full-draft quality or
+future provider availability.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
