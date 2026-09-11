@@ -1914,6 +1914,12 @@ the runner now waits briefly for that transition before collecting its signals.
   validation, proposal review/adoption, immutable selected context, and readiness.
   Desktop/mobile screenshots use labeled synthetic examples; README includes
   sample screenshots. A separate live-result capture uses persisted test work.
+- Six authenticated live browser checks also passed: one-use bootstrap/URL scrub/
+  HttpOnly session, unexecuted demo proposal, explicit adoption through successful
+  workflow/output check, task audit, published report display, and reload. No page
+  errors occurred. Workflow `0375348f-b571-4634-b890-48dcf1d46869` and its harmless
+  synthetic demo records remain inspectable. The live screenshot crops only that
+  result dialog; other screenshots are labeled illustrative sample data.
 - All PowerShell scripts parsed and `git diff --check` passed. Screenshots and
   raw local proof outputs remain ignored; only explicitly reviewed sample images
   were copied into documentation.

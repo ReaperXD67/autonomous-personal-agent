@@ -601,6 +601,10 @@ all 12 migrations, 213 tasks, 707 audit records, and zero orphan audits in 8.87 
 The browser proof passed 15 behavior groups, all 10 views at 390px, and zero page
 errors. Illustrative screenshots use labeled synthetic data; actual execution
 evidence comes from the live API/worker/SQL proofs, not those fixtures.
+Six further authenticated live browser checks passed with zero page errors:
+session bootstrap, proposal isolation, explicit adoption and output success,
+audit display, published readiness evidence, and reload persistence. The live
+result screenshot captures retained workflow `0375348f-b571-4634-b890-48dcf1d46869`.
 
 ## Planned experiments
 
