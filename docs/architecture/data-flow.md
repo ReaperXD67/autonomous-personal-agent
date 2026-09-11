@@ -148,6 +148,8 @@ posting remains outside Hermes and outside the action worker.
 | Inference invocations | PostgreSQL | Route/provider/model, privacy, tokens, latency, fallback, status, and cost only; no prompt/output text |
 | Preflights/exact actions/receipts | PostgreSQL | Approval context, expiry, execution state, and duplicate guard are authoritative |
 | Creator campaigns/prospects/outcomes | PostgreSQL | Contact provenance, authorization, suppression, stage links, attribution, and learning evidence are authoritative |
+| Goal proposals | PostgreSQL | Explicit request context, server action inventory, model result, digest, expiry, task binding, and atomic workflow adoption link |
+| Feature-test evidence | PostgreSQL | Bearer-attested fixed metadata only; historical prerequisites and 24-hour verification freshness, no raw logs or user content |
 | Embeddings | pgvector column | Model/version metadata must accompany future writes |
 | Logs | Docker log driver | Operational, rotated, not authoritative audit storage |
 
@@ -166,3 +168,7 @@ posting remains outside Hermes and outside the action worker.
   it to another worker.
 - Consequential browser/email tasks have one attempt; an existing receipt blocks
   replay and turns post-boundary failures into explicit reconciliation work.
+- A career/creator scheduling rollback leaves its due occurrence unchanged; task,
+  policy, audit, outbox, and schedule advancement share a transaction.
+- A saved goal proposal is reused after worker retry without another model call.
+  Adoption rollback leaves no workflow; concurrent adoption returns one workflow.

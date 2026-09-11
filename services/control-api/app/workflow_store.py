@@ -45,37 +45,40 @@ class WorkflowStore(Database):
         return {**workflow, "steps": steps}
 
     def create_workflow(self, request: WorkflowCreate) -> dict[str, Any]:
-        digest = hashlib.sha256(request.canonical_spec().encode("utf-8")).hexdigest()
         with self.connect() as connection:
+            return self._create_workflow_record(connection, request)
+
+    def _create_workflow_record(self, connection, request: WorkflowCreate) -> dict[str, Any]:
+        digest = hashlib.sha256(request.canonical_spec().encode("utf-8")).hexdigest()
+        workflow = connection.execute(
+            """INSERT INTO agent_workflows
+               (title, objective, requested_by, idempotency_key, specification_hash,
+                max_parallel, timeout_seconds, deadline_at)
+               VALUES (%s, %s, %s, %s, %s, %s, %s, now() + make_interval(secs => %s))
+               ON CONFLICT (idempotency_key) DO NOTHING RETURNING *""",
+            (request.title, request.objective, request.requested_by, request.idempotency_key,
+             digest, request.max_parallel, request.timeout_seconds, request.timeout_seconds),
+        ).fetchone()
+        if workflow is None:
             workflow = connection.execute(
-                """INSERT INTO agent_workflows
-                   (title, objective, requested_by, idempotency_key, specification_hash,
-                    max_parallel, timeout_seconds, deadline_at)
-                   VALUES (%s, %s, %s, %s, %s, %s, %s, now() + make_interval(secs => %s))
-                   ON CONFLICT (idempotency_key) DO NOTHING RETURNING *""",
-                (request.title, request.objective, request.requested_by, request.idempotency_key,
-                 digest, request.max_parallel, request.timeout_seconds, request.timeout_seconds),
+                "SELECT * FROM agent_workflows WHERE idempotency_key = %s",
+                (request.idempotency_key,),
             ).fetchone()
-            if workflow is None:
-                workflow = connection.execute(
-                    "SELECT * FROM agent_workflows WHERE idempotency_key = %s",
-                    (request.idempotency_key,),
-                ).fetchone()
-                if workflow["specification_hash"] != digest:
-                    raise WorkflowConflictError(
-                        "Idempotency key already belongs to a different plan"
-                    )
-                return self._view(connection, workflow)
-            for position, step in enumerate(request.steps):
-                connection.execute(
-                    """INSERT INTO workflow_steps
-                       (workflow_id, key, position, title, kind, payload, depends_on,
-                        risk_level, expect_output) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
-                    (workflow["id"], step.key, position, step.title, step.kind, Jsonb(step.payload),
-                     Jsonb(step.depends_on), step.risk_level.value, Jsonb(step.expect_output)),
+            if workflow["specification_hash"] != digest:
+                raise WorkflowConflictError(
+                    "Idempotency key already belongs to a different plan"
                 )
-            self._audit_workflow(connection, workflow, "workflow.created")
             return self._view(connection, workflow)
+        for position, step in enumerate(request.steps):
+            connection.execute(
+                """INSERT INTO workflow_steps
+                   (workflow_id, key, position, title, kind, payload, depends_on,
+                    risk_level, expect_output) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
+                (workflow["id"], step.key, position, step.title, step.kind, Jsonb(step.payload),
+                 Jsonb(step.depends_on), step.risk_level.value, Jsonb(step.expect_output)),
+            )
+        self._audit_workflow(connection, workflow, "workflow.created")
+        return self._view(connection, workflow)
 
     def get_workflow(self, workflow_id: UUID) -> dict[str, Any]:
         with self.connect() as connection:

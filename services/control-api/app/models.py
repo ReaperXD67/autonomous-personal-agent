@@ -16,6 +16,7 @@ class TaskCreate(BaseModel):
     kind: Literal[
         "foundation.echo",
         "foundation.wait",
+        "planning.propose",
         "career.search",
         "career.application_draft",
         "career.application_preflight",

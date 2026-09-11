@@ -39,6 +39,8 @@ agent; MCP gateway → external server; VPS → internet.
 | Approval forgery | High-impact execution | Authenticated durable decision bound to exact context hash; future per-user identity, MFA, and signed approvals |
 | Supply-chain compromise | Malicious image/dependency | Release+digest pins, lockfile; future SBOM/signature verification and scanning |
 | Unsafe autonomous self-improvement | Policy bypass | Skills/config writes require approval, immutable policy ownership; not enabled |
+| Model invents executable plan authority | Unreviewed tools or context access | Server-generated opaque action inventory, strict schema/compiler, bounded sequential steps, owned lease, exact-digest adoption; no send/submit/recursive planning |
+| Misleading readiness evidence | Operator starts an unproven external flow | Bearer-only fixed-metadata ingestion, explicit fixture scope and missing prerequisites, timestamp/revision/dirty state, 24-hour freshness; operator attestations are not signed certification |
 
 ## Abuse cases requiring explicit denial
 

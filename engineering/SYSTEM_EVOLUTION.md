@@ -276,6 +276,28 @@ quality telemetry, and avoids the pinned `auto/*:free` fail-open cost behavior.
 No new service, key scope, tool authority, database schema, or host access was
 introduced.
 
+## v0.18 — Reviewed goal proposals and usable local evidence (2026-09-11)
+
+The existing research worker now prepares model-authored goal proposals through
+the policy/task/audit/outbox and inference-ledger paths. A server-owned inventory
+limits the model to opaque action keys from explicitly selected context. The
+compiler fixes payloads and sequential dependencies, and reviewed digest-bound
+adoption creates the immutable workflow and proposal link atomically. Owned
+leases fence stale proposal writes. The fixed local demo is visibly a template.
+No generic tools, raw send/submit, new service, dependency, or host authority are
+introduced. Dynamic replanning and the Hermes control-plane adapter remain future work.
+
+Career and creator schedules now advance in the same PostgreSQL transaction as
+their task, audit, and outbox creation. Rollback preserves due work and locked
+rows serialize concurrent schedulers. This closes the pre-task crash gap.
+
+The dashboard now guides an operator from a next action to goals, reviewed plans,
+features, and results. Historical feature-test metadata is stored in PostgreSQL
+through a bearer-only endpoint, rather than a host-mounted report directory.
+Browser sessions can read scopes/prerequisites/evidence but cannot attest tests.
+Readiness proof expires after 24 hours and distinguishes fixtures from external
+deployment proof. The project remains a private local alpha with bounded autonomy.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

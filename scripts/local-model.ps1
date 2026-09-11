@@ -77,10 +77,10 @@ try {
     }
 
     if (-not $SkipSmoke) {
-        $output = & docker @compose --profile local-model exec -T ollama ollama run $Model --think=false 'Reply with exactly LOCAL_MODEL_OK and nothing else.'
+        $output = & docker @compose --profile local-model exec -T ollama ollama run $Model --think=false 'Reply with exactly LOCAL_MODEL_OK and nothing else.' 2>$null
         $response = ($output -join "`n").Trim()
         if ($LASTEXITCODE -ne 0 -or $response -ne 'LOCAL_MODEL_OK') {
-            throw "The local model returned an unexpected response: $response"
+            throw 'The local model did not return the expected exact harmless canary.'
         }
         $placement = & docker @compose --profile local-model exec -T ollama ollama ps
         if ($LASTEXITCODE -ne 0) { throw 'Could not inspect the local model runtime.' }

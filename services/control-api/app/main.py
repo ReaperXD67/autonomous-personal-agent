@@ -62,7 +62,11 @@ from app.marketing_store import (
     MarketingStore,
 )
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate, TaskView
+from app.planning_routes import router as planning_router
+from app.planning_store import PlanningStore
 from app.policy import RiskLevel
+from app.readiness import ReadinessStore
+from app.readiness import router as readiness_router
 from app.settings import get_settings
 from app.store import Database, InvalidTaskStateError, TaskNotFoundError
 from app.workflow_models import WorkflowCreate, WorkflowView
@@ -83,6 +87,8 @@ async def lifespan(application: FastAPI):
     application.state.actions = ActionStore(settings.database_url)
     application.state.marketing = MarketingStore(settings.database_url)
     application.state.workflows = WorkflowStore(settings.database_url)
+    application.state.planning = PlanningStore(settings.database_url)
+    application.state.readiness = ReadinessStore(settings.database_url)
     application.state.redis = redis.Redis.from_url(settings.redis_url, decode_responses=True)
     logger.info("control plane starting", extra={"action": "startup"})
     yield
@@ -99,6 +105,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.trusted_hosts))
+app.include_router(planning_router)
+app.include_router(readiness_router)
 
 
 def _correlation_id(value: str | None) -> UUID:

@@ -20,6 +20,8 @@ try {
         $values[$parts[0].Trim()] = $parts[1].Trim()
     }
     $port = if ($values.CONTROL_API_PORT) { $values.CONTROL_API_PORT } else { '8080' }
+    $postgresUser = if ($values.POSTGRES_USER) { $values.POSTGRES_USER } else { 'agent_app' }
+    $postgresDatabase = if ($values.POSTGRES_DB) { $values.POSTGRES_DB } else { 'agent' }
     $baseUrl = "http://127.0.0.1:$port"
     $headers = @{ Authorization = "Bearer $($values.CONTROL_API_TOKEN)" }
 
@@ -96,7 +98,7 @@ try {
 finally {
     if ($profileId) {
         $cleanupSql = "DELETE FROM career_profiles WHERE id = '$profileId'::uuid AND requested_by = 'local-career-smoke';"
-        & docker compose exec -T postgres psql -v ON_ERROR_STOP=1 --username $values.POSTGRES_USER --dbname $values.POSTGRES_DB --command $cleanupSql | Out-Null
+        & docker compose exec -T postgres psql -v ON_ERROR_STOP=1 --username $postgresUser --dbname $postgresDatabase --command $cleanupSql | Out-Null
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "Could not remove disposable career profile $profileId."
         }

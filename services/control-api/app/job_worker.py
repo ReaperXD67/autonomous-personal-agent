@@ -30,6 +30,8 @@ from app.logging_config import configure_logging
 from app.marketing import fetch_youtube_creators
 from app.marketing_store import MarketingStore
 from app.models import TaskCreate
+from app.planning import execute_planning_task
+from app.planning_store import PlanningStore
 from app.policy import RiskLevel
 from app.settings import get_settings
 from app.worker import LeaseHeartbeat, TaskInterruptedError
@@ -82,6 +84,12 @@ def execute_career_task(
     payload = task["payload"]
     if not isinstance(payload, dict):
         raise ValueError("Research task payload must be an object")
+
+    if task["kind"] == "planning.propose":
+        return execute_planning_task(
+            task, PlanningStore(settings.database_url), settings,
+            client=openrouter_client, interrupt=interrupt,
+        )
 
     if task["kind"] == "marketing.creator_discovery":
         campaign_id = UUID(str(payload["campaign_id"]))
@@ -353,37 +361,21 @@ def execute_career_task(
 
 
 def _schedule_due_work(database: MarketingStore) -> None:
-    for profile in database.claim_due_profiles():
+    for scope, schedule in (
+        ("career", database.schedule_due_profiles),
+        ("marketing", database.schedule_due_campaigns),
+    ):
         try:
-            database.create_scheduled_search(profile)
-            logger.info(
-                "career scan scheduled",
-                extra={"action": "career.scan_scheduled", "profile_id": str(profile["id"])},
-            )
-        except Exception:
-            database.defer_profile(profile["id"])
-            logger.exception(
-                "career scan scheduling failed",
-                extra={"action": "career.schedule_failed", "profile_id": str(profile["id"])},
-            )
-    for campaign in database.claim_due_campaigns():
-        try:
-            database.create_scheduled_discovery(campaign)
-            logger.info(
-                "creator discovery scheduled",
-                extra={
-                    "action": "marketing.discovery_scheduled",
-                    "campaign_id": str(campaign["id"]),
-                },
-            )
-        except Exception:
-            database.defer_campaign(campaign["id"])
-            logger.exception(
-                "creator discovery scheduling failed",
-                extra={
-                    "action": "marketing.schedule_failed",
-                    "campaign_id": str(campaign["id"]),
-                },
+            for scheduled in schedule():
+                logger.info(
+                    "scheduled task committed",
+                    extra={"action": f"{scope}.scheduled", "task_id": str(scheduled["task_id"])},
+                )
+        except Exception as error:
+            # Rollback preserves the due occurrence for the next bounded poll.
+            logger.error(
+                "scheduler transaction rolled back",
+                extra={"action": f"{scope}.schedule_failed", "error_type": type(error).__name__},
             )
 
 

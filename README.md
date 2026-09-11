@@ -38,14 +38,16 @@ and human approval for high-impact actions.
 |---|---|---|
 | Container-first local stack | Implemented | Docker Compose; no project Python, Node, Redis, or PostgreSQL install on Windows |
 | Control API | Implemented | Bearer-authenticated task submission, status, metrics, approval decisions |
-| Private web dashboard | Implemented | Same-origin missions, opportunities, approvals, tasks, and audit UI at `127.0.0.1:8080`; launcher exchanges a one-use fragment for an HttpOnly session |
+| Guided private dashboard | Implemented | Start-here guidance, goal proposals, feature readiness, searchable keyboard navigation, labeled mobile navigation, progressive forms, and inline errors at `127.0.0.1:8080`; one-use launcher authentication |
 | Dispatcher + worker | Implemented | Transactional outbox, owned leases, heartbeats, cancellation, delayed retries, dead letters, deterministic foundation handlers |
 | Durable workflows | Implemented | Dependency-aware plans, parallel ready steps, explicit result checks, deadlines, restart recovery, cancellation, and dashboard recipes; at most 32 steps and 4 concurrent tasks |
+| Reviewed goal planner | Implemented | A model proposes at most 8 server-defined actions using your explicitly selected context. Review the immutable steps before adoption; execution enters the existing task/policy/audit path. A clearly labeled local demo needs no model |
+| Feature readiness | Implemented | Per-feature prerequisites, next actions, and timestamped local test evidence; authenticated operator reports are stored in PostgreSQL and expire as readiness proof after 24 hours |
 | Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
 | Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit | Exact recipient/subject/body approval, fixed deployment SMTP, TLS for external transports, durable receipt; real provider credentials are not configured |
-| Creator outreach | Implemented; external delivery pending | Durable KarixMC campaigns, official YouTube API adapter, public-contact provenance, exact-email sequence, results funnel, bounded A/B learning, five-channel UTM kit, and a creator-specific no-egress smoke; needs TLS SMTP and owned-inbox proof for real delivery |
+| Creator outreach | Local flow and bounded live discovery verified; external delivery pending | Durable campaigns, official YouTube discovery, public-contact provenance, exact-email sequence, results funnel, bounded A/B learning, five-channel UTM kit, and a creator-specific no-egress smoke; needs TLS SMTP and owned-inbox proof for real delivery |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -119,6 +121,31 @@ identity and enable auto-prepare to generate drafts and inspect supported forms
 without waiting; the exact final application still appears in **Approvals**.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
+
+The **Start here** page suggests the next action based on approvals, ready plans,
+running work, and new matches. **Goal planner** lets you describe an outcome and
+select the mission, up to three jobs, or campaign it may use. Inspect the proposed
+steps and limitations, then choose **Start plan**. The local demo demonstrates
+that complete review-to-result loop without a provider account. Use **Feature
+readiness** for setup requirements and recorded test results; **Ctrl/Cmd+K** opens
+the searchable navigation menu. See the [guided workspace guide](docs/operations/guided-workspace.md).
+
+![Goal planner with explicitly selected scope and reviewable steps](docs/assets/readme/goal-planner.png)
+
+*Illustrative screenshot using synthetic sample data. Real local execution is
+verified separately by the feature gate; the interface does not imply AGI.*
+
+To recheck implemented local features and publish safe evidence to the dashboard:
+
+```powershell
+./scripts/feature-test.ps1 -PublishReport
+```
+
+This includes containerized checks, crash/concurrency probes, restore, configured
+model canaries, job drafting, bounded YouTube discovery when configured, the live
+goal proposal path, and local application/email fixtures. Reports contain only
+allowlisted check metadata and configuration booleans. They do not certify real
+SMTP delivery, every external ATS, VPS deployment, or roadmap integrations.
 
 Open **Workflows** to coordinate several tasks into one durable plan. The safe
 demo verifies a message, runs two independent branches, and checks the final
@@ -239,6 +266,9 @@ normal operation. Real side effects are controlled by
 | `./scripts/down.ps1` | `make down` | Stop stack without deleting volumes |
 | `./scripts/doctor.ps1` | `make doctor` | Diagnose Docker, WSL, configuration, services, GPU, and agent readiness |
 | `./scripts/readiness.ps1` | `make readiness` | Run the complete core, restore, local/routed-model, and Hermes readiness gate |
+| `./scripts/feature-test.ps1 -PublishReport` | — | Test implemented local features and publish safe, timestamped evidence to Feature readiness |
+| `./scripts/planning-smoke.ps1 -Live` | — | Prove proposal isolation plus an accounted model proposal, reviewed adoption, and actual workflow result |
+| `./scripts/scheduler-smoke.ps1` | — | Prove atomic rollback, concurrency, and idempotency conflicts in a disposable PostgreSQL database |
 | `./scripts/vps-init-env.sh` | `make vps-init` | Create an owner-only production `.env` on Linux without provider credentials |
 | `./scripts/vps-preflight.sh` | `make vps-preflight` | Refuse dirty, public-port, placeholder, test-mail, or privileged VPS configurations |
 | `./scripts/vps-up.sh` | `make vps-up` | Start the private VPS stack and prove safe + approval-gated paths |

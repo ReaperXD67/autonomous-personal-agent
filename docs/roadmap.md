@@ -41,8 +41,8 @@
 - [ ] Safe memory writer/retriever with provenance and deletion policy
 - [x] Career scheduler persists tasks through the policy/outbox path before queue publication
 - [ ] General-purpose scheduler beyond career missions
-- [ ] Make career/creator schedule advancement atomic with task creation to close the pre-task crash gap
-- [ ] Policy-bound model planner that proposes reviewed workflows using the immutable plan API
+- [x] Make career/creator schedule advancement atomic with task creation to close the pre-task crash gap
+- [x] Policy-bound model planner that proposes reviewed workflows using the immutable plan API
 
 ## Phase 3 — curated tools
 
@@ -69,6 +69,8 @@
 - [x] Private web UI for missions, opportunities, tasks, approvals, and audit timelines
 - [x] One-use launcher bootstrap and signed HttpOnly private dashboard session
 - [x] Private inference route/usage/cost status in the dashboard
+- [x] Guided home, goal proposals, searchable navigation, mobile labels, and progressive setup forms
+- [x] Feature-by-feature prerequisites and timestamped operator test evidence in PostgreSQL
 - [ ] Per-user budget policy and identity
 
 ## Never broad or unreviewed by default

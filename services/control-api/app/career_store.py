@@ -192,11 +192,12 @@ class CareerStore(Database):
             connection.commit()
         return self._with_resume_metadata(row)
 
-    def claim_due_profiles(self, limit: int = 10) -> list[dict[str, Any]]:
+    def schedule_due_profiles(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Commit each due batch with its policy/audit/outbox records atomically."""
         with self.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT * FROM career_profiles
+                SELECT id, name, next_scan_at FROM career_profiles
                 WHERE active = true AND next_scan_at <= now()
                 ORDER BY next_scan_at
                 FOR UPDATE SKIP LOCKED
@@ -204,9 +205,20 @@ class CareerStore(Database):
                 """,
                 (limit,),
             ).fetchall()
-            claimed: list[dict[str, Any]] = []
+            scheduled: list[dict[str, Any]] = []
             for row in rows:
-                scheduled_for = row["next_scan_at"]
+                request = TaskCreate(
+                    title=f"Scan fresh jobs for {row['name']}",
+                    kind="career.search",
+                    payload={"profile_id": str(row["id"]), "trigger": "schedule"},
+                    risk_level=RiskLevel.LOW,
+                    requested_by="scheduler:career",
+                    idempotency_key=f"career-scan:{row['id']}:{row['next_scan_at'].isoformat()}",
+                )
+                task = self._create_task_record(connection, request)
+                if (task["kind"] != request.kind or task["payload"] != request.payload
+                        or task["requested_by"] != request.requested_by):
+                    raise ValueError("Scheduled task idempotency conflict")
                 connection.execute(
                     """
                     UPDATE career_profiles
@@ -215,36 +227,8 @@ class CareerStore(Database):
                     """,
                     (row["id"],),
                 )
-                item = dict(row)
-                item["scheduled_for"] = scheduled_for
-                claimed.append(item)
-            connection.commit()
-        return claimed
-
-    def defer_profile(self, profile_id: UUID, minutes: int = 5) -> None:
-        with self.connect() as connection:
-            connection.execute(
-                """
-                UPDATE career_profiles
-                SET next_scan_at = now() + make_interval(mins => %s)
-                WHERE id = %s
-                """,
-                (minutes, profile_id),
-            )
-            connection.commit()
-
-    def create_scheduled_search(self, profile: dict[str, Any]) -> dict[str, Any]:
-        scheduled_for = profile["scheduled_for"].isoformat()
-        return self.create_task(
-            TaskCreate(
-                title=f"Scan fresh jobs for {profile['name']}",
-                kind="career.search",
-                payload={"profile_id": str(profile["id"]), "trigger": "schedule"},
-                risk_level=RiskLevel.LOW,
-                requested_by="scheduler:career",
-                idempotency_key=f"career-scan:{profile['id']}:{scheduled_for}",
-            )
-        )
+                scheduled.append({"id": row["id"], "task_id": task["id"]})
+        return scheduled
 
     def save_opportunities(
         self, profile_id: UUID, opportunities: list[dict[str, Any]]

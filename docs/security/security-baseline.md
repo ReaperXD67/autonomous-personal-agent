@@ -111,6 +111,23 @@ payload values, or expected evidence. Workflow creation/read/cancel uses the
 existing bearer or same-origin session/CSRF controls. No new credentials,
 networks, mounts, model providers, or executor capabilities are granted.
 
+## Goal proposal and evidence authority
+
+`planning.propose` derives medium risk from the capability allowlist. Models see
+only the user-supplied goal and opaque action descriptions; stored résumés,
+contacts, job text, context IDs, and executable payloads are not included.
+Strict output validation compiles only the selected inventory, with no raw send,
+submit, coding, recursive planner, or arbitrary URL action. Lease and task-to-plan
+checks fence stale or forged worker writes. Adoption checks the exact digest,
+expiry, completed task, and current selected context before atomic workflow
+creation. Models do not approve their proposals.
+
+Readiness reports accept only fixed fields/check IDs/reason codes, timestamps,
+durations, revision/dirty state, and allowlisted configuration booleans. Browser
+session authentication cannot publish evidence. The service-wide operator token
+can attest a report; evidence is not cryptographically trusted or a promise of
+future liveness. Fixture results never imply real SMTP or universal ATS success.
+
 ## Unsafe configurations
 
 Never mount `/var/run/docker.sock` into Hermes or general workers; never mount

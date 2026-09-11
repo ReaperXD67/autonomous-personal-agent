@@ -49,7 +49,9 @@ try {
         throw "OmniRoute inference failed for '$Model': $classification. Inspect bounded container logs locally for the correlation-safe cause."
     }
     $content = [string]$result.choices[0].message.content
-    if (-not $content.Trim()) { throw 'OmniRoute returned an empty model response.' }
+    if ($content.Trim() -ne 'ROUTE_OK') {
+        throw 'OmniRoute did not return the expected exact harmless canary.'
+    }
     $selectedModel = [string]$result.model
     if ($selectedModel.Length -gt 160) { $selectedModel = $selectedModel.Substring(0, 160) }
     Write-Host "Inference passed through route '$Model'; gateway reported '$selectedModel'."
