@@ -8,6 +8,9 @@ Responsibilities: authentication, request validation, correlation IDs, risk
 policy, task persistence, approval decisions, transactional outbox writes,
 career mission/opportunity APIs, the same-origin private dashboard, readiness,
 and minimal Prometheus-format metrics. It does not call LLMs or arbitrary tools.
+It creates queued goal proposals and performs digest-bound adoption into durable
+workflows. Feature evidence publication requires a script bearer token; browser
+sessions can read prerequisites and historical test scope but cannot attest runs.
 OpenAPI discovery is disabled and Starlette validates the Host header against
 the deployment allowlist. The Linux private-VPS bootstrap fixes that allowlist
 to `localhost,127.0.0.1`; public hostnames are outside the current profile.

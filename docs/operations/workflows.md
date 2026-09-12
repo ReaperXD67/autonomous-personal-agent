@@ -1,8 +1,9 @@
 # Durable workflows
 
 Workflows coordinate the existing capabilities into bounded plans. They provide
-durable execution and explicit result checks, not general intelligence or an
-autonomous model planner. Inputs are fixed at creation; every capability still
+durable execution and explicit result checks. The reviewed
+[goal planner](guided-workspace.md) can propose these workflows from explicitly
+selected context. Inputs are fixed at creation; every capability still
 enters the control-plane policy, task, audit, and outbox path.
 
 ## Use the dashboard

@@ -85,7 +85,7 @@ class Database:
             "communications.email_send",
         }:
             topic = "action.ready"
-        elif task["kind"].startswith(("career.", "marketing.")):
+        elif task["kind"].startswith(("career.", "marketing.", "planning.")):
             topic = "career.ready"
         else:
             topic = "task.ready"

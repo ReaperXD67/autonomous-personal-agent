@@ -84,6 +84,26 @@ MCP server candidates live in a curated registry. Profiles select capabilities;
 permission policy adds risk and approval requirements. No MCP server is enabled
 by default during foundation phase.
 
+## Reviewed proposals and feature evidence
+
+The research worker handles `planning.propose` under a medium-risk allowlisted
+capability. PostgreSQL stores selected context and a server-generated inventory.
+The model selects opaque actions only; deterministic compilation fixes kinds,
+payloads, dependencies, and checks. A successful proposal does not execute its
+children. Digest-bound operator adoption creates the immutable workflow and its
+proposal link atomically, after revalidating current context. The existing
+OpenRouter/Ollama path and ledger account for planner inference too.
+
+The private API also stores strictly bounded operator feature-test metadata in
+PostgreSQL. Browser clients read prerequisites, scopes, and evidence timestamps;
+only bearer-authenticated operator scripts can publish reports. No runtime host
+directory is mounted into the API. Report booleans describe the last test, and
+verification labels become stale after 24 hours.
+
+Career and creator scheduler transactions now include both schedule advancement
+and task/policy/audit/outbox creation. Rollback leaves the occurrence due; locked
+rows prevent duplicate issuance by concurrent scheduler workers.
+
 ## Quality attributes
 
 - **Reproducibility:** images and Python dependencies are release-pinned.

@@ -1826,3 +1826,109 @@ compatibility, and reported zero cost; it does not prove provider uptime,
 benchmark truth, full-draft quality, forced Hermes cross-provider failover, or
 future free inventory. The interactive OpenRouter free router remains outside
 the career PostgreSQL ledger, so provider-side limits remain required.
+
+## Step 26 — Guided goal planning, feature evidence, and atomic schedules
+
+Date: 2026-09-11
+
+### Objective
+
+Test implemented features locally, turn the dashboard into an understandable
+operating flow, add useful bounded autonomy, capture results, and publish a
+validated milestone. Preserve private data and exact external-action approval;
+do not characterize the system as AGI or claim untested integrations work.
+
+### Implementation
+
+- Added `planning.propose` to the server-derived medium-risk policy and existing
+  research queue. PostgreSQL stores request context, action inventory, model
+  proposal, digest, expiry, task binding, and adoption link. Model output selects
+  only opaque server actions from explicitly chosen context; deterministic
+  compilation emits at most eight sequential immutable workflow steps.
+- Reused strict-free hosted inference, semantic failover, local Qwen, and the
+  PostgreSQL usage ledger. The model receives only the goal and action descriptions,
+  never stored résumés, job/contact text, context IDs, or executable payloads.
+  An explicit template demo is honestly labeled. Owned leases and task links
+  reject forged or stale proposal writes; a cached proposal survives worker retry
+  without another model call. Adoption revalidates exact digest/current context
+  and creates the workflow and link atomically; concurrent retries return one run.
+- Closed the career/creator schedule crash window. Due-row locking, task creation,
+  policy, audit, outbox, and next-scan advancement now share a transaction.
+  Rollback retains due work, and an idempotency-key conflict cannot consume it.
+- Added a Start-here home, context-bound Goal planner, feature readiness page,
+  searchable keyboard menu, browser navigation history, labeled mobile navigation,
+  next-action guidance, progressive optional forms, and preserved inline validation.
+  Corrected existing Close/Cancel buttons that could submit forms or be blocked
+  by required-field validation.
+- Added fixed-schema feature reports and authenticated publication to PostgreSQL.
+  Browser sessions cannot attest tests. Prerequisites and 24-hour evidence freshness
+  keep configured, verified, needs-setup, and unavailable states distinct. Only
+  check IDs/status/durations/reason codes/timestamps/revision/dirty state and
+  allowlisted service/configuration booleans enter the report; no raw logs or data.
+- Added reproducible feature, planner, scheduler, Hermes, and bounded YouTube
+  probes. Hardened exact model markers, selected free-model/explicit zero-cost
+  attestation, native process exit handling, exception-free reports, atomic report
+  writes, and post-recreation health sampling. Default verification/CI includes
+  isolated planner and scheduler database scenarios.
+- Added ADR-0018, the guided operations guide, and synchronized README, roadmap,
+  architecture, security, and evolution claims. No new service, dependency,
+  credential scope, privileged host mount, or generic execution tool was added.
+
+### Initial observations and corrections
+
+The baseline passed all seven runtime/readiness checks, public career discovery
+and hosted drafting, local application/email fixtures, creator workflow/outcomes,
+and a bounded official YouTube query. Live goal planning selected the free Ling
+route, reported zero cost and 480 total tokens, and completed its explicitly
+adopted foundation workflow. Isolated scheduler probes passed six rollback,
+concurrency, and conflict scenario groups. Planner SQL probes passed creation,
+adoption rollback/concurrency, expiry, forged-link, cancellation, and lease checks.
+
+Early full regression attempts stopped because the readiness module and one new
+test line did not yet conform to repository Ruff rules; no successful feature report
+was published from those attempts. Independent review corrected model/core prerequisites so
+historical successful checks cannot override recorded unavailable services. An
+initial baseline report sampled recreated containers before health checks settled;
+the runner now waits briefly for that transition before collecting its signals.
+
+### Final validation
+
+- Fresh `feature-test.ps1 -PublishReport` passed all 13 selected checks with no
+  skips, from 16:50:17 to 16:57:11 UTC. Report
+  `04a0c84e-4182-41d2-a9ca-f23f1300f2c9` was published through the bearer-only API.
+  It identifies base revision `a3811ee` with a dirty working tree, honestly
+  describing validation of this milestone before commit.
+- Compose validation, containerized Ruff and all 162 unit/contract tests,
+  `verify.ps1`, workflow 12-scenario proof, scheduler six-scenario proof, isolated
+  planner lifecycle/concurrency, lease/cancellation/retry/queue recovery, agent
+  doctor, and configured OmniRoute/OpenRouter/Qwen/Hermes canaries passed.
+- Public job discovery/drafting, one-query YouTube discovery, local ATS/Mailpit
+  approval/execution, creator preparation/outcomes, and live model proposal plus
+  explicit adoption completed. Cold Qwen proof took 217.90 seconds this run;
+  successful GPU offload/response was observed and the test then unloaded it.
+- Corrected migration 012 version bookkeeping and ran a fresh narrow restore:
+  all 12 migration versions, 213 tasks, 707 audit rows, zero orphan audits,
+  8.87 seconds. Only its disposable restore database was removed.
+- Chromium browser proof passed 15 behavior groups and all 10 views at 390px,
+  with zero page errors. It covered navigation/history, keyboard menu, forms,
+  validation, proposal review/adoption, immutable selected context, and readiness.
+  Desktop/mobile screenshots use labeled synthetic examples; README includes
+  sample screenshots. A separate live-result capture uses persisted test work.
+- Six authenticated live browser checks also passed: one-use bootstrap/URL scrub/
+  HttpOnly session, unexecuted demo proposal, explicit adoption through successful
+  workflow/output check, task audit, published report display, and reload. No page
+  errors occurred. Workflow `0375348f-b571-4634-b890-48dcf1d46869` and its harmless
+  synthetic demo records remain inspectable. The live screenshot crops only that
+  result dialog; other screenshots are labeled illustrative sample data.
+- All PowerShell scripts parsed and `git diff --check` passed. Screenshots and
+  raw local proof outputs remain ignored; only explicitly reviewed sample images
+  were copied into documentation.
+
+### Remaining boundaries
+
+The live discovery proof is a bounded official YouTube request, not an exhaustive
+source test. Local Mailpit and ATS fixtures do not prove external SMTP delivery,
+every real ATS, or a deployed VPS. General MCP, Telegram, safe memory retrieval,
+coding workers, dynamic replanning, public multi-user identity, and autonomous
+model training remain future work. Operator reports are historical attestations,
+not cryptographic certification or continuous health monitoring.

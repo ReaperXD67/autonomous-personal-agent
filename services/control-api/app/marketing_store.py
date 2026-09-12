@@ -200,11 +200,12 @@ class MarketingStore(ActionStore):
             connection.commit()
         return row
 
-    def claim_due_campaigns(self, limit: int = 5) -> list[dict[str, Any]]:
+    def schedule_due_campaigns(self, limit: int = 5) -> list[dict[str, Any]]:
+        """Advance the schedule only with a committed policy-approved task."""
         with self.connect() as connection:
             rows = connection.execute(
                 """
-                SELECT * FROM marketing_campaigns
+                SELECT id, name, next_scan_at FROM marketing_campaigns
                 WHERE active = true AND next_scan_at <= now()
                 ORDER BY next_scan_at
                 FOR UPDATE SKIP LOCKED
@@ -212,9 +213,22 @@ class MarketingStore(ActionStore):
                 """,
                 (limit,),
             ).fetchall()
-            claimed: list[dict[str, Any]] = []
+            scheduled: list[dict[str, Any]] = []
             for row in rows:
-                scheduled_for = row["next_scan_at"]
+                request = TaskCreate(
+                    title=f"Discover Minecraft creators for {row['name']}",
+                    kind="marketing.creator_discovery",
+                    payload={"campaign_id": str(row["id"]), "trigger": "schedule"},
+                    risk_level=RiskLevel.LOW,
+                    requested_by="scheduler:marketing",
+                    idempotency_key=(
+                        f"marketing-discovery:{row['id']}:{row['next_scan_at'].isoformat()}"
+                    ),
+                )
+                task = self._create_task_record(connection, request)
+                if (task["kind"] != request.kind or task["payload"] != request.payload
+                        or task["requested_by"] != request.requested_by):
+                    raise ValueError("Scheduled task idempotency conflict")
                 connection.execute(
                     """
                     UPDATE marketing_campaigns
@@ -223,36 +237,8 @@ class MarketingStore(ActionStore):
                     """,
                     (row["id"],),
                 )
-                item = dict(row)
-                item["scheduled_for"] = scheduled_for
-                claimed.append(item)
-            connection.commit()
-        return claimed
-
-    def defer_campaign(self, campaign_id: UUID, minutes: int = 15) -> None:
-        with self.connect() as connection:
-            connection.execute(
-                """
-                UPDATE marketing_campaigns
-                SET next_scan_at = now() + make_interval(mins => %s)
-                WHERE id = %s
-                """,
-                (minutes, campaign_id),
-            )
-            connection.commit()
-
-    def create_scheduled_discovery(self, campaign: dict[str, Any]) -> dict[str, Any]:
-        scheduled_for = campaign["scheduled_for"].isoformat()
-        return self.create_task(
-            TaskCreate(
-                title=f"Discover Minecraft creators for {campaign['name']}",
-                kind="marketing.creator_discovery",
-                payload={"campaign_id": str(campaign["id"]), "trigger": "schedule"},
-                risk_level=RiskLevel.LOW,
-                requested_by="scheduler:marketing",
-                idempotency_key=f"marketing-discovery:{campaign['id']}:{scheduled_for}",
-            )
-        )
+                scheduled.append({"id": row["id"], "task_id": task["id"]})
+        return scheduled
 
     def recent_marketing_scan_count(self, hours: int = 24) -> int:
         with self.connect() as connection:

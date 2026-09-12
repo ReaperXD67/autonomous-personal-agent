@@ -277,8 +277,11 @@ try {
         catch {
             throw "OpenRouter smoke failed safely: $(Get-SafeOpenRouterFailure -ErrorRecord $_)"
         }
-        if ([decimal]$response.usage.cost -ne 0) {
-            throw "OpenRouter smoke unexpectedly reported non-zero cost; routing remains disabled until investigated."
+        if ($null -eq $response.usage -or $null -eq $response.usage.cost -or [decimal]$response.usage.cost -ne 0) {
+            throw 'OpenRouter smoke did not explicitly attest zero response cost.'
+        }
+        if ([string]$response.model -notin @($models | ForEach-Object { [string]$_.id })) {
+            throw 'OpenRouter smoke reported a model outside the verified free candidate set.'
         }
         $content = [string]$response.choices[0].message.content
         if ($content.Trim() -ne 'OPENROUTER_FREE_OK') {

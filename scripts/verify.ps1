@@ -17,6 +17,8 @@ try {
     & (Join-Path $PSScriptRoot 'recovery-smoke.ps1')
     & (Join-Path $PSScriptRoot 'lifecycle-smoke.ps1')
     & (Join-Path $PSScriptRoot 'workflow-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'scheduler-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'planning-smoke.ps1')
     Get-Content -Raw (Join-Path $PSScriptRoot 'queue-recovery-smoke.py') |
         docker compose exec -T control-api python -
     if ($LASTEXITCODE -ne 0) { throw 'Queue recovery smoke failed' }

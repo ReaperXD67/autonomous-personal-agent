@@ -15,6 +15,8 @@ const state = {
   prospects: [],
   marketingResults: [],
   workflows: [],
+  plans: [],
+  readiness: null,
   view: "overview",
 };
 
@@ -122,7 +124,15 @@ async function api(path, options = {}) {
     let details = null;
     try {
       const body = await response.json();
-      if (typeof body.detail === "string") detail = body.detail;
+      if (Array.isArray(body.detail)) {
+        const issues = body.detail.slice(0, 8).map((issue) => {
+          const field = (issue.loc || []).filter((part) => typeof part === "string" && /^[a-z_]{1,60}$/i.test(part) && part !== "body").join(".");
+          const messages = { missing: "This field is required.", string_too_short: "Add more detail to this field.", string_too_long: "Shorten this value.", int_parsing: "Enter a whole number.", greater_than_equal: "Increase this value to the allowed minimum.", less_than_equal: "Reduce this value to the allowed maximum.", url_parsing: "Enter a complete web address.", uuid_parsing: "Select a saved item.", literal_error: "Choose one of the available options.", extra_forbidden: "Remove this unsupported field." };
+          return { field, message: messages[issue.type] || "Check this value and try again." };
+        });
+        detail = issues.map((issue) => `${titleCase(issue.field.replaceAll(".", " ")) || "Form"}: ${issue.message}`).join(" ");
+        details = { validation: issues };
+      } else if (typeof body.detail === "string") detail = body.detail;
       else if (body.detail?.message) {
         detail = body.detail.message;
         details = body.detail;
@@ -130,6 +140,7 @@ async function api(path, options = {}) {
     } catch (_error) { /* non-JSON error */ }
     const error = new Error(detail);
     error.details = details;
+    error.status = response.status;
     throw error;
   }
   if (response.status === 204) return null;
@@ -139,10 +150,10 @@ async function api(path, options = {}) {
 function setConnection(connected, message = "") {
   const pulse = $("#rail-pulse");
   pulse.className = connected ? "pulse" : "pulse warning";
-  $("#rail-status").textContent = connected ? "Control plane ready" : "Connect required";
+  $("#rail-status").textContent = connected ? "Workspace connected" : "Connect required";
   $("#rail-copy").textContent = connected ? "Live state is refreshing automatically." : "Launch with the helper for automatic private authentication.";
   $("#connect-button").textContent = connected ? "Connected" : "Connect workspace";
-  $("#metric-health").textContent = connected ? "Ready" : "Locked";
+  $("#metric-health").textContent = connected ? "Connected" : "Locked";
   $("#metric-health").className = connected ? "green" : "amber";
   $("#last-sync").textContent = message || (connected ? `Synced ${new Date().toLocaleTimeString()}` : "Not connected");
 }
@@ -162,6 +173,9 @@ function disconnect(showMessage = true) {
   state.prospects = [];
   state.marketingResults = [];
   state.workflows = [];
+  state.plans = [];
+  state.readiness = null;
+  selectedPlanId = null;
   $("#workflow-dialog").close();
   setConnection(false);
   renderAll();
@@ -217,7 +231,7 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows] = await Promise.all([
+    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/inference/status"),
       api("/v1/career/profiles"),
@@ -229,40 +243,375 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/marketing/prospects?limit=500"),
       api("/v1/marketing/results"),
       api("/v1/workflows"),
+      api("/v1/plans"),
+      api("/v1/readiness/features"),
     ]);
-    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows });
+    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness });
+    $("#connection-notice").hidden = true;
     setConnection(true);
     renderAll();
     return true;
   } catch (error) {
     setConnection(false, "Connection failed");
+    $("#connection-notice").textContent = "Could not refresh the workspace. Your form edits are kept. Check the connection, then use Refresh to try again.";
+    $("#connection-notice").hidden = false;
     if (!quiet) toast(error.message, true);
     return false;
   }
 }
 
 const viewCopy = {
-  overview: ["Private agent workspace", "Turn intentions into <em>reviewable work.</em>", "Run continuous missions while every consequential action remains visible and controlled."],
+  overview: ["", "Your next step, <em>made clear.</em>", "Give Hermes a goal, review its plan, and follow the work from here."],
+  goals: ["", "A goal becomes <em>a plan.</em>", "Describe what you need. Review the proposed steps before any of them start."],
+  readiness: ["", "Know what is <em>ready to use.</em>", "Configuration, recorded evidence, and the next setup step in one place."],
   missions: ["Continuous operations", "Choose the <em>mission.</em>", "Activate, pause, or replace ongoing work without changing code."],
   workflows: ["Coordinated autonomy", "Plan. Execute. <em>Verify.</em>", "Turn a multi-step objective into durable work with dependencies, result checks, and a clear stopping point."],
-  opportunities: ["Career intelligence", "Review the <em>freshest fits.</em>", "Every result links back to the original job source and keeps its matching evidence."],
+  opportunities: ["", "Your <em>job inbox.</em>", "Compare fresh matches, prepare truthful drafts, and decide what to apply for."],
   campaigns: ["Measured distribution", "Grow with <em>evidence.</em>", "Discover relevant creators, review each contact, and adapt drafts only when outcomes support it."],
   approvals: ["Human control", "Decide before <em>impact.</em>", "Approve or reject high-risk tasks before they can enter execution."],
   tasks: ["Durable execution", "Assign and <em>inspect work.</em>", "Create safe one-off tasks and follow every transition in the audit trail."],
-  settings: ["Security boundaries", "Keep the agent <em>private.</em>", "Understand where data lives, which tools are enabled, and what VPS hosting still requires."],
+  settings: ["", "Settings <em>and help.</em>", "Manage your private connection and understand how models, discovery, and approvals work."],
 };
 
-function switchView(view) {
+function switchView(view, { history = true, focus = true } = {}) {
+  if (!Object.hasOwn(viewCopy, view)) return;
   state.view = view;
   $$(".view").forEach((element) => element.classList.toggle("active", element.dataset.view === view));
-  $$(".nav-item").forEach((element) => element.classList.toggle("active", element.dataset.viewTarget === view));
-  const [eyebrow, title, lede] = viewCopy[view];
-  $("#page-eyebrow").textContent = eyebrow;
+  $$(".nav-item").forEach((element) => {
+    element.classList.toggle("active", element.dataset.viewTarget === view);
+    if (element.dataset.viewTarget === view) element.setAttribute("aria-current", "page");
+    else element.removeAttribute("aria-current");
+  });
+  const [, title, lede] = viewCopy[view];
   $("#page-title").replaceChildren();
   const parts = title.split(/<em>|<\/em>/);
   $("#page-title").append(document.createTextNode(parts[0]), node("em", "", parts[1] || ""), document.createTextNode(parts[2] || ""));
   $("#page-lede").textContent = lede;
+  if (history && window.location.hash !== `#view=${view}`) window.history.pushState({ view }, "", `#view=${view}`);
+  if (focus) $("#page-title").focus({ preventScroll: true });
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+const navigationItems = [
+  { label: "Start here", description: "Your next action and recent work", view: "overview" },
+  { label: "Goal planner", description: "Describe a goal, review a proposal, start its steps", view: "goals" },
+  { label: "Workflows", description: "Run recipes and follow dependent steps", view: "workflows" },
+  { label: "Career missions", description: "Create and schedule job searches", view: "missions" },
+  { label: "Job inbox", description: "Review matches, drafts, and application forms", view: "opportunities" },
+  { label: "Creator campaigns", description: "Discover creators and prepare outreach", view: "campaigns" },
+  { label: "Approvals", description: "Review each exact email or application", view: "approvals" },
+  { label: "Feature readiness", description: "Setup requirements and recorded verification", view: "readiness" },
+  { label: "Tasks & history", description: "Inspect task results and audit events", view: "tasks" },
+  { label: "Settings & help", description: "Private connection and model routing", view: "settings" },
+  { label: "Create a career mission", description: "Set target roles, skills, and locations", action: "new-profile" },
+  { label: "Create a creator campaign", description: "Define a product and audience", action: "new-campaign" },
+  { label: "Try a local planning demo", description: "Fixed example, no model or external service", action: "goal-demo" },
+];
+const guidanceActions = new Set(["new-profile", "new-campaign", "new-prospect", "goal-demo"]);
+let commandMatches = [];
+let commandIndex = 0;
+let selectedPlanId = null;
+let goalSubmission = null;
+const adoptingPlans = new Set();
+
+function drawIcons() {
+  const paths = {
+    home: "M3 10 12 3l9 7M5 9v12h5v-7h4v7h5V9",
+    goal: "M4 20V4m0 0h14l-3 5 3 5H4",
+    workflow: "M4 4h6v6H4zM14 14h6v6h-6zM7 10v7h7M10 7h7v7",
+    search: "M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm5-1 5 5",
+    inbox: "M4 4h16l2 10v6H2v-6L4 4Zm-2 10h6l2 3h4l2-3h6",
+    people: "M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM2 21v-2a7 7 0 0 1 14 0v2M17 4a4 4 0 0 1 0 8m2 3a6 6 0 0 1 3 5",
+    check: "m5 12 4 4L19 6M21 12v8H3V4h12",
+    readiness: "M12 3 3 7v6c0 4 9 8 9 8s9-4 9-8V7l-9-4Zm-4 9 3 3 5-6",
+    history: "M3 10a9 9 0 1 1 1 7M3 3v7h7M12 7v6l4 2",
+    settings: "M4 7h16M4 17h16M8 4v6M16 14v6",
+    menu: "M4 6h16M4 12h16M4 18h16",
+  };
+  $$('[data-icon]').forEach((holder) => {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const [key, value] of Object.entries({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(key, value);
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", paths[holder.dataset.icon] || paths.menu);
+    svg.append(path);
+    holder.replaceChildren(svg);
+  });
+}
+
+function openCommand() {
+  const dialog = $("#command-dialog");
+  if (dialog.open) return;
+  $("#command-search").value = "";
+  renderCommands();
+  dialog.showModal();
+  $("#command-search").focus();
+}
+
+function renderCommands() {
+  const query = $("#command-search").value.trim().toLowerCase();
+  commandMatches = navigationItems.filter((item) => `${item.label} ${item.description}`.toLowerCase().includes(query));
+  commandIndex = 0;
+  const list = $("#command-results");
+  list.replaceChildren();
+  commandMatches.forEach((item, index) => {
+    const entry = button("", "command-result", "run-command", String(index));
+    entry.id = `command-option-${index}`;
+    entry.setAttribute("role", "option");
+    entry.append(node("strong", "", item.label), node("small", "", item.description));
+    list.append(entry);
+  });
+  if (!commandMatches.length) list.append(empty("No matching pages or actions", "Try “jobs”, “plan”, “email”, or “setup”."));
+  selectCommand(0);
+}
+
+function selectCommand(index) {
+  commandIndex = Math.max(0, Math.min(index, commandMatches.length - 1));
+  $$(".command-result").forEach((item, position) => item.setAttribute("aria-selected", String(position === commandIndex)));
+  const selected = $(`#command-option-${commandIndex}`);
+  if (selected) {
+    $("#command-search").setAttribute("aria-activedescendant", selected.id);
+    selected.scrollIntoView({ block: "nearest" });
+  } else $("#command-search").removeAttribute("aria-activedescendant");
+}
+
+function runCommand(index) {
+  const command = commandMatches[index];
+  if (!command) return;
+  $("#command-dialog").close();
+  if (command.view) return switchView(command.view);
+  runGuidanceAction(command.action);
+}
+
+function runGuidanceAction(action) {
+  if (action === "new-profile") return openProfileDialog();
+  if (action === "new-campaign") return openCampaignDialog();
+  if (action === "new-prospect") return openProspectDialog();
+  if (action === "goal-demo") { switchView("goals"); fillGoalExample("demo"); }
+}
+
+function restoreView() {
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  if (fragment.has("bootstrap")) return;
+  const view = fragment.get("view") || "overview";
+  switchView(Object.hasOwn(viewCopy, view) ? view : "overview", { history: false, focus: false });
+}
+
+function renderNextAction() {
+  const target = $("#next-action");
+  target.replaceChildren();
+  const approvalCount = state.tasks.filter((task) => task.status === "pending_approval").length;
+  const readyPlans = state.plans.filter((plan) => plan.status === "ready");
+  const running = state.workflows.filter((workflow) => ["running", "cancelling"].includes(workflow.status));
+  let title = "Start with a small win";
+  let copy = "Try a local example to see a proposal turn into checked, traceable work. It needs no model or provider account.";
+  let label = "Try the local demo";
+  let view = "goals";
+  let action = "goal-demo";
+  if (!isConnected()) { title = "Connect your private workspace"; copy = "Open Hermes with the dashboard launcher to sign in automatically, or use manual recovery login."; label = "Connect workspace"; action = "connect-workspace"; }
+  else if (approvalCount) { title = `${approvalCount} action${approvalCount === 1 ? " needs" : "s need"} your review`; copy = "Check the exact recipient, destination, and contents before allowing an email or application to proceed."; label = "Review approvals"; view = "approvals"; action = ""; }
+  else if (readyPlans.length) { title = "A proposal is ready to review"; copy = "Inspect its scope, steps, and limitations. Work starts only when you choose Start plan."; label = "Review the proposal"; action = ""; selectedPlanId ||= readyPlans[0].id; }
+  else if (running.length) { title = "Your workflows are in progress"; copy = "Follow each step and its result checks. You can request a stop at any time."; label = "Follow the work"; view = "workflows"; action = ""; }
+  else if (state.opportunities.some((item) => item.status === "new")) { title = "Fresh matches are waiting"; copy = "Compare your new job matches, shortlist the relevant ones, then prepare a draft or a reviewed plan."; label = "Open job inbox"; view = "opportunities"; action = ""; }
+  target.append(node("h2", "", title), node("p", "", copy));
+  const actions = node("div", "card-actions");
+  const primary = button(label, "button primary", action || "navigate", view);
+  actions.append(primary, button("Explore features", "text-button", "navigate", "readiness"));
+  target.append(actions);
+}
+
+function renderReadiness() {
+  const list = $("#feature-list");
+  const open = new Set($$("details[open]", list).map((element) => element.dataset.feature));
+  list.replaceChildren();
+  const features = state.readiness?.features || [];
+  if (!features.length) { list.append(empty("Feature status is not loaded", isConnected() ? "Refresh to load configuration checks and recorded evidence." : "Connect your workspace to see setup requirements and recorded results.")); return; }
+  features.forEach((feature) => {
+    const status = ["verified", "configured", "needs_setup", "unavailable"].includes(feature.status) ? feature.status : "unavailable";
+    const row = node("article", "feature-row");
+    const heading = node("div", "feature-heading");
+    heading.append(node("h2", "", feature.title), node("span", `status ${status}`, titleCase(status)));
+    const main = node("div", "feature-main");
+    main.append(heading, node("p", "", feature.summary), node("p", "feature-reason", feature.reason || "No recorded proof is available yet."));
+    const details = node("details", "feature-details");
+    details.dataset.feature = feature.id;
+    details.open = open.has(feature.id);
+    details.append(node("summary", "", "Setup and evidence"));
+    const requirements = node("ul", "requirements");
+    (feature.requirements || []).forEach((requirement) => {
+      const item = node("li", requirement.met ? "met" : "missing");
+      item.append(node("span", "", requirement.met ? "Present" : "Needed"), document.createTextNode(requirement.label));
+      requirements.append(item);
+    });
+    details.append(requirements);
+    if (feature.evidence) {
+      details.append(node("p", "field-help", `Recorded check: ${formatDate(feature.evidence.completed_at)}. This proves that recorded run; it does not guarantee future availability.`));
+      if (feature.evidence.task_id) details.append(button("Inspect recorded task", "text-button", "view-audit", feature.evidence.task_id));
+      if (feature.evidence.check_id) details.append(node("p", "field-help", `Check: ${titleCase(feature.evidence.check_id.replaceAll("-", " "))}`));
+      if (state.readiness.last_report?.stale) details.append(node("p", "field-help", "This report is more than 24 hours old. Run a fresh check before relying on it."));
+    } else details.append(node("p", "field-help", "No successful check is recorded here yet. A configured connection still needs an end-to-end check."));
+    main.append(details);
+    row.append(main);
+    const next = feature.next_action;
+    if (next && Object.hasOwn(viewCopy, next.view)) {
+      const action = guidanceActions.has(next.action) ? next.action : "navigate";
+      row.append(button(next.label || "Open feature", "button compact", action, next.view));
+    }
+    list.append(row);
+  });
+}
+
+function syncSelectOptions(select, entries, placeholder, multiple = false) {
+  const signature = JSON.stringify(entries);
+  if (select.dataset.entries === signature) return;
+  const selected = new Set([...select.selectedOptions].map((option) => option.value));
+  select.replaceChildren();
+  if (!multiple) select.append(new Option(placeholder, ""));
+  entries.forEach(([value, label]) => select.append(new Option(label, value, false, selected.has(value))));
+  select.dataset.entries = signature;
+}
+
+function renderGoalContext() {
+  const form = $("#goal-form");
+  syncSelectOptions(form.elements.profile_id, state.profiles.map((item) => [item.id, item.name]), "No mission selected");
+  syncSelectOptions(form.elements.campaign_id, state.campaigns.map((item) => [item.id, item.name]), "No campaign selected");
+  const profileId = form.elements.profile_id.value;
+  syncSelectOptions(form.elements.opportunity_ids, state.opportunities.filter((item) => item.profile_id === profileId && !["dismissed", "applied"].includes(item.status)).map((item) => [item.id, `${item.title} · ${item.company}`]), "", true);
+  const demo = form.elements.mode.value === "demo";
+  for (const name of ["profile_id", "campaign_id", "opportunity_ids"]) form.elements[name].disabled = demo;
+  form.elements.opportunity_ids.disabled = demo || !profileId;
+  $("#goal-context").hidden = demo;
+  $("#goal-privacy").textContent = demo ? "The local demo uses a fixed example. It sends no goal text to a model or external provider." : "Model planning may send your goal and available action descriptions to the configured hosted provider. Saved résumé, job and contact text and record IDs are not sent by the planner. Keep secrets and unnecessary personal data out of your goal.";
+}
+
+function fillGoalExample(kind) {
+  const form = $("#goal-form");
+  const examples = { career: "Prepare truthful application drafts and inspect the forms for the jobs I select below.", creator: "Research relevant creators for the campaign I select below, so I can review their public profiles.", demo: "Show how a reviewed plan runs a safe local example and checks the results." };
+  form.elements.goal.value = examples[kind] || examples.demo;
+  form.elements.mode.value = kind === "demo" ? "demo" : "model";
+  clearFormError(form);
+  renderGoalContext();
+  form.elements.goal.focus();
+}
+
+function renderPlans() {
+  renderGoalContext();
+  const list = $("#plan-list");
+  list.replaceChildren();
+  if (!state.plans.length) list.append(empty("No proposals yet", "Your proposed plans will stay here so you can return to them."));
+  state.plans.slice(0, 12).forEach((plan) => {
+    const item = button("", "plan-history-item", "select-plan", plan.id);
+    item.classList.toggle("selected", plan.id === selectedPlanId);
+    item.append(node("span", `status ${plan.status}`, titleCase(plan.status)), node("strong", "", plan.goal), node("small", "", timeAgo(plan.created_at)));
+    list.append(item);
+  });
+  const plan = state.plans.find((item) => item.id === selectedPlanId) || state.plans[0];
+  if (plan) { selectedPlanId = plan.id; renderPlanReview(plan); }
+  else $("#plan-review").replaceChildren(node("h2", "", "Your plan will appear here"), node("p", "", "Describe a goal, select any saved items it needs, and request a proposal. You can inspect every step before starting."));
+}
+
+function renderPlanReview(plan) {
+  const review = $("#plan-review");
+  review.replaceChildren();
+  const heading = node("div", "plan-review-heading");
+  heading.append(node("h2", "", plan.status === "ready" ? "Review your proposed plan" : plan.status === "adopted" ? "This plan has started" : plan.status === "queued" ? "Preparing your proposal" : "Your proposal needs attention"), node("span", `status ${plan.status}`, titleCase(plan.status)));
+  review.append(heading, node("p", "plan-goal", plan.goal));
+  if (plan.status === "queued") review.append(node("p", "", "Hermes is considering the selected context and available actions. The proposal will appear here automatically; its steps have not started."));
+  if (plan.summary) review.append(node("p", "", plan.summary));
+  if (plan.source) review.append(node("p", "plan-source", plan.source === "template" ? "Local demo · fixed template · no model used" : "Model-generated proposal · review the scope and limitations"));
+  const spec = plan.workflow_spec;
+  if (spec?.steps?.length) {
+    const context = node("div", "plan-context");
+    context.append(node("h3", "", "This plan will use"));
+    const records = new Map();
+    spec.steps.forEach((step) => {
+      const payload = step.payload || {};
+      for (const [field, label, entries, describe] of [
+        ["profile_id", "Mission", state.profiles, (item) => item.name],
+        ["opportunity_id", "Job", state.opportunities, (item) => `${item.title} · ${item.company}`],
+        ["campaign_id", "Campaign", state.campaigns, (item) => item.name],
+      ]) {
+        if (!payload[field]) continue;
+        const record = entries.find((item) => item.id === payload[field]);
+        records.set(`${field}:${payload[field]}`, `${label}: ${record ? describe(record) : payload[field]}`);
+      }
+    });
+    if (records.size) records.forEach((label) => context.append(node("p", "", label)));
+    else context.append(node("p", "", "Local example actions; no saved records."));
+    review.append(context);
+    const steps = node("ol", "proposal-steps");
+    spec.steps.forEach((step) => {
+      const item = node("li");
+      item.append(node("strong", "", step.title));
+      const titles = new Map(spec.steps.map((item) => [item.key, item.title]));
+      const dependency = step.depends_on?.length ? `After: ${step.depends_on.map((key) => titles.get(key) || key).join(", ")}` : "Starts first";
+      item.append(node("small", "", `${dependency} · ${Object.keys(step.expect_output || {}).length} result check${Object.keys(step.expect_output || {}).length === 1 ? "" : "s"}`));
+      steps.append(item);
+    });
+    review.append(steps, node("p", "field-help", `${spec.steps.length} steps · up to ${spec.max_parallel || 1} in parallel · ${Math.round((spec.timeout_seconds || 3600) / 60)} minute limit`));
+  }
+  if (plan.limitations?.length) {
+    const limitations = node("div", "plan-limitations");
+    limitations.append(node("h3", "", "Before you start"));
+    const list = node("ul");
+    plan.limitations.forEach((limitation) => list.append(node("li", "", limitation)));
+    limitations.append(list);
+    review.append(limitations);
+  }
+  const actions = node("div", "card-actions");
+  const expired = plan.expires_at && new Date(plan.expires_at).getTime() <= Date.now();
+  if (expired && plan.status === "ready") review.append(node("p", "field-help", "This proposal has expired. Revise the goal to request a fresh plan."));
+  if (plan.status === "ready" && !expired && plan.plan_digest && spec) {
+    const start = button(adoptingPlans.has(plan.id) ? "Starting plan…" : "Start plan", "button primary", "adopt-plan", plan.id);
+    start.disabled = adoptingPlans.has(plan.id);
+    actions.append(start);
+    review.append(node("p", "field-help", "Starting creates a workflow for these steps. Emails and application submissions still require their own exact approval."));
+  }
+  if (plan.workflow_id) actions.append(button("Follow this workflow", "button primary", "view-planned-workflow", plan.workflow_id));
+  if (plan.task_id) actions.append(button("Planning history", "text-button", "view-audit", plan.task_id));
+  if (["failed", "unsupported"].includes(plan.status) || (expired && plan.status === "ready")) actions.append(button("Revise the goal", "button", "revise-goal", plan.id));
+  review.append(actions);
+}
+
+async function proposeGoal(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!beginFormWork(form, "Preparing proposal…")) return;
+  try {
+    const ids = [...form.elements.opportunity_ids.selectedOptions].map((option) => option.value);
+    if (ids.length > 3 && form.elements.mode.value !== "demo") throw new Error("Select at most three jobs for one plan.");
+    const payload = { goal: form.elements.goal.value.trim(), requested_by: "dashboard:user", mode: form.elements.mode.value, opportunity_ids: form.elements.mode.value === "demo" ? [] : ids };
+    if (payload.mode !== "demo" && form.elements.profile_id.value) payload.profile_id = form.elements.profile_id.value;
+    if (payload.mode !== "demo" && form.elements.campaign_id.value) payload.campaign_id = form.elements.campaign_id.value;
+    const fingerprint = JSON.stringify(payload);
+    if (goalSubmission?.fingerprint !== fingerprint) goalSubmission = { fingerprint, key: `dashboard-plan-${crypto.randomUUID()}` };
+    payload.idempotency_key = goalSubmission.key;
+    const plan = await api("/v1/plans", { method: "POST", body: JSON.stringify(payload) });
+    goalSubmission = null;
+    selectedPlanId = plan.id;
+    state.plans = [plan, ...state.plans.filter((item) => item.id !== plan.id)];
+    renderPlans();
+    toast("Proposal requested. Review it here before starting.");
+  } catch (error) { showFormError(form, error); }
+  finally { endFormWork(form); }
+}
+
+async function adoptPlan(id) {
+  const plan = state.plans.find((item) => item.id === id);
+  if (!plan || plan.status !== "ready" || adoptingPlans.has(id)) return;
+  adoptingPlans.add(id);
+  renderPlans();
+  try {
+    const workflow = await api(`/v1/plans/${encodeURIComponent(id)}/adopt`, { method: "POST", body: JSON.stringify({ actor: "dashboard:user", plan_digest: plan.plan_digest }) });
+    plan.status = "adopted";
+    plan.workflow_id = workflow.id;
+    state.workflows = [workflow, ...state.workflows.filter((item) => item.id !== workflow.id)];
+    renderPlans();
+    renderWorkflows();
+    switchView("workflows");
+    await showWorkflow(workflow.id);
+    toast("Plan started. Follow its steps and result checks.");
+  } catch (error) { toast(`${error.message} Refresh the proposal before trying again.`, true); }
+  finally { adoptingPlans.delete(id); renderPlans(); }
 }
 
 function renderMetrics() {
@@ -971,6 +1320,9 @@ function renderInferenceStatus() {
 }
 
 function renderAll() {
+  renderNextAction();
+  renderReadiness();
+  renderPlans();
   renderMetrics();
   renderProfileFilter();
   renderMissions();
@@ -984,6 +1336,109 @@ function renderAll() {
   renderCampaigns();
   renderProspects();
   renderInferenceStatus();
+}
+
+function clearFormError(form) {
+  $(".form-feedback", form)?.remove();
+  $$('[aria-invalid="true"]', form).forEach((input) => input.removeAttribute("aria-invalid"));
+}
+
+function showFormError(form, error) {
+  clearFormError(form);
+  const feedback = node("div", "form-feedback");
+  feedback.setAttribute("role", "alert");
+  feedback.append(node("strong", "", "Check the form and try again"), node("p", "", error.message || "The request did not complete. Your edits are kept."));
+  const issues = error.details?.validation || [];
+  for (const issue of issues) {
+    const input = form.elements.namedItem(issue.field.split(".").at(-1));
+    if (input instanceof HTMLElement) {
+      input.setAttribute("aria-invalid", "true");
+      let parent = input.parentElement;
+      while (parent && parent !== form) { if (parent.tagName === "DETAILS") parent.open = true; parent = parent.parentElement; }
+    }
+  }
+  const anchor = $(".dialog-actions", form) || $('button[type="submit"]', form);
+  form.insertBefore(feedback, anchor?.parentElement === form ? anchor : null);
+  feedback.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function beginFormWork(form, label = "Saving…") {
+  if (form.dataset.busy === "true") return false;
+  clearFormError(form);
+  form.dataset.busy = "true";
+  form.setAttribute("aria-busy", "true");
+  $$('button[type="submit"]', form).forEach((button) => {
+    button.dataset.idleLabel = button.textContent;
+    button.disabled = true;
+    button.textContent = label;
+  });
+  return true;
+}
+
+function endFormWork(form) {
+  form.dataset.busy = "false";
+  form.removeAttribute("aria-busy");
+  $$('button[type="submit"]', form).forEach((button) => {
+    button.disabled = false;
+    button.textContent = button.dataset.idleLabel || "Save";
+  });
+}
+
+async function guardedSubmit(event, handler) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  if (!beginFormWork(form)) return;
+  try { await handler(event); }
+  catch (error) { showFormError(form, error); }
+  finally { endFormWork(form); }
+}
+
+function progressiveForm(form, groups) {
+  const grid = $(":scope > .form-grid", form);
+  if (!grid) return;
+  for (const group of groups) {
+    const details = node("details", "form-section span-2");
+    const summary = node("summary", "", group.title);
+    summary.append(node("span", "", group.description));
+    const body = node("div", "form-grid form-section-body");
+    for (const name of group.fields) {
+      const input = form.querySelector(`[name="${name}"]`);
+      if (!input) continue;
+      let target = input.closest("fieldset") || input.closest("label");
+      if (target && !body.contains(target)) body.append(target);
+    }
+    details.append(summary, body);
+    grid.append(details);
+  }
+  const instruction = node("p", "form-introduction", "Start with the essentials. Expand the sections below when you need more control.");
+  grid.before(instruction);
+}
+
+function initializeForms() {
+  progressiveForm($("#profile-form"), [
+    { title: "Match preferences", description: "Freshness, fit, and employment type", fields: ["required_keywords", "excluded_keywords", "max_age_hours", "min_score", "employment_types"] },
+    { title: "Search sources", description: "Public feeds and employer boards", fields: ["arbeitnow"] },
+    { title: "Application details", description: "Identity for form preparation", fields: ["first_name"] },
+    { title: "Schedule and automatic preparation", description: "Choose when work may run", fields: ["schedule_minutes", "active", "auto_prepare"] },
+  ]);
+  $("#profile-form").elements.resume_text.rows = 5;
+  progressiveForm($("#campaign-form"), [
+    { title: "Offers and audience", description: "Check the claims each draft may use", fields: ["target_audience", "viewer_offer", "creator_offer", "paid_offer_enabled", "paid_offer_details"] },
+    { title: "Creator discovery", description: "Search terms, audience size, and location", fields: ["discovery_queries", "relevance_language", "region_code", "min_subscribers", "max_subscribers", "max_video_age_days", "results_per_query"] },
+    { title: "Schedule and draft learning", description: "Discovery frequency and measured adaptation", fields: ["schedule_hours", "adaptive_mode"] },
+  ]);
+  $$('dialog button[value="cancel"]').forEach((close) => {
+    close.type = "button";
+    close.addEventListener("click", () => close.closest("dialog").close());
+  });
+  $$('dialog form > .tag').forEach((tag) => { if (tag.nextElementSibling?.tagName === "H2") tag.remove(); });
+  $$('form').forEach((form) => {
+    form.addEventListener("reset", () => clearFormError(form));
+    form.addEventListener("invalid", (event) => {
+      let parent = event.target.parentElement;
+      while (parent && parent !== form) { if (parent.tagName === "DETAILS") parent.open = true; parent = parent.parentElement; }
+    }, true);
+  });
 }
 
 function profilePayload(profile, overrides = {}) {
@@ -1080,7 +1535,7 @@ async function saveProfile(event) {
     toast(id ? "Career mission updated" : "Career mission created");
     await loadData({ quiet: true });
     switchView("missions");
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { showFormError(form, error); }
 }
 
 function openCampaignDialog(campaign = null) {
@@ -1138,7 +1593,7 @@ async function saveCampaign(event) {
     toast(id ? "Creator campaign updated" : "Creator campaign created");
     await loadData({ quiet: true });
     switchView("campaigns");
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { showFormError(form, error); }
 }
 
 function populateCampaignSelect(select, selected = "") {
@@ -1200,7 +1655,7 @@ async function saveProspect(event) {
     $("#prospect-dialog").close();
     toast(id ? "Creator evidence updated" : "Creator prospect added");
     await loadData({ quiet: true });
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { showFormError(form, error); }
 }
 
 async function scanCampaign(id) {
@@ -1258,7 +1713,7 @@ async function saveMarketingOutcome(event) {
     $("#marketing-outcome-dialog").close();
     toast(payload.classification === "do_not_contact" || payload.classification === "bounced" ? "Contact permanently suppressed" : "Creator outcome recorded");
     await loadData({ quiet: true });
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { showFormError(form, error); }
 }
 
 async function toggleProfile(id) {
@@ -1433,7 +1888,7 @@ async function assignTask(event) {
     await api("/v1/tasks", { method: "POST", body: JSON.stringify({ title: form.elements.title.value, kind, payload, risk_level: "low", requested_by: form.elements.requested_by.value, idempotency_key: `dashboard-${crypto.randomUUID()}` }) });
     toast("Task assigned");
     await loadData({ quiet: true });
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { showFormError(form, error); }
 }
 
 document.addEventListener("click", async (event) => {
@@ -1442,6 +1897,22 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.viewTarget) return switchView(target.dataset.viewTarget);
   if (target.dataset.viewJump) return switchView(target.dataset.viewJump);
   const { action, id } = target.dataset;
+  if (action === "open-command") return openCommand();
+  if (action === "close-command") return $("#command-dialog").close();
+  if (action === "run-command") return runCommand(Number(id));
+  if (action === "navigate") return switchView(id);
+  if (action === "connect-workspace") return $("#connect-dialog").showModal();
+  if (action === "refresh-workspace") return loadData();
+  if (action === "goal-demo") return runGuidanceAction(action);
+  if (action === "goal-example") return fillGoalExample(id);
+  if (action === "select-plan") { selectedPlanId = id; renderPlans(); return; }
+  if (action === "adopt-plan") return adoptPlan(id);
+  if (action === "view-planned-workflow") { switchView("workflows"); return showWorkflow(id); }
+  if (action === "revise-goal") {
+    const plan = state.plans.find((item) => item.id === id);
+    if (plan) { $("#goal-form").elements.goal.value = plan.goal; $("#goal-form").elements.goal.focus(); }
+    return;
+  }
   if (action === "new-profile") return openProfileDialog();
   if (action === "edit-profile") return openProfileDialog(state.profiles.find((item) => item.id === id));
   if (action === "toggle-profile") return toggleProfile(id);
@@ -1498,16 +1969,16 @@ $("#connect-form").addEventListener("submit", async (event) => {
     toast(error.message, true);
   }
 });
-$("#profile-form").addEventListener("submit", saveProfile);
-$("#campaign-form").addEventListener("submit", saveCampaign);
-$("#prospect-form").addEventListener("submit", saveProspect);
-$("#marketing-outcome-form").addEventListener("submit", saveMarketingOutcome);
-$("#marketing-reply-form").addEventListener("submit", async (event) => {
+$("#profile-form").addEventListener("submit", (event) => guardedSubmit(event, saveProfile));
+$("#campaign-form").addEventListener("submit", (event) => guardedSubmit(event, saveCampaign));
+$("#prospect-form").addEventListener("submit", (event) => guardedSubmit(event, saveProspect));
+$("#marketing-outcome-form").addEventListener("submit", (event) => guardedSubmit(event, saveMarketingOutcome));
+$("#marketing-reply-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   await planMarketingEmail(form.elements.prospect_id.value, "question_reply", form.elements.subject.value, form.elements.body.value);
-});
-$("#application-answer-form").addEventListener("submit", async (event) => {
+}));
+$("#application-answer-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const answers = {};
@@ -1515,8 +1986,8 @@ $("#application-answer-form").addEventListener("submit", async (event) => {
     answers[input.dataset.fieldKey] = input.type === "checkbox" ? input.checked : input.value;
   });
   await planOpportunity(form.elements.opportunity_id.value, answers);
-});
-$("#email-action-form").addEventListener("submit", async (event) => {
+}));
+$("#email-action-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   try {
@@ -1526,9 +1997,25 @@ $("#email-action-form").addEventListener("submit", async (event) => {
     toast("Exact email is waiting for approval");
     await loadData({ quiet: true });
     switchView("approvals");
-  } catch (error) { toast(error.message, true); }
+  } catch (error) { showFormError(form, error); }
+}));
+$("#task-form").addEventListener("submit", (event) => guardedSubmit(event, assignTask));
+$("#goal-form").addEventListener("submit", proposeGoal);
+$("#goal-form").elements.mode.addEventListener("change", renderGoalContext);
+$("#goal-form").elements.profile_id.addEventListener("change", renderGoalContext);
+$("#command-search").addEventListener("input", renderCommands);
+$("#command-search").addEventListener("keydown", (event) => {
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") { event.preventDefault(); selectCommand(commandIndex + (event.key === "ArrowDown" ? 1 : -1)); }
+  if (event.key === "Enter") { event.preventDefault(); runCommand(commandIndex); }
 });
-$("#task-form").addEventListener("submit", assignTask);
+document.addEventListener("keydown", (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    if (!$("dialog[open]") || $("#command-dialog").open) openCommand();
+  }
+});
+window.addEventListener("popstate", restoreView);
+window.addEventListener("hashchange", restoreView);
 $("#workflow-form").addEventListener("submit", createWorkflow);
 $("#workflow-form").elements.recipe.addEventListener("change", updateWorkflowRecipe);
 $("#workflow-status-filter").addEventListener("change", renderWorkflows);
@@ -1550,6 +2037,9 @@ $("#scan-now-button").addEventListener("click", async () => {
   for (const profile of profiles) await scanProfile(profile.id);
 });
 
+drawIcons();
+initializeForms();
+restoreView();
 updateWorkflowRecipe();
 renderAll();
 setConnection(false);

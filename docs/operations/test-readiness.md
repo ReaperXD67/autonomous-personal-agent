@@ -1,5 +1,11 @@
 # Test readiness
 
+For the complete feature-level gate, including career/creator/action workflows,
+reviewed goal planning, scheduler crash/concurrency, and dashboard evidence, use
+`./scripts/feature-test.ps1 -PublishReport`. See
+[guided workspace and feature verification](guided-workspace.md). The runtime
+gate below remains available as a narrower infrastructure/inference check.
+
 ## One-command gate
 
 Run from the repository root:

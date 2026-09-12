@@ -538,6 +538,74 @@ complete draft path remains available when current privacy-compatible hosted
 quality is insufficient. This does not establish hosted full-draft quality or
 future provider availability.
 
+## Experiment 26 — Local feature proof and reviewed goal planning (2026-09-11)
+
+Method: run the existing workstation/runtime gate before changes, exercise the
+implemented domain flows, add isolated PostgreSQL fault/concurrency probes,
+execute an accounted model proposal through the normal API/worker/adoption path,
+then run the fresh integrated gate and desktop/mobile browser checks.
+
+Initial observations:
+
+- Baseline runtime checks passed: core 58.26 s, disposable restore 9.59 s,
+  environment/agent doctor 12.01 s, OmniRoute 23.05 s, strict-free OpenRouter
+  6.11 s, local Qwen GPU response 130.28 s, Hermes 28.60 s. Qwen was unloaded
+  after the check. These are observed end-to-end wall times, not model benchmarks.
+- The baseline career smoke fetched 100 public jobs, matched 20, and produced a
+  hosted draft in 14.83 s through `inclusionai/ling-3.0-flash-vl:free` / Novita.
+  Local application/email fixtures passed in 35.09 s; creator campaign/local
+  outreach/outcome checks passed in 9.75 s.
+- The bounded YouTube probe used one query and `maxResults=1`, discovered and
+  persisted one candidate, then cleaned the synthetic campaign. It completed in
+  1.84 s and collected/sent no email. This proves that request, not broad discovery
+  completeness or future quota/provider availability.
+- The first live planner proof completed in 8.49 s including checks, proposal,
+  explicit adoption, and actual workflow result. Its OpenRouter/Novita invocation
+  reported 480 total tokens, zero cost, and 2,075 ms model latency. The durable
+  synthetic task, proposal, workflow, and inference rows remain for audit and
+  shared quota accounting.
+- Isolated scheduler verification passed six scenario groups covering injected
+  rollback, concurrent issuance, repeated polls, and conflicting idempotency keys
+  for both career and creator schedules. No live queue/provider was used.
+- Early integrated gates failed at Ruff before execution verification, first on
+  readiness formatting and then on one overlong regression-test line. Those
+  attempts were stopped and never published as successful evidence. Formatting
+  and prerequisite regressions were corrected before the fresh gate.
+
+Result scope: these observations establish bounded local workflows and specific
+configured provider requests. They do not establish AGI, broad task generality,
+model quality superiority, real SMTP delivery, universal ATS compatibility, or
+future runtime availability.
+
+Final integrated run: all 13 checks passed without skips and were published via
+the authenticated API as run `04a0c84e-4182-41d2-a9ca-f23f1300f2c9`.
+
+| Check | Observed seconds |
+|---|---:|
+| Core, including 162 tests and lifecycle/transaction probes | 62.60 |
+| Restore | 9.77 |
+| Environment/agent doctor | 11.12 |
+| OmniRoute | 0.84 |
+| Attested-free OpenRouter | 5.51 |
+| Local Qwen GPU canary and lifecycle | 217.90 |
+| Hermes | 19.27 |
+| Career discovery and draft | 21.77 |
+| Local application/email side effects | 41.93 |
+| Creator outreach | 8.83 |
+| Bounded YouTube discovery | 2.54 |
+| Live model proposal and adopted workflow | 7.61 |
+| Scheduler transaction probes | 2.16 |
+
+A follow-up restore after the migration-version bookkeeping correction passed
+all 12 migrations, 213 tasks, 707 audit records, and zero orphan audits in 8.87 s.
+The browser proof passed 15 behavior groups, all 10 views at 390px, and zero page
+errors. Illustrative screenshots use labeled synthetic data; actual execution
+evidence comes from the live API/worker/SQL proofs, not those fixtures.
+Six further authenticated live browser checks passed with zero page errors:
+session bootstrap, proposal isolation, explicit adoption and output success,
+audit display, published readiness evidence, and reload persistence. The live
+result screenshot captures retained workflow `0375348f-b571-4634-b890-48dcf1d46869`.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
