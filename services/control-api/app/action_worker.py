@@ -10,6 +10,8 @@ import smtplib
 import socket
 import ssl
 import tempfile
+import time
+from contextlib import suppress
 from email.message import EmailMessage
 from email.utils import make_msgid
 from pathlib import Path
@@ -50,11 +52,83 @@ def healthcheck() -> int:
         return 1
 
 
-def _send_email(
-    action: dict[str, object], database: ActionStore, runtime: Settings
-) -> dict[str, object]:
+def _smtp_timeout(client: smtplib.SMTP, deadline: float) -> None:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("SMTP session time budget expired")
+    if client.sock is not None:
+        client.sock.settimeout(remaining)
+
+
+def _close_smtp(client: smtplib.SMTP) -> None:
+    # A transport accepted message must survive a failed or stalled QUIT.
+    with suppress(OSError, smtplib.SMTPException):
+        if client.sock is not None:
+            client.sock.settimeout(1)
+        client.quit()
+    with suppress(OSError, smtplib.SMTPException):
+        client.close()
+
+
+def _open_smtp(runtime: Settings) -> tuple[smtplib.SMTP, float]:
     if runtime.mail_transport == "disabled":
         raise RuntimeError("Email transport is disabled")
+    deadline = time.monotonic() + 30
+    client = None
+    try:
+        if runtime.smtp_tls_mode == "ssl":
+            client = smtplib.SMTP_SSL(
+                runtime.smtp_host, runtime.smtp_port, timeout=30,
+                context=ssl.create_default_context(),
+            )
+        else:
+            client = smtplib.SMTP(runtime.smtp_host, runtime.smtp_port, timeout=30)
+        _smtp_timeout(client, deadline)
+        if client.ehlo()[0] != 250:
+            raise RuntimeError("SMTP greeting was not accepted")
+        if runtime.smtp_tls_mode == "starttls":
+            _smtp_timeout(client, deadline)
+            client.starttls(context=ssl.create_default_context())
+            _smtp_timeout(client, deadline)
+            if client.ehlo()[0] != 250:
+                raise RuntimeError("SMTP encrypted greeting was not accepted")
+        if runtime.smtp_username:
+            _smtp_timeout(client, deadline)
+            client.login(runtime.smtp_username, runtime.smtp_password)
+        return client, deadline
+    except (OSError, smtplib.SMTPException):
+        if client is not None:
+            _close_smtp(client)
+        # SMTP errors may contain account identifiers or provider response text.
+        raise RuntimeError("SMTP connection, TLS, or authentication failed") from None
+    except Exception:
+        if client is not None:
+            _close_smtp(client)
+        raise
+
+
+def _check_smtp(runtime: Settings) -> dict[str, object]:
+    client, deadline = _open_smtp(runtime)
+    try:
+        _smtp_timeout(client, deadline)
+        if client.noop()[0] != 250:
+            raise RuntimeError("SMTP check was not accepted")
+    except (OSError, smtplib.SMTPException):
+        raise RuntimeError("SMTP check failed") from None
+    finally:
+        _close_smtp(client)
+    return {
+        "handler": "communications.smtp_check",
+        "transport": runtime.mail_transport,
+        "authenticated": bool(runtime.smtp_username),
+        "tls_mode": runtime.smtp_tls_mode,
+        "checked": True,
+    }
+
+
+def _send_email(
+    action: dict[str, object], database: ActionStore, runtime: Settings, lease_id: UUID
+) -> dict[str, object]:
     context = action["private_context"]
     if not isinstance(context, dict):
         raise ValueError("Email action context is invalid")
@@ -72,37 +146,25 @@ def _send_email(
         f"communications.email_send:{action['context_hash']}".encode()
     ).hexdigest()
 
-    database.begin_side_effect(UUID(str(action["task_id"])), fingerprint)
-    if runtime.smtp_tls_mode == "ssl":
-        client: smtplib.SMTP = smtplib.SMTP_SSL(
-            runtime.smtp_host,
-            runtime.smtp_port,
-            timeout=30,
-            context=ssl.create_default_context(),
-        )
-    else:
-        client = smtplib.SMTP(runtime.smtp_host, runtime.smtp_port, timeout=30)
+    client, deadline = _open_smtp(runtime)
     try:
-        client.ehlo()
-        if runtime.smtp_tls_mode == "starttls":
-            client.starttls(context=ssl.create_default_context())
-            client.ehlo()
-        if runtime.smtp_username:
-            client.login(runtime.smtp_username, runtime.smtp_password)
-        refused = client.send_message(message)
+        _smtp_timeout(client, deadline)
+        database.begin_side_effect(UUID(str(action["task_id"])), fingerprint, lease_id)
+        try:
+            refused = client.send_message(message)
+        except (OSError, smtplib.SMTPException):
+            raise RuntimeError("SMTP acceptance could not be confirmed") from None
         if refused:
             raise RuntimeError("SMTP server refused the recipient")
+        database.complete_side_effect(UUID(str(action["task_id"])), fingerprint, message_id)
     finally:
-        try:
-            client.quit()
-        except smtplib.SMTPException:
-            client.close()
-    database.complete_side_effect(UUID(str(action["task_id"])), fingerprint, message_id)
+        _close_smtp(client)
     return {
         "handler": "communications.email_send",
         "action_id": str(action["id"]),
         "message_id": message_id,
         "transport": runtime.mail_transport,
+        "smtp_accepted": True,
     }
 
 
@@ -113,6 +175,11 @@ def execute_action_task(
     if not isinstance(payload, dict):
         raise ValueError("Action task payload must be an object")
     task_id = UUID(str(task["id"]))
+
+    if task["kind"] == "communications.smtp_check":
+        if payload:
+            raise ValueError("SMTP check does not accept payload overrides")
+        return _check_smtp(runtime)
 
     if task["kind"] == "career.application_preflight":
         opportunity_id = UUID(str(payload["opportunity_id"]))
@@ -140,7 +207,7 @@ def execute_action_task(
         raise ValueError("Task points to a different external action")
 
     if task["kind"] == "communications.email_send":
-        return _send_email(action, database, runtime)
+        return _send_email(action, database, runtime, UUID(str(task["lease_id"])))
 
     if task["kind"] == "career.application_submit":
         material = database.get_application_execution_material(action)
@@ -159,7 +226,9 @@ def execute_action_task(
                 resume_text=material["resume_text"],
                 candidate_name=material["candidate_name"],
                 temp_directory=Path(temporary),
-                begin_side_effect=lambda: database.begin_side_effect(task_id, fingerprint),
+                begin_side_effect=lambda: database.begin_side_effect(
+                    task_id, fingerprint, UUID(str(task["lease_id"]))
+                ),
             )
         reference = str(result["final_url"])
         database.complete_side_effect(task_id, fingerprint, reference)
@@ -252,7 +321,7 @@ def run() -> None:
             if task_id is not None and lease_id is not None:
                 if kind in {"career.application_submit", "communications.email_send"}:
                     try:
-                        database.fail_external_action(task_id, str(exc))
+                        database.fail_external_action(task_id, str(exc), lease_id)
                     except Exception:
                         logger.exception(
                             "failed to persist external action state",

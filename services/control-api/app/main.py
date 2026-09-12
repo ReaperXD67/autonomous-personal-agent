@@ -41,6 +41,7 @@ from app.career_store import (
     CareerStore,
     OpportunityNotFoundError,
 )
+from app.communication_routes import router as communication_router
 from app.logging_config import configure_logging
 from app.marketing import build_promotion_kit
 from app.marketing_models import (
@@ -107,6 +108,7 @@ app = FastAPI(
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.trusted_hosts))
 app.include_router(planning_router)
 app.include_router(readiness_router)
+app.include_router(communication_router)
 
 
 def _correlation_id(value: str | None) -> UUID:

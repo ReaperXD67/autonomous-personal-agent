@@ -130,6 +130,18 @@ future liveness. Fixture results never imply real SMTP or universal ATS success.
 
 ## Unsafe configurations
 
+SMTP connection diagnostics accept an empty execution payload and cannot choose
+another host, sender, TLS mode, or credential. They derive medium risk and one
+attempt from server policy. The private status API projects only allowlisted
+scalar evidence. Browser submissions require the existing same-origin session
+and CSRF checks. Generic setup keeps credentials in ignored local configuration.
+
+The side-effect boundary rechecks the current lease, cancellation, expiry after
+row-lock waits, and both frozen contexts before creating a receipt. Stale workers
+cannot record action failures. Once SMTP acceptance is durably known, cleanup or
+task failure cannot erase it. A crash between external acceptance and its durable
+commit remains uncertain; this does not provide exactly-once external delivery.
+
 Never mount `/var/run/docker.sock` into Hermes or general workers; never mount
 host home/root; never use privileged mode/host networking; never expose admin
 dashboards without authentication; never disable approval to fix workflow

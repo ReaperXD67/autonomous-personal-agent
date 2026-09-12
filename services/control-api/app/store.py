@@ -83,6 +83,7 @@ class Database:
             "career.application_preflight",
             "career.application_submit",
             "communications.email_send",
+            "communications.smtp_check",
         }:
             topic = "action.ready"
         elif task["kind"].startswith(("career.", "marketing.", "planning.")):

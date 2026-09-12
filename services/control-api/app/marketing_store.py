@@ -15,7 +15,7 @@ from app.marketing import (
     choose_initial_variant,
     compose_initial_email,
     compose_paid_offer_email,
-    compose_question_reply,
+    compose_reviewed_email,
     percentage,
 )
 from app.marketing_models import (
@@ -615,15 +615,24 @@ class MarketingStore(ActionStore):
                     raise MarketingOutreachError(
                         "Initial outreach is not valid in this reply state"
                     )
-                variants = self._variant_metrics_in_connection(
-                    connection, context["campaign_id"]
-                )
-                variant, selection_reason = choose_initial_variant(
-                    prospect_id,
-                    variants,
-                    adaptive_mode=context["adaptive_mode"],
-                )
-                subject, body = compose_initial_email(campaign, prospect, variant)
+                if request.subject is not None and request.body is not None:
+                    variant = "manual_initial"
+                    selection_reason = (
+                        "Operator personalized this introduction; excluded from A/B learning"
+                    )
+                    subject, body = compose_reviewed_email(
+                        campaign, prospect, request.subject, request.body
+                    )
+                else:
+                    variants = self._variant_metrics_in_connection(
+                        connection, context["campaign_id"]
+                    )
+                    variant, selection_reason = choose_initial_variant(
+                        prospect_id,
+                        variants,
+                        adaptive_mode=context["adaptive_mode"],
+                    )
+                    subject, body = compose_initial_email(campaign, prospect, variant)
             elif request.stage == "question_reply":
                 if context["status"] != "question":
                     raise MarketingOutreachError(
@@ -658,7 +667,7 @@ class MarketingStore(ActionStore):
                 variant = "manual_answer"
                 selection_reason = "Operator wrote the answer to the creator's specific question"
                 assert request.subject is not None and request.body is not None
-                subject, body = compose_question_reply(
+                subject, body = compose_reviewed_email(
                     campaign, prospect, request.subject, request.body
                 )
             else:
