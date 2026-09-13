@@ -1995,3 +1995,9 @@ prepared locally without financial or reward commitments. The user chose an
 existing SMTP provider, but its host, sender, and local credential are still
 missing. No real send action was created and no creator email was sent. Mailpit
 proof establishes local behavior, not external SMTP acceptance or inbox delivery.
+
+Follow-up documentation review on 2026-09-13 corrected older data-flow and
+security-review passages to preserve the distinction between uncertain external
+state and durably known SMTP acceptance. It also records manual-copy exclusion
+from template learning. The first clean-checkout GitHub CI run passed all gates;
+the follow-up contains documentation only and passed `git diff --check`.

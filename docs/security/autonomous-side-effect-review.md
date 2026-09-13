@@ -135,5 +135,7 @@ implementation review, not a penetration test of third-party ATS sites.
 - The action container has normal outbound network access. The in-process URL
   policy is strong for current fixed adapters, but a VPS egress proxy/firewall
   would add defense in depth.
-- A crash after an external service accepts data can only be classified
-  `ambiguous`; the operator must reconcile it before any new action.
+- A crash between external acceptance and its durable database commit can leave
+  `ambiguous` state; reconcile it before any new action. Once acceptance is
+  durably recorded, later cleanup/task failures preserve it. SMTP acceptance
+  does not establish recipient inbox delivery.

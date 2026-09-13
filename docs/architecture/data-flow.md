@@ -100,8 +100,12 @@ approval row.
 After approval, the action worker revalidates the digest and referenced material.
 For an application it reloads the form and refuses a changed signature. It
 commits a unique receipt immediately before the final click/send. Completion
-updates both receipt and action atomically. Any error after receipt creation is
-`ambiguous`; there is no automatic retry. A second plan for the same opportunity
+updates both receipt and action atomically. The boundary rechecks current lease,
+cancellation, frozen context, and expiry after lock waits. SMTP connection/TLS/
+login failures precede receipt creation; acceptance is committed before cleanup.
+Errors after receipt creation leave uncertainty only while acceptance has not
+been durably recorded. Known acceptance survives later failures, and neither
+outcome permits an automatic resend. A second plan for the same opportunity
 cannot click again because the application fingerprint is opportunity-scoped.
 
 ## Creator discovery and outreach
@@ -122,7 +126,9 @@ clear authorization durably, so already-approved mail refuses to execute.
 Reply classifications and attributed promotion results are manual until a
 scoped inbound provider adapter exists. Aggregate campaign results select only
 between two fixed introduction templates after explicit sample/effect
-thresholds; they never authorize or send an email.
+thresholds; they never authorize or send an email. Operator-personalized initial
+copy preserves the provenance/opt-out footer and exact approval rules but is
+excluded from template A/B learning.
 
 The creator-outreach smoke follows this same durable path using an inactive
 synthetic campaign and a `.test` recipient, but replaces external SMTP with
