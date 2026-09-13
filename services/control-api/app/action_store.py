@@ -335,6 +335,21 @@ class ActionStore(CareerStore):
             raise ExternalActionNotFoundError(str(task_id))
         return row
 
+    def get_external_action(self, action_id: UUID) -> dict[str, Any]:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, task_id, opportunity_id, action_type, status,
+                       target_display, public_context, context_hash, expires_at,
+                       external_reference, last_error, created_at, updated_at, executed_at
+                FROM external_actions WHERE id = %s
+                """,
+                (action_id,),
+            ).fetchone()
+        if row is None:
+            raise ExternalActionNotFoundError(str(action_id))
+        return row
+
     def get_application_execution_material(self, action: dict[str, Any]) -> dict[str, Any]:
         private_context = action["private_context"]
         with self.connect() as connection:
@@ -356,11 +371,16 @@ class ActionStore(CareerStore):
             raise SideEffectGuardError("Application draft changed after approval")
         return row
 
-    def begin_side_effect(self, task_id: UUID, fingerprint: str) -> dict[str, Any]:
+    def begin_side_effect(
+        self, task_id: UUID, fingerprint: str, lease_id: UUID
+    ) -> dict[str, Any]:
         with self.connect() as connection:
             row = connection.execute(
                 """
                 SELECT t.status AS task_status, t.approved_by, t.payload,
+                       t.lease_id AS task_lease_id,
+                       t.lease_expires_at AS task_lease_expires_at,
+                       t.cancellation_requested_at,
                        a.*, ap.action_context_hash
                 FROM agent_tasks t
                 JOIN external_actions a ON a.task_id = t.id
@@ -378,14 +398,24 @@ class ActionStore(CareerStore):
                 raise ExternalActionNotFoundError(str(task_id))
             if row["task_status"] != "running" or row["status"] != "queued":
                 raise SideEffectGuardError("External action is not in an executable state")
+            if row["task_lease_id"] != lease_id:
+                raise SideEffectGuardError("External action task lease is no longer owned")
+            if row["cancellation_requested_at"] is not None:
+                raise SideEffectGuardError("External action task cancellation was requested")
             if not row["approved_by"] or row["action_context_hash"] != row["context_hash"]:
                 raise SideEffectGuardError("Exact action approval is missing or mismatched")
             if row["payload"].get("action_digest") != row["context_hash"]:
                 raise SideEffectGuardError(
                     "Task action digest does not match durable action context"
                 )
-            if row["expires_at"] <= datetime.now(UTC):
-                raise SideEffectGuardError("Approved external action has expired")
+            if canonical_hash(
+                {
+                    "action_type": row["action_type"],
+                    "public_context": row["public_context"],
+                    "private_context": row["private_context"],
+                }
+            ) != row["context_hash"]:
+                raise SideEffectGuardError("Frozen external action context changed after approval")
             marketing = row["private_context"].get("marketing")
             if isinstance(marketing, dict):
                 prospect = connection.execute(
@@ -423,6 +453,17 @@ class ActionStore(CareerStore):
                 raise SideEffectGuardError(
                     f"Side effect already has a {receipt['status']} receipt; retry refused"
                 )
+            # Read wall-clock time after every potentially blocking row lock.
+            boundary_time = connection.execute(
+                "SELECT clock_timestamp() AS boundary_time"
+            ).fetchone()["boundary_time"]
+            if (
+                row["task_lease_expires_at"] is None
+                or row["task_lease_expires_at"] <= boundary_time
+            ):
+                raise SideEffectGuardError("External action task lease has expired")
+            if row["expires_at"] <= boundary_time:
+                raise SideEffectGuardError("Approved external action has expired")
             connection.execute(
                 """
                 INSERT INTO side_effect_receipts (
@@ -457,14 +498,17 @@ class ActionStore(CareerStore):
             ).fetchone()
             if action is None:
                 raise SideEffectGuardError("Executing external action was not found")
-            connection.execute(
+            receipt = connection.execute(
                 """
                 UPDATE side_effect_receipts
                 SET status = 'succeeded', external_reference = %s, completed_at = now()
                 WHERE fingerprint = %s AND task_id = %s AND status = 'executing'
+                RETURNING task_id
                 """,
                 (external_reference[:500], fingerprint, task_id),
-            )
+            ).fetchone()
+            if receipt is None:
+                raise SideEffectGuardError("Executing side-effect receipt was not found")
             if action["action_type"] == "career.application_submit":
                 connection.execute(
                     """
@@ -476,10 +520,15 @@ class ActionStore(CareerStore):
                 )
             connection.commit()
 
-    def fail_external_action(self, task_id: UUID, message: str) -> str:
+    def fail_external_action(self, task_id: UUID, message: str, lease_id: UUID) -> str:
         with self.connect() as connection:
             action = connection.execute(
-                "SELECT * FROM external_actions WHERE task_id = %s FOR UPDATE",
+                """
+                SELECT a.*, t.status AS task_status, t.lease_id AS task_lease_id,
+                       t.lease_expires_at AS task_lease_expires_at
+                FROM agent_tasks t JOIN external_actions a ON a.task_id = t.id
+                WHERE t.id = %s FOR UPDATE OF t, a
+                """,
                 (task_id,),
             ).fetchone()
             if action is None:
@@ -488,6 +537,20 @@ class ActionStore(CareerStore):
                 "SELECT * FROM side_effect_receipts WHERE task_id = %s FOR UPDATE",
                 (task_id,),
             ).fetchone()
+            if action["status"] == "succeeded" or (
+                receipt is not None and receipt["status"] == "succeeded"
+            ):
+                return "succeeded"
+            boundary_time = connection.execute(
+                "SELECT clock_timestamp() AS boundary_time"
+            ).fetchone()["boundary_time"]
+            if (
+                action["task_status"] != "running"
+                or action["task_lease_id"] != lease_id
+                or action["task_lease_expires_at"] is None
+                or action["task_lease_expires_at"] <= boundary_time
+            ):
+                raise SideEffectGuardError("External action failure task lease is no longer owned")
             status = "ambiguous" if receipt is not None else "failed"
             connection.execute(
                 "UPDATE external_actions SET status = %s, last_error = %s WHERE id = %s",

@@ -1932,3 +1932,87 @@ every real ATS, or a deployed VPS. General MCP, Telegram, safe memory retrieval,
 coding workers, dynamic replanning, public multi-user identity, and autonomous
 model training remain future work. Operator reports are historical attestations,
 not cryptographic certification or continuous health monitoring.
+
+## Step 27 — Live creator preparation and reliable SMTP evidence
+
+Date: 2026-09-12
+
+### Implementation
+
+- Recovered the stopped local Docker Desktop after preserving the two exact
+  transient socket paths that prevented startup. No volumes or user data were
+  removed. The existing Mailpit creator smoke passed before implementation.
+- Closed final send/submit lease and cancellation gaps, rehashed frozen contexts,
+  and checked expiry after row-lock waits. Stale workers cannot corrupt another
+  claim's failure state. Receipt creation now follows SMTP connection/TLS/login;
+  known acceptance is durable before cleanup and survives later task failure.
+- Added a fixed-config, medium-risk, single-attempt no-send SMTP diagnostic using
+  task/policy/audit/outbox dispatch, private allowlisted status, and exact action
+  lookup for historical messages. No raw provider protocol text is exposed.
+- Added generic SMTP local setup with hidden credential entry and atomic writes
+  that preserve literal characters and unrelated settings. Gmail shares the same
+  writer. The check helper submits through the control API rather than opening
+  its own mail connection.
+- Added optional reviewed introduction copy, retained contact/privacy/opt-out
+  text even at the maximum body length, and excluded `manual_initial` from
+  template A/B learning. Exact approval, duplicate/state, and suppression guards
+  remain in force. Paid-offer terms remain campaign-bound.
+- Improved setup guidance, historical message/audit links, full-packet approval,
+  acceptance/uncertainty wording, mobile digest wrapping, and a rapid dialog
+  close/reopen race. Added ADR-0019 and synchronized operational/security claims.
+
+### Validation and observed results
+
+- Initial full tests stopped on two overlong Ruff lines, corrected before the
+  successful gate. Compose validation and all 195 unit/contract tests passed;
+  the test command took 7.73 seconds including the cached-image rebuild.
+- `verify.ps1` passed in 68.44 seconds, including recovery, cancellation/retry,
+  workflow 12-scenario proof, scheduler six-scenario proof, planner transactions,
+  queue generation recovery, and the newly required delivery database guards.
+- Application/email Mailpit proof passed in 31.90 seconds. Personalized creator
+  proof passed in 12.24 seconds: exact copy/acceptance, five promotion assets,
+  historical lookup, exclusion from template learning, and durable suppression.
+- Reproducible secure-setup smoke passed in 1.82 seconds: five literal credential
+  round trips in one network-disabled container, generic/Gmail hidden prompts,
+  atomic preservation, five invalid-input rejections, and sanitized reporting.
+  The real `.env` remained unchanged.
+- Chromium passed nine focused email groups, 15 prior dashboard regression groups
+  across ten views, and four authenticated live checks with zero page errors.
+  Live task `e565b0ab-54d1-43ba-a7a2-72721e63d820` recorded a successful Mailpit
+  connection check at 16:50:38 UTC; no login was used and no email was sent by
+  that check. The retained screenshot contains only the email setup card.
+- All PowerShell scripts parsed and `git diff --check` passed. An independent
+  review found no material issue in manual-copy sequencing, analytics isolation,
+  footer bounds, or communications policy/dispatch. Private runtime artifacts,
+  prepared contact/copy, and credentials are excluded from publication.
+
+### Live outreach boundary
+
+The KarixMC homepage and privacy page returned HTTP 200. One relevant creator's
+official website and linked channel provided a public collaboration contact;
+that contact was saved to the existing inactive campaign. A concise inquiry is
+prepared locally without financial or reward commitments. The user chose an
+existing SMTP provider, but its host, sender, and local credential are still
+missing. No real send action was created and no creator email was sent. Mailpit
+proof establishes local behavior, not external SMTP acceptance or inbox delivery.
+
+Follow-up documentation review on 2026-09-13 corrected older data-flow and
+security-review passages to preserve the distinction between uncertain external
+state and durably known SMTP acceptance. It also records manual-copy exclusion
+from template learning. The first clean-checkout GitHub CI run passed all gates;
+the follow-up contains documentation only and passed `git diff --check`.
+
+The subsequent clean-checkout run stopped at the runtime vulnerability gate:
+its updated advisory data identified CVE-2026-86145 and CVE-2026-89161 in the
+existing Debian `libpcre2-8-0=10.42-1`. Debian's official tracker/advisory confirms
+`10.42-1+deb12u1` fixes both. The shared Python base now upgrades exactly that
+existing package; dependency/test/runtime stages retain Python 3.13.14 and the
+same release/digest. No finding was suppressed and no broad OS upgrade was made.
+
+Post-patch Compose/Ruff/195-test validation passed in 9.41 seconds,
+`verify.ps1` passed in 71.94 seconds, and personalized creator/Mailpit proof
+passed in 14.06 seconds. Both built images and the running control API report
+the fixed package version. Trivy 0.74.0 with advisory data refreshed at 15:41:50
+UTC found zero high/critical vulnerabilities with available fixes in the
+control image. The separate Ubuntu Playwright package is not covered by the
+Debian fix and remains subject to its own scan and tracked upstream status.

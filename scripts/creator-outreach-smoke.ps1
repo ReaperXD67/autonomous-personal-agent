@@ -152,6 +152,8 @@ try {
 
     $planBody = @{
         stage = 'initial'
+        subject = "Personalized local pilot $runId"
+        body = 'Hello Synthetic Block Builder, this is a reviewed local-only introduction. No real offer or external recipient is involved.'
         actor = "local-creator-outreach-smoke:$runId"
         approval_window_minutes = 15
     } | ConvertTo-Json
@@ -160,6 +162,8 @@ try {
         $action.status -ne 'pending_approval' -or
         $action.context_hash.Length -ne 64 -or
         $action.public_context.recipient -ne $recipient -or
+        $action.public_context.marketing.variant -ne 'manual_initial' -or
+        $action.public_context.body -notmatch 'reviewed local-only introduction' -or
         $action.public_context.body -notmatch 'do not contact'
     ) {
         throw 'The exact creator introduction was not prepared with the expected safeguards.'
@@ -172,7 +176,7 @@ try {
     } | ConvertTo-Json
     Invoke-RestMethod -Method Post -Uri "$baseUrl/v1/tasks/$($action.task_id)/decision" -Headers $headers -ContentType 'application/json' -Body $decisionBody | Out-Null
     $task = Wait-AgentTask -BaseUrl $baseUrl -Headers $headers -TaskId $action.task_id
-    if ($task.status -ne 'succeeded' -or $task.output.transport -ne 'mailpit') {
+    if ($task.status -ne 'succeeded' -or $task.output.transport -ne 'mailpit' -or -not $task.output.smtp_accepted) {
         throw "Creator introduction delivery failed: $($task.error_message)"
     }
 
@@ -219,10 +223,19 @@ try {
     ) {
         throw 'Creator campaign metrics did not reflect delivery and suppression.'
     }
+    if (($results[0].variants | Measure-Object -Property sent -Sum).Sum -ne 0) {
+        throw 'The personalized introduction incorrectly entered template A/B learning.'
+    }
+
+    $exact = Invoke-RestMethod -Method Get -Uri "$baseUrl/v1/external-actions/$($action.id)" -Headers $headers
+    if ($exact.status -ne 'succeeded' -or $exact.context_hash -ne $action.context_hash) {
+        throw 'The historical exact-action lookup did not preserve SMTP acceptance and the reviewed digest.'
+    }
 
     Write-Host "Creator campaign passed: $campaignId"
     Write-Host "Exact introduction passed: $($action.task_id)"
     Write-Host 'Promotion kit passed: five distinct attributed assets'
+    Write-Host 'Personalized introduction, exact-action lookup, and A/B isolation passed'
     Write-Host 'Suppression guard passed: future outreach refused'
     Write-Host 'No discovery request or email left the local Docker test network.'
 }

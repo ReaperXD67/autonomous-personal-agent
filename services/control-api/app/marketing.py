@@ -457,10 +457,12 @@ def compose_paid_offer_email(
     return subject[:240], body[:20000]
 
 
-def compose_question_reply(
+def compose_reviewed_email(
     campaign: dict[str, Any], prospect: dict[str, Any], subject: str, body: str
 ) -> tuple[str, str]:
-    return subject[:240], f"{body.strip()}{_contact_footer(campaign, prospect)}"[:20000]
+    footer = _contact_footer(campaign, prospect)
+    # Reserve space for provenance and opt-out even at the maximum body length.
+    return subject[:240], f"{body.strip()[:20000 - len(footer)]}{footer}"
 
 
 def choose_initial_variant(
@@ -514,7 +516,7 @@ def campaign_suggestions(
                 "kind": "sample",
                 "priority": "observe",
                 "message": f"Collect {10 - sent} more approved sends before changing the pitch.",
-                "evidence": f"{sent} delivered email(s); minimum comparison sample is 10.",
+                "evidence": f"{sent} SMTP-accepted email(s); minimum comparison sample is 10.",
             }
         )
     elif replies / sent < 0.10:
@@ -526,7 +528,9 @@ def campaign_suggestions(
                     "Pause scaling and tighten creator relevance or "
                     "first-line personalization."
                 ),
-                "evidence": f"Reply rate is {replies / sent:.1%} across {sent} delivered emails.",
+                "evidence": (
+                    f"Reply rate is {replies / sent:.1%} across {sent} SMTP-accepted emails."
+                ),
             }
         )
     if replies and questions / replies >= 0.40:
@@ -593,7 +597,7 @@ def campaign_suggestions(
                 "message": (
                     "Revisit the offer before sending more; no positive replies are recorded."
                 ),
-                "evidence": f"0 positive replies across {sent} delivered emails.",
+                "evidence": f"0 positive replies across {sent} SMTP-accepted emails.",
             }
         )
     return suggestions

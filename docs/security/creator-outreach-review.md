@@ -59,10 +59,12 @@ a review of a configured mail provider's terms.
 
 - Severity: Critical
 - Status: Prevented by bounded adaptation
-- Evidence: learning reads delivered-message and operator-recorded outcome
+- Evidence: learning reads SMTP-accepted-message and operator-recorded outcome
   counts. It can choose between two fixed truthful introduction templates only
   after minimum samples and a material lead. It preserves exploration and does
   not mutate code, offers, contacts, policy, budgets, SMTP, or approvals.
+  Operator-personalized introductions retain exact approval and contact guards,
+  but their `manual_initial` variant is excluded from template learning.
 - Residual risk: manually entered attribution can be inaccurate. Suggestions
   show their sample evidence and should not be treated as causal proof.
 

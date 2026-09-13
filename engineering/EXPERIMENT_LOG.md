@@ -606,6 +606,40 @@ session bootstrap, proposal isolation, explicit adoption and output success,
 audit display, published readiness evidence, and reload persistence. The live
 result screenshot captures retained workflow `0375348f-b571-4634-b890-48dcf1d46869`.
 
+## Experiment 27 — Creator delivery guards and SMTP setup (2026-09-12)
+
+Measured on the local Docker Desktop runtime. No external email was sent.
+
+| Check | Observed seconds | Result |
+|---|---:|---|
+| Baseline creator Mailpit flow | 12.39 | Passed before implementation |
+| Containerized Ruff and 195 unit/contract tests | 7.73 | Passed after two line-length fixes |
+| Full verification and isolated database guards | 68.44 | Passed |
+| Local application/email and duplicate prevention | 31.90 | Passed |
+| Personalized creator introduction/outcomes | 12.24 | Passed; manual copy excluded from A/B |
+| SMTP setup literal/prompt/reporting smoke | 1.82 | Passed; real environment unchanged |
+
+Focused browser checks passed nine groups; the prior dashboard regression passed
+15 groups across ten views. Four authenticated live checks verified bootstrap,
+the no-send worker task, timestamped evidence/audit, and reload. All browser runs
+reported zero page errors. Task `e565b0ab-54d1-43ba-a7a2-72721e63d820` used Mailpit
+without authentication and completed at 16:50:38 UTC. The screenshot is a live
+connection-check result; other email-state screenshots are labeled synthetic.
+
+The isolated PostgreSQL proof exercised cancellation, wrong/expired leases,
+expiry while waiting for locks, tampered public/private contexts, receipt
+rollback, and preserved acceptance. These results establish bounded adapter
+behavior. External provider credentials remain absent, and neither external
+SMTP acceptance nor recipient delivery has been tested in this experiment.
+
+Post-patch repeat on 2026-09-13: the CI advisory update flagged two existing
+Debian PCRE2 findings, so the base received the exact security package update.
+Ruff/195 tests passed in 9.41 seconds; full verification passed in 71.94 seconds;
+personalized creator proof passed in 14.06 seconds. The live control API reports
+`libpcre2-8-0=10.42-1+deb12u1`. Refreshed Trivy 0.74.0 metadata reported zero
+high/critical findings with available fixes in that rebuilt image. This does
+not establish the separate Ubuntu Playwright package's remediation status.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

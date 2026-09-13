@@ -1,6 +1,12 @@
 FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
 
-FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS dependencies
+FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS python_base
+# Debian's targeted fix for CVE-2026-86145 and CVE-2026-89161.
+RUN apt-get update && \
+    apt-get install --yes --no-install-recommends --only-upgrade libpcre2-8-0=10.42-1+deb12u1 && \
+    rm -rf /var/lib/apt/lists/*
+
+FROM python_base AS dependencies
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_COMPILE_BYTECODE=1 \
@@ -19,7 +25,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH=/workspace/services/control-api
 CMD ["sh", "-c", "ruff check services/control-api/app services/control-api/tests tests && pytest -q"]
 
-FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS runtime
+FROM python_base AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"

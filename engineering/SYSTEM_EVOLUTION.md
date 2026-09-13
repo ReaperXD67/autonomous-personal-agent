@@ -298,6 +298,26 @@ Browser sessions can read scopes/prerequisites/evidence but cannot attest tests.
 Readiness proof expires after 24 hours and distinguishes fixtures from external
 deployment proof. The project remains a private local alpha with bounded autonomy.
 
+## v0.19 — Reviewed creator delivery and honest SMTP evidence (2026-09-12)
+
+The existing action worker now checks SMTP connectivity through a fixed-config,
+medium-risk, single-attempt task with normal policy/audit/outbox dispatch. It
+returns timestamped TLS/authentication evidence without sending mail. A local
+setup command writes SMTP fields atomically and keeps secrets out of the UI.
+
+The final external-action boundary now rechecks current lease ownership,
+cancellation, expiry after lock waits, frozen contexts, and contact authority.
+Connection failures precede receipt creation; confirmed SMTP acceptance is
+committed before cleanup and is preserved through later task failure. Uncertain
+external state still needs reconciliation; exactly-once SMTP is not claimed.
+
+Creator introductions can use explicit personal copy with the existing exact
+review, sequence, suppression, and footer rules. Manual copy is excluded from
+template A/B learning. The dashboard links historical exact messages, places
+approval inside full-packet review, and distinguishes mail-server acceptance
+from inbox delivery. No service, schema, dependency, model route, or host access
+was added; this remains a bounded private local alpha.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

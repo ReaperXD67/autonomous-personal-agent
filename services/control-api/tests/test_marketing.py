@@ -11,10 +11,15 @@ from app.marketing import (
     choose_initial_variant,
     compose_initial_email,
     compose_paid_offer_email,
+    compose_reviewed_email,
     fetch_youtube_creators,
     score_creator,
 )
-from app.marketing_models import MarketingCampaignCreate, MarketingProspectCreate
+from app.marketing_models import (
+    MarketingCampaignCreate,
+    MarketingEmailPlanCreate,
+    MarketingProspectCreate,
+)
 
 
 def campaign() -> dict[str, object]:
@@ -109,6 +114,33 @@ def test_paid_offer_is_explicitly_the_final_follow_up() -> None:
     assert "paid video" in body
     assert "final outreach message" in body
     assert "agreed in writing" in body
+
+
+def test_personalized_introduction_requires_complete_copy_and_cannot_override_paid_terms():
+    fields = {"stage": "initial", "actor": "tester"}
+    assert MarketingEmailPlanCreate(**fields).subject is None
+    assert MarketingEmailPlanCreate(**fields, subject="A relevant pilot", body="Hi there").body
+    for partial in ({"subject": "Only a subject"}, {"body": "Only a body"}):
+        with pytest.raises(ValidationError, match="both subject and body"):
+            MarketingEmailPlanCreate(**fields, **partial)
+    with pytest.raises(ValidationError, match="Paid-offer copy"):
+        MarketingEmailPlanCreate(
+            stage="paid_offer", actor="tester", subject="Edited offer", body="Changed terms"
+        )
+    with pytest.raises(ValidationError, match="line breaks"):
+        MarketingEmailPlanCreate(**fields, subject="Hello\nBcc: other@example.test", body="Hi")
+
+
+def test_reviewed_copy_keeps_contact_footer_even_with_maximum_body():
+    subject, body = compose_reviewed_email(
+        campaign(), prospect(), "Personal introduction", "x" * 20000
+    )
+    assert subject == "Personal introduction"
+    assert len(body) == 20000
+    assert "Contact source: https://example.com/contact" in body
+    assert "Privacy information: https://karixmc.pl/privacy" in body
+    assert body.endswith("this address immediately.")
+    assert "do not contact" in body
 
 
 def test_promotion_kit_is_truthful_deterministic_and_attributable() -> None:

@@ -17,6 +17,7 @@ const state = {
   workflows: [],
   plans: [],
   readiness: null,
+  communications: null,
   view: "overview",
 };
 
@@ -175,6 +176,7 @@ function disconnect(showMessage = true) {
   state.workflows = [];
   state.plans = [];
   state.readiness = null;
+  state.communications = null;
   selectedPlanId = null;
   $("#workflow-dialog").close();
   setConnection(false);
@@ -231,7 +233,7 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness] = await Promise.all([
+    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/inference/status"),
       api("/v1/career/profiles"),
@@ -245,8 +247,9 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/workflows"),
       api("/v1/plans"),
       api("/v1/readiness/features"),
+      api("/v1/communications/status"),
     ]);
-    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness });
+    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications });
     $("#connection-notice").hidden = true;
     setConnection(true);
     renderAll();
@@ -731,6 +734,25 @@ function renderProfileFilter() {
   if ([...filter.options].some((option) => option.value === selected)) filter.value = selected;
 }
 
+const decidingTasks = new Set();
+let actionReviewId = null;
+let actionReviewRecord = null;
+let actionReviewSignature = "";
+
+function emailActionState(status) {
+  return {
+    pending_approval: ["Needs approval", "Review the complete message before approving this one email."],
+    queued: ["Queued", "Approved and waiting for the email worker. Check its history for progress."],
+    executing: ["Sending", "The worker is attempting this approved message. Wait for the recorded result."],
+    succeeded: ["SMTP accepted", "The mail server accepted this message. Inbox delivery is unconfirmed; record an actual reply or bounce when observed."],
+    ambiguous: ["Send outcome uncertain", "Hermes cannot confirm whether the message was accepted. Check provider records before taking further action. Do not resend blindly; automatic resend is blocked."],
+    failed: ["Not completed", "Review the task history and email setup before preparing another message."],
+    expired: ["Approval expired", "This packet can no longer be approved. Prepare a fresh message if it is still relevant."],
+    cancelled: ["Cancelled", "This action was cancelled. Review its task history before preparing another message."],
+    rejected: ["Rejected", "This message was rejected and will not be sent by this action."],
+  }[status] || [titleCase(status) || "Status unavailable", "Open the task history to inspect the recorded state."];
+}
+
 function renderApprovals() {
   const list = $("#approval-list");
   list.replaceChildren();
@@ -746,28 +768,66 @@ function renderApprovals() {
     copy.append(node("h3", "", task.title), node("p", "", `${task.kind} · requested by ${task.requested_by} · ${formatDate(task.created_at)}`));
     if (action) copy.append(node("p", "", `${action.target_display} · expires ${formatDate(action.expires_at)} · hash ${action.context_hash.slice(0, 12)}…`));
     const actions = node("div", "card-actions");
-    if (action) actions.append(button("Review exact action", "text-button", "review-action", action.id));
-    actions.append(button("Reject", "button compact", "reject-task", task.id), button("Approve", "button compact primary", "approve-task", task.id));
+    if (action) actions.append(button(action.action_type === "communications.email_send" ? "Review email" : "Review exact action", "button compact primary", "review-action", action.id));
+    else if (["communications.email_send", "career.application_submit"].includes(task.kind)) actions.append(button("Refresh exact packet", "button compact", "refresh-workspace"));
+    else actions.append(button("Approve", "button compact primary", "approve-task", task.id));
+    actions.append(button("Reject", "button compact", "reject-task", task.id));
+    $$('button', actions).forEach((item) => { item.disabled = decidingTasks.has(task.id); });
     card.append(copy, actions);
     list.append(card);
   });
 }
 
-function showActionReview(id) {
-  const action = state.actions.find((item) => item.id === id);
-  if (!action) return;
+function renderActionReview(action) {
+  const expired = new Date(action.expires_at).getTime() <= Date.now();
+  const signature = JSON.stringify([action, expired, decidingTasks.has(action.task_id)]);
+  if (signature === actionReviewSignature) return;
+  actionReviewSignature = signature;
+  actionReviewRecord = action;
   const root = $("#detail-content");
+  const email = action.action_type === "communications.email_send";
+  const [statusLabel, statusHelp] = emailActionState(action.status);
   root.replaceChildren(
     node("span", "tag amber-tag", "Exact approval packet"),
-    node("h2", "", titleCase(action.action_type)),
+    node("h2", "", email ? "Review this one email" : titleCase(action.action_type)),
     node("p", "", `${action.target_display} · expires ${formatDate(action.expires_at)}`),
   );
+  if (email) root.append(node("p", `email-action-status ${action.status}`, statusLabel), node("p", "fine-print", statusHelp));
   const summary = node("dl", "action-summary");
   Object.entries(action.public_context).forEach(([key, value]) => {
     summary.append(node("dt", "", titleCase(key)), node("dd", "", typeof value === "string" ? value : JSON.stringify(value, null, 2)));
   });
   root.append(summary, node("p", "fine-print", `SHA-256 ${action.context_hash}. Approval is invalid if this packet changes.`));
-  $("#detail-dialog").showModal();
+  if (action.executed_at) root.append(node("p", "fine-print", `${email ? "SMTP acceptance recorded" : "Executed"}: ${formatDate(action.executed_at)}`));
+  if (action.external_reference) root.append(node("p", "email-reference", `${email ? "Message reference" : "External reference"}: ${action.external_reference}`));
+  const actions = node("div", "card-actions");
+  if (action.status === "pending_approval") {
+    if (expired) root.append(node("p", "notice", "This packet has expired. Prepare a fresh action instead of approving this one."));
+    const approve = button(decidingTasks.has(action.task_id) ? "Recording decision…" : email ? "Approve this email" : "Approve this action", "button primary", "approve-task", action.task_id);
+    approve.disabled = expired || decidingTasks.has(action.task_id);
+    const reject = button("Reject", "button", "reject-task", action.task_id);
+    reject.disabled = decidingTasks.has(action.task_id);
+    actions.append(approve, reject);
+    root.append(node("p", "fine-print", email ? "Approval authorizes the worker to send only the recipient, subject and body shown above. It does not authorize a later message." : "Approval authorizes only the exact action shown above."));
+  }
+  actions.append(button(email ? "View send history" : "Task history", "text-button", "view-audit", action.task_id));
+  root.append(actions);
+}
+
+async function showActionReview(id) {
+  actionReviewId = id;
+  actionReviewRecord = null;
+  actionReviewSignature = "";
+  $("#detail-content").replaceChildren(empty("Loading exact action", "Fetching the saved packet and its current state…"));
+  if (!$("#detail-dialog").open) $("#detail-dialog").showModal();
+  try {
+    const action = await api(`/v1/external-actions/${encodeURIComponent(id)}`);
+    if (actionReviewId !== id || !$("#detail-dialog").open) return;
+    state.actions = [action, ...state.actions.filter((item) => item.id !== id)];
+    renderActionReview(action);
+  } catch (_error) {
+    if (actionReviewId === id && $("#detail-dialog").open) $("#detail-content").replaceChildren(empty("Could not load this action", "Refresh the workspace and try again. The saved task history remains available from the prospect."));
+  }
 }
 
 function renderTasks() {
@@ -1084,6 +1144,73 @@ function marketingResult(campaignId) {
   };
 }
 
+let smtpCheckSubmitting = false;
+let smtpCheckError = "";
+let communicationsSignature = "";
+const smtpCheckActiveStates = new Set(["queued", "running", "retry_wait", "cancel_requested"]);
+
+function renderCommunications() {
+  const communications = state.communications;
+  const signature = JSON.stringify([communications, smtpCheckSubmitting, smtpCheckError, isConnected()]);
+  if (signature === communicationsSignature) return;
+  communicationsSignature = signature;
+  const transport = communications?.transport;
+  const known = ["disabled", "mailpit", "smtp"].includes(transport);
+  const label = transport === "mailpit" ? "Local test inbox · Mailpit" : transport === "smtp" ? "External SMTP selected" : transport === "disabled" ? "Email disabled" : "Email status unavailable";
+  const explanation = !known ? "Connect and refresh to load the configured email transport."
+    : transport === "mailpit" ? "Mailpit captures messages locally. It cannot reach creator inboxes."
+    : transport === "disabled" ? "Configure your SMTP provider before preparing a creator email."
+    : communications.sender_configured ? "A sender is configured. Check the worker connection, then review each exact email before sending."
+    : "The sender is missing. Complete local SMTP setup before preparing an email.";
+  const banner = $("#campaign-email-guidance");
+  banner.replaceChildren(node("strong", "", label), node("span", "", explanation), button("Email setup and checks", "text-button", "open-email-setup"));
+  const status = $("#email-transport-status");
+  status.replaceChildren(node("strong", "", label), node("p", "", explanation), node("p", "fine-print", "These settings describe the control API. They do not prove that an existing worker loaded them."));
+
+  const check = communications?.latest_check;
+  const result = $("#email-check-status");
+  result.replaceChildren();
+  if (!check) result.append(node("strong", "", "No connection check recorded"), node("p", "fine-print", "After setup and worker restart, run a check to record whether the worker can connect."));
+  else {
+    const pending = smtpCheckActiveStates.has(check.status);
+    const passed = check.status === "succeeded" && check.output?.checked === true;
+    result.append(node("strong", "", pending ? "Connection check in progress" : passed ? "Last connection check passed" : "Last connection check did not pass"));
+    if (check.completed_at) result.append(node("p", "fine-print", `Recorded ${formatDate(check.completed_at)}. This proves only the connection used by that worker at that time.`));
+    if (passed) {
+      const checkedTransport = check.output.transport === "mailpit" ? "Local Mailpit connection" : check.output.transport === "smtp" ? "External SMTP connection" : "Mail connection";
+      const authenticated = check.output.authenticated === true ? "login accepted" : "no login used";
+      result.append(node("p", "fine-print", `${checkedTransport}; ${authenticated}. No email was sent.`));
+    } else if (!pending) result.append(node("p", "fine-print", "Review the local SMTP settings and restart the worker before checking again. No email was sent by this check."));
+    if (check.id) result.append(button("Connection check history", "text-button", "view-audit", check.id));
+  }
+  if (smtpCheckError) result.append(node("p", "notice", smtpCheckError));
+  $$('[data-action="check-smtp"]').forEach((item) => {
+    const pending = smtpCheckSubmitting || smtpCheckActiveStates.has(check?.status);
+    item.disabled = !isConnected() || !known || transport === "disabled" || pending;
+    item.textContent = pending ? "Checking connection…" : "Check SMTP connection";
+  });
+}
+
+async function checkSmtpConnection() {
+  if (smtpCheckSubmitting || smtpCheckActiveStates.has(state.communications?.latest_check?.status)) return;
+  if (!isConnected() || !["mailpit", "smtp"].includes(state.communications?.transport)) return;
+  smtpCheckSubmitting = true;
+  smtpCheckError = "";
+  renderCommunications();
+  try {
+    const task = await api("/v1/communications/smtp-check", { method: "POST", body: JSON.stringify({ requested_by: "dashboard:user" }) });
+    state.communications.latest_check = { id: task.id, status: task.status, completed_at: null, output: null, error_code: null };
+    state.tasks = [task, ...state.tasks.filter((item) => item.id !== task.id)];
+    toast("Connection check queued. It sends no email.");
+    renderTasks();
+  } catch (_error) {
+    smtpCheckError = "The connection check could not be queued. Refresh the workspace and review local SMTP setup before trying again.";
+  } finally {
+    smtpCheckSubmitting = false;
+    renderCommunications();
+  }
+}
+
 function renderMarketingMetrics() {
   const totals = state.marketingResults.reduce((summary, result) => {
     for (const key of ["discovered", "emails_sent", "replies", "initial_sent", "attributed_signups"]) {
@@ -1248,7 +1375,7 @@ function prospectCard(prospect) {
   const meta = node("div", "opportunity-meta");
   meta.append(node("span", "chip status-chip", titleCase(prospect.status)));
   meta.append(node("span", "chip", prospect.contact_authorized_at ? "Contact reviewed" : "Contact review needed"));
-  if (prospect.latest_message) meta.append(node("span", "chip", `${titleCase(prospect.latest_message.stage)} · ${titleCase(prospect.latest_message.action_status)}`));
+  if (prospect.latest_message) meta.append(node("span", "chip", `${titleCase(prospect.latest_message.stage)} · ${emailActionState(prospect.latest_message.action_status)[0]}`));
   card.append(meta);
   if (prospect.latest_content_title) {
     const content = node("p", "prospect-evidence", `Recent match: ${prospect.latest_content_title}`);
@@ -1285,7 +1412,10 @@ function prospectCard(prospect) {
     if (!paidExists) actions.append(button("Prepare final paid option", "button primary", "plan-marketing-paid", prospect.id));
   }
   if (prospect.sent_message_count > 0 && !["suppressed", "bounced"].includes(prospect.status)) actions.append(button(prospect.status === "converted" ? "Update results" : "Record reply or result", "text-button", "outcome-prospect", prospect.id));
+  if (prospect.latest_message?.action_id) actions.append(button("Review message", "text-button", "review-action", prospect.latest_message.action_id));
+  if (prospect.latest_message?.task_id) actions.append(button("View send history", "text-button", "view-audit", prospect.latest_message.task_id));
   card.append(actions);
+  if (prospect.latest_message) card.append(node("p", prospect.latest_message.action_status === "ambiguous" ? "notice" : "fine-print", emailActionState(prospect.latest_message.action_status)[1]));
   if (prospect.suppression_reason) card.append(node("p", "notice", prospect.suppression_reason));
   return card;
 }
@@ -1320,6 +1450,7 @@ function renderInferenceStatus() {
 }
 
 function renderAll() {
+  renderCommunications();
   renderNextAction();
   renderReadiness();
   renderPlans();
@@ -1336,6 +1467,10 @@ function renderAll() {
   renderCampaigns();
   renderProspects();
   renderInferenceStatus();
+  if (actionReviewId && $("#detail-dialog").open) {
+    const action = state.actions.find((item) => item.id === actionReviewId) || actionReviewRecord;
+    if (action) renderActionReview(action);
+  }
 }
 
 function clearFormError(form) {
@@ -1673,14 +1808,28 @@ async function planMarketingEmail(id, stage, subject = null, body = null) {
     toast("Exact creator email is waiting for approval");
     await loadData({ quiet: true });
     switchView("approvals");
-  } catch (error) { toast(error.message, true); }
+  } catch (error) {
+    if ($("#marketing-reply-dialog").open) showFormError($("#marketing-reply-form"), error);
+    else toast(error.message, true);
+  }
 }
 
-function openMarketingReply(prospect) {
+function openMarketingReply(prospect, stage = "question_reply") {
+  if (!prospect) return;
   const form = $("#marketing-reply-form");
   form.reset();
+  const initial = stage === "initial";
   form.elements.prospect_id.value = prospect.id;
-  form.elements.subject.value = `Re: ${prospect.display_name} × KarixMC`;
+  form.elements.stage.value = stage;
+  form.elements.subject.value = initial ? "" : `Re: ${prospect.display_name} × KarixMC`;
+  form.elements.subject.required = !initial;
+  form.elements.body.required = !initial;
+  $("#marketing-message-title").textContent = initial ? `Introduce your campaign to ${prospect.display_name}` : "Answer the creator's question";
+  $("#marketing-message-guidance").textContent = initial ? "Use the campaign introduction, or write a specific subject and body below. Keep claims and offers factual. You will review the complete packet before approving any send." : "Answer only what you know. The exact message will wait for approval.";
+  $("#marketing-message-fields").open = !initial;
+  $("#marketing-message-fields summary").hidden = !initial;
+  $("#marketing-message-custom-help").hidden = !initial;
+  $('button[type="submit"]', form).textContent = initial ? "Prepare introduction for review" : "Prepare exact answer";
   $("#marketing-reply-dialog").showModal();
 }
 
@@ -1816,6 +1965,8 @@ function showEmailDialog(id) {
 function showOpportunity(id) {
   const opportunity = state.opportunities.find((item) => item.id === id);
   if (!opportunity) return;
+  actionReviewId = null;
+  actionReviewRecord = null;
   const root = $("#detail-content");
   root.replaceChildren(node("span", "tag", `${titleCase(opportunity.source)} · ${opportunity.score}% fit`), node("h2", "", opportunity.title), node("p", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${formatDate(opportunity.published_at)}`));
   const reasons = node("ul", "reason-list");
@@ -1854,11 +2005,29 @@ function showOpportunity(id) {
 }
 
 async function decideTask(id, decision) {
+  if (decidingTasks.has(id)) return;
+  const action = state.actions.find((item) => item.task_id === id) || (actionReviewRecord?.task_id === id ? actionReviewRecord : null);
+  if (decision === "approved" && action) {
+    if (actionReviewId !== action.id || !$("#detail-dialog").open) return showActionReview(action.id);
+    if (action.status !== "pending_approval" || new Date(action.expires_at).getTime() <= Date.now()) {
+      toast("This packet cannot be approved. Refresh and review its current state.", true);
+      return;
+    }
+  }
+  decidingTasks.add(id);
+  renderApprovals();
+  if (actionReviewRecord && $("#detail-dialog").open) renderActionReview(actionReviewRecord);
   try {
     await api(`/v1/tasks/${id}/decision`, { method: "POST", body: JSON.stringify({ decision, actor: "dashboard:approver", reason: "Decision recorded in Hermes Command Center" }) });
-    toast(`Task ${decision}`);
+    toast(decision === "approved" && action?.action_type === "communications.email_send" ? "This one email is approved and queued. Follow its send history for the result." : `Task ${decision}`);
     await loadData({ quiet: true });
+    if (actionReviewId && $("#detail-dialog").open) await showActionReview(actionReviewId);
   } catch (error) { toast(error.message, true); }
+  finally {
+    decidingTasks.delete(id);
+    renderApprovals();
+    if (actionReviewRecord && $("#detail-dialog").open) renderActionReview(actionReviewRecord);
+  }
 }
 
 async function showAudit(id) {
@@ -1931,11 +2100,18 @@ document.addEventListener("click", async (event) => {
   if (action === "promotion-kit") return showPromotionKit(id);
   if (action === "new-prospect") return openProspectDialog();
   if (action === "edit-prospect") return openProspectDialog(state.prospects.find((item) => item.id === id));
-  if (action === "plan-marketing-initial") return planMarketingEmail(id, "initial");
+  if (action === "plan-marketing-initial") return openMarketingReply(state.prospects.find((item) => item.id === id), "initial");
   if (action === "plan-marketing-paid") return planMarketingEmail(id, "paid_offer");
   if (action === "reply-prospect") return openMarketingReply(state.prospects.find((item) => item.id === id));
   if (action === "outcome-prospect") return openMarketingOutcome(state.prospects.find((item) => item.id === id));
   if (action === "review-action") return showActionReview(id);
+  if (action === "open-email-setup") {
+    switchView("settings");
+    $("#email-setup-card").scrollIntoView({ block: "start" });
+    $("#email-setup-card").focus({ preventScroll: true });
+    return;
+  }
+  if (action === "check-smtp") return checkSmtpConnection();
   if (action === "approve-task") return decideTask(id, "approved");
   if (action === "reject-task") return decideTask(id, "rejected");
   if (action === "view-audit") return showAudit(id);
@@ -1976,7 +2152,15 @@ $("#marketing-outcome-form").addEventListener("submit", (event) => guardedSubmit
 $("#marketing-reply-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
-  await planMarketingEmail(form.elements.prospect_id.value, "question_reply", form.elements.subject.value, form.elements.body.value);
+  const subject = form.elements.subject.value.trim();
+  const body = form.elements.body.value.trim();
+  if (Boolean(subject) !== Boolean(body)) {
+    $("#marketing-message-fields").open = true;
+    showFormError(form, new Error("Fill both the subject and body, or leave both blank to use the campaign introduction."));
+    (subject ? form.elements.body : form.elements.subject).focus();
+    return;
+  }
+  await planMarketingEmail(form.elements.prospect_id.value, form.elements.stage.value, subject || null, body || null);
 }));
 $("#application-answer-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
@@ -2021,6 +2205,9 @@ $("#workflow-form").elements.recipe.addEventListener("change", updateWorkflowRec
 $("#workflow-status-filter").addEventListener("change", renderWorkflows);
 $("#workflow-refresh").addEventListener("click", () => loadData());
 $("#workflow-dialog").addEventListener("close", () => { workflowDetailId = null; });
+$("#detail-dialog").addEventListener("close", () => {
+  if (!$("#detail-dialog").open) { actionReviewId = null; actionReviewRecord = null; actionReviewSignature = ""; }
+});
 $("#task-form").elements.kind.addEventListener("change", (event) => {
   const waiting = event.target.value === "foundation.wait";
   $("#task-message-field").hidden = waiting;

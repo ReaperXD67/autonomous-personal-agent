@@ -106,6 +106,14 @@ rows prevent duplicate issuance by concurrent scheduler workers.
 
 ## Quality attributes
 
+The action worker also handles the fixed-config, medium-risk, single-attempt
+`communications.smtp_check` diagnostic through the existing task/outbox path.
+It sends no email and returns only transport/TLS/authentication evidence.
+External actions revalidate owned leases, cancellation, frozen context, and
+contact authority at the submission boundary. SMTP acceptance is committed
+before best-effort cleanup and cannot be downgraded by a later task failure.
+No new service, schema, dependency, or host authority is introduced.
+
 - **Reproducibility:** images and Python dependencies are release-pinned.
 - **Least privilege:** loopback ports, internal data network, non-root read-only app images.
 - **Auditability:** correlation IDs link request, task, approval, worker, and audit events.

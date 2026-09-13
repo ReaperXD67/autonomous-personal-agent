@@ -339,8 +339,10 @@ class MarketingEmailPlanCreate(BaseModel):
     def validate_manual_reply(self) -> MarketingEmailPlanCreate:
         if self.stage == "question_reply" and not (self.subject and self.body):
             raise ValueError("Question replies require a manually reviewed subject and body")
-        if self.stage != "question_reply" and (self.subject or self.body):
-            raise ValueError("Initial and paid-offer copy is generated from the campaign packet")
+        if self.stage == "initial" and bool(self.subject) != bool(self.body):
+            raise ValueError("Personalized introductions require both subject and body")
+        if self.stage == "paid_offer" and (self.subject or self.body):
+            raise ValueError("Paid-offer copy is generated from the campaign packet")
         return self
 
 

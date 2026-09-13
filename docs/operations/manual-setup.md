@@ -101,12 +101,16 @@ The local Mailpit path needs no account. To send real mail, the user must choose
 a provider and create its SMTP/OAuth credential under that provider's terms.
 The current implementation supports authenticated SMTP with verified TLS:
 
-1. Put `MAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`,
+1. Run `./scripts/promotion.ps1 -ConfigureSMTP` for local prompts and a hidden
+   credential entry. Alternatively put `MAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`,
    `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_TLS_MODE=starttls` (or `ssl`) in
    ignored deployment secrets.
 2. Run `./scripts/up.ps1 -SideEffects` to recreate the isolated executor.
-3. Prepare a harmless message to an address you own, review the exact
-   sender/recipient/subject/body, approve once, and verify provider delivery.
+3. Run `./scripts/promotion.ps1 -CheckSMTP` to check the configured connection,
+   TLS, and authentication through an audited task without sending mail.
+4. Review and approve one authorized message's exact sender/recipient/subject/body.
+   Inspect the durable SMTP acceptance separately from recipient inbox delivery;
+   an owned test inbox can establish the latter for that one message.
 
 Gmail and Microsoft also expose OAuth send APIs, but OAuth consent and token
 storage are not implemented here. Do not weaken account security by automating

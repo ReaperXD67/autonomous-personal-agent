@@ -23,6 +23,7 @@ class TaskCreate(BaseModel):
         "career.application_submit",
         "marketing.creator_discovery",
         "communications.email_send",
+        "communications.smtp_check",
     ] = "foundation.echo"
     payload: dict[str, Any] = Field(default_factory=dict)
     risk_level: RiskLevel = RiskLevel.LOW

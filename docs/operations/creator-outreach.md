@@ -99,12 +99,20 @@ payment, free benefit, or other material relationship.
 ## 5. Run the email sequence
 
 Every step creates one frozen sender/recipient/subject/body action in
-**Approvals**. Nothing is delivered until that exact action is approved.
+**Approvals**. Nothing is sent until that exact action is approved. Open the full
+packet to review sender, recipient, subject, body, expiry, and context digest;
+approve from that review. A prospect's latest-message links open its exact packet
+and task audit, including messages outside the most recent list page.
 
 1. **Prepare introduction** explains the reward-network model, offers the
    configured viewer and creator/server pilot, asks for an honest collaboration,
    includes a per-prospect UTM link, identifies the contact source, and provides
    a direct opt-out.
+   Optionally supply both a personalized subject and body. The server retains
+   the contact/privacy/opt-out footer, marks the message `manual_initial`, and
+   excludes it from template A/B learning. It retains the same sequence,
+   suppression, digest, expiry, and approval requirements. Paid-offer terms
+   remain generated from the reviewed campaign packet.
 2. Record the reply manually. If it is a question, select **Asked a question**,
    then **Write manual answer**. Write only verified facts; the system adds the
    provenance/opt-out footer and creates another exact approval.
@@ -114,9 +122,14 @@ Every step creates one frozen sender/recipient/subject/body action in
    communicated that specific condition. It unlocks one final paid-option
    draft. The message says it is final and does not imply an agreed fee or scope.
 
-The action worker rechecks address, authorization, suppression, and reply state
-immediately before SMTP. A bounce or opt-out clears contact authorization and
-cannot be reversed through the dashboard.
+The action worker rechecks the owned unexpired lease, cancellation, exact frozen
+context, contact authorization, suppression, and reply state immediately before
+SMTP submission. A bounce or opt-out clears contact authorization and cannot be
+reversed through the dashboard. Connection/TLS/login failures occur before a
+receipt is created. After submission begins, uncertain acceptance remains
+`ambiguous`: inspect the provider's records before preparing another message.
+Known SMTP acceptance is saved before connection cleanup and survives a later
+task-completion failure. **Sent to mail server** does not prove inbox delivery.
 
 ## 6. Record results and adapt
 
@@ -125,8 +138,8 @@ published placement URL, attributed views/clicks/signups/server owners, and
 viewer points actually issued. Do not enter projections as results.
 
 The dashboard shows the linear funnel and two introduction variants. For fewer
-than ten delivered introductions, the agent recommends collecting evidence.
-Only after both variants have ten delivered emails can a variant win. It must
+than ten SMTP-accepted introductions, the agent recommends collecting evidence.
+Only after both variants have ten SMTP-accepted emails can a variant win. It must
 lead positive-reply rate by at least five percentage points and 1.5×; then 80%
 of future drafts use it while 20% continues exploration. High suppression,
 question, or unpaid-decline rates produce stop/review suggestions.
@@ -165,13 +178,27 @@ not yet hold mail OAuth tokens. The guided hidden prompt writes the fixed
 ./scripts/promotion.ps1 -OpenDashboard
 ```
 
-For another provider, use [manual setup](manual-setup.md#real-email-transport).
+For an existing provider, use the generic local prompt. Enter credentials only
+at its hidden password prompt, never in dashboard fields or chat:
 
-Send a harmless message to an address you own before contacting a creator. A
-healthy container is not delivery proof; verify the provider inbox and receipt.
-The readiness command distinguishes saved settings, a Mailpit-mode worker, and
-a worker running the current SMTP settings, but it deliberately cannot claim
-provider delivery until that owned inbox receives the message.
+```powershell
+./scripts/promotion.ps1 -ConfigureSMTP
+./scripts/up.ps1 -SideEffects
+./scripts/promotion.ps1 -CheckSMTP
+```
+
+Setup writes the SMTP fields together to ignored `.env`, preserving unrelated
+settings and literal credential characters. **Settings → Email setup** shows
+configured transport and the latest timestamped worker check. The medium-risk,
+single-attempt `communications.smtp_check` task uses the usual policy/audit/outbox
+path and fixed deployment settings. It checks connection, TLS, authentication
+when configured, and SMTP NOOP; it sends no MAIL, RCPT, or DATA commands.
+
+Saved settings and a previous check do not establish current delivery. Verify
+one approved, authorized message and its receipt; an owned test inbox can also
+confirm inbox arrival. Mailpit acceptance is local test evidence. External SMTP
+acceptance means the provider accepted responsibility for the message, and
+does not establish inbox placement, reading, or a reply.
 
 ## Known gaps
 
