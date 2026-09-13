@@ -2001,3 +2001,18 @@ security-review passages to preserve the distinction between uncertain external
 state and durably known SMTP acceptance. It also records manual-copy exclusion
 from template learning. The first clean-checkout GitHub CI run passed all gates;
 the follow-up contains documentation only and passed `git diff --check`.
+
+The subsequent clean-checkout run stopped at the runtime vulnerability gate:
+its updated advisory data identified CVE-2026-86145 and CVE-2026-89161 in the
+existing Debian `libpcre2-8-0=10.42-1`. Debian's official tracker/advisory confirms
+`10.42-1+deb12u1` fixes both. The shared Python base now upgrades exactly that
+existing package; dependency/test/runtime stages retain Python 3.13.14 and the
+same release/digest. No finding was suppressed and no broad OS upgrade was made.
+
+Post-patch Compose/Ruff/195-test validation passed in 9.41 seconds,
+`verify.ps1` passed in 71.94 seconds, and personalized creator/Mailpit proof
+passed in 14.06 seconds. Both built images and the running control API report
+the fixed package version. Trivy 0.74.0 with advisory data refreshed at 15:41:50
+UTC found zero high/critical vulnerabilities with available fixes in the
+control image. The separate Ubuntu Playwright package is not covered by the
+Debian fix and remains subject to its own scan and tracked upstream status.

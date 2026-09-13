@@ -41,6 +41,22 @@ local runtime testing and GitHub Actions passed. Repository contract tests also
 continue to forbid the unused high-risk surfaces (`StaticFiles`, `FileResponse`,
 `HTTPEndpoint`, form parsing, and hostname-derived policy) as defense in depth.
 
+## September 2026 Debian PCRE2 security update
+
+The 2026-09-13 clean-checkout scan newly flagged `libpcre2-8-0=10.42-1` in
+the pinned Python Bookworm image. Debian identifies `10.42-1+deb12u1` as fixed
+for [CVE-2026-86145](https://security-tracker.debian.org/tracker/CVE-2026-86145)
+and [CVE-2026-89161](https://security-tracker.debian.org/tracker/CVE-2026-89161).
+
+The control Dockerfile retains the verified Python release/digest and adds a
+shared base stage with an exact-version upgrade of that existing package.
+Dependency, test, and runtime stages inherit the patch. APT verifies signed
+Debian repository metadata; package lists are removed from the final layer.
+No broad distribution upgrade or vulnerability suppression was introduced.
+Future removal depends on verifying that a replacement pinned Python base
+already contains the patched version. Ubuntu Noble's status must be evaluated
+separately; the Debian patch does not establish that the Playwright base is fixed.
+
 ## Review rule
 
 Do not dismiss a future alert without either:

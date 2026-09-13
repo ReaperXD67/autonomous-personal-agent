@@ -632,6 +632,14 @@ rollback, and preserved acceptance. These results establish bounded adapter
 behavior. External provider credentials remain absent, and neither external
 SMTP acceptance nor recipient delivery has been tested in this experiment.
 
+Post-patch repeat on 2026-09-13: the CI advisory update flagged two existing
+Debian PCRE2 findings, so the base received the exact security package update.
+Ruff/195 tests passed in 9.41 seconds; full verification passed in 71.94 seconds;
+personalized creator proof passed in 14.06 seconds. The live control API reports
+`libpcre2-8-0=10.42-1+deb12u1`. Refreshed Trivy 0.74.0 metadata reported zero
+high/critical findings with available fixes in that rebuilt image. This does
+not establish the separate Ubuntu Playwright package's remediation status.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
