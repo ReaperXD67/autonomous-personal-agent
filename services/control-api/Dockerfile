@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
+FROM ghcr.io/astral-sh/uv:0.12.13-python3.13-trixie@sha256:8add4f333ff97df36c18f42e8082301a2829ccf0cef995538a7d9af0ed0b4183 AS uv_source
 
 FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS python_base
 # Debian's targeted fix for CVE-2026-86145 and CVE-2026-89161.
