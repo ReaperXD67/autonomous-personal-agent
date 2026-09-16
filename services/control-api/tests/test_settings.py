@@ -39,6 +39,11 @@ def make_settings(**overrides: object) -> Settings:
         "smtp_password": "",
         "smtp_from": "",
         "smtp_tls_mode": "starttls",
+        "outbound_email_min_interval_seconds": 900,
+        "outbound_email_domain_min_interval_seconds": 1800,
+        "outbound_email_hourly_limit": 3,
+        "outbound_email_daily_limit": 12,
+        "outbound_email_jitter_seconds": 180,
         "youtube_api_key": "",
     }
     values.update(overrides)
@@ -115,3 +120,30 @@ def test_external_smtp_requires_tls_and_complete_credentials() -> None:
             smtp_from="user@example.test",
             smtp_tls_mode="none",
         ).validate()
+
+
+def test_external_smtp_requires_plain_sender_and_bounded_pacing() -> None:
+    valid = {
+        "mail_transport": "smtp",
+        "smtp_host": "smtp.example.test",
+        "smtp_username": "user",
+        "smtp_password": "password",  # noqa: S106
+        "smtp_from": "user@example.test",
+    }
+    with pytest.raises(ConfigurationError, match="plain email"):
+        make_settings(**{**valid, "smtp_from": "Hermes <user@example.test>"}).validate()
+    with pytest.raises(ConfigurationError, match="MIN_INTERVAL_SECONDS"):
+        make_settings(**valid, outbound_email_min_interval_seconds=30).validate()
+    with pytest.raises(ConfigurationError, match="cannot be below"):
+        make_settings(
+            **valid,
+            outbound_email_min_interval_seconds=1800,
+            outbound_email_domain_min_interval_seconds=900,
+        ).validate()
+    with pytest.raises(ConfigurationError, match="DAILY_LIMIT"):
+        make_settings(
+            **valid,
+            outbound_email_hourly_limit=4,
+            outbound_email_daily_limit=3,
+        ).validate()
+    make_settings(**valid).validate()

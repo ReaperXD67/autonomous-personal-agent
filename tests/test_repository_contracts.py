@@ -122,6 +122,36 @@ def test_external_actions_use_isolated_pinned_workers_and_exact_receipts() -> No
     assert "retry refused" in source
 
 
+def test_external_email_pacing_is_durable_and_enforced_at_send_boundary() -> None:
+    compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
+    migration = (
+        ROOT / "config/postgres/init/013_outbound_email_pacing.sql"
+    ).read_text(encoding="utf-8")
+    store = (ROOT / "services/control-api/app/store.py").read_text(encoding="utf-8")
+    guard = (ROOT / "services/control-api/app/action_store.py").read_text(
+        encoding="utf-8"
+    )
+    worker = (ROOT / "services/control-api/app/action_worker.py").read_text(
+        encoding="utf-8"
+    )
+    assert "outbound_email_schedule" in migration
+    assert "pg_advisory_xact_lock" in store
+    assert "Safe email pacing would place this send" in store
+    assert "External email send window has not opened" in guard
+    assert 'message["Date"]' in worker
+    assert "from_addr=str(context" in worker
+    for service in ("control-api", "action-worker"):
+        environment = compose["services"][service]["environment"]
+        for name in (
+            "OUTBOUND_EMAIL_MIN_INTERVAL_SECONDS",
+            "OUTBOUND_EMAIL_DOMAIN_MIN_INTERVAL_SECONDS",
+            "OUTBOUND_EMAIL_HOURLY_LIMIT",
+            "OUTBOUND_EMAIL_DAILY_LIMIT",
+            "OUTBOUND_EMAIL_JITTER_SECONDS",
+        ):
+            assert name in environment
+
+
 def test_creator_outreach_is_durable_approval_bound_and_key_scoped() -> None:
     compose = yaml.safe_load((ROOT / "docker-compose.yml").read_text(encoding="utf-8"))
     migration = (

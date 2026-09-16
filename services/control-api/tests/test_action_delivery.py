@@ -55,7 +55,7 @@ def test_email_records_acceptance_before_quit_even_when_cleanup_fails(smtp, tls_
     task, _, database = _email()
     client.login.side_effect = lambda *_: events.append("authenticated")
     database.begin_side_effect.side_effect = lambda *_: events.append("receipt")
-    client.send_message.side_effect = lambda *_: events.append("send") or {}
+    client.send_message.side_effect = lambda *_, **__: events.append("send") or {}
     database.complete_side_effect.side_effect = lambda *_: events.append("accepted")
 
     def broken_quit():
@@ -67,6 +67,13 @@ def test_email_records_acceptance_before_quit_even_when_cleanup_fails(smtp, tls_
     assert events == ["authenticated", "receipt", "send", "accepted", "quit"]
     assert output["smtp_accepted"] is True
     assert database.begin_side_effect.call_args.args[2] == task["lease_id"]
+    message = client.send_message.call_args.args[0]
+    assert message["Date"]
+    assert message["Message-ID"].endswith("@example.test>")
+    assert client.send_message.call_args.kwargs == {
+        "from_addr": "sender@example.test",
+        "to_addrs": ["recipient@example.test"],
+    }
     client.close.assert_called_once()
 
 

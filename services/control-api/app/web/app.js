@@ -787,12 +787,16 @@ function renderActionReview(action) {
   const root = $("#detail-content");
   const email = action.action_type === "communications.email_send";
   const [statusLabel, statusHelp] = emailActionState(action.status);
+  const task = state.tasks.find((item) => item.id === action.task_id);
   root.replaceChildren(
     node("span", "tag amber-tag", "Exact approval packet"),
     node("h2", "", email ? "Review this one email" : titleCase(action.action_type)),
     node("p", "", `${action.target_display} · expires ${formatDate(action.expires_at)}`),
   );
   if (email) root.append(node("p", `email-action-status ${action.status}`, statusLabel), node("p", "fine-print", statusHelp));
+  if (email && action.status === "queued" && task && new Date(task.next_attempt_at).getTime() > Date.now()) {
+    root.append(node("p", "notice", `Paced send time: ${formatDate(task.next_attempt_at)}. Hermes will not release this email before that time.`));
+  }
   const summary = node("dl", "action-summary");
   Object.entries(action.public_context).forEach(([key, value]) => {
     summary.append(node("dt", "", titleCase(key)), node("dd", "", typeof value === "string" ? value : JSON.stringify(value, null, 2)));
@@ -808,7 +812,7 @@ function renderActionReview(action) {
     const reject = button("Reject", "button", "reject-task", action.task_id);
     reject.disabled = decidingTasks.has(action.task_id);
     actions.append(approve, reject);
-    root.append(node("p", "fine-print", email ? "Approval authorizes the worker to send only the recipient, subject and body shown above. It does not authorize a later message." : "Approval authorizes only the exact action shown above."));
+    root.append(node("p", "fine-print", email ? "Approval authorizes only the recipient, subject and body shown above. External SMTP is released through durable rate limits, so approving several messages cannot create an immediate burst." : "Approval authorizes only the exact action shown above."));
   }
   actions.append(button(email ? "View send history" : "Task history", "text-button", "view-audit", action.task_id));
   root.append(actions);
@@ -1166,6 +1170,10 @@ function renderCommunications() {
   banner.replaceChildren(node("strong", "", label), node("span", "", explanation), button("Email setup and checks", "text-button", "open-email-setup"));
   const status = $("#email-transport-status");
   status.replaceChildren(node("strong", "", label), node("p", "", explanation), node("p", "fine-print", "These settings describe the control API. They do not prove that an existing worker loaded them."));
+  if (communications?.pacing?.enabled) {
+    const pacing = communications.pacing;
+    status.append(node("p", "fine-print", `Durable pacing: at least ${Math.ceil(pacing.minimum_interval_seconds / 60)} minutes between messages, ${Math.ceil(pacing.same_domain_interval_seconds / 60)} minutes to the same recipient domain, no more than ${pacing.hourly_limit} per rolling hour or ${pacing.daily_limit} per rolling 24 hours, plus up to ${Math.ceil(pacing.jitter_seconds / 60)} minutes of jitter.`));
+  }
 
   const check = communications?.latest_check;
   const result = $("#email-check-status");
@@ -2018,8 +2026,9 @@ async function decideTask(id, decision) {
   renderApprovals();
   if (actionReviewRecord && $("#detail-dialog").open) renderActionReview(actionReviewRecord);
   try {
-    await api(`/v1/tasks/${id}/decision`, { method: "POST", body: JSON.stringify({ decision, actor: "dashboard:approver", reason: "Decision recorded in Hermes Command Center" }) });
-    toast(decision === "approved" && action?.action_type === "communications.email_send" ? "This one email is approved and queued. Follow its send history for the result." : `Task ${decision}`);
+    const decided = await api(`/v1/tasks/${id}/decision`, { method: "POST", body: JSON.stringify({ decision, actor: "dashboard:approver", reason: "Decision recorded in Hermes Command Center" }) });
+    const paced = decision === "approved" && action?.action_type === "communications.email_send" && new Date(decided.next_attempt_at).getTime() > Date.now() + 2000;
+    toast(paced ? `This email is approved and paced for ${formatDate(decided.next_attempt_at)}.` : decision === "approved" && action?.action_type === "communications.email_send" ? "This one email is approved and queued. Follow its send history for the result." : `Task ${decision}`);
     await loadData({ quiet: true });
     if (actionReviewId && $("#detail-dialog").open) await showActionReview(actionReviewId);
   } catch (error) { toast(error.message, true); }

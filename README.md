@@ -46,7 +46,7 @@ and human approval for high-impact actions.
 | Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
 | Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
-| Email sender | Verified with Mailpit; external SMTP unconfigured | Exact approval, final lease/cancellation checks, durable SMTP acceptance, secure local setup, and audited connection check that sends no email |
+| Email sender | Verified with Mailpit; external SMTP unconfigured | Exact approval, durable SMTP acceptance, and PostgreSQL-backed external pacing: 15-minute global/30-minute same-domain gaps, rolling 3/hour and 12/day caps, and jitter |
 | Creator outreach | Local flow and bounded live discovery verified; external send pending | Public-contact provenance, personalized reviewed introductions, exact-message history, results funnel, bounded template A/B learning, five-channel UTM kit, and creator-specific local proof |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
@@ -182,7 +182,9 @@ check, then open **Creator campaigns**. Each campaign now produces ready-to-copy
 YouTube, Discord, Reddit/community, and partner promotion assets with distinct
 UTM links at no provider cost. Official discovery still needs a restricted
 user-owned YouTube key, never discovers or guesses creator emails, and every
-individual email remains exact-approval gated. See the
+individual email remains exact-approval gated. External SMTP approvals reserve a
+durable low-volume slot, so several approvals cannot become a restart-time burst.
+Pacing reduces reputation risk but cannot guarantee inbox placement. See the
 [creator outreach guide](docs/operations/creator-outreach.md).
 
 Prove the creator workflow locally before configuring or using external mail:
@@ -356,6 +358,9 @@ and [remaining manual setup](docs/operations/manual-setup.md).
 - High-risk and destructive tasks require an explicit approval record.
 - Real side effects bind approval to a SHA-256 digest of the exact action and
   use a durable pre-click/pre-send receipt; they are never retried automatically.
+- External SMTP approval atomically reserves a PostgreSQL send slot with rolling
+  hourly/daily caps, same-domain spacing, and jitter; the worker rechecks it at
+  the send boundary. Mailpit fixtures remain immediate.
 - Creator outreach revalidates contact provenance, authorization, suppression,
   and reply state immediately before SMTP. Learning can select only fixed draft
   variants and cannot send, spend, or change policy.

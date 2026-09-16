@@ -83,7 +83,10 @@ dashboard_javascript = (Path(__file__).parent / "web" / "app.js").read_text(enco
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    application.state.database = Database(settings.database_url)
+    application.state.database = Database(
+        settings.database_url,
+        email_pacing_policy=settings.email_pacing_policy(),
+    )
     application.state.career = CareerStore(settings.database_url)
     application.state.actions = ActionStore(settings.database_url)
     application.state.marketing = MarketingStore(settings.database_url)

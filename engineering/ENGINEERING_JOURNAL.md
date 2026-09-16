@@ -2016,3 +2016,64 @@ the fixed package version. Trivy 0.74.0 with advisory data refreshed at 15:41:50
 UTC found zero high/critical vulnerabilities with available fixes in the
 control image. The separate Ubuntu Playwright package is not covered by the
 Debian fix and remains subject to its own scan and tracked upstream status.
+
+## Step 28 — Durable low-volume email pacing
+
+Date: 2026-09-16
+
+### Objective
+
+Prevent individually approved creator emails from being released as a burst,
+including after a process or VPS restart, while preserving exact approval,
+one-attempt side-effect semantics, suppression, and fast Mailpit tests. Improve
+message conformance and explain the provider/DNS work that code cannot replace.
+
+### Implementation
+
+- Added a PostgreSQL `outbound_email_schedule` authority. External-SMTP approval
+  takes a transaction advisory lock, computes one future slot, stores the policy
+  snapshot, updates `next_attempt_at`, and creates the delayed outbox record in
+  the same transaction. Simultaneous approvals cannot reserve the same moment.
+- Applied a default 15-minute global interval, 30-minute same-recipient-domain
+  interval, rolling three-per-hour and twelve-per-24-hours caps, and up to three
+  minutes of deterministic jitter. Configuration is bounded and cannot disable
+  pacing for external SMTP. Mailpit remains immediate.
+- Refused an approval whose safe slot would exceed the exact packet expiry.
+  Cancellation and pre-boundary failure mark the slot skipped; submission marks
+  it sending, then accepted or ambiguous. The action worker requires a matching
+  due reservation before creating the irreversible receipt.
+- Bound SMTP explicitly to the approved envelope sender and one recipient. Added
+  an RFC 5322 date and a sender-domain message ID. A plain configured sender is
+  now required.
+- Exposed the effective non-secret pacing policy and future release time in the
+  private dashboard. Added ADR-0020 and synchronized architecture, security,
+  roadmap, deployment, creator operations, manual setup, and product claims.
+- Documented that pacing is not a spam-filter bypass. SPF, DKIM, DMARC, sender
+  alignment, reputation, relevant recipients, bounces/complaints, and working
+  unsubscribe handling remain operator/provider responsibilities.
+
+### Validation
+
+- The first lint attempt found two import-order/blank-line issues. The next test
+  attempt found only test-double incompatibilities with explicit SMTP envelope
+  arguments and a duplicate keyword in a settings test. Those tests were fixed;
+  no production behavior was weakened.
+- Final standalone containerized Ruff and all 200 unit/contract tests passed in
+  1.48 seconds; the final repeated integrated gate passed them in 1.75 seconds.
+- `docker compose config --quiet` and `verify.ps1` passed. The isolated database
+  proof approved two same-domain messages concurrently and confirmed distinct
+  durable slots at least 300 seconds apart under its test policy. It also passed
+  cancellation release, early-boundary refusal, lease/hash/expiry guards,
+  receipt rollback, acceptance, ambiguity, and queue recovery without SMTP.
+- The rebuilt creator outreach flow delivered one exact synthetic introduction
+  to Mailpit, generated five attributed assets, preserved A/B isolation, recorded
+  suppression, blocked further outreach, cleaned its records, and confirmed no
+  discovery request or email left the local Docker test network.
+
+### Remaining boundary
+
+No external SMTP credential is configured on this workstation, so no real
+provider acceptance, SPF/DKIM/DMARC result, inbox placement, reply, bounce, or
+complaint loop was tested. A user-owned provider/domain canary remains required.
+No implementation can guarantee that a mailbox provider will avoid the spam
+folder.

@@ -71,14 +71,11 @@ automatic preparation behavior.
 
 ## Career mission schedule
 
-An active PostgreSQL profile holds `next_scan_at`. The career worker atomically
-claims due profiles and advances the next schedule, then calls the same durable
-task creation method as the API. Those two operations currently use separate
-transactions: a crash between them can miss that occurrence, although the
-mission and its future schedule remain durable. The task/outbox transaction is
-committed before queue publication. Fresh source records are filtered and
-upserted by profile/source key. Workflow dispatch uses a single transaction for
-its task and step binding and does not share this schedule-advance gap.
+An active PostgreSQL profile holds `next_scan_at`. The career worker locks due
+profiles and creates the task, policy decision, audit, outbox, and next schedule
+in one transaction. Rollback leaves the occurrence due, and concurrent schedulers
+cannot issue it twice. Fresh source records are filtered and upserted by
+profile/source key. Creator discovery uses the same atomic scheduling boundary.
 
 ## High/destructive-risk task
 
@@ -98,6 +95,11 @@ PostgreSQL envelope. A SHA-256 digest binds that envelope to the task and
 approval row.
 
 After approval, the action worker revalidates the digest and referenced material.
+For external SMTP, that same approval transaction serializes against other email
+approvals and reserves a future PostgreSQL send slot. `next_attempt_at` and the
+outbox share the reservation, so the dispatcher cannot publish early and a
+restart cannot release a burst. The worker checks that the slot is due before it
+creates the receipt. Mailpit fixtures skip the delay.
 For an application it reloads the form and refuses a changed signature. It
 commits a unique receipt immediately before the final click/send. Completion
 updates both receipt and action atomically. The boundary rechecks current lease,
@@ -153,6 +155,7 @@ posting remains outside Hermes and outside the action worker.
 | Career profiles/opportunities/drafts | PostgreSQL | Résumé is returned only as presence/length metadata; draft access stays internal |
 | Inference invocations | PostgreSQL | Route/provider/model, privacy, tokens, latency, fallback, status, and cost only; no prompt/output text |
 | Preflights/exact actions/receipts | PostgreSQL | Approval context, expiry, execution state, and duplicate guard are authoritative |
+| Outbound email schedule | PostgreSQL | External SMTP release time, rolling-cap policy snapshot, recipient-domain spacing, and accepted/skipped/ambiguous state |
 | Creator campaigns/prospects/outcomes | PostgreSQL | Contact provenance, authorization, suppression, stage links, attribution, and learning evidence are authoritative |
 | Goal proposals | PostgreSQL | Explicit request context, server action inventory, model result, digest, expiry, task binding, and atomic workflow adoption link |
 | Feature-test evidence | PostgreSQL | Bearer-attested fixed metadata only; historical prerequisites and 24-hour verification freshness, no raw logs or user content |
@@ -174,6 +177,8 @@ posting remains outside Hermes and outside the action worker.
   it to another worker.
 - Consequential browser/email tasks have one attempt; an existing receipt blocks
   replay and turns post-boundary failures into explicit reconciliation work.
+- External SMTP reservations survive queue/process/VPS restart. Approval is
+  refused if the next safe slot falls outside the exact packet's expiry.
 - A career/creator scheduling rollback leaves its due occurrence unchanged; task,
   policy, audit, outbox, and schedule advancement share a transaction.
 - A saved goal proposal is reused after worker retry without another model call.

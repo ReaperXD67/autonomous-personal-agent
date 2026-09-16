@@ -12,8 +12,9 @@ import ssl
 import tempfile
 import time
 from contextlib import suppress
+from datetime import UTC, datetime
 from email.message import EmailMessage
-from email.utils import make_msgid
+from email.utils import format_datetime, make_msgid
 from pathlib import Path
 from types import FrameType
 from urllib.parse import urlparse
@@ -26,6 +27,7 @@ from app.application_browser import (
     inspect_application_form,
     submit_application_form,
 )
+from app.email_pacing import recipient_domain
 from app.logging_config import configure_logging
 from app.settings import Settings, get_settings
 from app.worker import LeaseHeartbeat, TaskInterruptedError
@@ -139,7 +141,11 @@ def _send_email(
     message["From"] = str(context["sender"])
     message["To"] = str(context["recipient"])
     message["Subject"] = str(context["subject"])
-    message_id = make_msgid(idstring=str(action["id"]), domain="hermes.local")
+    message["Date"] = format_datetime(datetime.now(UTC))
+    message_id = make_msgid(
+        idstring=str(action["id"]),
+        domain=recipient_domain(str(context["sender"])),
+    )
     message["Message-ID"] = message_id
     message.set_content(str(context["body"]))
     fingerprint = hashlib.sha256(
@@ -151,7 +157,11 @@ def _send_email(
         _smtp_timeout(client, deadline)
         database.begin_side_effect(UUID(str(action["task_id"])), fingerprint, lease_id)
         try:
-            refused = client.send_message(message)
+            refused = client.send_message(
+                message,
+                from_addr=str(context["sender"]),
+                to_addrs=[str(context["recipient"])],
+            )
         except (OSError, smtplib.SMTPException):
             raise RuntimeError("SMTP acceptance could not be confirmed") from None
         if refused:
@@ -245,7 +255,10 @@ def execute_action_task(
 def run() -> None:
     signal.signal(signal.SIGTERM, _stop)
     signal.signal(signal.SIGINT, _stop)
-    database = ActionStore(settings.database_url)
+    database = ActionStore(
+        settings.database_url,
+        email_pacing_policy=settings.email_pacing_policy(),
+    )
     client = redis.Redis.from_url(
         settings.redis_url,
         decode_responses=True,

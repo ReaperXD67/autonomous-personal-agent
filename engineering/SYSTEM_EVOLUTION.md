@@ -318,6 +318,27 @@ approval inside full-packet review, and distinguishes mail-server acceptance
 from inbox delivery. No service, schema, dependency, model route, or host access
 was added; this remains a bounded private local alpha.
 
+## v0.20 — Durable low-volume email release (2026-09-16)
+
+Exact email approval now also reserves a PostgreSQL release time under a
+serialized transaction. The schedule applies global and same-recipient-domain
+spacing, rolling hourly and daily caps, and deterministic jitter. The task and
+outbox inherit that time, while the action worker requires the due reservation
+at the final side-effect boundary. Cancellation and pre-boundary failure release
+unused capacity; acceptance and uncertain handoff remain counted. Recovery
+cannot collapse approved messages into a burst.
+
+External SMTP defaults to 15 minutes globally, 30 minutes for the same domain,
+three messages per rolling hour, and twelve per rolling day. Mailpit remains
+immediate. The dashboard exposes the active policy and each future release time.
+Messages now carry an RFC 5322 date and sender-domain message ID, and SMTP
+receives the exact approved envelope sender/recipient.
+
+This is a reputation and abuse boundary, not a delivery promise. SPF, DKIM,
+DMARC, sender alignment, domain/IP reputation, complaints, bounces, recipient
+relevance, and working unsubscribe processes remain deployment/provider work.
+Hermes remains a one-to-one approval-gated outreach tool, not a bulk mailer.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

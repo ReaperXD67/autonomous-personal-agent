@@ -62,8 +62,21 @@ def communication_status(request: Request):
         ).fetchone()
     if check:
         check = {**check, "output": _public_check_output(check["output"])}
-    return {"transport": runtime.mail_transport, "sender_configured": bool(runtime.smtp_from),
-            "latest_check": check}
+    return {
+        "transport": runtime.mail_transport,
+        "sender_configured": bool(runtime.smtp_from),
+        "pacing": {
+            "enabled": runtime.mail_transport == "smtp",
+            "minimum_interval_seconds": runtime.outbound_email_min_interval_seconds,
+            "same_domain_interval_seconds": (
+                runtime.outbound_email_domain_min_interval_seconds
+            ),
+            "hourly_limit": runtime.outbound_email_hourly_limit,
+            "daily_limit": runtime.outbound_email_daily_limit,
+            "jitter_seconds": runtime.outbound_email_jitter_seconds,
+        },
+        "latest_check": check,
+    }
 
 
 @router.get("/v1/external-actions/{action_id}", response_model=ExternalActionView)
