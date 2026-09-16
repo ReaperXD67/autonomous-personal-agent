@@ -89,6 +89,13 @@ input cannot select a server or sender. Exact-context approval, expiry, current
 résumé/draft hashes, current form signature, and a durable receipt are checked
 before a final click or send. Consequential tasks have no automatic retry.
 
+For external SMTP, approval atomically reserves a PostgreSQL release time. The
+default policy provides global and recipient-domain gaps, rolling hourly/daily
+caps, and deterministic jitter. The outbox is not publishable before that time,
+and the worker rechecks the schedule at the side-effect boundary. Cancellation
+or a pre-boundary failure releases the unused reservation; acceptance and
+ambiguous handoff remain counted. Mailpit fixture messages are immediate.
+
 For creator email the worker also locks and revalidates the prospect's public-
 contact authorization, exact address, suppression, and reply state immediately
 before the receipt. A later opt-out invalidates an earlier approval.
@@ -103,6 +110,7 @@ opportunities, application drafts, memory records, embeddings, and inference
 invocation metadata. Inference rows reserve the local hosted-call budget and
 store only route/provider/model, tokens, latency, fallback, privacy, status,
 error code, and provider-reported cost—never prompts, résumés, or completions.
+It also owns external email schedule reservations and their terminal state.
 Schema is initialized and upgraded by a one-shot migration service before the
 runtime starts. PostgreSQL lifecycle stays independent
 from application images, upgrades, and backups.

@@ -30,6 +30,7 @@ agent; MCP gateway → external server; VPS → internet.
 | Shared free-pool double consumption | Premature quota exhaustion and misleading local usage | Hermes and career calls intentionally share an inference-only OpenRouter key, but only career calls use the PostgreSQL ledger; provider-side limits and health/usage monitoring cover the whole key |
 | OpenRouter key theft | Provider-account abuse | Dedicated inference key only in ignored `.env`, Hermes, and the career worker; never accept a management key; no key/header/body logging; use a provider limit and rotate after exposure |
 | Accidental email send | Privacy/reputation damage | Exact sender/recipient/subject/body approval, fixed TLS SMTP configuration, one recipient, durable receipt |
+| Approval burst or restart-time mail burst | Provider throttling, reputation damage, spam placement | PostgreSQL send reservations, serialized approvals, global/same-domain spacing, rolling hourly/daily caps, jitter, and send-boundary due-time validation |
 | Unsolicited creator outreach | Privacy/legal/reputation damage | Official metadata discovery has no email; operator records public contact provenance/basis; each send exact-approved; opt-out/bounce suppresses durably |
 | Stale creator approval after opt-out | Unwanted follow-up | Action worker locks and revalidates address, authorization, suppression, and reply state immediately before SMTP receipt |
 | Unsafe adaptive outreach | Manipulative spam or policy bypass | Minimum samples/effect threshold; choice limited to two fixed draft variants; 20% exploration; no autonomous send, spend, policy, code, or contact mutation |
@@ -44,8 +45,8 @@ agent; MCP gateway → external server; VPS → internet.
 
 ## Abuse cases requiring explicit denial
 
-Autonomous purchases/transfers, mass outreach, credential harvesting, public
-publishing, repository deletion, data deletion, arbitrary production shell, and
+Autonomous purchases/transfers, mass outreach, spam-filter evasion, credential
+harvesting, public publishing, repository deletion, data deletion, arbitrary production shell, and
 approval-policy modification by the same agent executing a task.
 
 ## Residual risk

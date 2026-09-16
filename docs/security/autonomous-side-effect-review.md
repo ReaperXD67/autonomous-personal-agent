@@ -1,6 +1,6 @@
 # Autonomous side-effect security review
 
-Review date: 2026-08-25
+Review date: 2026-09-16
 
 Scope: exact-action persistence and approval, Playwright application adapter,
 SMTP sender, dashboard review UI, Compose isolation, and CI coverage. This is an
@@ -123,6 +123,23 @@ implementation review, not a penetration test of third-party ATS sites.
   widening their exposure.
 - Resolution: strip external mail credentials at the test-profile boundary and
   verify the invariant with a repository contract.
+
+### SE-009 — Several exact approvals could still release a mail burst
+
+- Severity: High
+- Status: Fixed
+- Location: `services/control-api/app/store.py`,
+  `services/control-api/app/action_store.py`,
+  `config/postgres/init/013_outbound_email_pacing.sql`
+- Evidence: external SMTP approval takes a transaction advisory lock, reserves
+  the next rolling-cap-compliant slot, places that time on the task/outbox, and
+  the action worker requires the matching due reservation before its receipt.
+- Impact: a user approving many individually reviewed messages—or a restart
+  recovering their queued signals—could otherwise create a sudden provider and
+  reputation-damaging burst.
+- Resolution: persistent global/same-domain spacing, hourly/daily caps, jitter,
+  expiry-aware approval refusal, and accepted/skipped/ambiguous schedule state.
+  This reduces burst risk but does not guarantee inbox placement.
 
 ## Residual production blockers
 

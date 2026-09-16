@@ -119,7 +119,10 @@ The private signed browser session is insufficient for public internet exposure.
 Keep the `side-effects-test` profile off the VPS. A VPS that will execute reviewed
 external actions uses `side-effects`, an egress firewall/proxy where available,
 and deployment-managed SMTP secrets. Run the local fixture smoke before enabling
-real destinations. Never mount a workstation browser profile or publish Mailpit.
+real destinations. External SMTP uses PostgreSQL-backed global/same-domain
+spacing and rolling hourly/daily limits; keep those safe defaults during first
+deployment. VPS restart does not erase the schedule. Never mount a workstation
+browser profile or publish Mailpit.
 Treat an `ambiguous` action as an incident to reconcile with the destination;
 do not retry it by hand until the external state is known.
 

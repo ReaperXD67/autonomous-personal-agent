@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from email.utils import parseaddr
 from functools import lru_cache
+
+from app.email_pacing import EmailPacingPolicy
 
 DEFAULT_OPENROUTER_PRIORITY: tuple[str, ...] = ()
 
@@ -71,6 +74,11 @@ class Settings:
     smtp_password: str
     smtp_from: str
     smtp_tls_mode: str
+    outbound_email_min_interval_seconds: int
+    outbound_email_domain_min_interval_seconds: int
+    outbound_email_hourly_limit: int
+    outbound_email_daily_limit: int
+    outbound_email_jitter_seconds: int
     youtube_api_key: str
 
     @classmethod
@@ -122,6 +130,21 @@ class Settings:
             smtp_password=os.getenv("SMTP_PASSWORD", "").strip(),
             smtp_from=os.getenv("SMTP_FROM", "").strip(),
             smtp_tls_mode=os.getenv("SMTP_TLS_MODE", "starttls").strip().lower(),
+            outbound_email_min_interval_seconds=int(
+                os.getenv("OUTBOUND_EMAIL_MIN_INTERVAL_SECONDS", "900")
+            ),
+            outbound_email_domain_min_interval_seconds=int(
+                os.getenv("OUTBOUND_EMAIL_DOMAIN_MIN_INTERVAL_SECONDS", "1800")
+            ),
+            outbound_email_hourly_limit=int(
+                os.getenv("OUTBOUND_EMAIL_HOURLY_LIMIT", "3")
+            ),
+            outbound_email_daily_limit=int(
+                os.getenv("OUTBOUND_EMAIL_DAILY_LIMIT", "12")
+            ),
+            outbound_email_jitter_seconds=int(
+                os.getenv("OUTBOUND_EMAIL_JITTER_SECONDS", "180")
+            ),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", "").strip(),
         )
         settings.validate()
@@ -208,6 +231,33 @@ class Settings:
             raise ConfigurationError("SMTP_PORT must be between 1 and 65535")
         if self.smtp_tls_mode not in {"starttls", "ssl", "none"}:
             raise ConfigurationError("SMTP_TLS_MODE must be starttls, ssl, or none")
+        if not 60 <= self.outbound_email_min_interval_seconds <= 21600:
+            raise ConfigurationError(
+                "OUTBOUND_EMAIL_MIN_INTERVAL_SECONDS must be between 60 and 21600"
+            )
+        if not 300 <= self.outbound_email_domain_min_interval_seconds <= 86400:
+            raise ConfigurationError(
+                "OUTBOUND_EMAIL_DOMAIN_MIN_INTERVAL_SECONDS must be between 300 and 86400"
+            )
+        if (
+            self.outbound_email_domain_min_interval_seconds
+            < self.outbound_email_min_interval_seconds
+        ):
+            raise ConfigurationError(
+                "OUTBOUND_EMAIL_DOMAIN_MIN_INTERVAL_SECONDS cannot be below the global interval"
+            )
+        if not 1 <= self.outbound_email_hourly_limit <= 10:
+            raise ConfigurationError(
+                "OUTBOUND_EMAIL_HOURLY_LIMIT must be between 1 and 10"
+            )
+        if not self.outbound_email_hourly_limit <= self.outbound_email_daily_limit <= 50:
+            raise ConfigurationError(
+                "OUTBOUND_EMAIL_DAILY_LIMIT must be between the hourly limit and 50"
+            )
+        if not 0 <= self.outbound_email_jitter_seconds <= 900:
+            raise ConfigurationError(
+                "OUTBOUND_EMAIL_JITTER_SECONDS must be between 0 and 900"
+            )
         if self.mail_transport == "mailpit" and (
             self.smtp_host != "mailpit"
             or self.smtp_tls_mode != "none"
@@ -223,6 +273,28 @@ class Settings:
                 )
             if self.smtp_tls_mode == "none":
                 raise ConfigurationError("External SMTP transport must use TLS")
+            display, address = parseaddr(self.smtp_from)
+            local, separator, domain = address.rpartition("@")
+            if (
+                display
+                or address != self.smtp_from
+                or not separator
+                or not local
+                or "." not in domain
+                or any(char.isspace() for char in self.smtp_from)
+            ):
+                raise ConfigurationError("SMTP_FROM must be one plain email address")
+
+    def email_pacing_policy(self) -> EmailPacingPolicy | None:
+        if self.mail_transport != "smtp":
+            return None
+        return EmailPacingPolicy(
+            min_interval_seconds=self.outbound_email_min_interval_seconds,
+            domain_min_interval_seconds=self.outbound_email_domain_min_interval_seconds,
+            hourly_limit=self.outbound_email_hourly_limit,
+            daily_limit=self.outbound_email_daily_limit,
+            jitter_seconds=self.outbound_email_jitter_seconds,
+        )
 
 
 @lru_cache(maxsize=1)

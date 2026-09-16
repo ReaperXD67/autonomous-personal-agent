@@ -453,6 +453,23 @@ class ActionStore(CareerStore):
                 raise SideEffectGuardError(
                     f"Side effect already has a {receipt['status']} receipt; retry refused"
                 )
+            schedule = None
+            if (
+                self._email_pacing_policy is not None
+                and row["action_type"] == "communications.email_send"
+            ):
+                schedule = connection.execute(
+                    """
+                    SELECT * FROM outbound_email_schedule
+                    WHERE action_id = %s AND task_id = %s
+                    FOR UPDATE
+                    """,
+                    (row["id"], task_id),
+                ).fetchone()
+                if schedule is None or schedule["status"] != "scheduled":
+                    raise SideEffectGuardError(
+                        "External email is missing its durable send schedule"
+                    )
             # Read wall-clock time after every potentially blocking row lock.
             boundary_time = connection.execute(
                 "SELECT clock_timestamp() AS boundary_time"
@@ -464,6 +481,8 @@ class ActionStore(CareerStore):
                 raise SideEffectGuardError("External action task lease has expired")
             if row["expires_at"] <= boundary_time:
                 raise SideEffectGuardError("Approved external action has expired")
+            if schedule is not None and schedule["scheduled_for"] > boundary_time:
+                raise SideEffectGuardError("External email send window has not opened")
             connection.execute(
                 """
                 INSERT INTO side_effect_receipts (
@@ -472,6 +491,19 @@ class ActionStore(CareerStore):
                 """,
                 (fingerprint, row["id"], task_id),
             )
+            if schedule is not None:
+                updated_schedule = connection.execute(
+                    """
+                    UPDATE outbound_email_schedule SET status = 'sending'
+                    WHERE action_id = %s AND task_id = %s AND status = 'scheduled'
+                    RETURNING action_id
+                    """,
+                    (row["id"], task_id),
+                ).fetchone()
+                if updated_schedule is None:
+                    raise SideEffectGuardError(
+                        "External email schedule changed before submission"
+                    )
             action = connection.execute(
                 """
                 UPDATE external_actions SET status = 'executing'
@@ -518,6 +550,20 @@ class ActionStore(CareerStore):
                     """,
                     (action["opportunity_id"],),
                 )
+            elif action["action_type"] == "communications.email_send":
+                schedule = connection.execute(
+                    """
+                    UPDATE outbound_email_schedule
+                    SET status = 'accepted', completed_at = now()
+                    WHERE action_id = %s AND task_id = %s AND status = 'sending'
+                    RETURNING action_id
+                    """,
+                    (action["id"], task_id),
+                ).fetchone()
+                if self._email_pacing_policy is not None and schedule is None:
+                    raise SideEffectGuardError(
+                        "External email acceptance schedule could not be completed"
+                    )
             connection.commit()
 
     def fail_external_action(self, task_id: UUID, message: str, lease_id: UUID) -> str:
@@ -565,5 +611,14 @@ class ActionStore(CareerStore):
                     """,
                     (task_id,),
                 )
+            connection.execute(
+                """
+                UPDATE outbound_email_schedule
+                SET status = %s, completed_at = now()
+                WHERE action_id = %s AND task_id = %s
+                  AND status IN ('scheduled', 'sending')
+                """,
+                ("ambiguous" if receipt is not None else "skipped", action["id"], task_id),
+            )
             connection.commit()
         return status

@@ -101,16 +101,25 @@ The local Mailpit path needs no account. To send real mail, the user must choose
 a provider and create its SMTP/OAuth credential under that provider's terms.
 The current implementation supports authenticated SMTP with verified TLS:
 
-1. Run `./scripts/promotion.ps1 -ConfigureSMTP` for local prompts and a hidden
+1. In your mail provider, enable DKIM for the exact sending domain. At your DNS
+   host, publish the provider's SPF and DKIM records, then add DMARC in monitoring
+   mode. Confirm the visible From domain aligns with SPF or DKIM. Hermes cannot
+   make these account/DNS changes for you.
+2. Run `./scripts/promotion.ps1 -ConfigureSMTP` for local prompts and a hidden
    credential entry. Alternatively put `MAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`,
    `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_TLS_MODE=starttls` (or `ssl`) in
    ignored deployment secrets.
-2. Run `./scripts/up.ps1 -SideEffects` to recreate the isolated executor.
-3. Run `./scripts/promotion.ps1 -CheckSMTP` to check the configured connection,
+3. Keep the default durable pacing unless a reviewed provider/reputation change
+   justifies a lower volume: 15-minute global and 30-minute same-domain gaps,
+   no more than 3 per rolling hour or 12 per rolling 24 hours, plus jitter.
+4. Run `./scripts/up.ps1 -SideEffects` to recreate the isolated executor.
+5. Run `./scripts/promotion.ps1 -CheckSMTP` to check the configured connection,
    TLS, and authentication through an audited task without sending mail.
-4. Review and approve one authorized message's exact sender/recipient/subject/body.
-   Inspect the durable SMTP acceptance separately from recipient inbox delivery;
-   an owned test inbox can establish the latter for that one message.
+6. Review and approve one authorized message to an inbox you own. Inspect the
+   received message's SPF, DKIM, and DMARC authentication results. SMTP acceptance
+   is separate from inbox delivery and neither guarantees future placement.
+7. Only then approve a relevant creator message. Monitor the From/reply inbox,
+   record every bounce or objection, and stop if recipients report spam.
 
 Gmail and Microsoft also expose OAuth send APIs, but OAuth consent and token
 storage are not implemented here. Do not weaken account security by automating

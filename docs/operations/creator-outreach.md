@@ -131,6 +131,15 @@ receipt is created. After submission begins, uncertain acceptance remains
 Known SMTP acceptance is saved before connection cleanup and survives a later
 task-completion failure. **Sent to mail server** does not prove inbox delivery.
 
+For external SMTP, approval also reserves a durable send time. Defaults allow no
+more than one message every 15 minutes, one message to the same recipient domain
+every 30 minutes, three in any rolling hour, or twelve in any rolling 24 hours;
+up to three minutes of deterministic jitter avoids a mechanical cadence. The
+dashboard shows the reserved time. PostgreSQL and the delayed outbox preserve it
+across a process or VPS restart. If the safe time is later than the packet's
+expiry, approval stops and asks you to prepare the message later. Mailpit remains
+immediate because it is a local test sink.
+
 ## 6. Record results and adapt
 
 Use **Record reply or result** to capture question/interest/decline state,
@@ -164,6 +173,35 @@ saved SMTP username/password is explicitly omitted from the test containers.
 
 Run `./scripts/side-effect-smoke.ps1` as the broader application-and-email proof
 when you also want to test the isolated ATS adapter and duplicate-submit guard.
+
+Pacing prevents bursts; it cannot force a mailbox provider to place a message
+in the inbox. Before contacting any creator, configure the sending domain with
+your provider and DNS host:
+
+1. publish exactly the SPF record your provider documents;
+2. enable DKIM signing and publish the provider-issued DKIM record;
+3. publish DMARC, begin with monitoring, inspect reports, and tighten the policy
+   only after SPF/DKIM alignment is correct;
+4. make `SMTP_FROM` a real monitored address on that authenticated domain and
+   keep the visible From domain aligned with SPF or DKIM;
+5. send one canary to an inbox you own, inspect the received authentication
+   results, and reply to it before any creator send;
+6. keep the default low volume, contact only relevant public business addresses,
+   monitor bounces/complaints, and record every objection immediately.
+
+Google requires authentication for all senders, recommends consistent gradual
+volume instead of bursts, and says spam reports should remain below 0.1% and
+never reach 0.3%; see its current
+[email sender guidelines](https://support.google.com/mail/answer/81126?hl=en).
+Yahoo likewise requires authentication and low complaints and documents easy
+unsubscribe requirements for marketing/bulk mail in its
+[sender best practices](https://senders.yahooinc.com/best-practices/).
+
+Hermes' one-to-one creator messages already include a direct opt-out and durable
+suppression. Do not scale this into subscription or bulk marketing. That would
+require a real public RFC 8058 one-click unsubscribe endpoint, automated
+complaint/bounce ingestion, and a separate legal/provider review; Hermes does
+not invent a non-functional unsubscribe header.
 
 For Gmail or Google Workspace, first enable two-step verification and create a
 user-owned [app password](https://support.google.com/accounts/answer/185833?hl=en).

@@ -42,6 +42,9 @@ capability must enter this registry before its handler is reachable.
   revalidation, one-attempt policy, and durable pre-side-effect receipts;
 - deployment-fixed SMTP endpoint/sender, external TLS enforcement, single
   validated recipient, and local-only no-TLS Mailpit test mode;
+- atomic external-SMTP schedule reservation with bounded 15-minute global and
+  30-minute same-domain gaps, rolling 3/hour and 12/day caps, deterministic
+  jitter, restart-safe outbox release, and a final due-time check;
 - test-profile startup explicitly blanks deployment SMTP username/password
   before creating Mailpit-mode containers;
 - official-host-only YouTube discovery with a worker-scoped API key, bounded
@@ -141,6 +144,12 @@ row-lock waits, and both frozen contexts before creating a receipt. Stale worker
 cannot record action failures. Once SMTP acceptance is durably known, cleanup or
 task failure cannot erase it. A crash between external acceptance and its durable
 commit remains uncertain; this does not provide exactly-once external delivery.
+
+Pacing is abuse/reputation defense, not a spam-filter bypass. Inbox placement
+still depends on recipient relevance and consent, SPF/DKIM/DMARC alignment,
+provider/IP reputation, complaint and bounce handling, message content, and
+working unsubscribe handling where required. Hermes does not fabricate an RFC
+8058 one-click URL without a real public suppression endpoint.
 
 Never mount `/var/run/docker.sock` into Hermes or general workers; never mount
 host home/root; never use privileged mode/host networking; never expose admin

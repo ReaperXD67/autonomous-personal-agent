@@ -640,6 +640,36 @@ personalized creator proof passed in 14.06 seconds. The live control API reports
 high/critical findings with available fixes in that rebuilt image. This does
 not establish the separate Ubuntu Playwright package's remediation status.
 
+## Experiment 28 — Restart-safe outbound email pacing (2026-09-16)
+
+Method: add a durable schedule to the exact-action approval transaction; test
+the pure rolling-window algorithm and configuration bounds; race two approvals
+inside an isolated PostgreSQL schema; run the complete lifecycle/recovery gate;
+then execute the real creator workflow against Mailpit.
+
+Observed:
+
+- Final standalone containerized Ruff and 200 unit/contract tests passed in
+  1.48 seconds; the repeated integrated gate passed them in 1.75 seconds.
+- Compose rendering and the full verification script passed, including workflow,
+  scheduler, planner, lease, cancellation, dead-letter, queue-recovery, and
+  exact-action database probes.
+- Two same-domain approvals issued concurrently produced distinct durable slots
+  at least 300 seconds apart under the isolated test policy. The due reservation
+  completed as accepted and cancellation marked the future reservation skipped.
+  No SMTP connection was opened by that proof.
+- Unit scenarios separately verified the production global/domain gaps, rolling
+  hour/day behavior, deterministic jitter, sender-domain message ID, RFC 5322
+  date, and exact SMTP envelope recipient.
+- The rebuilt local creator test delivered one exact introduction to Mailpit,
+  verified five promotion assets and durable suppression, removed its synthetic
+  data, and confirmed no external discovery request or email.
+
+Result: burst prevention is durable across queue/process/VPS recovery and is
+enforced again at the send boundary. The experiment does not establish external
+SMTP acceptance, domain authentication, inbox placement, complaint handling, or
+future reputation; those remain real-provider canary work.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

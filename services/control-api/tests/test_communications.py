@@ -42,8 +42,16 @@ async def _request(application, path, *, method="GET", headers=(), body=None):
 def api(monkeypatch):
     manager = auth.BrowserSessionManager(TEST_TOKEN, 3600)
     session = manager.consume_bootstrap(manager.issue_bootstrap())
-    runtime = SimpleNamespace(api_token=TEST_TOKEN, mail_transport="smtp",
-                              smtp_from="synthetic-private-sender@example.test")
+    runtime = SimpleNamespace(
+        api_token=TEST_TOKEN,
+        mail_transport="smtp",
+        smtp_from="synthetic-private-sender@example.test",
+        outbound_email_min_interval_seconds=900,
+        outbound_email_domain_min_interval_seconds=1800,
+        outbound_email_hourly_limit=3,
+        outbound_email_daily_limit=12,
+        outbound_email_jitter_seconds=180,
+    )
     monkeypatch.setattr(auth, "get_settings", lambda: runtime)
     monkeypatch.setattr(communication_routes, "get_settings", lambda: runtime)
     monkeypatch.setattr(auth, "get_browser_sessions", lambda: manager)
@@ -137,6 +145,14 @@ def test_status_exposes_only_allowlisted_transport_proof_without_raw_payload(api
     assert status == 200
     assert result["sender_configured"] is True
     assert result["transport"] == "smtp"
+    assert result["pacing"] == {
+        "enabled": True,
+        "minimum_interval_seconds": 900,
+        "same_domain_interval_seconds": 1800,
+        "hourly_limit": 3,
+        "daily_limit": 12,
+        "jitter_seconds": 180,
+    }
     assert "private" not in json.dumps(result)
     expected = output.copy() if isinstance(output, dict) and output.get("checked") is True else {}
     expected.pop("smtp_password", None)

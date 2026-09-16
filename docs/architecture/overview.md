@@ -46,6 +46,8 @@ reconstructible ready queues and future cache state.
 Losing Redis may delay work but must not erase authoritative history.
 External-action envelopes, form preflights, and side-effect receipts also live
 in PostgreSQL so approval and duplicate prevention survive a crash.
+External SMTP approvals also reserve durable send slots with rolling volume
+limits, same-domain spacing, and jitter, preventing queue or VPS recovery bursts.
 Inference invocations retain requested/selected route, token, latency, privacy,
 fallback, status, and cost metadata but never prompt or output text.
 Creator campaigns, channel prospects, public-contact provenance, durable
@@ -112,7 +114,9 @@ It sends no email and returns only transport/TLS/authentication evidence.
 External actions revalidate owned leases, cancellation, frozen context, and
 contact authority at the submission boundary. SMTP acceptance is committed
 before best-effort cleanup and cannot be downgraded by a later task failure.
-No new service, schema, dependency, or host authority is introduced.
+The approval transaction reserves an external-SMTP release time and the worker
+rechecks it before the receipt. Mailpit remains immediate. No new service,
+dependency, or host authority is introduced.
 
 - **Reproducibility:** images and Python dependencies are release-pinned.
 - **Least privilege:** loopback ports, internal data network, non-root read-only app images.

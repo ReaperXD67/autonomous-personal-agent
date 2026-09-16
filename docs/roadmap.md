@@ -59,7 +59,7 @@
 - [ ] Email read/classify and OAuth adapters
 - [x] Exact approval-gated single-recipient SMTP send adapter and local Mailpit proof
 - [x] Final lease/cancellation/context guards, durable SMTP acceptance before cleanup, and audited no-send connection diagnostics
-- [x] Secure generic SMTP setup, personalized reviewed introductions, and exact-message history with acceptance/uncertainty guidance
+- [x] Secure generic SMTP setup, personalized reviewed introductions, exact-message history, and durable low-volume pacing with acceptance/uncertainty guidance
 - [x] Governed creator campaigns with official YouTube discovery, manual contact provenance/reply classification, exact-email sequencing, results, and bounded draft adaptation
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation

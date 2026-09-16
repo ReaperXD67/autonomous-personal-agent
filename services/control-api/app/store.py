@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -9,6 +10,12 @@ import psycopg
 from psycopg.rows import dict_row
 from psycopg.types.json import Jsonb
 
+from app.email_pacing import (
+    EmailPacingPolicy,
+    EmailSendSlot,
+    next_email_send_at,
+    recipient_domain,
+)
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate
 from app.policy import capability_max_attempts, effective_risk, initial_status, requires_approval
 
@@ -22,8 +29,14 @@ class InvalidTaskStateError(RuntimeError):
 
 
 class Database:
-    def __init__(self, dsn: str) -> None:
+    def __init__(
+        self,
+        dsn: str,
+        *,
+        email_pacing_policy: EmailPacingPolicy | None = None,
+    ) -> None:
         self._dsn = dsn
+        self._email_pacing_policy = email_pacing_policy
 
     @contextmanager
     def connect(self) -> Iterator[psycopg.Connection[Any]]:
@@ -295,6 +308,14 @@ class Database:
                 """,
                 (task_id,),
             )
+            connection.execute(
+                """
+                UPDATE outbound_email_schedule
+                SET status = 'skipped', completed_at = now()
+                WHERE task_id = %s AND status = 'scheduled'
+                """,
+                (task_id,),
+            )
         action = "task.cancelled" if immediate else "task.cancellation_requested"
         self._append_audit(
             connection,
@@ -310,6 +331,71 @@ class Database:
             input_metadata={"reason_provided": request.reason is not None},
         )
         return row
+
+    def _reserve_email_schedule(
+        self,
+        connection: psycopg.Connection[Any],
+        task: dict[str, Any],
+        action: dict[str, Any],
+    ) -> datetime | None:
+        policy = self._email_pacing_policy
+        if policy is None or action["action_type"] != "communications.email_send":
+            return None
+
+        connection.execute("SELECT pg_advisory_xact_lock(%s, %s)", (1212502605, 1))
+        current_time = connection.execute(
+            "SELECT clock_timestamp() AS current_time"
+        ).fetchone()["current_time"]
+        existing = connection.execute(
+            """
+            SELECT scheduled_for, recipient_domain
+            FROM outbound_email_schedule
+            WHERE status IN ('scheduled', 'sending', 'accepted', 'ambiguous')
+              AND scheduled_for > %s - interval '24 hours'
+            ORDER BY scheduled_for
+            """,
+            (current_time,),
+        ).fetchall()
+        recipient = str(action["private_context"]["recipient"])
+        scheduled_for = next_email_send_at(
+            now=current_time,
+            action_id=action["id"],
+            recipient=recipient,
+            existing_slots=[
+                EmailSendSlot(
+                    scheduled_for=row["scheduled_for"],
+                    recipient_domain=row["recipient_domain"],
+                )
+                for row in existing
+            ],
+            policy=policy,
+        )
+        if scheduled_for >= action["expires_at"]:
+            raise InvalidTaskStateError(
+                "Safe email pacing would place this send after its approval packet expires. "
+                "Approve fewer messages now and prepare a fresh packet later."
+            )
+        connection.execute(
+            """
+            INSERT INTO outbound_email_schedule (
+                action_id, task_id, recipient_domain, scheduled_for,
+                min_interval_seconds, domain_min_interval_seconds,
+                hourly_limit, daily_limit, jitter_seconds
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                action["id"],
+                task["id"],
+                recipient_domain(recipient),
+                scheduled_for,
+                policy.min_interval_seconds,
+                policy.domain_min_interval_seconds,
+                policy.hourly_limit,
+                policy.daily_limit,
+                policy.jitter_seconds,
+            ),
+        )
+        return scheduled_for
 
     def decide_task(self, task_id: UUID, request: ApprovalDecision) -> dict[str, Any]:
         with self.connect() as connection:
@@ -335,6 +421,10 @@ class Database:
                 ).fetchone()["current_time"]:
                     raise InvalidTaskStateError("Action approval window has expired")
 
+            scheduled_for = None
+            if request.decision == "approved" and action is not None:
+                scheduled_for = self._reserve_email_schedule(connection, task, action)
+
             next_status = "queued" if request.decision == "approved" else "rejected"
             approved_by = request.actor if request.decision == "approved" else None
             connection.execute(
@@ -351,11 +441,19 @@ class Database:
                 SET status = %s,
                     approved_by = %s,
                     approved_at = CASE WHEN %s = 'approved' THEN now() ELSE NULL END,
-                    completed_at = CASE WHEN %s = 'rejected' THEN now() ELSE NULL END
+                    completed_at = CASE WHEN %s = 'rejected' THEN now() ELSE NULL END,
+                    next_attempt_at = COALESCE(%s, next_attempt_at)
                 WHERE id = %s
                 RETURNING *
                 """,
-                (next_status, approved_by, request.decision, request.decision, task_id),
+                (
+                    next_status,
+                    approved_by,
+                    request.decision,
+                    request.decision,
+                    scheduled_for,
+                    task_id,
+                ),
             ).fetchone()
             if action is not None:
                 connection.execute(
@@ -378,6 +476,15 @@ class Database:
                 approval_status=request.decision,
                 execution_status=row["status"],
                 input_metadata={"reason_provided": request.reason is not None},
+                result_metadata=(
+                    {
+                        "email_scheduled_for": scheduled_for.isoformat(),
+                        "hourly_limit": self._email_pacing_policy.hourly_limit,
+                        "daily_limit": self._email_pacing_policy.daily_limit,
+                    }
+                    if scheduled_for is not None and self._email_pacing_policy is not None
+                    else None
+                ),
             )
             if row["status"] == "queued":
                 self._add_outbox(connection, row)
