@@ -268,7 +268,7 @@ def feature_catalog(report: FeatureReport | None, counts: dict, *, now=None) -> 
     add(
         "creator_discovery",
         "YouTube creator discovery",
-        "Discover candidate channels for a campaign; no emails are collected or sent.",
+        "Research YouTube fit and published business-contact candidates; review before outreach.",
         "youtube",
         [
             research,

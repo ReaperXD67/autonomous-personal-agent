@@ -18,6 +18,7 @@ try {
     & (Join-Path $PSScriptRoot 'lifecycle-smoke.ps1')
     & (Join-Path $PSScriptRoot 'workflow-smoke.ps1')
     & (Join-Path $PSScriptRoot 'scheduler-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'creator-research-smoke.ps1')
     & (Join-Path $PSScriptRoot 'planning-smoke.ps1')
     & (Join-Path $PSScriptRoot 'action-delivery-smoke.ps1')
     Get-Content -Raw (Join-Path $PSScriptRoot 'queue-recovery-smoke.py') |

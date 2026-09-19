@@ -61,6 +61,7 @@
 - [x] Final lease/cancellation/context guards, durable SMTP acceptance before cleanup, and audited no-send connection diagnostics
 - [x] Secure generic SMTP setup, personalized reviewed introductions, exact-message history, and durable low-volume pacing with acceptance/uncertainty guidance
 - [x] Governed creator campaigns with official YouTube discovery, manual contact provenance/reply classification, exact-email sequencing, results, and bounded draft adaptation
+- [x] YouTube-focused research dossiers: public business-contact candidates, source evidence, explainable fit, collaboration concepts, per-creator refresh, searchable shortlist, and CSV export
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources
@@ -81,7 +82,7 @@ Purchases/transfers, mass communication, job submission, public publishing,
 production infrastructure changes, and destructive repository/data operations.
 Application/email preparation can be automatic; each exact external action
 requires its own unexpired approval and cannot borrow a blanket permission.
-Creator discovery may be scheduled, but business-contact qualification, every
+Creator discovery and public business-contact candidate extraction may be scheduled, but contact qualification, every
 send, reply classification, paid terms, and public placement remain reviewed.
 
 ## Evaluated but deliberately deferred

@@ -47,7 +47,7 @@ and human approval for high-impact actions.
 | Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit; external SMTP unconfigured | Exact approval, durable SMTP acceptance, and PostgreSQL-backed external pacing: 15-minute global/30-minute same-domain gaps, rolling 3/hour and 12/day caps, and jitter |
-| Creator outreach | Local flow and bounded live discovery verified; external send pending | Public-contact provenance, personalized reviewed introductions, exact-message history, results funnel, bounded template A/B learning, five-channel UTM kit, and creator-specific local proof |
+| Creator research and outreach | Local and bounded live research verified; external send pending | Published business-contact candidates, source-backed fit explanations, collaboration concepts, searchable shortlist/export, reviewed introductions, exact-message history, and durable suppression |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -180,9 +180,13 @@ on-device.
 For KarixMC promotion, run `./scripts/promotion.ps1` for a secret-safe readiness
 check, then open **Creator campaigns**. Each campaign now produces ready-to-copy
 YouTube, Discord, Reddit/community, and partner promotion assets with distinct
-UTM links at no provider cost. Official discovery still needs a restricted
-user-owned YouTube key, never discovers or guesses creator emails, and every
-individual email remains exact-approval gated. External SMTP approvals reserve a
+UTM links at no provider cost. Official discovery needs a restricted user-owned
+YouTube key and now extracts unreviewed business-contact candidates from public
+channel/video descriptions. Research includes source excerpts, fit explanations,
+video evidence, creative collaboration ideas, and explicit gaps. The YouTube
+shortlist supports search, contact filters, individual refresh, and CSV export.
+Review each contact source before authorizing outreach; every individual email
+remains exact-approval gated. External SMTP approvals reserve a
 durable low-volume slot, so several approvals cannot become a restart-time burst.
 Pacing reduces reputation risk but cannot guarantee inbox placement. See the
 [creator outreach guide](docs/operations/creator-outreach.md).
@@ -252,6 +256,7 @@ normal operation. Real side effects are controlled by
 | `./scripts/career-smoke.ps1 -Draft` | `make career-smoke` | Verify live fresh-job ingestion and a local structured draft using disposable synthetic data |
 | `./scripts/side-effect-smoke.ps1` | `make side-effect-smoke` | Verify local ATS submit, local email, exact approvals, and duplicate refusal with disposable data |
 | `./scripts/creator-outreach-smoke.ps1` | `make creator-outreach-smoke` | Verify synthetic creator campaign, promotion kit, exact Mailpit introduction, metrics, and suppression |
+| `./scripts/creator-research-smoke.ps1` | — | Prove research persistence, reviewed-contact isolation, and suppression in a disposable PostgreSQL database |
 | `./scripts/promotion.ps1` | — | Show secret-safe YouTube/SMTP/Docker promotion readiness and exact next steps |
 | `./scripts/promotion.ps1 -LocalTest` | — | Start Docker if needed and run the creator-specific no-egress proof |
 | `./scripts/promotion.ps1 -ConfigureSMTP` | — | Configure an existing SMTP provider through local prompts with a hidden password; save settings atomically |

@@ -2077,3 +2077,82 @@ provider acceptance, SPF/DKIM/DMARC result, inbox placement, reply, bounce, or
 complaint loop was tested. A user-owned provider/domain canary remains required.
 No implementation can guarantee that a mailbox provider will avoid the spam
 folder.
+
+## Step 29 — YouTube creator intelligence and KarixMC prospect research
+
+Date: 2026-09-19
+
+### Objective
+
+Focus creator acquisition on useful YouTube contacts and explainable research:
+published contact evidence, actual content fit, creative pilot concepts, and a
+reviewable shortlist. Preserve task policy, durable state, contact authorization,
+and exact-action boundaries while improving automatic research.
+
+### Implementation
+
+- Added bounded public channel/video description enrichment to the existing
+  official-API discovery capability. Business/collaboration context is required
+  for automatic email candidates; candidates retain excerpts, source URLs, and
+  timestamps and never authorize outreach. Full descriptions are not retained.
+- Added PostgreSQL migration 014 and research dossiers with fit factors, topics,
+  video statistics, confidence, explicit gaps, proposed openings, and creative
+  concepts, including a product-conditioned cross-server progress pilot.
+- Added an authenticated per-prospect research endpoint using the same
+  policy/task/audit path and daily budget. Canonical identities are validated;
+  suppression and concurrent identity changes are checked before persistence.
+- Fixed review findings: profile edits clear unrelated research; campaign
+  rediscovery cannot rebind an edited profile; transient video failures retain
+  a retryable source reference with uncertainty while confirmed owner mismatch
+  clears it. A reassigned handle fails closed against the recorded channel ID.
+- Added a YouTube-first dashboard shortlist with search, contact filters,
+  explained dossiers, candidate-prefilled review, and formula-safe CSV export.
+  New manual entry focuses on YouTube while existing platform records survive.
+  Recorded and discovered unreviewed contacts remain distinct from authorization.
+- Added a disposable PostgreSQL research smoke to the standard verification
+  gate; synchronized operational, architecture, security, roadmap, and README
+  claims, plus ADR-0021 and system evolution.
+
+### Validation and actual research
+
+- Docker Desktop initially failed on inaccessible stale inference/secrets
+  sockets. Exact runtime directories were renamed to retained sibling folders
+  while the backend was stopped; Docker then started. No volumes, credentials,
+  settings, or durable data were deleted or reset.
+- Initial container lint found five line-length issues, which were fixed.
+  Containerized Ruff and all 245 tests passed; the full integrated gate recorded
+  245 tests in 1.77 seconds. Compose configuration and whitespace checks passed.
+- The first new database smoke used an outcome without a prior message, which
+  the production store correctly refused. The fixture now seeds opt-out state
+  only inside its disposable database. The completed gate passed four research
+  groups: JSONB persistence without authority, edited-identity isolation,
+  preservation of reviewed contact/identity, and suppression of research writes.
+  Workflow, scheduler, planner, action-delivery, lifecycle, and queue recovery
+  checks also passed.
+- A real one-query, one-result YouTube smoke passed through the queue and
+  persisted a dossier. The separate synthetic creator-outreach smoke passed
+  exact Mailpit delivery, promotion assets, personalized-copy isolation, and
+  opt-out suppression. It sent no external email.
+- Researched 25 public creator contacts for KarixMC with individual provenance,
+  content evidence, pilot concepts, and caveats. CSV/JSON/Markdown exports remain
+  in ignored local output; no real contacts are committed. Imported the 25
+  through authenticated prospect endpoints without authorization, then completed
+  25 audited official-API refreshes. All 25 had complete channel/video metadata;
+  16 yielded automatic business-context candidates. The other nine retain their
+  separately recorded unreviewed source contacts. No contact was authorized and
+  no real outreach was sent. A source conflict was reconciled via normal API
+  update and remains documented in the private report.
+- JavaScript syntax checking passed. Automated visual inspection of the local
+  synthetic fixture was blocked by browser URL policy; no workaround or visual
+  verification claim is made. The design detector lacked parser dependencies.
+
+### Remaining limits
+
+Research confidence describes available metadata, not verified demographics,
+deliverability, commercial interest, or predicted conversion. Some sampled
+videos are old and some contacts use general rather than explicit business
+labels; the private report flags them. Automatic extraction intentionally misses
+ambiguous or obfuscated contacts. Creative ideas require product/creator review.
+The research campaign is inactive after the requested import; existing daily
+campaign scheduling is available. External SMTP, unrestricted autonomous tools,
+and self-modifying policies were not enabled or represented as operational.

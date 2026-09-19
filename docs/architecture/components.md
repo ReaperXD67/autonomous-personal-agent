@@ -74,7 +74,9 @@ strongest, freshest opportunities rather than source arrival order.
 The same bounded egress runtime handles `marketing.creator_discovery`. It calls
 only the fixed YouTube Data API host with a deployment-provided restricted key,
 bounded queries/results, strict safe search, and response/time limits. It stores
-public channel/video evidence but no discovered contact email. Reuse avoids a
+public channel/video evidence plus a bounded research dossier with unreviewed
+business-contact candidates, fit factors, and collaboration concepts. Dossier
+refresh never mutates recipient authorization. Reuse avoids a
 new service while lifecycle and network privileges are identical; the API key
 is not passed to other application services.
 

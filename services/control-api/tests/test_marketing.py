@@ -164,6 +164,7 @@ def test_creator_scoring_rewards_target_range_and_recent_activity() -> None:
         content_published_at=datetime(2026, 8, 20, tzinfo=UTC),
         minimum_audience=1000,
         maximum_audience=250000,
+        content_text="Minecraft SMP server review",
         now=datetime(2026, 8, 28, tzinfo=UTC),
     )
     assert score == 100
@@ -180,9 +181,9 @@ def test_youtube_discovery_uses_public_metadata_and_never_invents_contact_email(
             return {
                 "items": [
                     {
-                        "id": {"videoId": "video-1"},
+                        "id": {"videoId": "AbCdEfGhI12"},
                         "snippet": {
-                            "channelId": "channel-1",
+                            "channelId": "UCabcdefghijklmnopqrstuv",
                             "channelTitle": "Block Builder",
                             "title": "Minecraft server review",
                             "publishedAt": "2026-08-20T00:00:00Z",
@@ -193,7 +194,7 @@ def test_youtube_discovery_uses_public_metadata_and_never_invents_contact_email(
         return {
             "items": [
                 {
-                    "id": "channel-1",
+                    "id": "UCabcdefghijklmnopqrstuv",
                     "snippet": {"title": "Block Builder"},
                     "statistics": {
                         "subscriberCount": "12000",
@@ -210,10 +211,11 @@ def test_youtube_discovery_uses_public_metadata_and_never_invents_contact_email(
         now=datetime(2026, 8, 28, tzinfo=UTC),
     )
     assert len(found) == 1
-    assert found[0]["external_id"] == "channel-1"
+    assert found[0]["external_id"] == "UCabcdefghijklmnopqrstuv"
     assert found[0]["audience_size"] == 12000
     assert found[0]["profile_url"].startswith("https://www.youtube.com/channel/")
     assert "contact_email" not in found[0]
+    assert found[0]["intelligence"]["contact_candidates"] == []
 
 
 def test_adaptation_waits_for_evidence_then_preserves_exploration() -> None:

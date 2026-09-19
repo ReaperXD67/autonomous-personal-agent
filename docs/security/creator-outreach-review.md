@@ -13,7 +13,7 @@ a review of a configured mail provider's terms.
 
 - Severity: Critical
 - Status: Prevented by design
-- Evidence: discovery creates prospects without contacts. Each contact requires
+- Evidence: discovery creates unreviewed business-contact candidates. Each authorized contact requires
   an operator attestation and provenance. Each individual email remains a high-
   risk exact action requiring its own approval.
 - Residual risk: an operator can still approve unsuitable outreach. Campaign
@@ -49,11 +49,14 @@ a review of a configured mail provider's terms.
 ### CO-005 — Public channel data could be treated as a contact database
 
 - Severity: High
-- Status: Prevented for implemented discovery
-- Evidence: YouTube normalization stores channel identity, profile URL,
-  subscriber count, one matching video, query, and score evidence. It never
-  returns or infers email. Contact entry requires a separate public HTTPS source
-  and written basis note.
+- Status: Updated with bounded candidate research (2026-09-19; ADR-0021)
+- Evidence: official public channel/video descriptions may yield business-email
+  candidates only with nearby business/collaboration wording. Sources, bounded
+  excerpts, and timestamps are retained separately from authorized recipients.
+  Contact authorization still requires source review, written basis, and an
+  explicit operator decision. Refresh cannot authorize contact or undo suppression.
+- Residual risk: descriptions may contain agency/sponsor contacts, stale addresses,
+  hostile text, or unclear ownership. Heuristics are not ownership verification.
 
 ### CO-006 — “Self-improvement” could change authorization or manipulate results
 
@@ -91,7 +94,9 @@ a review of a configured mail provider's terms.
 ## Production blockers and operating limits
 
 - No inbound OAuth email reader or automatic reply classification is present.
-- No business-contact discovery or enrichment is present.
+- Business-contact discovery is limited to unreviewed candidates in official
+  public descriptions; no gated About email extraction or general website crawl
+  is present. Research ideas and fit scores are deterministic suggestions.
 - No real YouTube API key or external SMTP compatibility is claimed by the
   implementation alone.
 - No public posting, creator-account login, direct message, payment, contract,

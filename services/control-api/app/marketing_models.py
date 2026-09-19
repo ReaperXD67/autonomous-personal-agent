@@ -362,6 +362,7 @@ class MarketingProspectView(BaseModel):
     discovery_query: str | None
     relevance_score: int
     relevance_reasons: list[str]
+    intelligence: dict[str, Any] = Field(default_factory=dict)
     contact_email: str | None
     contact_source_url: str | None
     contact_basis_note: str | None

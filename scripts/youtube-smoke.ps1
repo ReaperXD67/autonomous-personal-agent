@@ -53,7 +53,22 @@ try {
     if ($task.status -ne 'succeeded' -or [int]$task.output.queries -ne 1) {
         throw 'YOUTUBE_DISCOVERY_FAILED: the bounded public API scan did not complete successfully.'
     }
-    Write-Host 'YouTube discovery passed: one query, one result per page, no pagination or creator contact.'
+    Write-Host 'YouTube research passed: one query, one result per page, no pagination or outreach.'
+    if ([int]$task.output.contact_authorizations_granted -ne 0) {
+        throw 'YOUTUBE_RESEARCH_AUTHORITY_FAILED: research must not grant contact authorization.'
+    }
+    $prospects = @(Invoke-RestMethod -Method Get -Uri "$baseUrl/v1/marketing/prospects?campaign_id=$campaignId" `
+        -Headers $headers -TimeoutSec 15)
+    foreach ($prospect in $prospects) {
+        if ($prospect.intelligence.schema_version -ne 1 -or $prospect.contact_authorized_at) {
+            throw 'YOUTUBE_RESEARCH_EVIDENCE_FAILED: missing dossier or unexpected contact authority.'
+        }
+        foreach ($candidate in $prospect.intelligence.contact_candidates) {
+            if ($candidate.status -ne 'unreviewed' -or -not $candidate.source_url -or -not $candidate.evidence) {
+                throw 'YOUTUBE_RESEARCH_EVIDENCE_FAILED: a candidate lacks unreviewed provenance.'
+            }
+        }
+    }
     Write-Host ('Public discovery counts: {0} found, {1} newly persisted.' -f $task.output.discovered, $task.output.new)
 }
 finally {

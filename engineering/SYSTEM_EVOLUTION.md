@@ -339,6 +339,22 @@ DMARC, sender alignment, domain/IP reputation, complaints, bounces, recipient
 relevance, and working unsubscribe processes remain deployment/provider work.
 Hermes remains a one-to-one approval-gated outreach tool, not a bulk mailer.
 
+## v0.21 — Evidence-backed YouTube research (2026-09-19)
+
+The research worker now derives bounded business-contact candidates from public
+official-API channel/video descriptions, with source excerpts and timestamps.
+PostgreSQL stores an additive research dossier alongside each prospect, including
+fit factors, observed content, creative concepts, a suggested opening line, and
+explicit gaps. Campaign scans and per-prospect refresh use the existing policy,
+task, audit, and discovery budget. No new model route or service is introduced.
+
+Candidate discovery is separated from recipient authorization. The dashboard
+focuses new research on YouTube and offers search, contact filters, source review,
+and formula-safe CSV export. Selecting a candidate pre-fills an unchecked review
+form; exact-send approval, suppression, and pacing retain their authority.
+Source descriptions never instruct tools. Real research exports remain local
+and ignored. See ADR-0021 for limits and the engineering journal for validation.
+
 ## Next architectural pressure
 
 Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS egress enforcement, reconciliation tooling

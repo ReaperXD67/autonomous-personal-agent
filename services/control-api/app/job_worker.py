@@ -27,7 +27,7 @@ from app.career import (
 )
 from app.inference import OpenRouterError, OpenRouterFreeClient, OpenRouterPlan
 from app.logging_config import configure_logging
-from app.marketing import fetch_youtube_creators
+from app.marketing import fetch_youtube_creators, fetch_youtube_prospect
 from app.marketing_store import MarketingStore
 from app.models import TaskCreate
 from app.planning import execute_planning_task
@@ -97,17 +97,42 @@ def execute_career_task(
             raise RuntimeError("Daily YouTube discovery task limit reached")
         campaign = database.get_campaign(campaign_id)
         _check_interrupted(interrupt)
-        prospects = fetch_youtube_creators(settings.youtube_api_key, campaign)
-        _check_interrupted(interrupt)
-        saved = database.save_discovered_prospects(campaign_id, prospects)
+        if payload.get("prospect_id"):
+            prospect_id = UUID(str(payload["prospect_id"]))
+            prospect = database.get_prospect(prospect_id)
+            if str(prospect["campaign_id"]) != str(campaign_id):
+                raise ValueError("Prospect does not belong to this campaign")
+            if prospect["platform"] != "youtube" or prospect["suppressed_at"] is not None:
+                raise ValueError("Only unsuppressed YouTube prospects can be researched")
+            prospects = [fetch_youtube_prospect(settings.youtube_api_key, campaign, prospect)]
+            _check_interrupted(interrupt)
+            database.save_prospect_research(
+                prospect_id, prospects[0], expected_profile_url=prospect["profile_url"],
+                expected_campaign_id=campaign_id,
+            )
+            saved = {"new": 0, "updated": 1}
+        else:
+            prospects = fetch_youtube_creators(settings.youtube_api_key, campaign)
+            _check_interrupted(interrupt)
+            saved = database.save_discovered_prospects(campaign_id, prospects)
+        candidates = sum(
+            len(item.get("intelligence", {}).get("contact_candidates", []))
+            for item in prospects
+        )
         return {
             "handler": "marketing.creator_discovery",
             "campaign_id": str(campaign_id),
-            "queries": len(campaign["discovery_queries"]),
+            "queries": 0 if payload.get("prospect_id") else len(campaign["discovery_queries"]),
             "discovered": len(prospects),
             "new": saved["new"],
             "updated": saved["updated"],
-            "contact_emails_discovered": 0,
+            "contact_emails_discovered": candidates,
+            "contact_candidates_unreviewed": candidates,
+            "research_complete": sum(
+                item.get("intelligence", {}).get("enrichment_status") == "complete"
+                for item in prospects
+            ),
+            "contact_authorizations_granted": 0,
         }
 
     profile_id = UUID(str(payload["profile_id"]))

@@ -201,6 +201,55 @@ h1 em { color: var(--lime); font-style: normal; }
 .prospect-evidence { margin-top: 15px !important; padding: 11px 12px; border-radius: 10px; background: rgba(255, 255, 255, .025); font-size: 12px; }
 .prospect-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 15px; padding-top: 13px; border-top: 1px solid var(--line); }
 .contact-attestation { margin-top: 14px; line-height: 1.5; }
+.research-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+.research-toolbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 18px 0; border-top: 1px solid var(--line); }
+.research-toolbar label { min-width: 0; margin: 0; }
+.research-toolbar input, .research-toolbar select { min-width: 0; }
+.research-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; margin: 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.research-context > span { color: var(--ink); font-variant-numeric: tabular-nums; }
+.research-context p { margin: 0; }
+.prospect-grid { align-items: start; }
+.prospect-card { min-width: 0; overflow-wrap: anywhere; }
+.creator-fit { flex-shrink: 0; padding-top: 8px; color: var(--lime); text-align: right; font-size: 26px; font-weight: 760; font-variant-numeric: tabular-nums; }
+.creator-fit small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; font-weight: 500; }
+.candidate-preview { margin-top: 14px !important; font-size: 12px; }
+.creator-dossier { margin-top: 18px; border-top: 1px solid var(--line); }
+.creator-dossier > summary { padding: 15px 0 4px; color: var(--cyan); font-size: 13px; font-weight: 650; cursor: pointer; line-height: 1.6; }
+.creator-dossier > summary:hover { text-decoration: underline; text-underline-offset: 3px; }
+.creator-dossier > summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; border-radius: 4px; }
+.dossier-body { padding: 12px 0 0; font-size: 13px; line-height: 1.6; }
+.dossier-body > p + p { margin-top: 10px; }
+.dossier-section { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); }
+.dossier-section h4 { margin: 0 0 10px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.dossier-contact, .dossier-video, .dossier-idea { margin-top: 15px; }
+.dossier-contact > strong { display: block; margin-bottom: 6px; }
+.dossier-source-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.dossier-source-actions small { flex-basis: 100%; }
+.source-excerpt { margin: 12px 0; padding: 0 0 0 12px; border-left: 1px solid var(--muted); color: var(--muted); white-space: pre-wrap; line-height: 1.65; }
+.fit-breakdown { margin: 0; }
+.fit-breakdown > div { margin-top: 12px; }
+.fit-breakdown dt { color: var(--ink); font-weight: 650; font-variant-numeric: tabular-nums; }
+.fit-breakdown dd { margin: 3px 0 0; color: var(--muted); }
+.dossier-video > a { display: inline-block; padding-left: 0; }
+.dossier-idea > strong { display: block; margin-bottom: 5px; }
+.dossier-idea p + p { margin-top: 6px; }
+.dossier-section h4:not(:first-child) { margin-top: 22px; }
+.dossier-body > .button { margin-top: 18px; }
+.research-gaps ul { margin: 0; padding-left: 18px; color: var(--muted); }
+.research-gaps li + li { margin-top: 6px; }
+.contact-candidate-context { margin: 0 0 18px; padding-bottom: 18px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
+.contact-candidate-context > strong { color: var(--amber); }
+@media (max-width: 1080px) {
+  .campaign-prospect-heading { align-items: flex-start; flex-direction: column; }
+  .research-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 520px) {
+  .research-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .research-actions { width: 100%; }
+  .research-actions > .button { flex-grow: 1; }
+  .dossier-source-actions { align-items: flex-start; flex-direction: column; }
+  .dossier-source-actions small { flex-basis: auto; }
+}
 .promotion-kit { display: grid; gap: 14px; margin-top: 20px; }
 .promotion-reminder { margin: 0; padding: 13px 15px; border: 1px solid rgba(255, 202, 115, .22); border-radius: 12px; background: rgba(255, 202, 115, .05); }
 .promotion-messages { padding: 15px; border: 1px solid var(--line); border-radius: 12px; background: rgba(0, 0, 0, .12); }

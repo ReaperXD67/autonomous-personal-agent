@@ -271,14 +271,14 @@ class MarketingStore(ActionStore):
                     """,
                     (campaign_id, prospect["platform"], prospect["external_id"]),
                 ).fetchone()
-                connection.execute(
+                saved = connection.execute(
                     """
                     INSERT INTO marketing_prospects (
                         campaign_id, platform, external_id, display_name, profile_url,
                         audience_size, latest_content_title, latest_content_url,
                         latest_content_published_at, discovery_query, relevance_score,
-                        relevance_reasons
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        relevance_reasons, intelligence
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (campaign_id, platform, external_id) DO UPDATE SET
                         display_name = EXCLUDED.display_name,
                         profile_url = EXCLUDED.profile_url,
@@ -289,7 +289,11 @@ class MarketingStore(ActionStore):
                         discovery_query = EXCLUDED.discovery_query,
                         relevance_score = EXCLUDED.relevance_score,
                         relevance_reasons = EXCLUDED.relevance_reasons,
+                        intelligence = EXCLUDED.intelligence,
                         last_seen_at = now()
+                    WHERE marketing_prospects.suppressed_at IS NULL
+                      AND marketing_prospects.status NOT IN ('suppressed', 'bounced')
+                      AND marketing_prospects.profile_url = EXCLUDED.profile_url
                     """,
                     (
                         campaign_id,
@@ -304,8 +308,11 @@ class MarketingStore(ActionStore):
                         prospect["discovery_query"],
                         prospect["relevance_score"],
                         Jsonb(prospect["relevance_reasons"]),
+                        Jsonb(prospect.get("intelligence", {})),
                     ),
                 )
+                if saved.rowcount == 0:
+                    continue
                 if existing is None:
                     inserted += 1
                 else:
@@ -316,6 +323,46 @@ class MarketingStore(ActionStore):
             )
             connection.commit()
         return {"new": inserted, "updated": updated}
+
+    def save_prospect_research(
+        self, prospect_id: UUID, research: dict[str, Any], *,
+        expected_profile_url: str, expected_campaign_id: UUID,
+    ) -> dict[str, Any]:
+        """Research updates evidence only; reviewed identity and contact authority stay fixed."""
+        with self.connect() as connection:
+            existing = connection.execute(
+                "SELECT id, platform, profile_url, campaign_id, suppressed_at, status "
+                "FROM marketing_prospects "
+                "WHERE id = %s FOR UPDATE", (prospect_id,),
+            ).fetchone()
+            if existing is None:
+                raise MarketingProspectNotFoundError(str(prospect_id))
+            if existing["platform"] != "youtube":
+                raise MarketingOutreachError("Creator research supports YouTube prospects only")
+            if existing["suppressed_at"] or existing["status"] in {"suppressed", "bounced"}:
+                raise MarketingOutreachError("Suppressed prospects cannot be researched")
+            if (existing["profile_url"] != expected_profile_url
+                    or existing["campaign_id"] != expected_campaign_id):
+                raise MarketingOutreachError(
+                    "Creator identity changed during research; refresh again"
+                )
+            connection.execute(
+                """
+                UPDATE marketing_prospects
+                SET audience_size = %s, latest_content_title = %s, latest_content_url = %s,
+                    latest_content_published_at = %s, relevance_score = %s,
+                    relevance_reasons = %s, intelligence = %s, last_seen_at = now()
+                WHERE id = %s
+                """,
+                (
+                    research.get("audience_size"), research.get("latest_content_title"),
+                    research.get("latest_content_url"), research.get("latest_content_published_at"),
+                    research["relevance_score"], Jsonb(research["relevance_reasons"]),
+                    Jsonb(research["intelligence"]), prospect_id,
+                ),
+            )
+            connection.commit()
+        return self.get_prospect(prospect_id)
 
     def create_prospect(self, request: MarketingProspectCreate) -> dict[str, Any]:
         correlation_id = uuid4()
@@ -395,6 +442,7 @@ class MarketingStore(ActionStore):
                 raise MarketingProspectNotFoundError(str(prospect_id))
             if existing["suppressed_at"] is not None and request.authorize_contact:
                 raise MarketingOutreachError("A suppressed prospect cannot be re-authorized")
+            identity_changed = existing["profile_url"] != request.profile_url
             authorized_at = datetime.now(UTC) if request.authorize_contact else None
             status = (
                 existing["status"]
@@ -407,7 +455,15 @@ class MarketingStore(ActionStore):
                 SET display_name = %s, profile_url = %s, audience_size = %s,
                     contact_email = %s, contact_source_url = %s,
                     contact_basis_note = %s, contact_authorized_at = %s,
-                    contact_authorized_by = %s, status = %s
+                    contact_authorized_by = %s, status = %s,
+                    intelligence = CASE WHEN %s THEN '{}'::jsonb ELSE intelligence END,
+                    latest_content_title = CASE WHEN %s THEN NULL ELSE latest_content_title END,
+                    latest_content_url = CASE WHEN %s THEN NULL ELSE latest_content_url END,
+                    latest_content_published_at = CASE WHEN %s THEN NULL
+                        ELSE latest_content_published_at END,
+                    discovery_query = CASE WHEN %s THEN NULL ELSE discovery_query END,
+                    relevance_score = CASE WHEN %s THEN 0 ELSE relevance_score END,
+                    relevance_reasons = CASE WHEN %s THEN '[]'::jsonb ELSE relevance_reasons END
                 WHERE id = %s
                 RETURNING *
                 """,
@@ -421,6 +477,13 @@ class MarketingStore(ActionStore):
                     authorized_at,
                     request.actor if request.authorize_contact else None,
                     status,
+                    identity_changed,
+                    identity_changed,
+                    identity_changed,
+                    identity_changed,
+                    identity_changed,
+                    identity_changed,
+                    identity_changed,
                     prospect_id,
                 ),
             ).fetchone()

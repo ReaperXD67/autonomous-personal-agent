@@ -709,6 +709,36 @@ def update_marketing_prospect(
 
 
 @app.post(
+    "/v1/marketing/prospects/{prospect_id}/research",
+    response_model=TaskView,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_api_token)],
+)
+def research_marketing_prospect(request: Request, prospect_id: UUID) -> dict[str, Any]:
+    try:
+        prospect = _marketing(request).get_prospect(prospect_id)
+    except MarketingProspectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing prospect not found") from exc
+    if prospect["platform"] != "youtube":
+        raise HTTPException(status_code=422, detail="Research supports YouTube channels only")
+    if prospect["suppressed_at"] is not None:
+        raise HTTPException(status_code=409, detail="Suppressed prospects cannot be researched")
+    return _database(request).create_task(
+        TaskCreate(
+            title="Refresh public YouTube creator research",
+            kind="marketing.creator_discovery",
+            payload={
+                "campaign_id": str(prospect["campaign_id"]),
+                "prospect_id": str(prospect_id),
+                "trigger": "research",
+            },
+            requested_by="dashboard:marketing",
+            idempotency_key=f"marketing-research:{prospect_id}:{uuid4()}",
+        )
+    )
+
+
+@app.post(
     "/v1/marketing/prospects/{prospect_id}/outcomes",
     response_model=MarketingProspectView,
     status_code=status.HTTP_201_CREATED,

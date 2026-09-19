@@ -1,12 +1,15 @@
 # Creator outreach operations
 
 The **Creator campaigns** workspace turns a KarixMC promotion strategy into a
-low-volume, reviewable funnel. It discovers relevant public YouTube channels,
-helps an operator qualify a public business contact, prepares exact email
+low-volume, reviewable funnel. It researches relevant public YouTube channels,
+finds published business-contact candidates, explains fit and collaboration
+ideas, helps an operator qualify a contact, and prepares exact email
 actions, records replies/results, and suggests evidence-based changes.
 
-It does not scrape emails, read a mailbox, send in bulk, post publicly, negotiate
-or pay creators, issue KarixMC points, or approve its own messages.
+It reads only public official-API channel/video descriptions for business
+contact candidates. It does not unlock gated About emails, guess addresses,
+read a mailbox, send in bulk, post publicly, negotiate or pay creators, issue
+KarixMC points, or approve its own messages.
 
 ## 1. Configure official YouTube discovery
 
@@ -28,7 +31,11 @@ day, with each search costing one unit in that bucket, and a maximum of 50
 results per request. Hermes uses no more than three queries and 25 results per
 query, schedules no faster than daily, and caps discovery at 30 tasks per 24
 hours (at most 90 search calls). `channels.list` supplies public channel
-statistics; it does not supply a business email.
+statistics and public descriptions. There is no dedicated business-email field:
+Hermes only recognizes an address the creator wrote into a public description
+beside explicit business/collaboration wording. Up to two `videos.list` batches
+retrieve matched video descriptions and public statistics. Optional enrichment
+failure appears as partial research; it does not become a verified claim.
 
 The guided command validates the key against one harmless official channel
 lookup, then writes it only to ignored `.env` without echoing it:
@@ -57,13 +64,19 @@ Before saving, verify:
 Activating the campaign schedules daily or weekly discovery. **Find creators**
 queues one immediate low-risk task. Results show channel name, profile, public
 subscriber count when visible, one matching recent video, query evidence, and a
-deterministic relevance score.
+deterministic relevance score. The research dossier adds source excerpts,
+contact candidates, fit factors, observed topics, collaboration concepts, a
+proposed opening line, confidence, and research gaps. Concepts are proposals,
+not promises that KarixMC or the creator has accepted them. A matched video is
+not necessarily the channel's latest upload or a representative engagement sample.
 
 ## 3. Qualify a contact
 
-YouTube discovery intentionally leaves the email blank. Use **Review contact**
-only after a human finds an address explicitly published for business or
-collaboration inquiries. Record:
+YouTube research separates automatically found **unreviewed candidates** from
+the authorized recipient. Use the candidate's source link to verify identity,
+business context, and whether the address belongs to the creator, an agency,
+or a sponsor. Choosing a candidate can pre-fill **Review contact** but leaves
+authorization unchecked. Record:
 
 1. the exact email;
 2. the public HTTPS page where it was published;
@@ -73,10 +86,32 @@ collaboration inquiries. Record:
 
 Do not add guessed addresses, personal addresses, hidden About-page data,
 purchased/enriched lists, or contacts collected for another incompatible
-purpose. The European Commission explains that direct-marketing data needs a
+purpose. Missing candidates mean no qualifying address was found in the bounded
+public descriptions; it does not mean the creator has no contact method. The
+European Commission explains that direct-marketing data needs a
 lawful ground, first-contact transparency, compliance with ePrivacy rules, and
 immediate respect for objections. See its [business guidance on marketing data](https://commission.europa.eu/law/law-topic/data-protection/information-business-and-organisations/legal-grounds-processing-data_en).
 Obtain local legal advice for the countries and contact types actually used.
+
+## Research and shortlist workflow
+
+Search the YouTube shortlist by creator, topic, or research text; filter by
+contact readiness and sort by fit. Expand a dossier to inspect source evidence
+before choosing a creative concept. CSV export contains the currently filtered
+shortlist and source links; keep real contact exports private. Formula-like
+cells are escaped for spreadsheet safety.
+
+**Refresh research** queues `POST /v1/marketing/prospects/{id}/research` through
+the existing `marketing.creator_discovery` capability. It accepts an existing
+YouTube prospect with a canonical channel ID or `/@handle` profile. It shares
+the 30-tasks-per-day budget, refuses suppressed prospects, and never changes
+recipient authorization. Campaign scans continue to support daily schedules.
+No new runtime, model, provider, or host mount is required.
+
+Public subscriber/view counts do not verify audience language, audience age,
+engagement quality, email deliverability, commercial rates, or willingness to
+collaborate. Research confidence describes available evidence only. Review the
+timestamp and gaps, and refresh stale observations before using them.
 
 ## 4. Use the free promotion kit
 

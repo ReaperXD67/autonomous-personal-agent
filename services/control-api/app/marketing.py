@@ -11,6 +11,15 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID
 
+from app.creator_intelligence import (
+    CHANNEL_ID,
+    VIDEO_ID,
+    build_creator_intelligence,
+    fit_breakdown,
+    public_video_id,
+    public_youtube_identity,
+)
+
 YOUTUBE_API_HOST = "www.googleapis.com"
 MAX_YOUTUBE_BYTES = 2 * 1024 * 1024
 USER_AGENT = (
@@ -23,14 +32,14 @@ INITIAL_VARIANTS = ("viewer_value", "creator_pilot")
 class _YouTubeRedirectHandler(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
         parsed = urlparse(newurl)
-        if parsed.scheme != "https" or parsed.hostname != YOUTUBE_API_HOST:
+        if parsed.scheme != "https" or parsed.netloc != YOUTUBE_API_HOST:
             raise ValueError("YouTube API redirected outside the reviewed host")
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 def _read_youtube_json(path: str, parameters: dict[str, str | int]) -> dict[str, Any]:
-    if not path.startswith("/youtube/v3/"):
-        raise ValueError("YouTube API path is outside the reviewed prefix")
+    if path not in {"/youtube/v3/search", "/youtube/v3/channels", "/youtube/v3/videos"}:
+        raise ValueError("YouTube API path is outside the reviewed endpoints")
     url = f"https://{YOUTUBE_API_HOST}{path}?{urlencode(parameters)}"
     request = Request(  # noqa: S310 - exact HTTPS host and API prefix are fixed above
         url,
@@ -39,13 +48,13 @@ def _read_youtube_json(path: str, parameters: dict[str, str | int]) -> dict[str,
     try:
         with build_opener(_YouTubeRedirectHandler()).open(request, timeout=20) as response:
             final = urlparse(response.geturl())
-            if final.scheme != "https" or final.hostname != YOUTUBE_API_HOST:
+            if final.scheme != "https" or final.netloc != YOUTUBE_API_HOST:
                 raise ValueError("YouTube API resolved outside the reviewed host")
             raw = response.read(MAX_YOUTUBE_BYTES + 1)
     except HTTPError as exc:
         raise RuntimeError(f"YouTube API request failed with HTTP {exc.code}") from None
-    except (URLError, TimeoutError) as exc:
-        raise RuntimeError("YouTube API request failed") from exc
+    except (URLError, TimeoutError, OSError):
+        raise RuntimeError("YouTube API request failed") from None
     if len(raw) > MAX_YOUTUBE_BYTES:
         raise ValueError("YouTube API response exceeded the size limit")
     try:
@@ -77,37 +86,102 @@ def score_creator(
     content_published_at: datetime | None,
     minimum_audience: int,
     maximum_audience: int,
+    content_text: str = "",
     now: datetime | None = None,
 ) -> tuple[int, list[str]]:
-    reference = now or datetime.now(UTC)
-    score = 45
-    reasons = ["matched a configured Minecraft discovery query"]
-    if audience_size is None:
-        reasons.append("subscriber count is hidden")
-    elif minimum_audience <= audience_size <= maximum_audience:
-        score += 30
-        reasons.append("audience is inside the configured creator range")
-    elif audience_size < minimum_audience:
-        score += 10
-        reasons.append("audience is below the target range but may suit a small pilot")
-    else:
-        score += 8
-        reasons.append("audience is above the target range")
+    breakdown = fit_breakdown(
+        content=content_text, audience_size=audience_size,
+        published_at=content_published_at, minimum_audience=minimum_audience,
+        maximum_audience=maximum_audience, now=now or datetime.now(UTC),
+    )
+    return sum(item["points"] for item in breakdown), [item["evidence"] for item in breakdown]
 
-    if content_published_at is not None:
-        age_days = max(0, (reference - content_published_at).days)
-        if age_days <= 30:
-            score += 20
-            reasons.append("matching content was published within 30 days")
-        elif age_days <= 90:
-            score += 12
-            reasons.append("matching content was published within 90 days")
-        else:
-            score += 5
-            reasons.append("matching content is older than 90 days")
-    if audience_size is not None:
-        score += 5
-    return min(100, score), reasons
+
+def _youtube_items(payload: dict[str, Any], limit: int = 50) -> list[dict[str, Any]]:
+    items = payload.get("items", [])
+    if not isinstance(items, list):
+        return []
+    return [item for item in items[:limit] if isinstance(item, dict)]
+
+
+def _public_count(value: Any, *, limit: int = 1_000_000_000_000) -> int | None:
+    if isinstance(value, bool) or not re.fullmatch(r"\d{1,13}", str(value)):
+        return None
+    count = int(value)
+    return count if count <= limit else None
+
+
+def _apply_channel(item: dict[str, Any], prospect: dict[str, Any]) -> None:
+    snippet = item.get("snippet") if isinstance(item.get("snippet"), dict) else {}
+    statistics = item.get("statistics") if isinstance(item.get("statistics"), dict) else {}
+    prospect.update({
+        "display_name": _bounded_text(snippet.get("title"), 300) or prospect["display_name"],
+        "audience_size": None if statistics.get("hiddenSubscriberCount") else
+        _public_count(statistics.get("subscriberCount"), limit=1_000_000_000),
+        "channel_description": snippet.get("description", ""),
+        "channel_enriched": True,
+    })
+
+
+def _enrich_videos(api_key: str, discovered: dict[str, dict[str, Any]]) -> None:
+    by_video = {
+        item["video_id"]: item for item in discovered.values() if item.get("video_id")
+    }
+    ids = list(by_video)[:75]
+    for start in range(0, len(ids), 50):
+        batch = ids[start:start + 50]
+        try:
+            payload = _read_youtube_json("/youtube/v3/videos", {
+                "part": "snippet,statistics", "id": ",".join(batch), "key": api_key,
+            })
+        except (RuntimeError, ValueError):
+            continue
+        for video in _youtube_items(payload):
+            video_id = video.get("id")
+            if not isinstance(video_id, str) or video_id not in batch:
+                continue
+            snippet = video.get("snippet")
+            prospect = by_video[video_id]
+            if not isinstance(snippet, dict):
+                continue
+            if snippet.get("channelId") != prospect["channel_id"]:
+                prospect.update({
+                    "video_identity_mismatch": True, "video_id": None,
+                    "latest_content_url": None, "latest_content_title": None,
+                    "latest_content_published_at": None,
+                })
+                continue
+            statistics = video.get("statistics")
+            statistics = statistics if isinstance(statistics, dict) else {}
+            prospect.update({
+                "video_description": snippet.get("description", ""),
+                "latest_content_title": _bounded_text(snippet.get("title"), 500) or None,
+                "latest_content_published_at": _parse_youtube_datetime(snippet.get("publishedAt")),
+                "video_enriched": True,
+                "view_count": _public_count(statistics.get("viewCount")),
+                "like_count": _public_count(statistics.get("likeCount")),
+                "comment_count": _public_count(statistics.get("commentCount")),
+            })
+
+
+def _normalize_researched_prospect(
+    campaign: dict[str, Any], item: dict[str, Any], reference: datetime,
+) -> dict[str, Any]:
+    item["profile_url"] = f"https://www.youtube.com/channel/{item['channel_id']}"
+    intelligence = build_creator_intelligence(campaign, item, now=reference)
+    breakdown = intelligence["fit_breakdown"]
+    return {
+        "platform": "youtube", "external_id": item["channel_id"],
+        "display_name": item["display_name"], "profile_url": item["profile_url"],
+        "audience_size": item.get("audience_size"),
+        "latest_content_title": item.get("latest_content_title"),
+        "latest_content_url": item.get("latest_content_url"),
+        "latest_content_published_at": item.get("latest_content_published_at"),
+        "discovery_query": item.get("discovery_query"),
+        "relevance_score": sum(part["points"] for part in breakdown),
+        "relevance_reasons": [part["evidence"] for part in breakdown],
+        "intelligence": intelligence,
+    }
 
 
 def fetch_youtube_creators(
@@ -122,7 +196,8 @@ def fetch_youtube_creators(
     published_after = reference - timedelta(days=campaign["max_video_age_days"])
     discovered: dict[str, dict[str, Any]] = {}
 
-    for query in campaign["discovery_queries"]:
+    results_per_query = min(25, max(1, int(campaign["results_per_query"])))
+    for query in campaign["discovery_queries"][:3]:
         parameters: dict[str, str | int] = {
             "part": "snippet",
             "type": "video",
@@ -130,26 +205,26 @@ def fetch_youtube_creators(
             "publishedAfter": published_after.isoformat().replace("+00:00", "Z"),
             "safeSearch": "strict",
             "order": "relevance",
-            "maxResults": campaign["results_per_query"],
+            "maxResults": results_per_query,
             "relevanceLanguage": campaign["relevance_language"],
             "key": api_key,
         }
         if campaign.get("region_code"):
             parameters["regionCode"] = campaign["region_code"]
         search = _read_youtube_json("/youtube/v3/search", parameters)
-        for item in search.get("items", [])[: campaign["results_per_query"]]:
-            if not isinstance(item, dict):
-                continue
+        for item in _youtube_items(search, results_per_query):
             snippet = item.get("snippet")
             identity = item.get("id")
             if not isinstance(snippet, dict) or not isinstance(identity, dict):
                 continue
             channel_id = str(snippet.get("channelId") or "")
             video_id = str(identity.get("videoId") or "")
-            if not channel_id or not video_id or channel_id in discovered:
+            if (not CHANNEL_ID.fullmatch(channel_id) or not VIDEO_ID.fullmatch(video_id)
+                    or channel_id in discovered or len(discovered) >= 75):
                 continue
             discovered[channel_id] = {
                 "channel_id": channel_id,
+                "video_id": video_id,
                 "display_name": _bounded_text(snippet.get("channelTitle"), 300)
                 or "Unnamed YouTube channel",
                 "latest_content_title": _bounded_text(snippet.get("title"), 500) or None,
@@ -163,61 +238,75 @@ def fetch_youtube_creators(
     channel_ids = list(discovered)
     for start in range(0, len(channel_ids), 50):
         batch = channel_ids[start : start + 50]
-        channels = _read_youtube_json(
-            "/youtube/v3/channels",
-            {
-                "part": "snippet,statistics",
-                "id": ",".join(batch),
-                "maxResults": len(batch),
-                "key": api_key,
-            },
-        )
-        for item in channels.get("items", []):
-            if not isinstance(item, dict):
-                continue
+        try:
+            channels = _read_youtube_json(
+                "/youtube/v3/channels",
+                {
+                    "part": "snippet,statistics",
+                    "id": ",".join(batch),
+                    "maxResults": len(batch),
+                    "key": api_key,
+                },
+            )
+        except (RuntimeError, ValueError):
+            continue
+        for item in _youtube_items(channels):
             channel_id = str(item.get("id") or "")
-            if channel_id not in discovered:
+            if channel_id not in batch:
                 continue
-            snippet = item.get("snippet") if isinstance(item.get("snippet"), dict) else {}
-            statistics = (
-                item.get("statistics") if isinstance(item.get("statistics"), dict) else {}
-            )
-            hidden = bool(statistics.get("hiddenSubscriberCount"))
-            try:
-                audience_size = None if hidden else int(statistics.get("subscriberCount"))
-            except (TypeError, ValueError):
-                audience_size = None
-            prospect = discovered[channel_id]
-            prospect["display_name"] = (
-                _bounded_text(snippet.get("title"), 300) or prospect["display_name"]
-            )
-            prospect["audience_size"] = audience_size
+            _apply_channel(item, discovered[channel_id])
 
-    normalized: list[dict[str, Any]] = []
-    for channel_id, item in discovered.items():
-        score, reasons = score_creator(
-            audience_size=item.get("audience_size"),
-            content_published_at=item["latest_content_published_at"],
-            minimum_audience=campaign["min_subscribers"],
-            maximum_audience=campaign["max_subscribers"],
-            now=reference,
-        )
-        normalized.append(
-            {
-                "platform": "youtube",
-                "external_id": channel_id,
-                "display_name": item["display_name"],
-                "profile_url": f"https://www.youtube.com/channel/{channel_id}",
-                "audience_size": item.get("audience_size"),
-                "latest_content_title": item["latest_content_title"],
-                "latest_content_url": item["latest_content_url"],
-                "latest_content_published_at": item["latest_content_published_at"],
-                "discovery_query": item["discovery_query"],
-                "relevance_score": score,
-                "relevance_reasons": reasons,
-            }
-        )
+    _enrich_videos(api_key, discovered)
+    normalized = [
+        _normalize_researched_prospect(campaign, item, reference) for item in discovered.values()
+    ]
     return sorted(normalized, key=lambda item: item["relevance_score"], reverse=True)
+
+
+def fetch_youtube_prospect(
+    api_key: str, campaign: dict[str, Any], prospect: dict[str, Any], *,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Refresh one imported channel through official APIs, with no arbitrary fetch."""
+    if not api_key.strip():
+        raise RuntimeError("YouTube discovery requires a restricted API key")
+    if prospect.get("platform") != "youtube":
+        raise ValueError("Creator research supports YouTube prospects only")
+    if prospect.get("suppressed_at") or prospect.get("status") in {"suppressed", "bounced"}:
+        raise ValueError("Suppressed prospects cannot be researched")
+    identity = public_youtube_identity(prospect["profile_url"])
+    reference = now or datetime.now(UTC)
+    response = _read_youtube_json("/youtube/v3/channels", {
+        "part": "snippet,statistics", **identity, "maxResults": 1, "key": api_key,
+    })
+    channels = _youtube_items(response, 1)
+    if not channels or not CHANNEL_ID.fullmatch(str(channels[0].get("id", ""))):
+        raise RuntimeError("Public YouTube channel was not found")
+    channel = channels[0]
+    if "id" in identity and channel["id"] != identity["id"]:
+        raise RuntimeError("YouTube channel identity did not match")
+    previous = prospect.get("intelligence") or {}
+    previous_channel = previous.get("source_channel_id")
+    if previous_channel and previous_channel != channel["id"]:
+        raise RuntimeError("Public handle ownership changed; review the creator profile")
+    video_id = public_video_id(prospect.get("latest_content_url"))
+    previous_sample = previous_channel == channel["id"] and any(
+        sample.get("url") == prospect.get("latest_content_url")
+        and sample.get("metadata_status") in {"observed_this_run", "previously_observed"}
+        for sample in previous.get("recent_videos", []) if isinstance(sample, dict)
+    )
+    item = {
+        "channel_id": channel["id"], "video_id": video_id,
+        "display_name": prospect["display_name"],
+        "latest_content_title": prospect.get("latest_content_title") if previous_sample else None,
+        "latest_content_url": f"https://www.youtube.com/watch?v={video_id}" if video_id else None,
+        "latest_content_published_at": prospect.get("latest_content_published_at")
+        if previous_sample else None,
+        "previous_sample": previous_sample, "direct_refresh": True, "discovery_query": None,
+    }
+    _apply_channel(channel, item)
+    _enrich_videos(api_key, {channel["id"]: item})
+    return _normalize_researched_prospect(campaign, item, reference)
 
 
 def tracking_url(campaign: dict[str, Any], prospect: dict[str, Any]) -> str:

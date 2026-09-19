@@ -270,7 +270,7 @@ const viewCopy = {
   missions: ["Continuous operations", "Choose the <em>mission.</em>", "Activate, pause, or replace ongoing work without changing code."],
   workflows: ["Coordinated autonomy", "Plan. Execute. <em>Verify.</em>", "Turn a multi-step objective into durable work with dependencies, result checks, and a clear stopping point."],
   opportunities: ["", "Your <em>job inbox.</em>", "Compare fresh matches, prepare truthful drafts, and decide what to apply for."],
-  campaigns: ["Measured distribution", "Grow with <em>evidence.</em>", "Discover relevant creators, review each contact, and adapt drafts only when outcomes support it."],
+  campaigns: ["", "Find creators with <em>a reason to fit.</em>", "Research YouTube audiences, trace published business contacts, and develop a relevant collaboration."],
   approvals: ["Human control", "Decide before <em>impact.</em>", "Approve or reject high-risk tasks before they can enter execution."],
   tasks: ["Durable execution", "Assign and <em>inspect work.</em>", "Create safe one-off tasks and follow every transition in the audit trail."],
   settings: ["", "Settings <em>and help.</em>", "Manage your private connection and understand how models, discovery, and approvals work."],
@@ -301,7 +301,7 @@ const navigationItems = [
   { label: "Workflows", description: "Run recipes and follow dependent steps", view: "workflows" },
   { label: "Career missions", description: "Create and schedule job searches", view: "missions" },
   { label: "Job inbox", description: "Review matches, drafts, and application forms", view: "opportunities" },
-  { label: "Creator campaigns", description: "Discover creators and prepare outreach", view: "campaigns" },
+  { label: "Creator campaigns", description: "Research YouTube creators, contacts, and collaboration ideas", view: "campaigns" },
   { label: "Approvals", description: "Review each exact email or application", view: "approvals" },
   { label: "Feature readiness", description: "Setup requirements and recorded verification", view: "readiness" },
   { label: "Tasks & history", description: "Inspect task results and audit events", view: "tasks" },
@@ -1279,7 +1279,7 @@ function campaignCard(campaign) {
   card.append(learning);
   const actions = node("div", "card-actions");
   actions.append(
-    button("Find creators", "button", "scan-campaign", campaign.id),
+    button("Find and research creators", "button", "scan-campaign", campaign.id),
     button("Promotion kit", "button secondary", "promotion-kit", campaign.id),
     button("Edit campaign", "text-button", "edit-campaign", campaign.id),
   );
@@ -1365,7 +1365,196 @@ function renderMarketingFilters() {
 function filteredProspects() {
   const campaignId = $("#marketing-campaign-filter").value;
   const status = $("#marketing-status-filter").value;
-  return state.prospects.filter((item) => (!campaignId || item.campaign_id === campaignId) && (!status || item.status === status));
+  const platform = $("#marketing-platform-filter").value;
+  const contact = $("#marketing-contact-filter").value;
+  const search = $("#marketing-search").value.trim().toLocaleLowerCase();
+  const prospects = state.prospects.filter((item) => {
+    if ((campaignId && item.campaign_id !== campaignId) || (status && item.status !== status) || (platform && item.platform !== platform)) return false;
+    const candidates = prospectContactCandidates(item);
+    const authorized = Boolean(item.contact_authorized_at && !item.suppressed_at);
+    if (contact === "candidate" && (!candidates.length || authorized || item.suppressed_at)) return false;
+    if (contact === "authorized" && !authorized) return false;
+    if (contact === "missing" && (candidates.length || item.contact_email)) return false;
+    const intelligence = item.intelligence || {};
+    const searchable = [item.display_name, item.contact_email, item.latest_content_title, intelligence.channel_summary,
+      ...researchItems(intelligence, "topics"), ...candidates.map((candidate) => candidate.email),
+      ...researchItems(intelligence, "recent_videos").map((video) => video.title)].join(" ").toLocaleLowerCase();
+    return !search || searchable.includes(search);
+  });
+  const sort = $("#marketing-sort").value;
+  return prospects.sort((left, right) => {
+    let order = 0;
+    if (sort === "name") order = left.display_name.localeCompare(right.display_name);
+    if (sort === "audience") order = Number(right.audience_size || 0) - Number(left.audience_size || 0);
+    if (sort === "recent") order = (Date.parse(right.intelligence?.researched_at) || 0) - (Date.parse(left.intelligence?.researched_at) || 0);
+    if (sort === "contact") order = Number(hasUnreviewedContact(right)) - Number(hasUnreviewedContact(left));
+    return order || Number(right.relevance_score || 0) - Number(left.relevance_score || 0) || left.display_name.localeCompare(right.display_name);
+  });
+}
+
+function researchItems(intelligence, key) {
+  return Array.isArray(intelligence?.[key]) ? intelligence[key].filter((item) => item !== null && item !== undefined) : [];
+}
+
+function prospectContactCandidates(prospect) {
+  const candidates = researchItems(prospect.intelligence, "contact_candidates").map((candidate) => ({ ...candidate, origin: "discovered" }));
+  if (!prospect.contact_authorized_at && prospect.contact_email && prospect.contact_source_url) {
+    candidates.push({
+      email: prospect.contact_email,
+      source_url: prospect.contact_source_url,
+      evidence: prospect.contact_basis_note || "",
+      observed_at: null,
+      status: "unreviewed",
+      origin: "recorded",
+    });
+  }
+  const seen = new Set();
+  return candidates.filter((candidate) => {
+    const email = typeof candidate.email === "string" ? candidate.email.trim().toLowerCase() : "";
+    if (!email || seen.has(email)) return false;
+    seen.add(email);
+    return true;
+  });
+}
+
+function hasUnreviewedContact(prospect) {
+  return !prospect.suppressed_at && !prospect.contact_authorized_at && prospectContactCandidates(prospect).length > 0;
+}
+
+function researchDate(value) {
+  return value && Number.isFinite(Date.parse(value)) ? formatDate(value) : "Not recorded";
+}
+
+function researchLink(label, value) {
+  const link = node("a", "text-button", label);
+  try {
+    if (typeof value !== "string" || !/^https:\/\//i.test(value)) throw new Error("Missing public source");
+    const parsed = new URL(value);
+    if (parsed.username || parsed.password) throw new Error("Embedded credentials rejected");
+    link.href = safeExternalUrl(value);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+  } catch (_error) {
+    link.textContent = `${label} unavailable`;
+    link.className = "fine-print";
+  }
+  return link;
+}
+
+function creatorResearchPending(prospectId) {
+  return state.tasks.some((task) => task.kind === "marketing.creator_discovery"
+    && task.payload?.prospect_id === prospectId
+    && ["pending_approval", "queued", "running"].includes(task.status));
+}
+
+function researchButton(prospect, label) {
+  const pending = creatorResearchPending(prospect.id) || researchingProspects.has(prospect.id);
+  const control = button(pending ? "Research in progress…" : label, "button compact", "research-prospect", prospect.id);
+  control.disabled = pending;
+  return control;
+}
+
+function prospectResearch(prospect) {
+  const intelligence = prospect.intelligence || {};
+  const candidates = prospectContactCandidates(prospect);
+  const details = node("details", "creator-dossier");
+  details.dataset.prospectId = prospect.id;
+  details.append(node("summary", "", "Research dossier · evidence and ideas"));
+  const body = node("div", "dossier-body");
+  if (!intelligence.researched_at && !candidates.length) {
+    body.append(node("p", "", "This creator has no research dossier yet. Run research to look for published business contacts, recent content, audience fit, and collaboration ideas."));
+    if (prospect.platform === "youtube" && !prospect.suppressed_at) body.append(researchButton(prospect, "Research this creator"));
+    details.append(body);
+    return details;
+  }
+  body.append(node("p", "fine-print", `Researched ${researchDate(intelligence.researched_at)} · ${titleCase(intelligence.confidence || "unknown")} evidence confidence · ${titleCase(intelligence.enrichment_status || "partial")} research`));
+  if (intelligence.channel_summary) body.append(node("p", "", intelligence.channel_summary));
+  const topics = researchItems(intelligence, "topics");
+  if (topics.length) {
+    const list = node("div", "opportunity-meta");
+    topics.slice(0, 8).forEach((topic) => list.append(node("span", "chip", topic)));
+    body.append(list);
+  }
+
+  const contacts = node("section", "dossier-section");
+  contacts.append(node("h4", "", "Published business contacts"));
+  if (!candidates.length) contacts.append(node("p", "", "No public business email found in the checked sources. This does not mean the creator has no contact route."));
+  candidates.forEach((candidate, index) => {
+    const item = node("div", "dossier-contact");
+    item.append(node("strong", "", candidate.email || "Address unavailable"), node("span", "chip status-chip", `${titleCase(candidate.origin)} · unreviewed`));
+    if (candidate.evidence) item.append(candidate.origin === "recorded"
+      ? node("p", "fine-print", `Recorded note (source not re-observed): ${candidate.evidence}`)
+      : node("blockquote", "source-excerpt", candidate.evidence));
+    const actions = node("div", "dossier-source-actions");
+    actions.append(researchLink("Open published source", candidate.source_url), node("small", "fine-print", `Observed ${researchDate(candidate.observed_at)}`));
+    if (!prospect.suppressed_at) {
+      const review = button("Review this contact", "button compact", "review-candidate", prospect.id);
+      review.dataset.candidateIndex = String(index);
+      actions.append(review);
+    }
+    item.append(actions);
+    contacts.append(item);
+  });
+  body.append(contacts);
+
+  const fit = researchItems(intelligence, "fit_breakdown");
+  if (fit.length) {
+    const section = node("section", "dossier-section");
+    section.append(node("h4", "", "Why this creator fits"));
+    const list = node("dl", "fit-breakdown");
+    fit.forEach((criterion) => {
+      const row = node("div");
+      row.append(node("dt", "", `${titleCase(criterion.criterion)} · ${criterion.points}/${criterion.max_points}`), node("dd", "", criterion.evidence || "No supporting evidence recorded."));
+      list.append(row);
+    });
+    section.append(list);
+    body.append(section);
+  }
+
+  const videos = researchItems(intelligence, "recent_videos");
+  if (videos.length) {
+    const section = node("section", "dossier-section");
+    section.append(node("h4", "", "Recent content evidence"));
+    videos.slice(0, 5).forEach((video) => {
+      const item = node("div", "dossier-video");
+      item.append(researchLink(video.title || "Open video", video.url));
+      const counts = [["views", video.view_count], ["likes", video.like_count], ["comments", video.comment_count]]
+        .filter(([, count]) => typeof count === "number" && Number.isFinite(count))
+        .map(([label, count]) => `${count.toLocaleString()} ${label}`);
+      item.append(node("p", "fine-print", [researchDate(video.published_at), ...counts].join(" · ")));
+      section.append(item);
+    });
+    body.append(section);
+  }
+
+  const ideas = researchItems(intelligence, "collaboration_ideas");
+  if (ideas.length || intelligence.personalized_hook) {
+    const section = node("section", "dossier-section");
+    section.append(node("h4", "", "Collaboration ideas to develop"), node("p", "fine-print", "Draft suggestions based on available evidence. Confirm product availability, creator interest, and any offer before using them."));
+    ideas.slice(0, 4).forEach((idea) => {
+      const item = node("div", "dossier-idea");
+      item.append(node("strong", "", idea.title), node("p", "", idea.concept), node("p", "fine-print", `Why it fits: ${idea.why_fit}`));
+      section.append(item);
+    });
+    if (intelligence.personalized_hook) {
+      section.append(node("h4", "", "Suggested opening"), node("blockquote", "source-excerpt", intelligence.personalized_hook));
+      const copy = button("Copy suggested opening", "text-button", "copy-creator-hook", prospect.id);
+      section.append(copy);
+    }
+    body.append(section);
+  }
+  const gaps = researchItems(intelligence, "gaps");
+  if (gaps.length) {
+    const section = node("section", "dossier-section research-gaps");
+    section.append(node("h4", "", "What still needs checking"));
+    const list = node("ul");
+    gaps.forEach((gap) => list.append(node("li", "", gap)));
+    section.append(list);
+    body.append(section);
+  }
+  if (prospect.platform === "youtube" && !prospect.suppressed_at) body.append(researchButton(prospect, "Refresh research"));
+  details.append(body);
+  return details;
 }
 
 function prospectCard(prospect) {
@@ -1378,11 +1567,15 @@ function prospectCard(prospect) {
     node("h3", "", prospect.display_name),
     node("p", "", prospect.audience_size === null ? "Audience size unavailable" : `${prospect.audience_size.toLocaleString()} audience`),
   );
-  top.append(copy, node("div", "opportunity-score", String(prospect.relevance_score)));
+  const score = node("div", "creator-fit", String(prospect.relevance_score));
+  score.append(node("small", "", "fit / 100"));
+  top.append(copy, score);
   card.append(top);
   const meta = node("div", "opportunity-meta");
   meta.append(node("span", "chip status-chip", titleCase(prospect.status)));
-  meta.append(node("span", "chip", prospect.contact_authorized_at ? "Contact reviewed" : "Contact review needed"));
+  const candidates = prospectContactCandidates(prospect);
+  meta.append(node("span", "chip", prospect.suppressed_at ? "Contact suppressed" : prospect.contact_authorized_at ? "Authorized contact" : candidates.length ? `${candidates.length} published contact${candidates.length === 1 ? "" : "s"} to review` : "No reviewed contact"));
+  if (prospect.intelligence?.confidence) meta.append(node("span", "chip", `${titleCase(prospect.intelligence.confidence)} evidence confidence`));
   if (prospect.latest_message) meta.append(node("span", "chip", `${titleCase(prospect.latest_message.stage)} · ${emailActionState(prospect.latest_message.action_status)[0]}`));
   card.append(meta);
   if (prospect.latest_content_title) {
@@ -1390,8 +1583,10 @@ function prospectCard(prospect) {
     card.append(content);
   }
   const reasons = node("ul", "reason-list");
-  prospect.relevance_reasons.slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
+  (prospect.relevance_reasons || []).slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
   card.append(reasons);
+  if (hasUnreviewedContact(prospect)) card.append(node("p", "candidate-preview", `Published contact: ${candidates[0].email} · ${candidates[0].origin}, unreviewed`));
+  card.append(prospectResearch(prospect));
   const links = node("div", "prospect-links");
   const profile = node("a", "text-button", "Open public profile");
   try { profile.href = safeExternalUrl(prospect.profile_url); }
@@ -1430,14 +1625,50 @@ function prospectCard(prospect) {
 
 function renderProspects() {
   const list = $("#prospect-list");
+  const expanded = new Set($$(".creator-dossier[open]", list).map((item) => item.dataset.prospectId));
   list.replaceChildren();
   const prospects = filteredProspects();
-  $("#marketing-prospect-count").textContent = `${prospects.length} creator${prospects.length === 1 ? "" : "s"}`;
+  const unreviewed = prospects.filter(hasUnreviewedContact).length;
+  $("#marketing-prospect-count").textContent = `${prospects.length} creator${prospects.length === 1 ? "" : "s"} · ${unreviewed} with published contacts to review`;
+  $("#marketing-export").disabled = !prospects.length;
   if (!prospects.length) {
     list.append(empty("No creators in this view", "Run discovery, add a prospect, or change the filters.", true));
     return;
   }
   prospects.forEach((prospect) => list.append(prospectCard(prospect)));
+  $$(".creator-dossier", list).forEach((item) => { item.open = expanded.has(item.dataset.prospectId); });
+}
+
+function exportProspects() {
+  const prospects = filteredProspects();
+  if (!prospects.length) return toast("No creators in this view to export", true);
+  const rows = [["Creator", "Platform", "Profile URL", "Fit score", "Audience", "Research confidence", "Research date", "Authorized business email", "Authorized contact source", "Published unreviewed emails", "Unreviewed contact origins", "Contact evidence sources", "Recent video", "Collaboration ideas", "Suggested opening", "Research gaps", "Outreach status"]];
+  prospects.forEach((prospect) => {
+    const intelligence = prospect.intelligence || {};
+    const candidates = prospectContactCandidates(prospect);
+    const authorized = Boolean(prospect.contact_authorized_at && !prospect.suppressed_at);
+    rows.push([prospect.display_name, prospect.platform, prospect.profile_url, prospect.relevance_score, prospect.audience_size,
+      intelligence.confidence, intelligence.researched_at, authorized ? prospect.contact_email : "", authorized ? prospect.contact_source_url : "",
+      candidates.map((item) => item.email).join("; "), candidates.map((item) => item.origin).join("; "), candidates.map((item) => item.source_url).join("; "), prospect.latest_content_url,
+      researchItems(intelligence, "collaboration_ideas").map((item) => `${item.title}: ${item.concept}`).join(" | "), intelligence.personalized_hook,
+      researchItems(intelligence, "gaps").join(" | "), prospect.status]);
+  });
+  const encodeCell = (value) => {
+    let text = String(value ?? "");
+    // Spreadsheet importers can evaluate quoted cells; neutralize formula prefixes too.
+    if (/^[\s\u0000-\u001f\u007f\uFEFF]*[=+\-@]/u.test(text) || /^[\u0000-\u001f\u007f]/.test(text)) text = `'${text}`;
+    return `"${text.replaceAll('"', '""')}"`;
+  };
+  const content = "\uFEFF" + rows.map((row) => row.map(encodeCell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+  const link = node("a");
+  link.href = url;
+  link.download = `youtube-creator-research-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast(`Exported ${prospects.length} creators with research and contact-review status`);
 }
 
 function renderInferenceStatus() {
@@ -1745,7 +1976,7 @@ function populateCampaignSelect(select, selected = "") {
   select.value = selected;
 }
 
-function openProspectDialog(prospect = null) {
+function openProspectDialog(prospect = null, candidateIndex = null) {
   if (!isConnected()) return $("#connect-dialog").showModal();
   if (!state.campaigns.length) {
     toast("Create a creator campaign first", true);
@@ -1753,9 +1984,15 @@ function openProspectDialog(prospect = null) {
   }
   const form = $("#prospect-form");
   form.reset();
+  clearFormError(form);
+  const candidateContext = $("#contact-candidate-context");
+  candidateContext.replaceChildren();
+  candidateContext.hidden = true;
   form.elements.prospect_id.value = prospect?.id || "";
   populateCampaignSelect(form.elements.campaign_id, prospect?.campaign_id || state.campaigns[0].id);
   form.elements.campaign_id.disabled = Boolean(prospect);
+  form.elements.platform.replaceChildren(new Option("YouTube", "youtube"));
+  if (prospect && prospect.platform !== "youtube") form.elements.platform.append(new Option(`${titleCase(prospect.platform)} · saved history`, prospect.platform));
   form.elements.platform.disabled = Boolean(prospect);
   $$(".new-prospect-only", form).forEach((element) => { element.hidden = Boolean(prospect); });
   $("#prospect-dialog-title").textContent = prospect ? "Review creator contact evidence" : "Add a creator prospect";
@@ -1768,6 +2005,26 @@ function openProspectDialog(prospect = null) {
     form.elements.contact_source_url.value = prospect.contact_source_url || "";
     form.elements.contact_basis_note.value = prospect.contact_basis_note || "";
     form.elements.authorize_contact.checked = Boolean(prospect.contact_authorized_at);
+  }
+  if (prospect && candidateIndex === null && hasUnreviewedContact(prospect)) {
+    const recordedEmail = (prospect.contact_email || "").trim().toLowerCase();
+    const recordedIndex = prospectContactCandidates(prospect).findIndex((candidate) => candidate.email.trim().toLowerCase() === recordedEmail);
+    candidateIndex = Math.max(0, recordedIndex);
+  }
+  if (prospect && candidateIndex !== null) {
+    const candidate = prospectContactCandidates(prospect)[candidateIndex];
+    if (candidate) {
+      form.elements.contact_email.value = candidate.email || "";
+      form.elements.contact_source_url.value = candidate.source_url || "";
+      form.elements.contact_basis_note.value = "";
+      form.elements.authorize_contact.checked = false;
+      candidateContext.hidden = false;
+      candidateContext.append(node("strong", "", `${titleCase(candidate.origin)} contact · not authorized`), node("p", "", "Review the creator's published source and write your own basis before authorizing contact."));
+      if (candidate.evidence) candidateContext.append(candidate.origin === "recorded"
+        ? node("p", "fine-print", `Recorded note (source not re-observed): ${candidate.evidence}`)
+        : node("blockquote", "source-excerpt", candidate.evidence));
+      candidateContext.append(researchLink("Open published source", candidate.source_url), node("p", "fine-print", `Observed ${researchDate(candidate.observed_at)}`));
+    }
   }
   $("#prospect-dialog").showModal();
 }
@@ -1807,6 +2064,24 @@ async function scanCampaign(id) {
     toast("Official YouTube creator discovery queued");
     await loadData({ quiet: true });
   } catch (error) { toast(error.message, true); }
+}
+
+const researchingProspects = new Set();
+async function researchProspect(id) {
+  if (researchingProspects.has(id) || creatorResearchPending(id)) return;
+  researchingProspects.add(id);
+  const controls = $$('[data-action="research-prospect"]').filter((item) => item.dataset.id === id);
+  controls.forEach((control) => { control.disabled = true; control.textContent = "Queueing research…"; });
+  try {
+    await api(`/v1/marketing/prospects/${encodeURIComponent(id)}/research`, { method: "POST" });
+    toast("Creator research queued. Evidence will update when the task completes.");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+  finally {
+    researchingProspects.delete(id);
+    controls.forEach((control) => { control.disabled = false; control.textContent = "Refresh research"; });
+    renderProspects();
+  }
 }
 
 async function planMarketingEmail(id, stage, subject = null, body = null) {
@@ -2109,6 +2384,16 @@ document.addEventListener("click", async (event) => {
   if (action === "promotion-kit") return showPromotionKit(id);
   if (action === "new-prospect") return openProspectDialog();
   if (action === "edit-prospect") return openProspectDialog(state.prospects.find((item) => item.id === id));
+  if (action === "review-candidate") return openProspectDialog(state.prospects.find((item) => item.id === id), Number(target.dataset.candidateIndex));
+  if (action === "research-prospect") return researchProspect(id);
+  if (action === "export-prospects") return exportProspects();
+  if (action === "copy-creator-hook") {
+    const hook = state.prospects.find((item) => item.id === id)?.intelligence?.personalized_hook;
+    if (!hook) return toast("No suggested opening is available", true);
+    try { await copyText(hook); toast("Suggested opening copied for your review"); }
+    catch (error) { toast(error.message, true); }
+    return;
+  }
   if (action === "plan-marketing-initial") return openMarketingReply(state.prospects.find((item) => item.id === id), "initial");
   if (action === "plan-marketing-paid") return planMarketingEmail(id, "paid_offer");
   if (action === "reply-prospect") return openMarketingReply(state.prospects.find((item) => item.id === id));
@@ -2227,6 +2512,10 @@ $("#opportunity-profile-filter").addEventListener("change", renderOpportunities)
 $("#opportunity-status-filter").addEventListener("change", renderOpportunities);
 $("#marketing-campaign-filter").addEventListener("change", renderProspects);
 $("#marketing-status-filter").addEventListener("change", renderProspects);
+$("#marketing-contact-filter").addEventListener("change", renderProspects);
+$("#marketing-platform-filter").addEventListener("change", renderProspects);
+$("#marketing-sort").addEventListener("change", renderProspects);
+$("#marketing-search").addEventListener("input", renderProspects);
 $("#scan-now-button").addEventListener("click", async () => {
   const profiles = state.profiles.filter((item) => item.active);
   if (!profiles.length) return toast("Activate at least one career mission first", true);

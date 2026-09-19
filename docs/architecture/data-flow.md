@@ -115,7 +115,12 @@ cannot click again because the application fingerprint is opportunity-scoped.
 An active PostgreSQL campaign schedules `marketing.creator_discovery` through
 the policy/outbox path. The research worker loads the campaign by ID, calls only
 the official YouTube Data API, and upserts public channel/video metadata plus
-deterministic relevance evidence. The API key never enters the task, queue,
+deterministic relevance evidence. Public descriptions can yield unreviewed
+business-contact candidates with bounded excerpts and observation timestamps.
+The PostgreSQL research dossier also records fit factors, observed videos,
+creative suggestions, confidence, and gaps. Single-prospect refresh enters the
+same capability, validates membership/suppression, and uses the same task budget.
+The API key never enters the task, queue,
 audit, or dashboard. Discovery creates no contact authorization.
 
 An operator separately records a public business email, its source URL, a basis
