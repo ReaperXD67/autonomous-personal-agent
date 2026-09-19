@@ -47,8 +47,9 @@ capability must enter this registry before its handler is reachable.
   jitter, restart-safe outbox release, and a final due-time check;
 - test-profile startup explicitly blanks deployment SMTP username/password
   before creating Mailpit-mode containers;
-- official-host-only YouTube discovery with a worker-scoped API key, bounded
-  queries/results, and no email discovery;
+- official-host-only YouTube research with a worker-scoped API key, bounded
+  queries/results, and unreviewed public business-contact candidates with source
+  excerpts; discovery never grants contact authorization;
 - operator-recorded public-contact source/basis/authorization, durable opt-out
   and bounce suppression, and pre-SMTP reply-state revalidation;
 - evidence-thresholded creator-copy adaptation limited to fixed draft variants;

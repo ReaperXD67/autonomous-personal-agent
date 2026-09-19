@@ -23,3 +23,5 @@ history.
 - [ADR-0017](ADR-0017-policy-aware-smart-model-ranking.md): live benchmark/capability ranking constrained by free-price, endpoint privacy, and provider fallback limits
 - [ADR-0018](ADR-0018-reviewed-goal-proposals-and-readiness.md): constrained model proposals, atomic adoption and scheduling, and operator feature evidence
 - [ADR-0019](ADR-0019-smtp-acceptance-and-connection-evidence.md): final send fencing, durable SMTP acceptance, no-send diagnostics, and reviewed personalized introductions
+- [ADR-0020](ADR-0020-durable-low-volume-email-pacing.md): durable low-volume email pacing
+- [ADR-0021](ADR-0021-evidence-backed-youtube-research.md): public business-contact candidates and evidence-backed YouTube research

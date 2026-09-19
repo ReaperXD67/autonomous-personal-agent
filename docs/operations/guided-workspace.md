@@ -16,7 +16,7 @@ The dashboard is a single-operator local alpha, not a public multi-user service.
 | Goal planner | Try the local demo or enter a goal and select its context | A proposal appears for review; no child work starts until adoption |
 | Career missions | Add target roles, skills, sources, résumé, and optionally identity | Scan manually, then enable a bounded recurring schedule |
 | Job inbox | Inspect evidence and shortlist a match | Draft, inspect the form, and review the exact proposed application |
-| Creator campaigns | Create a campaign and review its promotion kit | Discover candidate creators, record public contact provenance, and prepare outreach |
+| Creator campaigns | Create a campaign and review its promotion kit | Research YouTube fit and public business-contact candidates, inspect creative concepts, export a shortlist, and review outreach |
 | Approvals | Inspect exact contents and destination | Approve or reject one action; each email/application needs its own approval |
 | Feature readiness | Expand setup and evidence | See missing prerequisites and when a feature was actually checked |
 | Tasks & history | Inspect results, errors, and audit events | Diagnose failures or request cancellation |

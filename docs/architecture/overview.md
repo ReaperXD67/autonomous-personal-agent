@@ -53,6 +53,10 @@ fallback, status, and cost metadata but never prompt or output text.
 Creator campaigns, channel prospects, public-contact provenance, durable
 suppression, outreach/action links, reply classifications, and attributed
 results use the same authority.
+YouTube prospects also retain bounded research dossiers in PostgreSQL: public
+business-contact candidates, source evidence, explained fit, creative ideas,
+and gaps. Candidates never update recipient authorization. Campaign scans and
+single-prospect refresh use the existing discovery task and worker budget.
 
 ### Agent and model plane
 
