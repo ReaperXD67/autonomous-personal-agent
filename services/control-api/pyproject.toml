@@ -5,9 +5,9 @@ description = "Policy-enforcing control plane for autonomous-personal-agent"
 requires-python = ">=3.13,<3.14"
 dependencies = [
   "fastapi==0.141.1",
-  "psycopg[binary]==3.3.4",
+  "psycopg[binary]==3.3.6",
   "redis==8.1.0",
-  "uvicorn==0.52.1",
+  "uvicorn==0.53.0",
 ]
 
 [dependency-groups]
