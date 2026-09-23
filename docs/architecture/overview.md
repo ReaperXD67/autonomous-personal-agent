@@ -5,7 +5,7 @@
 Foundation favors explicit boundaries over premature features:
 
 1. every task has durable identity and state;
-2. high-impact execution cannot bypass human approval;
+2. high-impact execution requires exact approval or explicit bounded delegation;
 3. transient queues cannot become authoritative memory;
 4. upstream agent/model products remain replaceable;
 5. tools are granted per-agent, not globally;
@@ -37,6 +37,14 @@ same lifecycle, policy, and audit model. YouTube tasks carry only campaign IDs;
 the restricted API key exists only in this egress-enabled worker.
 The isolated action worker handles reviewed browser and email side effects only
 after an exact approval digest has entered the durable queue.
+Career Play grants can authorize those exact digests within a frozen, expiring
+scope. PostgreSQL stores the grant, preparation records, rolling budget and
+normalized application target ledger. The action worker rechecks the grant at
+the receipt boundary. See [ADR-0022](../decisions/ADR-0022-scoped-career-autopilot-and-reply-tracking.md).
+Gmail reply tracking runs in the research worker with read-only OAuth and a
+selected label. Only that worker receives Gmail refresh credentials. Career
+email preparation receives sender metadata and pacing policy; SMTP credentials
+remain in the existing control/action boundary, not the research worker.
 
 ### Data plane
 

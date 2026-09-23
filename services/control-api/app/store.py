@@ -397,99 +397,105 @@ class Database:
         )
         return scheduled_for
 
-    def decide_task(self, task_id: UUID, request: ApprovalDecision) -> dict[str, Any]:
-        with self.connect() as connection:
-            task = connection.execute(
-                "SELECT * FROM agent_tasks WHERE id = %s FOR UPDATE", (task_id,)
-            ).fetchone()
-            if task is None:
-                raise TaskNotFoundError(str(task_id))
-            if task["status"] != "pending_approval":
-                raise InvalidTaskStateError(f"Task is {task['status']}, not pending_approval")
+    def decide_task(
+        self, task_id: UUID, request: ApprovalDecision, *, connection: Any | None = None
+    ) -> dict[str, Any]:
+        if connection is None:
+            with self.connect() as owned_connection:
+                row = self.decide_task(task_id, request, connection=owned_connection)
+                owned_connection.commit()
+                return row
+        task = connection.execute(
+            "SELECT * FROM agent_tasks WHERE id = %s FOR UPDATE", (task_id,)
+        ).fetchone()
+        if task is None:
+            raise TaskNotFoundError(str(task_id))
+        if task["status"] != "pending_approval":
+            raise InvalidTaskStateError(f"Task is {task['status']}, not pending_approval")
 
-            action = connection.execute(
-                "SELECT * FROM external_actions WHERE task_id = %s FOR UPDATE",
-                (task_id,),
-            ).fetchone()
-            action_hash = None
-            if action is not None:
-                action_hash = task["payload"].get("action_digest")
-                if action_hash != action["context_hash"]:
-                    raise InvalidTaskStateError("Action context changed after it was prepared")
-                if request.decision == "approved" and action["expires_at"] <= connection.execute(
-                    "SELECT now() AS current_time"
-                ).fetchone()["current_time"]:
-                    raise InvalidTaskStateError("Action approval window has expired")
+        action = connection.execute(
+            "SELECT * FROM external_actions WHERE task_id = %s FOR UPDATE",
+            (task_id,),
+        ).fetchone()
+        action_hash = None
+        if action is not None:
+            action_hash = task["payload"].get("action_digest")
+            if action_hash != action["context_hash"]:
+                raise InvalidTaskStateError("Action context changed after it was prepared")
+            if request.decision == "approved" and action["expires_at"] <= connection.execute(
+                "SELECT now() AS current_time"
+            ).fetchone()["current_time"]:
+                raise InvalidTaskStateError("Action approval window has expired")
 
-            scheduled_for = None
-            if request.decision == "approved" and action is not None:
-                scheduled_for = self._reserve_email_schedule(connection, task, action)
+        scheduled_for = None
+        if request.decision == "approved" and action is not None:
+            scheduled_for = self._reserve_email_schedule(connection, task, action)
 
-            next_status = "queued" if request.decision == "approved" else "rejected"
-            approved_by = request.actor if request.decision == "approved" else None
+        next_status = "queued" if request.decision == "approved" else "rejected"
+        approved_by = request.actor if request.decision == "approved" else None
+        connection.execute(
+            """
+            INSERT INTO task_approvals (
+                task_id, decision, actor, reason, action_context_hash
+            ) VALUES (%s, %s, %s, %s, %s)
+            """,
+            (task_id, request.decision, request.actor, request.reason, action_hash),
+        )
+        row = connection.execute(
+            """
+            UPDATE agent_tasks
+            SET status = %s,
+                approved_by = %s,
+                approved_at = CASE WHEN %s = 'approved' THEN now() ELSE NULL END,
+                completed_at = CASE WHEN %s = 'rejected' THEN now() ELSE NULL END,
+                next_attempt_at = COALESCE(%s, next_attempt_at)
+            WHERE id = %s
+            RETURNING *
+            """,
+            (
+                next_status,
+                approved_by,
+                request.decision,
+                request.decision,
+                scheduled_for,
+                task_id,
+            ),
+        ).fetchone()
+        if action is not None:
             connection.execute(
                 """
-                INSERT INTO task_approvals (
-                    task_id, decision, actor, reason, action_context_hash
-                ) VALUES (%s, %s, %s, %s, %s)
-                """,
-                (task_id, request.decision, request.actor, request.reason, action_hash),
-            )
-            row = connection.execute(
-                """
-                UPDATE agent_tasks
-                SET status = %s,
-                    approved_by = %s,
-                    approved_at = CASE WHEN %s = 'approved' THEN now() ELSE NULL END,
-                    completed_at = CASE WHEN %s = 'rejected' THEN now() ELSE NULL END,
-                    next_attempt_at = COALESCE(%s, next_attempt_at)
+                UPDATE external_actions
+                SET status = %s, last_error = NULL
                 WHERE id = %s
-                RETURNING *
                 """,
-                (
-                    next_status,
-                    approved_by,
-                    request.decision,
-                    request.decision,
-                    scheduled_for,
-                    task_id,
-                ),
-            ).fetchone()
-            if action is not None:
-                connection.execute(
-                    """
-                    UPDATE external_actions
-                    SET status = %s, last_error = NULL
-                    WHERE id = %s
-                    """,
-                    (next_status, action["id"]),
-                )
-            self._append_audit(
-                connection,
-                correlation_id=row["correlation_id"],
-                task_id=row["id"],
-                actor_type="approver",
-                actor_id=request.actor,
-                tool_name=row["kind"],
-                action=f"task.{request.decision}",
-                risk_level=row["risk_level"],
-                approval_status=request.decision,
-                execution_status=row["status"],
-                input_metadata={"reason_provided": request.reason is not None},
-                result_metadata=(
-                    {
-                        "email_scheduled_for": scheduled_for.isoformat(),
-                        "hourly_limit": self._email_pacing_policy.hourly_limit,
-                        "daily_limit": self._email_pacing_policy.daily_limit,
-                    }
-                    if scheduled_for is not None and self._email_pacing_policy is not None
-                    else None
-                ),
+                (next_status, action["id"]),
             )
-            if row["status"] == "queued":
-                self._add_outbox(connection, row)
-            connection.commit()
-            return row
+        self._append_audit(
+            connection,
+            correlation_id=row["correlation_id"],
+            task_id=row["id"],
+            actor_type="approver",
+            actor_id=request.actor,
+            tool_name=row["kind"],
+            action=f"task.{request.decision}",
+            risk_level=row["risk_level"],
+            approval_status=request.decision,
+            execution_status=row["status"],
+            input_metadata={"reason_provided": request.reason is not None},
+            result_metadata=(
+                {
+                    "email_scheduled_for": scheduled_for.isoformat(),
+                    "hourly_limit": self._email_pacing_policy.hourly_limit,
+                    "daily_limit": self._email_pacing_policy.daily_limit,
+                }
+                if scheduled_for is not None and self._email_pacing_policy is not None
+                else None
+            ),
+        )
+        if row["status"] == "queued":
+            self._add_outbox(connection, row)
+        return row
+
 
     def transition_to_running(
         self, task_id: UUID, lease_seconds: int, worker_id: str

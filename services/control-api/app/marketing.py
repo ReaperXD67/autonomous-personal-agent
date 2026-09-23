@@ -119,6 +119,8 @@ def _apply_channel(item: dict[str, Any], prospect: dict[str, Any]) -> None:
         "audience_size": None if statistics.get("hiddenSubscriberCount") else
         _public_count(statistics.get("subscriberCount"), limit=1_000_000_000),
         "channel_description": snippet.get("description", ""),
+        "channel_country": snippet.get("country"),
+        "channel_language": snippet.get("defaultLanguage"),
         "channel_enriched": True,
     })
 
@@ -155,6 +157,8 @@ def _enrich_videos(api_key: str, discovered: dict[str, dict[str, Any]]) -> None:
             statistics = statistics if isinstance(statistics, dict) else {}
             prospect.update({
                 "video_description": snippet.get("description", ""),
+                "video_audio_language": snippet.get("defaultAudioLanguage"),
+                "video_language": snippet.get("defaultLanguage"),
                 "latest_content_title": _bounded_text(snippet.get("title"), 500) or None,
                 "latest_content_published_at": _parse_youtube_datetime(snippet.get("publishedAt")),
                 "video_enriched": True,
@@ -189,6 +193,7 @@ def fetch_youtube_creators(
     campaign: dict[str, Any],
     *,
     now: datetime | None = None,
+    selection_stats: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     if not api_key.strip():
         raise RuntimeError("YouTube discovery requires a restricted API key")
@@ -260,7 +265,39 @@ def fetch_youtube_creators(
     normalized = [
         _normalize_researched_prospect(campaign, item, reference) for item in discovered.values()
     ]
-    return sorted(normalized, key=lambda item: item["relevance_score"], reverse=True)
+    selected = []
+    summary = {
+        "reviewed": len(normalized), "selected": 0, "excluded": 0,
+        "country_known": 0, "country_matches": 0, "language_known": 0, "language_matches": 0,
+        "excluded_country_unknown": 0, "excluded_country_mismatch": 0,
+        "excluded_language_unknown": 0, "excluded_language_mismatch": 0,
+    }
+    for item in normalized:
+        geography = item["intelligence"]["geography"]
+        for dimension in ("country", "language"):
+            summary[f"{dimension}_known"] += int(geography[f"{dimension}_code"] is not None)
+            summary[f"{dimension}_matches"] += int(geography[f"{dimension}_match"] == "match")
+        if geography["eligible"]:
+            selected.append(item)
+        else:
+            for reason in geography["excluded_reasons"]:
+                summary[f"excluded_{reason}"] += 1
+    summary["selected"] = len(selected)
+    summary["excluded"] = len(normalized) - len(selected)
+    if selection_stats is not None:
+        selection_stats.clear()
+        selection_stats.update(summary)
+
+    def rank(item: dict[str, Any]) -> tuple[int, int]:
+        geography = item["intelligence"]["geography"]
+        preference_matches = sum(
+            geography[f"{dimension}_mode"] == "prefer"
+            and geography[f"{dimension}_match"] == "match"
+            for dimension in ("country", "language")
+        )
+        return preference_matches, item["relevance_score"]
+
+    return sorted(selected, key=rank, reverse=True)
 
 
 def fetch_youtube_prospect(

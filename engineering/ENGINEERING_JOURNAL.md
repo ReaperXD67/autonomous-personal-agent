@@ -2156,3 +2156,90 @@ ambiguous or obfuscated contacts. Creative ideas require product/creator review.
 The research campaign is inactive after the requested import; existing daily
 campaign scheduling is available. External SMTP, unrestricted autonomous tools,
 and self-modifying policies were not enabled or represented as operational.
+
+
+## 2026-09-23 - Poland creator selection and scoped career Play
+
+### Intent and implemented boundary
+
+The user requested Poland-based YouTube promotion prospects for KarixMC, GitHub
+publication, and a one-button job hunt with recent relevant applications and reply
+tracking. The user selected a 72-hour posting window and Gmail as the first mailbox.
+
+- Added independent country/language campaign selection and Poland presets.
+  Country evidence comes only from the channel's declared country. Strict mode
+  excludes unknowns; language metadata is separately sourced. Current campaign
+  criteria project onto saved history, scans persist selection counts, and a
+  campaign timestamp fence refuses obsolete scans. Contact authority is unchanged.
+- Added private portfolio identity, Play/Pause, expiring prepare/apply grants,
+  selected ATS hosts, explicit screening answers, freshness and fit thresholds,
+  rolling per-profile caps, normalized target deduplication and run-bound material.
+  The scheduler still creates policy-classified tasks. Individual exact actions
+  receive digest-bound approvals attributed to the scoped grant, with audit/outbox
+  in the same reservation transaction. Final execution rechecks the grant, profile,
+  job and destination before the existing receipt boundary. Ambiguous attempts
+  retain their reservation. Generic actions and marketing do not inherit grants.
+- Added optional job-linked hiring emails using one explicitly published hiring
+  contact, a run-bound draft, saved portfolio and deterministic application
+  reference. Negated/closed/general-contact contexts are excluded. Email and ATS
+  share the application cap and target ledger; existing SMTP pacing still applies.
+  SMTP acceptance becomes application-submitted evidence, not inbox-delivery proof.
+- Added truthful published/updated/unknown date provenance. Greenhouse update
+  dates cannot qualify for automatic applications. All required keywords now
+  match, remote-region restrictions apply, and optional Remotive discovery retains
+  attribution and a shared four-request daily budget with request spacing.
+- Added Gmail read-only label sync, mailbox-identity and scope checks, bounded
+  metadata/cursors, application timelines, strict correlation, reviewed corrections,
+  cautious interview dates and descriptive outcome suggestions. The integration
+  off switch prevents scheduled and manual reads before OAuth. Gmail credentials
+  go only to the research worker; no SMTP secrets were added there. Reply polling
+  continues for recent submitted applications after applying stops.
+- Added migrations 015-017 and ADR-0022, documented the authorization change,
+  synchronized product/operations/security claims, and added a persisted disposable
+  PostgreSQL autonomy/tracking smoke to the standard verification gate. Fixed the
+  older source-constraint migration so replay cannot reject later Remotive rows.
+
+### Validation and local state
+
+- Docker Desktop was initially unavailable due to inaccessible stale runtime
+  sockets. The two exact runtime directories were renamed to retained dated
+  sibling directories while its backend was stopped; the daemon then started.
+  No volumes, database data, credentials or Docker settings were removed.
+- Containerized lint and 392 tests passed after correcting initial line-length
+  and contact-negation findings. Independent database probes passed exact approval
+  and outbox binding, concurrent target/cap constraints, Pause/expiry/profile
+  refusal, run-bound browser/email drafts, SMTP-acceptance tracking, Gmail replay
+  and correction history, and all-migration replay with durable Remotive rows.
+- The first integrated gate found an outdated creator-smoke equality assertion:
+  saved research now adds current geography when read. The fixture now checks
+  preservation of the original dossier plus current selection, and additionally
+  proves the stale-campaign fence in PostgreSQL. All five creator smoke groups passed.
+- Browser JavaScript syntax and responsive unauthenticated career/creator views
+  passed at a mobile viewport without horizontal overflow; Poland filter selection
+  worked. Automatic approval review blocked the authenticated synthetic-profile
+  and bootstrap launcher command with 'blocked by policy'. That command did not
+  run and no alternative authentication route was attempted. Authenticated Play
+  visual behavior remains unverified; its backend behavior has database coverage.
+- The running database had no saved career profile/resume. The user was asked for
+  its location and role/location preferences. SMTP is disabled and Gmail OAuth is
+  not connected. No real application, recruitment email, mailbox sync, or meeting
+  booking was performed. Named YC/LinkedIn/Discord integrations remain clearly
+  identified as employer-board discovery/import paths or unconnected sources.
+- Real official-API Poland research ran in a dedicated inactive campaign. The
+  requested shortlist and provenance remain in ignored local output. Public
+  channel-country declarations do not verify nationality or audience location.
+  No contacts were authorized and no creator outreach was sent.
+
+- Completed 11 audited live discovery scans: 150 Minecraft channels declared PL,
+  with 33 distinct public business-contact candidates. The final private shortlist
+  contains 25 distinct contacts, excludes obvious secondary-name duplicates,
+  stays in the selected 1k-2m subscriber band (observed 3,690-841,000), and has
+  sampled videos within 180 days. Two established contacts received independent
+  public-source corroboration. CSV, JSON and Markdown remain Git-ignored.
+
+- Final required gate passed: `docker compose config --quiet`, `scripts/test.ps1`
+  (392 tests), `scripts/verify.ps1` (392 tests plus task lifecycle, workflow,
+  scheduler, five creator groups, seven autonomy/tracking groups, planner,
+  delivery guards and queue recovery), and `git diff --check`. The verification
+  script now rebuilds the action worker so deployed receipt guards match tested
+  source. No optional inference configuration or model routing was changed.

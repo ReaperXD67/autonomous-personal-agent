@@ -11,6 +11,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 CHANNEL_ID = re.compile(r"UC[A-Za-z0-9_-]{22}\Z")
 VIDEO_ID = re.compile(r"[A-Za-z0-9_-]{11}\Z")
+COUNTRY_CODE = re.compile(r"[A-Z]{2}\Z")
+LANGUAGE_CODE = re.compile(r"[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,3}\Z")
 EMAIL = re.compile(
     r"(?<![\w.+-])[A-Za-z0-9][A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{0,63}"
     r"@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
@@ -143,6 +145,85 @@ def content_topics(content: str) -> list[str]:
     return [name for name, pattern in TOPIC_PATTERNS if re.search(pattern, folded)]
 
 
+def declared_country(value: Any) -> str | None:
+    if isinstance(value, str) and COUNTRY_CODE.fullmatch(value.strip().upper()):
+        return value.strip().upper()
+    return None
+
+
+def declared_language(value: Any) -> str | None:
+    if isinstance(value, str) and LANGUAGE_CODE.fullmatch(value.strip().lower()):
+        return value.strip().lower()
+    return None
+
+
+def assess_creator_geography(
+    campaign: dict[str, Any], evidence: dict[str, Any],
+) -> dict[str, Any]:
+    """Compare declared metadata only; search locale never proves country or language."""
+    country = declared_country(evidence.get("country_code"))
+    language = declared_language(evidence.get("language_code"))
+    country_mode = campaign.get("country_mode", "any")
+    language_mode = campaign.get("language_mode", "any")
+    target_country = declared_country(campaign.get("target_country"))
+    target_language = declared_language(campaign.get("target_language"))
+    country_match = "not_targeted"
+    language_match = "not_targeted"
+    if country_mode != "any":
+        country_match = "unknown" if not country else (
+            "match" if country == target_country else "mismatch"
+        )
+    if language_mode != "any":
+        if not language:
+            language_match = "unknown"
+        elif target_language and (language == target_language
+                                  or language.startswith(target_language + "-")):
+            language_match = "match"
+        elif target_language and target_language.startswith(language + "-"):
+            language_match = "unknown"  # Generic English cannot prove an en-GB target.
+        else:
+            language_match = "mismatch"
+    excluded_reasons = []
+    if country_mode == "strict" and country_match != "match":
+        excluded_reasons.append(f"country_{country_match}")
+    if language_mode == "strict" and language_match != "match":
+        excluded_reasons.append(f"language_{language_match}")
+    explanation = [
+        f"Channel declares {'Poland (PL)' if country == 'PL' else country}."
+        if country else "Channel country is not declared in the inspected metadata."
+    ]
+    language_source = evidence.get("language_source")
+    source_labels = {
+        "video_audio": "Sample video audio language",
+        "video_metadata": "Sample video text language",
+        "channel_metadata": "Channel title/description language",
+    }
+    if language and language_source in source_labels:
+        explanation.append(f"{source_labels[language_source]} is declared as {language}.")
+    else:
+        explanation.append("No usable language declaration was found.")
+    if excluded_reasons:
+        explanation.append("Outside strict targeting: " + ", ".join(
+            reason.replace("_", " ") for reason in excluded_reasons
+        ) + ". Existing records remain available for review.")
+    elif country_mode == "strict" or language_mode == "strict":
+        explanation.append("Published declarations satisfy the strict selection rules.")
+    elif country_mode == "prefer" or language_mode == "prefer":
+        explanation.append("Declared target matches rank first; other and unknown records remain.")
+    return {
+        "country_code": country,
+        "country_source_url": evidence.get("country_source_url") if country else None,
+        "language_code": language,
+        "language_source_url": evidence.get("language_source_url") if language else None,
+        "language_source": language_source if language else None,
+        "country_mode": country_mode, "language_mode": language_mode,
+        "target_country": target_country, "target_language": target_language,
+        "country_match": country_match, "language_match": language_match,
+        "eligible": not excluded_reasons, "excluded_reasons": excluded_reasons,
+        "selection_reason": " ".join(explanation),
+    }
+
+
 def fit_breakdown(
     *, content: str, audience_size: int | None, published_at: datetime | None,
     minimum_audience: int, maximum_audience: int, now: datetime,
@@ -205,6 +286,25 @@ def build_creator_intelligence(
         plain_text(channel_description, 6000), plain_text(video_description, 6000),
     ))
     topics = content_topics(content)
+    country = declared_country(prospect.get("channel_country"))
+    language = None
+    language_source = None
+    language_url = None
+    for field, source, source_url in (
+        ("video_audio_language", "video_audio", prospect.get("latest_content_url")),
+        ("video_language", "video_metadata", prospect.get("latest_content_url")),
+        ("channel_language", "channel_metadata", prospect["profile_url"]),
+    ):
+        candidate = declared_language(prospect.get(field))
+        if candidate and source_url:
+            language, language_source, language_url = candidate, source, source_url
+            break
+    geography = assess_creator_geography(campaign, {
+        "country_code": country,
+        "country_source_url": prospect["profile_url"] if country else None,
+        "language_code": language, "language_source": language_source,
+        "language_source_url": language_url,
+    })
     breakdown = fit_breakdown(
         content=content, audience_size=prospect.get("audience_size"),
         published_at=prospect.get("latest_content_published_at"),
@@ -216,6 +316,12 @@ def build_creator_intelligence(
         descriptions.append((video_description, prospect["latest_content_url"]))
     candidates = public_contact_candidates(descriptions, observed_at=now)
     gaps = ["Audience location, demographics, and willingness to collaborate are unverified."]
+    if country:
+        gaps.append("Channel-declared country does not establish nationality or audience location.")
+    if language_source in {"video_metadata", "channel_metadata"}:
+        gaps.append("Declared text language does not establish spoken language or audience region.")
+    if not geography["eligible"]:
+        gaps.append(geography["selection_reason"])
     if not candidates:
         gaps.append("No explicit public business email found in the inspected descriptions.")
     else:
@@ -304,6 +410,7 @@ def build_creator_intelligence(
     return {
         "schema_version": 1, "researched_at": now.isoformat(),
         "source_channel_id": prospect.get("channel_id"),
+        "geography": geography,
         "channel_summary": plain_text(channel_description, 500), "topics": topics,
         "fit_breakdown": breakdown, "contact_candidates": candidates,
         "recent_videos": recent_videos, "collaboration_ideas": ideas,

@@ -25,3 +25,4 @@ history.
 - [ADR-0019](ADR-0019-smtp-acceptance-and-connection-evidence.md): final send fencing, durable SMTP acceptance, no-send diagnostics, and reviewed personalized introductions
 - [ADR-0020](ADR-0020-durable-low-volume-email-pacing.md): durable low-volume email pacing
 - [ADR-0021](ADR-0021-evidence-backed-youtube-research.md): public business-contact candidates and evidence-backed YouTube research
+- [ADR-0022](ADR-0022-scoped-career-autopilot-and-reply-tracking.md): expiring career Play grants, truthful freshness, Poland selection and Gmail reply tracking

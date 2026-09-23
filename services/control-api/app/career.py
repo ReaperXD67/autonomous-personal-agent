@@ -23,6 +23,7 @@ SOURCE_HOSTS = {
     "api.ashbyhq.com",
     "boards-api.greenhouse.io",
     "api.lever.co",
+    "remotive.com",
 }
 
 
@@ -126,8 +127,40 @@ def fetch_arbeitnow() -> list[dict[str, Any]]:
                 "source_url": url,
                 "apply_url": url,
                 "published_at": published_at,
+                "published_at_basis": "published",
             }
         )
+    return normalized
+
+
+def fetch_remotive() -> list[dict[str, Any]]:
+    """Read one bounded public feed page; keep the required Remotive source/backlink."""
+    payload = _read_json("https://remotive.com/api/remote-jobs?limit=100")
+    jobs = payload.get("jobs", []) if isinstance(payload, dict) else []
+    if not isinstance(jobs, list):
+        return []
+    normalized: list[dict[str, Any]] = []
+    for job in jobs[:100]:
+        if not isinstance(job, dict):
+            continue
+        published_at = _parse_datetime(job.get("publication_date"))
+        source_url = str(job.get("url") or "")
+        parsed = urlparse(source_url)
+        if (published_at is None or parsed.scheme != "https" or parsed.netloc != "remotive.com"
+                or not parsed.path.startswith("/remote-jobs/")):
+            continue
+        normalized.append({
+            "source": "remotive",
+            "source_key": str(job.get("id") or _stable_key(source_url))[:500],
+            "company": str(job.get("company_name") or "Unknown company")[:240],
+            "title": str(job.get("title") or "Untitled role")[:300],
+            "location": str(job.get("candidate_required_location") or "")[:300],
+            "description": _plain_text(str(job.get("description") or "")),
+            "remote": True,
+            "employment_type": _normalize_employment_type(str(job.get("job_type") or "")),
+            "source_url": source_url, "apply_url": source_url,
+            "published_at": published_at, "published_at_basis": "published",
+        })
     return normalized
 
 
@@ -162,6 +195,7 @@ def fetch_ashby(board: str) -> list[dict[str, Any]]:
                 "source_url": source_url,
                 "apply_url": apply_url if apply_url.startswith("https://") else source_url,
                 "published_at": published_at,
+                "published_at_basis": "published",
             }
         )
     return normalized
@@ -195,6 +229,7 @@ def fetch_greenhouse(board: str) -> list[dict[str, Any]]:
                 "source_url": source_url,
                 "apply_url": source_url,
                 "published_at": published_at,
+                "published_at_basis": "updated",
             }
         )
     return normalized
@@ -240,6 +275,7 @@ def fetch_lever(board: str) -> list[dict[str, Any]]:
                 "source_url": source_url,
                 "apply_url": apply_url,
                 "published_at": published_at,
+                "published_at_basis": "published",
             }
         )
     return normalized
@@ -259,8 +295,32 @@ def _normalize_employment_type(value: str) -> str | None:
     return mapping.get(compact)
 
 
-def score_opportunity(job: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any] | None:
-    now = datetime.now(UTC)
+def _matches_location(job: dict[str, Any], locations: list[str]) -> bool:
+    if not locations:
+        return True
+    location = " ".join(str(job.get("location") or "").casefold().split())
+    requested = [value.strip().casefold() for value in locations if value.strip()]
+    geographic = [value for value in requested if value != "remote"]
+    if not geographic:
+        return bool(job.get("remote")) if "remote" in requested else True
+    if any(re.search(r"(?<!\w)" + re.escape(value) + r"(?!\w)", location)
+           for value in geographic):
+        return True
+    # Remote alone supplies no country eligibility. Only explicit global locations qualify.
+    compact = re.sub(r"[^\w\s]", " ", location)
+    compact = " ".join(compact.split())
+    global_locations = {
+        "worldwide", "global", "anywhere", "remote worldwide", "worldwide remote",
+        "remote global", "global remote", "remote anywhere", "anywhere remote",
+        "work from anywhere", "anywhere in the world",
+    }
+    return bool(job.get("remote")) and compact in global_locations
+
+
+def score_opportunity(
+    job: dict[str, Any], profile: dict[str, Any], *, now: datetime | None = None,
+) -> dict[str, Any] | None:
+    now = now or datetime.now(UTC)
     published_at = job["published_at"]
     age_hours = max(0.0, (now - published_at).total_seconds() / 3600)
     if published_at > now.replace(microsecond=0) + timedelta(hours=24):
@@ -278,11 +338,7 @@ def score_opportunity(job: dict[str, Any], profile: dict[str, Any]) -> dict[str,
         return None
     if profile["remote_only"] and not job["remote"]:
         return None
-    if (
-        profile["locations"]
-        and not job["remote"]
-        and not any(value.casefold() in location for value in profile["locations"])
-    ):
+    if not _matches_location(job, profile["locations"]):
         return None
     if (
         profile["employment_types"]
@@ -294,20 +350,26 @@ def score_opportunity(job: dict[str, Any], profile: dict[str, Any]) -> dict[str,
     required_matches = [
         value for value in profile["required_keywords"] if value.casefold() in combined
     ]
-    if profile["required_keywords"] and not required_matches:
+    if len(required_matches) != len(profile["required_keywords"]):
         return None
 
     score = 0
     reasons: list[str] = []
+    basis = job.get("published_at_basis", "unknown")
+    timestamp_label = {"published": "published", "updated": "source updated"}.get(
+        basis, "source timestamp"
+    )
     if age_hours <= 24:
         score += 25
-        reasons.append("published within 24 hours")
+        reasons.append(f"{timestamp_label} within 24 hours")
     elif age_hours <= 48:
         score += 17
-        reasons.append("published within 48 hours")
+        reasons.append(f"{timestamp_label} within 48 hours")
     else:
         score += 9
-        reasons.append(f"published within {profile['max_age_hours']} hours")
+        reasons.append(f"{timestamp_label} within {profile['max_age_hours']} hours")
+    if basis != "published":
+        reasons.append("Original publication time is not confirmed by this source timestamp")
 
     title_matches = [value for value in profile["desired_titles"] if value.casefold() in title]
     if title_matches:
@@ -342,6 +404,7 @@ def score_opportunity(job: dict[str, Any], profile: dict[str, Any]) -> dict[str,
         reasons.append("remote preference")
 
     scored = dict(job)
+    scored["published_at_basis"] = basis if basis in {"published", "updated"} else "unknown"
     scored["score"] = min(100, score)
     scored["score_reasons"] = reasons
     return scored if scored["score"] >= profile["min_score"] else None

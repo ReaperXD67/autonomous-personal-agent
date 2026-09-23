@@ -30,6 +30,7 @@ class CareerSourceConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     arbeitnow: bool = True
+    remotive: bool = False
     ashby_boards: list[str] = Field(default_factory=list)
     greenhouse_boards: list[str] = Field(default_factory=list)
     lever_boards: list[str] = Field(default_factory=list)
@@ -48,6 +49,7 @@ class CareerSourceConfig(BaseModel):
     def require_source(self) -> CareerSourceConfig:
         if (
             not self.arbeitnow
+            and not self.remotive
             and not self.ashby_boards
             and not self.greenhouse_boards
             and not self.lever_boards
@@ -186,6 +188,7 @@ class OpportunityView(BaseModel):
     source_url: str
     apply_url: str
     published_at: datetime
+    published_at_basis: Literal["published", "updated", "unknown"] = "unknown"
     first_seen_at: datetime
     last_seen_at: datetime
     score: int

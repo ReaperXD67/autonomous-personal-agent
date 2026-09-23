@@ -161,3 +161,15 @@ The current application/email adapter deliberately optimizes the work around
 approval rather than replacing authorization with an “intelligent” model. An
 LLM cannot approve its own external action, infer legal consent, or change the
 capability policy that authorizes its executor.
+
+
+### Scoped career authorization and Gmail (2026-09-23)
+
+An explicit Apply-mode Play grant may authorize exact career actions while
+retaining high risk, digest-bound approvals, audit and receipts. It is scoped to
+a frozen profile, known posting dates, selected destinations, explicit answers,
+rolling cap and expiry. The action boundary checks pause and content changes;
+no agent may broaden the grant. Gmail is read-only, matched to the profile
+mailbox, label-restricted in the adapter, bounded and disabled by configuration.
+Message content is untrusted data and cannot trigger tools. See ADR-0022 for the
+full boundary and residual mailbox-wide OAuth scope.

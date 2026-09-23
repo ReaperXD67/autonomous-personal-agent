@@ -159,7 +159,7 @@ required.
 ## Planned components
 
 - generic read-only browser tooling behind stronger network egress policy;
-- email read/classify and provider OAuth adapters;
+- additional provider email/OAuth adapters beyond the implemented Gmail label reader;
 - coding worker isolated per repository/worktree;
 - MCP policy adapter translating registry decisions to runtime grants;
 - Telegram interface calling the control API;
@@ -170,3 +170,14 @@ required.
 External interfaces may evolve. Adapters must translate upstream contracts into
 this project's task, approval, and audit model; upstream tools never receive
 direct unrestricted database or host access.
+
+
+## Scoped career and reply extensions
+
+The existing research worker reconciles career Play grants and schedules ordinary
+preparation tasks. PostgreSQL grants, item records and application reservations
+are authoritative. The action worker verifies the still-current grant and exact
+digest at its receipt boundary. Gmail read-only OAuth credentials are confined
+to the research worker; only configured-label metadata reaches the tracker.
+See [career operations](../operations/career-autopilot.md) for configuration,
+Pause/expiry semantics and the difference between configured and live verified.

@@ -80,6 +80,13 @@ class Settings:
     outbound_email_daily_limit: int
     outbound_email_jitter_seconds: int
     youtube_api_key: str
+    gmail_enabled: bool = False
+    gmail_client_id: str = ""
+    gmail_client_secret: str = ""
+    gmail_refresh_token: str = ""
+    gmail_career_label: str = "Hermes/Careers"
+    career_email_transport: str = "disabled"
+    career_email_sender: str = ""
 
     @classmethod
     def from_environment(cls) -> Settings:
@@ -146,6 +153,13 @@ class Settings:
                 os.getenv("OUTBOUND_EMAIL_JITTER_SECONDS", "180")
             ),
             youtube_api_key=os.getenv("YOUTUBE_API_KEY", "").strip(),
+            gmail_enabled=_boolean_environment("GMAIL_ENABLED", False),
+            gmail_client_id=os.getenv("GMAIL_CLIENT_ID", "").strip(),
+            gmail_client_secret=os.getenv("GMAIL_CLIENT_SECRET", "").strip(),
+            gmail_refresh_token=os.getenv("GMAIL_REFRESH_TOKEN", "").strip(),
+            gmail_career_label=os.getenv("GMAIL_CAREER_LABEL", "Hermes/Careers").strip(),
+            career_email_transport=os.getenv("CAREER_EMAIL_TRANSPORT", "disabled").strip(),
+            career_email_sender=os.getenv("CAREER_EMAIL_SENDER", "").strip(),
         )
         settings.validate()
         return settings
@@ -286,7 +300,7 @@ class Settings:
                 raise ConfigurationError("SMTP_FROM must be one plain email address")
 
     def email_pacing_policy(self) -> EmailPacingPolicy | None:
-        if self.mail_transport != "smtp":
+        if self.mail_transport != "smtp" and self.career_email_transport != "smtp":
             return None
         return EmailPacingPolicy(
             min_interval_seconds=self.outbound_email_min_interval_seconds,

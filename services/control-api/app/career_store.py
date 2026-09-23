@@ -257,8 +257,8 @@ class CareerStore(Database):
                     INSERT INTO job_opportunities (
                         profile_id, source, source_key, company, title, location,
                         description, remote, employment_type, source_url, apply_url,
-                        published_at, score, score_reasons
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        published_at, score, score_reasons, published_at_basis
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (profile_id, source, source_key) DO UPDATE
                     SET company = EXCLUDED.company,
                         title = EXCLUDED.title,
@@ -269,6 +269,7 @@ class CareerStore(Database):
                         source_url = EXCLUDED.source_url,
                         apply_url = EXCLUDED.apply_url,
                         published_at = EXCLUDED.published_at,
+                        published_at_basis = EXCLUDED.published_at_basis,
                         score = EXCLUDED.score,
                         score_reasons = EXCLUDED.score_reasons,
                         last_seen_at = now()
@@ -289,6 +290,7 @@ class CareerStore(Database):
                         opportunity["published_at"],
                         opportunity["score"],
                         Jsonb(opportunity["score_reasons"]),
+                        opportunity.get("published_at_basis", "unknown"),
                     ),
                 ).fetchone()
                 if existing is None:

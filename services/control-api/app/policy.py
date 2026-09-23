@@ -15,6 +15,7 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
     "foundation.wait": RiskLevel.MEDIUM,
     "planning.propose": RiskLevel.MEDIUM,
     "career.search": RiskLevel.LOW,
+    "career.gmail_sync": RiskLevel.LOW,
     "career.application_draft": RiskLevel.MEDIUM,
     "career.application_preflight": RiskLevel.MEDIUM,
     "career.application_submit": RiskLevel.HIGH,

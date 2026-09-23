@@ -7,7 +7,7 @@ from uuid import uuid4
 
 import psycopg
 from app.marketing_models import (
-    MarketingCampaignCreate, MarketingProspectCreate,
+    MarketingCampaignCreate, MarketingCampaignUpdate, MarketingProspectCreate,
     MarketingProspectUpdate,
 )
 from app.marketing_store import MarketingOutreachError, MarketingStore
@@ -22,14 +22,15 @@ def check(condition, message):
 
 def exercise(dsn):
     store = MarketingStore(dsn)
-    campaign = store.create_campaign(MarketingCampaignCreate(
+    campaign_request = MarketingCampaignCreate(
         name="Synthetic research proof", product_name="Fixture Product",
         product_url="https://example.test/product", privacy_url="https://example.test/privacy",
         product_summary="A synthetic product for evidence and authorization isolation tests.",
         target_audience="Minecraft creators", viewer_offer="Fixture benefit",
         creator_offer="Fixture pilot", paid_offer_enabled=False, sender_name="Fixture Sender",
         discovery_queries=["Minecraft SMP"], active=False, requested_by="research-smoke",
-    ))
+    )
+    campaign = store.create_campaign(campaign_request)
     channel_id = "UC" + "a" * 22
     profile_url = f"https://www.youtube.com/channel/{channel_id}"
     research = {
@@ -47,9 +48,28 @@ def exercise(dsn):
     check(store.save_discovered_prospects(campaign["id"], [research])["new"] == 1,
           "Research prospect was not inserted")
     prospect = store.list_prospects(campaign_id=campaign["id"], prospect_status=None, limit=10)[0]
-    check(prospect["intelligence"] == research["intelligence"], "Dossier was not persisted")
+    check(all(prospect["intelligence"].get(key) == value
+              for key, value in research["intelligence"].items()), "Dossier was not persisted")
+    check(prospect["intelligence"]["geography"]["eligible"],
+          "Unrestricted campaign unexpectedly excluded the fixture")
     check(prospect["contact_email"] is None and prospect["contact_authorized_at"] is None,
           "Discovery improperly granted contact authority")
+    updated_campaign = store.update_campaign(campaign["id"], MarketingCampaignUpdate(
+        **{**campaign_request.model_dump(exclude={"requested_by"}),
+           "country_mode": "strict", "target_country": "PL", "actor": "research-smoke"},
+    ))
+    current = store.get_prospect(prospect["id"])
+    check(not current["intelligence"]["geography"]["eligible"],
+          "Saved unknown-country dossier bypassed current Poland-only criteria")
+    try:
+        store.save_discovered_prospects(
+            campaign["id"], [research], expected_campaign_updated_at=campaign["updated_at"],
+        )
+    except MarketingOutreachError:
+        pass
+    else:
+        raise AssertionError("Old scan persisted after campaign targeting changed")
+    check(updated_campaign["last_discovery_summary"] == {}, "Campaign edit retained old scan counts")
     changed_url = "https://www.youtube.com/channel/UC" + "b" * 22
     edited = store.update_prospect(prospect["id"], MarketingProspectUpdate(
         display_name="Changed Fixture", profile_url=changed_url, actor="research-smoke",
@@ -99,7 +119,8 @@ def exercise(dsn):
         raise AssertionError("Suppressed creator accepted a research refresh")
     return ["JSONB dossier persisted without authority", "identity edits clear stale evidence and resist rescan rebinding",
             "refresh preserves reviewed contact and identity",
-            "suppression blocks scan updates and direct refresh"]
+            "suppression blocks scan updates and direct refresh",
+            "current Poland eligibility and stale campaign scan fence"]
 
 
 def main():

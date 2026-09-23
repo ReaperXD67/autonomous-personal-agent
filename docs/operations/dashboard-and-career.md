@@ -53,11 +53,10 @@ overdue active missions are picked up after restart.
    configured privacy policy.
 8. Complete the application identity. This supplies routine name/contact fields
    but never invents screening, legal, demographic, or consent answers.
-9. Enable **Automatically prepare strong fresh matches** if desired. Set its
-   score threshold and per-scan cap. This drafts and inspects supported forms
-   automatically; it does not approve the final click.
-10. Check **Keep this mission running automatically**, save, and use **Scan
-    now** for the first result.
+9. Save the mission and open **Play**. Choose preparation or a scoped automatic
+   application run, review sites, cap, expiry, freshness and screening answers.
+10. Follow the run and application tracker. See the [career Play and Gmail guide](career-autopilot.md)
+    for scope, private account setup and honest source limitations.
 
 Fresh matches appear under **Opportunities** with posting time, source link,
 score, and matching reasons. Shortlist or dismiss them. **Generate private
@@ -80,8 +79,7 @@ them or guesses consent.
 
 ## Switch or pause the task
 
-The ongoing instruction lives under **Missions**, not in source code. Toggle a
-mission off to pause it. Use **Edit mission** to change titles, filters, sources,
+The ongoing instruction lives under **Missions**, not in source code. Use **Pause** to stop new autonomous submissions. Use **Edit mission** to change titles, filters, sources,
 schedule, or résumé. Create a second mission for a materially different search,
 such as internships versus full-time roles; each schedule and result set stays
 separate.

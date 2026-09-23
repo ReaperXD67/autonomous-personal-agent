@@ -305,10 +305,18 @@ so manual changes are repair-only and will not become deployment policy.
 - Provider sign-up and acceptance of provider terms
 - VPS purchase, DNS, TLS, WireGuard, and backup destination
 - job-site accounts, screening/legal/consent answers, CAPTCHA/identity checks,
-  and each exact final application approval
+  and either an exact final approval or a reviewed, expiring career Play grant
 - Any secret, recovery code, payment method, or identity verification
 - Creator consent/contact-law review, sponsorship terms/disclosures, payment,
   public posting, and KarixMC point issuance
 
 Those actions carry identity, legal, financial, or external-state consequences
 and must remain user-owned.
+
+
+## Career Gmail reply tracking
+
+The Gmail read-only label adapter is implemented, but a real mailbox remains
+unverified until its OAuth credentials, account identity and label pass a sync.
+Read the [career Play and Gmail setup guide](career-autopilot.md). This reader is
+separate from Gmail-as-SMTP delivery; enabling either does not configure the other.

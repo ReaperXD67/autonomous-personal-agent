@@ -30,9 +30,17 @@ BEGIN
 END;
 $$;
 
-ALTER TABLE job_opportunities DROP CONSTRAINT IF EXISTS job_opportunities_source_check;
-ALTER TABLE job_opportunities ADD CONSTRAINT job_opportunities_source_check
-    CHECK (source IN ('arbeitnow', 'ashby', 'greenhouse', 'lever'));
+-- Later migrations may expand this constraint. Replaying all migrations must
+-- not narrow it again when those newer source rows already exist.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '006_exact_external_actions') THEN
+        ALTER TABLE job_opportunities DROP CONSTRAINT IF EXISTS job_opportunities_source_check;
+        ALTER TABLE job_opportunities ADD CONSTRAINT job_opportunities_source_check
+            CHECK (source IN ('arbeitnow', 'ashby', 'greenhouse', 'lever'));
+    END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS job_application_preflights (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

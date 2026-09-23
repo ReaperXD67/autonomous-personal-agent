@@ -118,6 +118,8 @@ def resolve_application_fields(
                 value = identity.get("linkedin_url")
             elif "github" in semantics:
                 value = identity.get("github_url")
+            elif "portfolio" in semantics or "personal website" in semantics:
+                value = identity.get("portfolio_url")
             elif "location" in semantics or "address" in semantics:
                 value = identity.get("location")
             elif "cover" in semantics and "letter" in semantics:
