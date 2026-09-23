@@ -18,8 +18,9 @@ and a curated MCP policy layer before broad autonomy is enabled.
 > [!IMPORTANT]
 > **Local-alpha status:** the private web dashboard, scheduled fresh-job
 > discovery, matching, tracking, local application drafting, exact-action review,
-> isolated single-page ATS submission, and test-sink email work. Every real
-> submission or email remains one-action/one-click approval-gated. Telegram,
+> isolated single-page ATS submission, and test-sink email work. Career Play can
+> authorize bounded automatic applications within an explicit, expiring scope;
+> manually prepared actions and creator emails retain exact-action approval. Telegram,
 > generic browser automation, coding workers, and broad MCP access are not
 > enabled. Never expose the dashboard port directly to the internet.
 > The Linux VPS commands prepare a private single-operator deployment reached
@@ -43,11 +44,13 @@ and human approval for high-impact actions.
 | Durable workflows | Implemented | Dependency-aware plans, parallel ready steps, explicit result checks, deadlines, restart recovery, cancellation, and dashboard recipes; at most 32 steps and 4 concurrent tasks |
 | Reviewed goal planner | Implemented | A model proposes at most 8 server-defined actions using your explicitly selected context. Review the immutable steps before adoption; execution enters the existing task/policy/audit path. A clearly labeled local demo needs no model |
 | Feature readiness | Implemented | Per-feature prerequisites, next actions, and timestamped local test evidence; authenticated operator reports are stored in PostgreSQL and expire as readiness proof after 24 hours |
-| Career scout | Verified locally | Scheduled/manual scans of allowlisted public Arbeitnow, Ashby, Greenhouse, and Lever APIs; freshness filters, evidence scoring, and durable tracking |
+| Career scout | Public adapters implemented; live coverage varies | Arbeitnow, optional Remotive, and configured Ashby, Greenhouse, and Lever boards; all required keywords, location constraints, and explicit publication-date provenance. Remotive's public feed is delayed 24 hours |
 | Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
+| Career Play/Pause | Implemented; external application proof pending | Choose preparation or authorize a bounded automatic run: fresh published listings, minimum fit, selected ATS hosts, rolling daily cap, expiry, profile binding, and duplicate prevention. Optional job-published hiring email shares the same limits |
+| Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/interview/outcome timelines, explicit review of uncertain matches, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit; external SMTP unconfigured | Exact approval, durable SMTP acceptance, and PostgreSQL-backed external pacing: 15-minute global/30-minute same-domain gaps, rolling 3/hour and 12/day caps, and jitter |
-| Creator research and outreach | Local and bounded live research verified; external send pending | Published business-contact candidates, source-backed fit explanations, collaboration concepts, searchable shortlist/export, reviewed introductions, exact-message history, and durable suppression |
+| Creator research and outreach | Research verified; country selection implemented; external send pending | Published business-contact evidence, fit explanations, collaboration concepts, country/language selectors, searchable shortlist/export, reviewed introductions, and durable suppression. Strict Poland selection requires a channel-declared PL country |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -114,11 +117,29 @@ Mailpit and applications go only to the fake site. PostgreSQL, Redis, and Ollama
 have no published host ports. Qwen stays unloaded unless both hosted routes
 fail. Add `-LocalModel` only when deliberately testing that final fallback.
 
-Create a career mission, paste résumé text, choose titles/skills/locations and a
-24–168 hour freshness window, then click **Scan now**. Activate the mission to
-repeat the scan every 6 hours or longer while the machine is running. Add your
-identity and enable auto-prepare to generate drafts and inspect supported forms
-without waiting; the exact final application still appears in **Approvals**.
+Create a career mission, paste résumé text, add your application identity and
+portfolio link, and choose titles, skills, locations, and supported source boards.
+The freshness default is 72 hours and can be set from 1 to 168 hours. **Play**
+opens the run scope: preparation is the default, while automatic application mode
+requires explicit authorization of its hosts, score, cap, and expiry. The default
+limit is three applications per rolling 24 hours and a 24-hour authorization;
+the configurable maxima are ten applications and seven days. **Pause** withdraws
+the run's authority; an application already submitted remains in its history.
+
+Automatic applications require publication evidence, a prepared truthful draft,
+and supported forms with known answers. An update timestamp alone does not prove
+a new job. If enabled explicitly, a job's one unambiguous published hiring email
+can receive an application through configured SMTP; ATS and email share a daily
+cap and one-application-per-job guard. This does not authorize general cold
+outreach. Unsupported forms, unknown required answers, and changed context stop
+for review. Work enters the existing task, policy, audit, and receipt path.
+
+Use **Application tracker** for submissions, reviewed replies, interviews, and
+outcomes. The Gmail adapter reads only its configured career label and keeps
+uncertain matches for review. It is prepared but needs local OAuth configuration
+and a real canary before it can be called operational. LinkedIn, Y Combinator,
+and Discord account automation is not connected; use a discovered employer's
+supported ATS board instead of assuming those accounts are being monitored.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
 
@@ -185,7 +206,12 @@ YouTube key and now extracts unreviewed business-contact candidates from public
 channel/video descriptions. Research includes source excerpts, fit explanations,
 video evidence, creative collaboration ideas, and explicit gaps. The YouTube
 shortlist supports search, contact filters, individual refresh, and CSV export.
-Review each contact source before authorizing outreach; every individual email
+Country and language rules can accept any metadata, prefer a target, or require
+it strictly. **Poland only** requires the channel to declare PL; unknown countries
+are excluded rather than inferred from a name or search region. Published
+language metadata is evaluated separately. This proves neither nationality nor
+the location of viewers. Excluded saved prospects remain available as history.
+Review each contact source before authorizing outreach; every individual creator email
 remains exact-approval gated. External SMTP approvals reserve a
 durable low-volume slot, so several approvals cannot become a restart-time burst.
 Pacing reduces reputation risk but cannot guarantee inbox placement. See the
@@ -363,6 +389,9 @@ and [remaining manual setup](docs/operations/manual-setup.md).
 - High-risk and destructive tasks require an explicit approval record.
 - Real side effects bind approval to a SHA-256 digest of the exact action and
   use a durable pre-click/pre-send receipt; they are never retried automatically.
+- Career Play may authorize those exact packets within a stored, expiring grant.
+  The final submission rechecks its scope, profile, freshness, budget, and pause
+  state. This does not grant general tool, account, or messaging authority.
 - External SMTP approval atomically reserves a PostgreSQL send slot with rolling
   hourly/daily caps, same-domain spacing, and jitter; the worker rechecks it at
   the send boundary. Mailpit fixtures remain immediate.
@@ -387,9 +416,10 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 |---|---|---|
 | Tasks, approvals, audits | PostgreSQL | Authoritative, backed up |
 | Career missions, matches, draft packs, form preflights | PostgreSQL | Authoritative, backed up; résumé text never enters task payloads/audits, but opt-in hosted drafting transmits it to the selected provider |
+| Career run grants, shared application budgets, tracking events, and labeled-mail metadata | PostgreSQL | Authoritative; pause/expiry and duplicate guards survive restarts; inferred mailbox outcomes retain evidence and review state |
 | Inference route/usage metadata | PostgreSQL | Authoritative; requested/selected models, provider, tokens, fallback, latency, privacy mode, and cost only—never prompt or output text |
 | Exact external actions and side-effect receipts | PostgreSQL | Authoritative; approval digest and duplicate guard survive restarts |
-| Creator campaigns, contact provenance, suppressions, messages, outcomes | PostgreSQL | Authoritative; YouTube metadata contains no discovered email and every send links to an exact action |
+| Creator campaigns, research dossiers, contact provenance, suppressions, messages, outcomes | PostgreSQL | Authoritative; public description contacts remain unreviewed evidence until separately authorized, and every creator send links to an exact action |
 | Long-term memory and embeddings | PostgreSQL + pgvector | Authoritative, backed up |
 | Ready queue, cache, transient state | Redis | Recoverable; AOF enabled, not authoritative |
 | Hermes state | `hermes_data` volume | Optional; back up after onboarding |

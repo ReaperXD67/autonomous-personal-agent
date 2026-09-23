@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, model_validator
 
 from app.auth import require_api_token, require_bearer_token
+from app.settings import get_settings
 from app.store import Database
 
 CheckId = Literal[
@@ -243,6 +244,26 @@ def feature_catalog(report: FeatureReport | None, counts: dict, *, now=None) -> 
                "this does not prove compatibility with every ATS."),
     )
     add(
+        "career_autopilot",
+        "Career Play",
+        "Prepare or apply within an expiring scope, with shared limits and a Pause control.",
+        None,
+        [research, actions, profile, resume, model],
+        "missions",
+        "Review Play scope",
+        allow_verified=False,
+    )
+    add(
+        "career_reply_tracking",
+        "Application reply tracking",
+        "Track outcomes and review Gmail signals after configuring read-only OAuth and a label.",
+        None,
+        [profile, ("Complete a recent Gmail label sync", counts.get("gmail_syncs", 0) > 0)],
+        "opportunities",
+        "Open application tracker",
+        allow_verified=False,
+    )
+    add(
         "email_test",
         "Local email delivery",
         "Exercise email approval and delivery into the local Mailpit inbox.",
@@ -386,8 +407,12 @@ class ReadinessStore(Database):
                 """SELECT (SELECT count(*) FROM career_profiles) AS profiles,
                    (SELECT count(*) FROM career_profiles
                     WHERE length(trim(resume_text)) > 0) AS resumes,
-                   (SELECT count(*) FROM marketing_campaigns) AS campaigns""",
+                   (SELECT count(*) FROM marketing_campaigns) AS campaigns,
+                   (SELECT count(*) FROM career_gmail_sync_state
+                    WHERE last_sync_at > now() - interval '24 hours') AS gmail_syncs""",
             ).fetchone()
+        if not get_settings().gmail_enabled:
+            counts["gmail_syncs"] = 0
         return feature_catalog(
             FeatureReport.model_validate(latest["report"]) if latest else None, counts
         )

@@ -7,7 +7,7 @@ try {
     }
     docker compose config --quiet
     if ($LASTEXITCODE -ne 0) { throw 'Compose validation failed' }
-    docker compose build control-api dispatcher worker job-worker test
+    docker compose build control-api dispatcher worker job-worker action-worker test
     if ($LASTEXITCODE -ne 0) { throw 'Image build failed' }
     & (Join-Path $PSScriptRoot 'test.ps1') -SkipBuild
     docker compose up -d
@@ -19,6 +19,7 @@ try {
     & (Join-Path $PSScriptRoot 'workflow-smoke.ps1')
     & (Join-Path $PSScriptRoot 'scheduler-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-research-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'career-autopilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'planning-smoke.ps1')
     & (Join-Path $PSScriptRoot 'action-delivery-smoke.ps1')
     Get-Content -Raw (Join-Path $PSScriptRoot 'queue-recovery-smoke.py') |

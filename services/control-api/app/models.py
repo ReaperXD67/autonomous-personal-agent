@@ -18,6 +18,7 @@ class TaskCreate(BaseModel):
         "foundation.wait",
         "planning.propose",
         "career.search",
+        "career.gmail_sync",
         "career.application_draft",
         "career.application_preflight",
         "career.application_submit",

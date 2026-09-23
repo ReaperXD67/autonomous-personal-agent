@@ -361,3 +361,25 @@ Live OpenRouter onboarding/fallback proof, per-user OIDC/step-up identity, VPS e
 for ambiguous provider state, real-ATS compatibility fixtures, scoped inbound
 OAuth mail/reply classification, first-party KarixMC attribution import,
 encrypted off-host backups, and the policy-bound Hermes adapter are next.
+
+
+## 2026-09-23 - Scoped career delegation, reply tracking and creator geography
+
+ADR-0022 adds expiring Play grants to the existing exact-action path. PostgreSQL
+owns scope, per-run preparation, shared rolling application reservations and
+per-profile normalized target deduplication. The research scheduler creates
+ordinary classified tasks; exact approvals are attributed to the grant. The
+isolated action worker rechecks the grant before acquiring a side-effect receipt.
+Pause/profile changes/expiry block new receipt acquisition, while ambiguous
+remote outcomes retain their reservation. Hiring emails require explicit job
+contact evidence and run-bound draft provenance, and share the same application
+cap. SMTP credentials were not added to the research worker.
+
+Gmail read-only OAuth is confined to the research worker and a selected label;
+bounded metadata/cursors and sourced application events live in PostgreSQL.
+Configured tracking continues for recent applications after Play expires.
+No calendar booking or autonomous mail reply is implied. Remotive is opt-in with
+shared request reservations; update timestamps do not qualify as posting dates.
+YouTube campaigns gain independent country/language rules, declared metadata
+provenance, strict unknown exclusion, current-criteria projection and a stale-scan
+fence. Neither discovery nor geography grants contact authorization.

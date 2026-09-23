@@ -282,3 +282,16 @@ does not establish inbox placement, reading, or a reply.
   Minecraft servers, and blogs can be added manually but are not auto-searched;
 - creator contracts, sponsorship disclosures, payments, point grants, content
   review, and publication remain human workflows.
+
+
+## Poland selection
+
+Use the Poland-only preset for strict declared country `PL`, with an independent
+Polish-language metadata criterion. Declared channel country is not verified
+nationality or audience geography. Unknown metadata is excluded by strict mode.
+Prefer mode ranks matching evidence first while retaining unknown/other results.
+The shortlist distinguishes current matches from saved history, and each scan
+records reviewed/selected/excluded counts and missing-country/language reasons.
+Changing a campaign clears its old scan summary; older in-flight scans cannot
+persist under the new criteria. Contact candidates remain unreviewed until the
+existing contact authorization process is completed.

@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from psycopg.types.json import Jsonb
 
 from app.action_store import ActionStore
+from app.creator_intelligence import assess_creator_geography
 from app.marketing import (
     INITIAL_VARIANTS,
     campaign_suggestions,
@@ -55,12 +56,13 @@ class MarketingStore(ActionStore):
                     discovery_queries, relevance_language, region_code,
                     min_subscribers, max_subscribers, max_video_age_days,
                     results_per_query, schedule_hours, adaptive_mode, active,
-                    next_scan_at, created_by
+                    next_scan_at, created_by, country_mode, target_country,
+                    language_mode, target_language
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s,
                     CASE WHEN %s THEN now() ELSE now() + interval '24 hours' END,
-                    %s
+                    %s, %s, %s, %s, %s
                 )
                 RETURNING *
                 """,
@@ -88,6 +90,10 @@ class MarketingStore(ActionStore):
                     request.active,
                     request.active,
                     request.requested_by,
+                    request.country_mode,
+                    request.target_country,
+                    request.language_mode,
+                    request.target_language,
                 ),
             ).fetchone()
             self._append_audit(
@@ -150,7 +156,9 @@ class MarketingStore(ActionStore):
                     sender_name = %s, discovery_queries = %s, relevance_language = %s,
                     region_code = %s, min_subscribers = %s, max_subscribers = %s,
                     max_video_age_days = %s, results_per_query = %s, schedule_hours = %s,
-                    adaptive_mode = %s, active = %s, next_scan_at = %s
+                    adaptive_mode = %s, active = %s, next_scan_at = %s,
+                    country_mode = %s, target_country = %s, language_mode = %s,
+                    target_language = %s, last_discovery_summary = '{}'::jsonb
                 WHERE id = %s
                 RETURNING *
                 """,
@@ -177,6 +185,10 @@ class MarketingStore(ActionStore):
                     request.adaptive_mode,
                     request.active,
                     next_scan_at,
+                    request.country_mode,
+                    request.target_country,
+                    request.language_mode,
+                    request.target_language,
                     campaign_id,
                 ),
             ).fetchone()
@@ -253,16 +265,22 @@ class MarketingStore(ActionStore):
         return row["count"]
 
     def save_discovered_prospects(
-        self, campaign_id: UUID, prospects: list[dict[str, Any]]
+        self, campaign_id: UUID, prospects: list[dict[str, Any]], *,
+        selection_stats: dict[str, int] | None = None,
+        expected_campaign_updated_at: datetime | None = None,
     ) -> dict[str, int]:
         inserted = 0
         updated = 0
         with self.connect() as connection:
             campaign = connection.execute(
-                "SELECT id FROM marketing_campaigns WHERE id = %s", (campaign_id,)
+                "SELECT id, updated_at FROM marketing_campaigns WHERE id = %s FOR UPDATE",
+                (campaign_id,),
             ).fetchone()
             if campaign is None:
                 raise MarketingCampaignNotFoundError(str(campaign_id))
+            if (expected_campaign_updated_at is not None
+                    and campaign["updated_at"] != expected_campaign_updated_at):
+                raise MarketingOutreachError("Campaign changed during discovery; scan again")
             for prospect in prospects:
                 existing = connection.execute(
                     """
@@ -318,8 +336,9 @@ class MarketingStore(ActionStore):
                 else:
                     updated += 1
             connection.execute(
-                "UPDATE marketing_campaigns SET last_scan_at = now() WHERE id = %s",
-                (campaign_id,),
+                "UPDATE marketing_campaigns SET last_scan_at = now(), "
+                "last_discovery_summary = %s WHERE id = %s",
+                (Jsonb(selection_stats or {}), campaign_id),
             )
             connection.commit()
         return {"new": inserted, "updated": updated}
@@ -515,6 +534,10 @@ class MarketingStore(ActionStore):
     def _prospect_select() -> str:
         return """
             SELECT p.*,
+                   jsonb_build_object(
+                       'country_mode', c.country_mode, 'target_country', c.target_country,
+                       'language_mode', c.language_mode, 'target_language', c.target_language
+                   ) AS _campaign_targeting,
                    (
                        SELECT jsonb_build_object(
                            'id', m.id, 'stage', m.stage, 'variant', m.variant,
@@ -542,7 +565,27 @@ class MarketingStore(ActionStore):
                          AND sent_action.status = 'succeeded'
                    ) AS sent_message_count
             FROM marketing_prospects p
+            JOIN marketing_campaigns c ON c.id = p.campaign_id
         """
+
+    @staticmethod
+    def _current_targeting(row: dict[str, Any]) -> dict[str, Any]:
+        """Recompute selection against current campaign controls without rewriting evidence."""
+        campaign = row.pop("_campaign_targeting", None)
+        intelligence = row.get("intelligence") or {}
+        if campaign is not None and intelligence:
+            previous_geography = intelligence.get("geography") or {}
+            geography = assess_creator_geography(campaign, previous_geography)
+            gaps = [
+                gap for gap in intelligence.get("gaps", [])
+                if gap != previous_geography.get("selection_reason")
+            ]
+            if not geography["eligible"]:
+                gaps.append(geography["selection_reason"])
+            row["intelligence"] = {
+                **intelligence, "geography": geography, "gaps": gaps,
+            }
+        return row
 
     def list_prospects(
         self,
@@ -552,7 +595,7 @@ class MarketingStore(ActionStore):
         limit: int,
     ) -> list[dict[str, Any]]:
         with self.connect() as connection:
-            return connection.execute(
+            rows = connection.execute(
                 self._prospect_select()
                 + """
                 WHERE (%s::uuid IS NULL OR p.campaign_id = %s)
@@ -564,6 +607,7 @@ class MarketingStore(ActionStore):
                 """,
                 (campaign_id, campaign_id, prospect_status, prospect_status, limit),
             ).fetchall()
+        return [self._current_targeting(row) for row in rows]
 
     def get_prospect(self, prospect_id: UUID) -> dict[str, Any]:
         with self.connect() as connection:
@@ -572,7 +616,7 @@ class MarketingStore(ActionStore):
             ).fetchone()
         if row is None:
             raise MarketingProspectNotFoundError(str(prospect_id))
-        return row
+        return self._current_targeting(row)
 
     def _variant_metrics_in_connection(
         self, connection: Any, campaign_id: UUID

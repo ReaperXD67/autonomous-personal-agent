@@ -416,6 +416,9 @@ class ActionStore(CareerStore):
                 }
             ) != row["context_hash"]:
                 raise SideEffectGuardError("Frozen external action context changed after approval")
+            from app.career_autopilot import guard_autopilot_action
+
+            guard_autopilot_action(connection, row, datetime.now(UTC))
             marketing = row["private_context"].get("marketing")
             if isinstance(marketing, dict):
                 prospect = connection.execute(
@@ -551,6 +554,12 @@ class ActionStore(CareerStore):
                     (action["opportunity_id"],),
                 )
             elif action["action_type"] == "communications.email_send":
+                # SMTP acceptance is submission evidence, not proof of inbox delivery.
+                connection.execute(
+                    "UPDATE job_opportunities SET status = 'applied', applied_at = now() "
+                    "WHERE id = %s AND EXISTS (SELECT 1 FROM career_autopilot_actions "
+                    "WHERE action_id = %s)", (action["opportunity_id"], action["id"]),
+                )
                 schedule = connection.execute(
                     """
                     UPDATE outbound_email_schedule

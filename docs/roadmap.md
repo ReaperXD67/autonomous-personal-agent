@@ -56,17 +56,25 @@
 ## Phase 4 — personal workflows
 
 - [ ] Telegram control with pairing and allowlist
-- [ ] Email read/classify and OAuth adapters
+- [x] Narrow read-only Gmail career-label adapter, durable reply evidence, uncertainty review, and manual interview/outcome recording
+- [ ] Configure Gmail OAuth and complete a real labeled-mail canary; broader email/account adapters remain deferred
 - [x] Exact approval-gated single-recipient SMTP send adapter and local Mailpit proof
 - [x] Final lease/cancellation/context guards, durable SMTP acceptance before cleanup, and audited no-send connection diagnostics
 - [x] Secure generic SMTP setup, personalized reviewed introductions, exact-message history, and durable low-volume pacing with acceptance/uncertainty guidance
 - [x] Governed creator campaigns with official YouTube discovery, manual contact provenance/reply classification, exact-email sequencing, results, and bounded draft adaptation
 - [x] YouTube-focused research dossiers: public business-contact candidates, source evidence, explainable fit, collaboration concepts, per-creator refresh, searchable shortlist, and CSV export
+- [x] Explicit country/language targeting with any/prefer/strict modes, Poland-only channel declarations, honest unknowns, and preserved excluded history
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources
+- [x] Optional Remotive public feed with attribution and 24-hour-delay disclosure; explicit published/updated/unknown date provenance, all-required-keyword matching, and remote-location constraints
 - [x] Local résumé evidence and cover-letter drafting
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter
+- [x] Career Play/Pause with prepare/apply modes, explicit expiring scope, trusted ATS hosts, fresh-job and fit gates, shared rolling application limits, profile binding, and duplicate protection
+- [x] Opt-in application email only to one hiring address explicitly published in the matched job, sharing the ATS budget and dedupe guard
+- [x] Private mission readiness, application preparation/blocker visibility, and durable application/reply/interview/outcome timelines
+- [ ] Real external automatic-application and hiring-email canaries with user-configured identity and provider
+- [ ] LinkedIn, Y Combinator, and Discord account integrations; use supported employer ATS boards for current discovery rather than browser-account bots
 - [ ] Real-site compatibility suite and additional reviewed ATS adapters
 - [ ] Calendar/Drive/Notion/task-manager integrations by scoped profile
 - [x] Private web UI for missions, opportunities, tasks, approvals, and audit timelines
@@ -80,10 +88,16 @@
 
 Purchases/transfers, mass communication, job submission, public publishing,
 production infrastructure changes, and destructive repository/data operations.
-Application/email preparation can be automatic; each exact external action
-requires its own unexpired approval and cannot borrow a blanket permission.
-Creator discovery and public business-contact candidate extraction may be scheduled, but contact qualification, every
-send, reply classification, paid terms, and public placement remain reviewed.
+Application/email preparation can be automatic. Career Play can authorize exact
+application packets under an explicitly selected, finite scope: reviewed hosts,
+fresh publication evidence, score, daily cap, optional job-published hiring email,
+profile, and expiry. Pause withdraws that run's authority before final submission.
+This is not blanket permission to execute tools or message arbitrary contacts.
+Manually prepared external actions and creator sends keep individual exact-action
+approval. Creator discovery and business-contact extraction may be scheduled, but
+contact qualification, creator reply classification, paid terms, and public
+placement remain reviewed. Gmail classification is inferred evidence, with
+uncertain matches and interview times left for explicit review.
 
 ## Evaluated but deliberately deferred
 

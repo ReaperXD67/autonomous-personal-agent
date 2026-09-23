@@ -1,6 +1,6 @@
 # Autonomous side-effect security review
 
-Review date: 2026-09-16
+Review dates: 2026-09-16; scoped career extension 2026-09-23
 
 Scope: exact-action persistence and approval, Playwright application adapter,
 SMTP sender, dashboard review UI, Compose isolation, and CI coverage. This is an
@@ -19,8 +19,11 @@ implementation review, not a penetration test of third-party ATS sites.
   digest, and execution rejects a missing or mismatched digest.
 - Impact: a global automatic switch could submit altered résumés/answers or send
   arbitrary messages under the user's identity.
-- Resolution: preserve per-action approval. Automate discovery, drafting,
-  preflight, field resolution, and plan creation around that boundary.
+- Resolution: preserve exact digest-bound approvals. ADR-0022 additionally permits
+  an explicit expiring career Play scope to authorize individual actions, using
+  frozen preferences, run-bound material, posting-date evidence, shared rolling
+  caps and target deduplication. Final execution rechecks Pause, expiry and
+  changed profile/job content. Generic tasks and marketing do not inherit this grant.
 
 ### SE-002 — At-least-once delivery could duplicate a real application
 

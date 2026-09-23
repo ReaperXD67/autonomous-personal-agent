@@ -18,6 +18,8 @@ const state = {
   plans: [],
   readiness: null,
   communications: null,
+  careerAutopilot: null,
+  careerTracking: null,
   view: "overview",
 };
 
@@ -173,6 +175,8 @@ function disconnect(showMessage = true) {
   state.campaigns = [];
   state.prospects = [];
   state.marketingResults = [];
+  state.careerAutopilot = null;
+  state.careerTracking = null;
   state.workflows = [];
   state.plans = [];
   state.readiness = null;
@@ -233,7 +237,7 @@ async function loadData({ quiet = false } = {}) {
     return false;
   }
   try {
-    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications] = await Promise.all([
+    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications, careerAutopilot, careerTracking] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/inference/status"),
       api("/v1/career/profiles"),
@@ -248,8 +252,10 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/plans"),
       api("/v1/readiness/features"),
       api("/v1/communications/status"),
+      api("/v1/career/autopilot").catch((error) => ({ error: error.message, runs: [], readiness: [], sources: [] })),
+      api("/v1/career/tracking?limit=100").catch((error) => ({ error: error.message, applications: [], review_candidates: [], sync: [] })),
     ]);
-    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications });
+    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications, careerAutopilot, careerTracking });
     $("#connection-notice").hidden = true;
     setConnection(true);
     renderAll();
@@ -267,7 +273,7 @@ const viewCopy = {
   overview: ["", "Your next step, <em>made clear.</em>", "Give Hermes a goal, review its plan, and follow the work from here."],
   goals: ["", "A goal becomes <em>a plan.</em>", "Describe what you need. Review the proposed steps before any of them start."],
   readiness: ["", "Know what is <em>ready to use.</em>", "Configuration, recorded evidence, and the next setup step in one place."],
-  missions: ["Continuous operations", "Choose the <em>mission.</em>", "Activate, pause, or replace ongoing work without changing code."],
+  missions: ["", "Set the scope. <em>Press Play.</em>", "Hunt fresh roles, prepare or submit within reviewed limits, and keep every application traceable."],
   workflows: ["Coordinated autonomy", "Plan. Execute. <em>Verify.</em>", "Turn a multi-step objective into durable work with dependencies, result checks, and a clear stopping point."],
   opportunities: ["", "Your <em>job inbox.</em>", "Compare fresh matches, prepare truthful drafts, and decide what to apply for."],
   campaigns: ["", "Find creators with <em>a reason to fit.</em>", "Research YouTube audiences, trace published business contacts, and develop a relevant collaboration."],
@@ -628,15 +634,156 @@ function renderMetrics() {
   $("#approval-badge").textContent = String(approvals.length);
 }
 
+const careerRunChanges = new Set();
+const careerMailSyncs = new Set();
+const careerApplyHosts = ["boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.ashbyhq.com", "jobs.lever.co", "jobs.eu.lever.co"];
+
+function careerRun(profileId) {
+  return (state.careerAutopilot?.runs || []).filter((run) => run.profile_id === profileId)
+    .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))[0] || null;
+}
+
+function renderCareerReadiness() {
+  const root = $("#career-readiness");
+  const wasOpen = $("details", root)?.open || false;
+  root.replaceChildren();
+  if (!isConnected()) { root.append(node("p", "fine-print", "Connect to check mission prerequisites and source availability.")); return; }
+  if (state.careerAutopilot?.error) { root.append(node("p", "notice", "Run readiness could not be loaded. Refresh the workspace before starting a mission.")); return; }
+  const ready = state.careerAutopilot?.readiness || [];
+  root.append(node("p", "", `${ready.filter((item) => item.can_prepare).length} mission(s) meet preparation requirements · ${ready.filter((item) => item.can_apply).length} meet automatic-application requirements. Configuration is not proof of a successful external application.`));
+  const details = node("details", "career-source-status");
+  details.open = wasOpen;
+  details.append(node("summary", "", "Source connections and current readiness"));
+  (state.careerAutopilot?.sources || []).forEach((source) => {
+    const row = node("div", "career-source-row");
+    row.append(node("strong", "", `${source.name} · ${titleCase(source.status)}`), node("p", "", source.description));
+    if (source.url) row.append(researchLink("Open source", source.url));
+    details.append(row);
+  });
+  root.append(details);
+}
+
+function openCareerPlay(profileId) {
+  if (!isConnected()) return $("#connect-dialog").showModal();
+  const profile = state.profiles.find((item) => item.id === profileId);
+  if (!profile) return;
+  const form = $("#career-play-form");
+  form.reset();
+  clearFormError(form);
+  form.elements.profile_id.value = profile.id;
+  const previous = careerRun(profile.id);
+  form.elements.max_age_hours.value = previous?.max_age_hours || profile.max_age_hours || 72;
+  form.elements.min_score.value = previous?.min_score ?? profile.auto_prepare_min_score ?? 75;
+  form.elements.max_applications_per_day.value = previous?.max_applications_per_day || 3;
+  $("#career-play-title").textContent = `Play ${profile.name}`;
+  $("#career-play-description").textContent = `${profile.desired_titles.join(", ")} · ${profile.locations.join(", ") || "Any configured location"}. The saved résumé, identity, and source settings define this run.`;
+  const hosts = $("#career-host-options");
+  hosts.replaceChildren();
+  careerApplyHosts.forEach((host) => {
+    const label = node("label", "checkbox-row");
+    const input = node("input");
+    input.type = "checkbox";
+    input.name = "allowed_hosts";
+    input.value = host;
+    input.checked = previous?.allowed_hosts?.length ? previous.allowed_hosts.includes(host) : true;
+    label.append(input, document.createTextNode(host));
+    hosts.append(label);
+  });
+  updateCareerPlayScope();
+  $("#career-play-dialog").showModal();
+}
+
+function updateCareerPlayScope() {
+  const form = $("#career-play-form");
+  const apply = form.elements.mode.value === "apply";
+  const readiness = (state.careerAutopilot?.readiness || []).find((item) => item.profile_id === form.elements.profile_id.value);
+  form.elements.include_cold_email.disabled = !readiness?.smtp_configured;
+  if (!readiness?.smtp_configured) form.elements.include_cold_email.checked = false;
+  const includeEmail = form.elements.include_cold_email.checked;
+  $("#career-email-scope-help").textContent = readiness?.smtp_configured
+    ? state.communications?.transport === "mailpit"
+      ? "The current transport is the local Mailpit test inbox. These emails cannot reach employers. The same freshness, fit, shared daily limits, and one-application-per-job guard still apply."
+      : "Uses the same freshness, fit, and daily limits, your saved résumé and portfolio, and configured SMTP. One application per job across ATS and email. SMTP acceptance does not prove inbox delivery."
+    : "Hiring email is unavailable until SMTP is configured. It only supports one unambiguous hiring address explicitly published in the matched job description.";
+  const hosts = $$('input[name="allowed_hosts"]:checked', form).map((input) => input.value);
+  $("#career-allowed-hosts").hidden = !apply;
+  $("#career-apply-consent").hidden = !apply;
+  form.elements.authorize_apply.required = apply;
+  const scope = $("#career-play-scope");
+  scope.replaceChildren(node("strong", "", apply ? "Review the automatic-application scope" : "Preparation scope"));
+  scope.append(node("p", "", apply
+    ? `Submit at most ${form.elements.max_applications_per_day.value} applications per rolling 24 hours, at ${form.elements.min_score.value}+ fit, for listings no older than ${form.elements.max_age_hours.value} hours. Authorization lasts ${form.elements.expires_in_hours.value} hours and covers ${hosts.join(", ") || "no ATS hosts"}${includeEmail ? " plus application emails to one unambiguous hiring address explicitly published in each matched job" : " only"}. ATS and email share the cap and one-application-per-job guard.`
+    : `Find and prepare relevant applications at ${form.elements.min_score.value}+ fit for listings no older than ${form.elements.max_age_hours.value} hours.${includeEmail ? " Include hiring-email drafts only for explicitly published job contacts." : ""} This run lasts ${form.elements.expires_in_hours.value} hours. Final submissions and sends wait for separate review.`));
+  const ready = apply ? readiness?.can_apply : readiness?.can_prepare;
+  if (!ready) scope.append(node("p", "notice", "This mission does not yet meet the selected mode's requirements. Check its résumé, application identity, reviewed sources, and feature readiness before pressing Play."));
+  const submit = $('button[type="submit"]', form);
+  submit.textContent = apply ? "Authorize scope and Play" : "Play preparation";
+  submit.disabled = !ready;
+}
+
+async function startCareerRun(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.elements.profile_id.value;
+  try {
+    const answers = JSON.parse(form.elements.answers.value.trim() || "{}");
+    if (!answers || typeof answers !== "object" || Array.isArray(answers)) throw new Error("Screening answers must be a JSON object with the inspected field names.");
+    const allowedHosts = $$('input[name="allowed_hosts"]:checked', form).map((input) => input.value);
+    const includeEmail = !form.elements.include_cold_email.disabled && form.elements.include_cold_email.checked;
+    if (form.elements.mode.value === "apply" && (!form.elements.authorize_apply.checked || (!allowedHosts.length && !includeEmail))) throw new Error("Select at least one reviewed destination or the optional hiring-email route, then explicitly authorize this scope.");
+    careerRunChanges.add(id);
+    await api(`/v1/career/profiles/${encodeURIComponent(id)}/play`, { method: "POST", body: JSON.stringify({
+      actor: "dashboard:career", mode: form.elements.mode.value, max_applications_per_day: Number(form.elements.max_applications_per_day.value),
+      min_score: Number(form.elements.min_score.value), max_age_hours: Number(form.elements.max_age_hours.value),
+      allowed_hosts: allowedHosts, expires_in_hours: Number(form.elements.expires_in_hours.value), answers, include_cold_email: includeEmail,
+    }) });
+    $("#career-play-dialog").close();
+    toast(form.elements.mode.value === "apply" ? "Scoped application run started. Follow its applications and stop it with Pause." : "Preparation run started. Final applications still wait for review.");
+    await loadData({ quiet: true });
+  } catch (error) { showFormError(form, error instanceof SyntaxError ? new Error("Screening answers are not valid JSON. Use an object such as {} or leave the field blank.") : error); }
+  finally { careerRunChanges.delete(id); renderMissions(); }
+}
+
+async function pauseCareerRun(id) {
+  if (careerRunChanges.has(id)) return;
+  careerRunChanges.add(id);
+  renderMissions();
+  try {
+    await api(`/v1/career/profiles/${encodeURIComponent(id)}/pause`, { method: "POST", body: JSON.stringify({ actor: "dashboard:career" }) });
+    toast("Mission paused. Work already submitted remains in the application history.");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+  finally { careerRunChanges.delete(id); renderMissions(); }
+}
+
+async function syncCareerMail(id) {
+  if (careerMailSyncs.has(id) || careerMailPending(id)) return;
+  careerMailSyncs.add(id);
+  renderMissions();
+  try {
+    await api(`/v1/career/profiles/${encodeURIComponent(id)}/mail-sync`, { method: "POST" });
+    toast("Read-only labeled-mail sync queued. Review inferred replies in the application tracker.");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+  finally { careerMailSyncs.delete(id); renderMissions(); }
+}
+
+function careerMailPending(profileId) {
+  return state.tasks.some((task) => task.kind === "career.gmail_sync" && task.payload?.profile_id === profileId && ["pending_approval", "queued", "running"].includes(task.status));
+}
+
 function missionCard(profile, compact = false) {
+  const run = careerRun(profile.id);
+  const running = run?.state === "running" && Date.parse(run.expires_at) > Date.now();
   const card = node("article", `mission-card${profile.active ? "" : " inactive"}`);
   const row = node("div", "mission-row");
   const body = node("div");
-  body.append(node("span", "tag", profile.active ? "Running mission" : "Paused mission"));
+  body.append(node("span", "tag", running ? run.mode === "apply" ? "Automatic applications running" : "Preparation running" : profile.active ? "Scheduled search" : "Paused mission"));
   body.append(node("h3", "", profile.name));
   body.append(node("p", "", `${profile.desired_titles.join(", ")} · ${profile.locations.join(", ") || "Any location"}`));
-  const toggle = button("", `switch${profile.active ? " on" : ""}`, "toggle-profile", profile.id);
-  toggle.setAttribute("aria-label", profile.active ? "Pause mission" : "Activate mission");
+  const toggle = button(profile.active || running ? "Pause" : "Play", `button compact${profile.active || running ? "" : " primary"}`, profile.active || running ? "pause-career" : "play-career", profile.id);
+  toggle.setAttribute("aria-label", `${profile.active || running ? "Pause" : "Play"} ${profile.name}`);
+  toggle.disabled = careerRunChanges.has(profile.id);
   row.append(body, toggle);
   card.append(row);
   const meta = node("div", "mission-meta");
@@ -647,17 +794,51 @@ function missionCard(profile, compact = false) {
     node("span", "", profile.resume_present ? `Résumé: ${profile.resume_characters.toLocaleString()} chars` : "Résumé missing"),
   );
   card.append(meta);
+  if (run) card.append(node("p", "career-run-summary", `${running ? "Current scope" : `Last run: ${titleCase(run.state === "running" ? "expired" : run.state)}`} · ${run.min_score}+ fit · ${run.max_age_hours}h freshness · ${run.used_today || 0}/${run.max_applications_per_day} applications used in 24h · ${run.include_cold_email ? "ATS + published hiring email" : "selected ATS hosts"} · expires ${researchDate(run.expires_at)}`));
+  if (run?.last_error) card.append(node("p", "notice", `Run needs attention: ${run.last_error}`));
   if (!compact) {
+    const readiness = (state.careerAutopilot?.readiness || []).find((item) => item.profile_id === profile.id);
+    const checks = node("div", "career-mission-checks");
+    for (const [label, present] of [["Résumé", profile.resume_present], ["Application identity", readiness?.identity_complete], ["Portfolio", readiness?.portfolio_present], ["Reviewed sources", readiness?.sources_enabled]]) {
+      checks.append(node("span", "chip", `${label}: ${present === undefined ? "not checked" : present ? "present" : label === "Portfolio" ? "not supplied" : "needed"}`));
+    }
+    card.append(checks);
+    const sources = profile.source_config || {};
+    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : "")].filter(Boolean);
+    card.append(node("p", "fine-print", `Configured discovery: ${sourceNames.join(" · ") || "No source configured"}`));
     const actions = node("div", "mission-actions");
-    actions.append(button("Scan now", "button compact", "scan-profile", profile.id), button("Edit mission", "text-button", "edit-profile", profile.id));
+    actions.append(button("Scan now", "button compact", "scan-profile", profile.id), button("Edit mission", "text-button", "edit-profile", profile.id), button("View applications", "text-button", "career-applications", profile.id));
+    const sync = button(careerMailPending(profile.id) ? "Gmail sync in progress…" : "Check labeled Gmail replies", "text-button", "sync-career-mail", profile.id);
+    sync.disabled = !readiness?.gmail_configured || careerMailSyncs.has(profile.id) || careerMailPending(profile.id);
+    actions.append(sync);
     card.append(actions);
+    const lastSync = (state.careerTracking?.sync || []).find((item) => item.profile_id === profile.id);
+    card.append(node("p", "fine-print", readiness?.gmail_configured ? `Read-only Gmail label: ${lastSync?.label_name || "Hermes/Careers"} · last sync ${researchDate(lastSync?.last_sync_at)}. Replies are inferred until reviewed.` : "Gmail reply tracking is not configured. You can record verified replies and interview times manually."));
+    const items = (state.careerAutopilot?.items || []).filter((item) => item.run_id === run?.id);
+    if (items.length) {
+      const details = node("details", "career-run-items pipeline-timeline");
+      details.dataset.profileId = profile.id;
+      details.append(node("summary", "", `Preparation and review · ${items.length} job${items.length === 1 ? "" : "s"}`));
+      const entries = node("ol");
+      items.slice(0, 10).forEach((item) => {
+        const entry = node("li");
+        entry.append(node("strong", "", `${item.title} · ${item.company}`), node("p", "fine-print", `${titleCase(item.state)}${item.reason ? ` · ${item.reason}` : ""}`));
+        if (state.opportunities.some((opportunity) => opportunity.id === item.opportunity_id)) entry.append(button("Inspect job", "text-button", "view-opportunity", item.opportunity_id));
+        if (item.action_id) entry.append(button("View exact action", "text-button", "review-action", item.action_id));
+        entries.append(entry);
+      });
+      details.append(entries);
+      card.append(details);
+    }
   }
   return card;
 }
 
 function renderMissions() {
+  renderCareerReadiness();
   const overview = $("#overview-missions");
   const full = $("#mission-list");
+  const expanded = new Set($$(".career-run-items[open]", full).map((item) => item.dataset.profileId));
   overview.replaceChildren();
   full.replaceChildren();
   if (!state.profiles.length) {
@@ -667,6 +848,13 @@ function renderMissions() {
   }
   state.profiles.slice(0, 2).forEach((profile) => overview.append(missionCard(profile, true)));
   state.profiles.forEach((profile) => full.append(missionCard(profile)));
+  $$(".career-run-items", full).forEach((item) => { item.open = expanded.has(item.dataset.profileId); });
+}
+
+function opportunityDateLabel(opportunity) {
+  if (opportunity.published_at_basis === "updated") return `Updated ${timeAgo(opportunity.published_at)} · publication unverified`;
+  if (opportunity.published_at_basis !== "published") return "Publication date unverified";
+  return `Published ${timeAgo(opportunity.published_at)}`;
 }
 
 function opportunityRow(opportunity) {
@@ -677,7 +865,7 @@ function opportunityRow(opportunity) {
   const initials = opportunity.company.split(/\s+/).slice(0, 2).map((word) => word[0]).join("").toUpperCase() || "J";
   row.append(node("span", "logo", initials));
   const copy = node("span");
-  copy.append(node("strong", "", opportunity.title), node("small", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${timeAgo(opportunity.published_at)}`));
+  copy.append(node("strong", "", opportunity.title), node("small", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${opportunityDateLabel(opportunity)}`));
   row.append(copy, node("span", "score", `${opportunity.score}% fit`));
   return row;
 }
@@ -690,7 +878,9 @@ function opportunityCard(opportunity) {
   top.append(copy, node("div", "opportunity-score", String(opportunity.score)));
   card.append(top);
   const meta = node("div", "opportunity-meta");
-  meta.append(node("span", "chip status-chip", titleCase(opportunity.status)), node("span", "chip", timeAgo(opportunity.published_at)));
+  meta.append(node("span", "chip status-chip", titleCase(opportunity.status)), node("span", "chip", opportunityDateLabel(opportunity)));
+  const profile = state.profiles.find((item) => item.id === opportunity.profile_id);
+  if (profile && opportunity.published_at_basis === "published" && Date.now() - Date.parse(opportunity.published_at) > profile.max_age_hours * 3600000) meta.append(node("span", "chip status-chip", "Outside freshness window · history"));
   if (opportunity.remote) meta.append(node("span", "chip", "Remote"));
   if (opportunity.employment_type) meta.append(node("span", "chip", titleCase(opportunity.employment_type)));
   if (opportunity.latest_draft) meta.append(node("span", "chip", "Draft ready"));
@@ -698,10 +888,12 @@ function opportunityCard(opportunity) {
   const reasons = node("ul", "reason-list");
   opportunity.score_reasons.slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
   card.append(reasons);
+  if (opportunity.source === "remotive") card.append(researchLink("View the original Remotive listing", opportunity.source_url));
   const actions = node("div", "card-actions");
   actions.append(button("Inspect", "button compact", "view-opportunity", opportunity.id));
   if (opportunity.status !== "shortlisted") actions.append(button("Shortlist", "button compact", "shortlist-opportunity", opportunity.id));
   actions.append(button(opportunity.latest_draft ? "Regenerate draft" : "Generate private draft", "text-button", "draft-opportunity", opportunity.id));
+  actions.append(button("Record application update", "text-button", "career-event", opportunity.id));
   card.append(actions);
   return card;
 }
@@ -709,7 +901,11 @@ function opportunityCard(opportunity) {
 function filteredOpportunities() {
   const profile = $("#opportunity-profile-filter").value;
   const status = $("#opportunity-status-filter").value;
-  return state.opportunities.filter((item) => (!profile || item.profile_id === profile) && (!status || item.status === status));
+  const search = $("#opportunity-search").value.trim().toLocaleLowerCase();
+  const age = Number($("#opportunity-age-filter").value);
+  return state.opportunities.filter((item) => (!profile || item.profile_id === profile) && (!status || item.status === status)
+    && (!search || `${item.title} ${item.company} ${item.source}`.toLocaleLowerCase().includes(search))
+    && (!age || (item.published_at_basis === "published" && Date.now() - Date.parse(item.published_at) <= age * 3600000)));
 }
 
 function renderOpportunities() {
@@ -724,6 +920,7 @@ function renderOpportunities() {
   $("#opportunity-count").textContent = `${filtered.length} opportunit${filtered.length === 1 ? "y" : "ies"}`;
   if (!filtered.length) full.append(empty("No opportunities in this view", "Change the filters or run a fresh scan.", true));
   else filtered.forEach((item) => full.append(opportunityCard(item)));
+  renderCareerTracking();
 }
 
 function renderProfileFilter() {
@@ -732,6 +929,127 @@ function renderProfileFilter() {
   filter.replaceChildren(new Option("All missions", ""));
   state.profiles.forEach((profile) => filter.append(new Option(profile.name, profile.id)));
   if ([...filter.options].some((option) => option.value === selected)) filter.value = selected;
+}
+
+function renderCareerTracking() {
+  const tracking = state.careerTracking;
+  const list = $("#career-pipeline-list");
+  const expanded = new Set($$("details[open]", list).map((item) => item.dataset.opportunityId));
+  const summary = $("#career-pipeline-summary");
+  const review = $("#career-mail-review");
+  const suggestions = $("#career-tracking-suggestions");
+  list.replaceChildren(); summary.replaceChildren(); review.replaceChildren(); suggestions.replaceChildren();
+  if (!tracking || tracking.error) {
+    list.append(empty("Application tracking is not loaded", isConnected() ? "Refresh to load durable application outcomes and mailbox review signals." : "Connect your workspace to load application history."));
+    return;
+  }
+  const profileId = $("#opportunity-profile-filter").value;
+  const applications = (tracking.applications || []).filter((item) => !profileId || item.profile_id === profileId);
+  const signals = (tracking.review_candidates || []).map((signal, index) => ({ signal, index })).filter(({ signal }) => !profileId || signal.profile_id === profileId);
+  const counts = [["Tracked", applications.length], ["Replies", applications.filter((item) => item.status === "recruiter_reply").length], ["Interviews", applications.filter((item) => item.status === "interview").length], ["Offers", applications.filter((item) => item.status === "offer").length], ["Needs review", signals.length + applications.filter((item) => item.needs_review).length]];
+  counts.forEach(([label, count]) => summary.append(node("span", "chip", `${label}: ${count}`)));
+  if (!applications.length) list.append(empty("No tracked applications in this view", "Applications appear here after submission or a reviewed manual update. Select a mission to focus its history."));
+  applications.forEach((application) => {
+    const row = node("article", "pipeline-entry");
+    const header = node("div", "pipeline-entry-head");
+    const title = node("div");
+    title.append(node("h3", "", `${application.title} · ${application.company}`), node("p", "", `${titleCase(application.status)} · ${titleCase(application.status_source || "recorded")} · updated ${researchDate(application.updated_at)}`));
+    header.append(title, button("Record update", "button compact", "career-event", application.opportunity_id));
+    row.append(header);
+    const opportunity = state.opportunities.find((item) => item.id === application.opportunity_id);
+    if (opportunity) row.append(node("p", "fine-print", `${titleCase(opportunity.source)} · ${opportunityDateLabel(opportunity)} · ${opportunity.score}/100 fit at discovery`));
+    if (application.needs_review) row.append(node("p", "pipeline-review-note", "Inferred status — review the message evidence before relying on it."));
+    if (application.meeting_at) row.append(node("p", "pipeline-meeting", `Interview / meeting: ${researchDate(application.meeting_at)}`));
+    else if (application.status === "interview") row.append(node("p", "pipeline-review-note", "Interview signal recorded; date and time still need review."));
+    if (application.evidence) row.append(node("p", "fine-print", application.evidence));
+    const details = node("details", "pipeline-timeline");
+    details.dataset.opportunityId = application.opportunity_id;
+    details.open = expanded.has(application.opportunity_id);
+    details.append(node("summary", "", "Status timeline and source evidence"));
+    const timeline = node("ol");
+    if (application.applied_at) timeline.append(node("li", "", `Submission recorded · ${researchDate(application.applied_at)}`));
+    (application.events || []).forEach((event) => {
+      const entry = node("li");
+      entry.append(node("strong", "", `${titleCase(event.status)} · ${researchDate(event.occurred_at)}`), node("p", "fine-print", `${titleCase(event.source)} · confidence ${event.confidence ?? "not recorded"}${event.needs_review ? " · review needed" : ""}`));
+      if (event.evidence) entry.append(node("p", "", event.evidence));
+      if (event.meeting_at) entry.append(node("p", "fine-print", `Meeting: ${researchDate(event.meeting_at)}`));
+      timeline.append(entry);
+    });
+    if (!timeline.childElementCount) timeline.append(node("li", "", "No dated events recorded yet."));
+    details.append(timeline, researchLink("Open original application", application.apply_url));
+    row.append(details);
+    list.append(row);
+  });
+  if (signals.length) {
+    review.append(node("h3", "", "Mailbox signals that need a match"), node("p", "fine-print", "These labeled messages have not been safely linked to an application. Review the evidence and choose the correct role."));
+    signals.forEach(({ signal, index }) => {
+      const row = node("article", "mail-signal");
+      row.append(node("h4", "", signal.subject || "No subject"), node("p", "fine-print", `${signal.sender || "Sender unavailable"} · ${researchDate(signal.received_at)} · suggested ${titleCase(signal.suggested_status)}`));
+      if (signal.snippet) row.append(node("p", "", signal.snippet));
+      if (signal.match_reason || signal.evidence) row.append(node("p", "fine-print", signal.match_reason || signal.evidence));
+      row.append(button("Review and link to an application", "button compact", "review-career-mail", String(index)));
+      review.append(row);
+    });
+  }
+  if ((tracking.suggestions || []).length) {
+    suggestions.append(node("h3", "", "Next steps from recorded outcomes"));
+    const notes = node("ul");
+    tracking.suggestions.forEach((suggestion) => notes.append(node("li", "", suggestion)));
+    suggestions.append(notes);
+  }
+}
+
+function openCareerEvent(opportunityId = null, signalIndex = null) {
+  const form = $("#career-event-form");
+  form.reset();
+  clearFormError(form);
+  const signal = signalIndex === null ? null : state.careerTracking?.review_candidates?.[signalIndex];
+  const context = $("#career-event-context");
+  context.replaceChildren();
+  form.elements.gmail_message_id.value = signal?.gmail_message_id || "";
+  const choices = new Map(state.opportunities.filter((item) => !signal || (item.profile_id === signal.profile_id && item.applied_at)).map((item) => [item.id, `${item.title} · ${item.company}`]));
+  (state.careerTracking?.applications || []).filter((item) => !signal || item.profile_id === signal.profile_id).forEach((item) => choices.set(item.opportunity_id, `${item.title} · ${item.company}`));
+  form.elements.opportunity_id.replaceChildren(new Option("Choose the matching application", ""));
+  choices.forEach((label, id) => form.elements.opportunity_id.append(new Option(label, id)));
+  form.elements.opportunity_id.value = opportunityId || "";
+  if (signal) {
+    context.append(node("strong", "", "Inferred mailbox signal — verify the application and status"), node("p", "", signal.subject || "No subject"), node("p", "fine-print", `${signal.sender || "Unknown sender"} · ${researchDate(signal.received_at)}`), node("p", "", signal.snippet || signal.evidence || "No excerpt recorded."));
+    if ([...form.elements.status.options].some((option) => option.value === signal.suggested_status)) form.elements.status.value = signal.suggested_status;
+    if (!choices.size) context.append(node("p", "notice", "Record the matching job as submitted before linking this mailbox signal."));
+  } else {
+    const application = state.careerTracking?.applications?.find((item) => item.opportunity_id === opportunityId);
+    if (application && [...form.elements.status.options].some((option) => option.value === application.status)) form.elements.status.value = application.status;
+  }
+  context.append(node("p", "fine-print", `Entered times use ${Intl.DateTimeFormat().resolvedOptions().timeZone || "your browser's local time zone"}. Leave an unconfirmed meeting time blank.`));
+  updateCareerEventChoices();
+  $("#career-event-dialog").showModal();
+}
+
+function updateCareerEventChoices() {
+  const form = $("#career-event-form");
+  const id = form.elements.opportunity_id.value;
+  const submitted = state.opportunities.some((item) => item.id === id && item.applied_at)
+    || (state.careerTracking?.applications || []).some((item) => item.opportunity_id === id);
+  [...form.elements.status.options].forEach((option) => { option.disabled = Boolean(id && !submitted && option.value !== "submitted"); });
+  if (id && !submitted) form.elements.status.value = "submitted";
+  form.elements.meeting_at.disabled = form.elements.status.value !== "interview";
+  if (form.elements.meeting_at.disabled) form.elements.meeting_at.value = "";
+}
+
+async function saveCareerEvent(event) {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const id = form.elements.opportunity_id.value;
+  const payload = { status: form.elements.status.value, note: form.elements.note.value.trim(), actor: "dashboard:career" };
+  try {
+    if (form.elements.occurred_at.value) payload.occurred_at = new Date(form.elements.occurred_at.value).toISOString();
+    if (form.elements.status.value === "interview" && form.elements.meeting_at.value) payload.meeting_at = new Date(form.elements.meeting_at.value).toISOString();
+    if (form.elements.gmail_message_id.value) payload.gmail_message_id = form.elements.gmail_message_id.value;
+    await api(`/v1/career/opportunities/${encodeURIComponent(id)}/events`, { method: "POST", body: JSON.stringify(payload) });
+    $("#career-event-dialog").close();
+    toast("Reviewed application update recorded");
+    await loadData({ quiet: true });
+  } catch (error) { showFormError(form, error); }
 }
 
 const decidingTasks = new Set();
@@ -1267,6 +1585,13 @@ function campaignCard(campaign) {
     funnel.append(row);
   });
   card.append(funnel);
+  const countryRule = campaign.country_mode === "strict" ? `Requires declared ${campaign.target_country}` : campaign.country_mode === "prefer" ? `Prefers ${campaign.target_country}` : "Any country";
+  const languageRule = campaign.language_mode === "strict" ? `requires published ${campaign.target_language}` : campaign.language_mode === "prefer" ? `prefers ${campaign.target_language}` : "any published language";
+  card.append(node("p", "fine-print", `${countryRule} · ${languageRule}`));
+  if (campaign.last_discovery_summary && Number.isFinite(campaign.last_discovery_summary.reviewed)) {
+    const summary = campaign.last_discovery_summary;
+    card.append(node("p", "fine-print", `Last selection: ${summary.reviewed} reviewed · ${summary.selected || 0} selected · ${summary.excluded || 0} excluded by targeting`));
+  }
 
   const learning = node("div", "campaign-learning");
   learning.append(node("strong", "", "Agent suggestions"));
@@ -1362,14 +1687,34 @@ function renderMarketingFilters() {
   if ([...filter.options].some((option) => option.value === selected)) filter.value = selected;
 }
 
+function currentCreatorTarget(prospect) {
+  const campaign = state.campaigns.find((item) => item.id === prospect.campaign_id);
+  const geography = prospect.intelligence?.geography || {};
+  const language = String(geography.language_code || "").toLowerCase();
+  const targetLanguage = String(campaign?.target_language || "").toLowerCase();
+  const countryMatches = Boolean(campaign?.target_country && geography.country_code === campaign.target_country);
+  const languageMatches = Boolean(language && targetLanguage && (language === targetLanguage || language.startsWith(`${targetLanguage}-`)));
+  return {
+    eligible: Boolean(campaign) && (campaign.country_mode !== "strict" || countryMatches) && (campaign.language_mode !== "strict" || languageMatches),
+    preference: Number(campaign?.country_mode === "prefer" && countryMatches) + Number(campaign?.language_mode === "prefer" && languageMatches),
+  };
+}
+
 function filteredProspects() {
   const campaignId = $("#marketing-campaign-filter").value;
   const status = $("#marketing-status-filter").value;
   const platform = $("#marketing-platform-filter").value;
   const contact = $("#marketing-contact-filter").value;
+  const target = $("#marketing-target-filter").value;
   const search = $("#marketing-search").value.trim().toLocaleLowerCase();
   const prospects = state.prospects.filter((item) => {
     if ((campaignId && item.campaign_id !== campaignId) || (status && item.status !== status) || (platform && item.platform !== platform)) return false;
+    const geography = item.intelligence?.geography || {};
+    const currentTarget = currentCreatorTarget(item);
+    if (target === "eligible" && !currentTarget.eligible) return false;
+    if (target === "poland" && geography.country_code !== "PL") return false;
+    if (target === "unknown" && geography.country_code) return false;
+    if (target === "excluded" && currentTarget.eligible) return false;
     const candidates = prospectContactCandidates(item);
     const authorized = Boolean(item.contact_authorized_at && !item.suppressed_at);
     if (contact === "candidate" && (!candidates.length || authorized || item.suppressed_at)) return false;
@@ -1388,6 +1733,7 @@ function filteredProspects() {
     if (sort === "audience") order = Number(right.audience_size || 0) - Number(left.audience_size || 0);
     if (sort === "recent") order = (Date.parse(right.intelligence?.researched_at) || 0) - (Date.parse(left.intelligence?.researched_at) || 0);
     if (sort === "contact") order = Number(hasUnreviewedContact(right)) - Number(hasUnreviewedContact(left));
+    if (sort === "fit") order = currentCreatorTarget(right).preference - currentCreatorTarget(left).preference;
     return order || Number(right.relevance_score || 0) - Number(left.relevance_score || 0) || left.display_name.localeCompare(right.display_name);
   });
 }
@@ -1469,6 +1815,16 @@ function prospectResearch(prospect) {
   }
   body.append(node("p", "fine-print", `Researched ${researchDate(intelligence.researched_at)} · ${titleCase(intelligence.confidence || "unknown")} evidence confidence · ${titleCase(intelligence.enrichment_status || "partial")} research`));
   if (intelligence.channel_summary) body.append(node("p", "", intelligence.channel_summary));
+  if (intelligence.geography) {
+    const geography = intelligence.geography;
+    const selection = node("section", "dossier-section");
+    selection.append(node("h4", "", "Country and language evidence"), node("p", "", `At research time: ${geography.selection_reason || "No selection reason recorded."}`));
+    selection.append(node("p", "", geography.country_code ? `Channel declares ${geography.country_code}. This is not audience geography or nationality.` : "Channel country not declared; no country inferred."));
+    if (geography.country_source_url) selection.append(researchLink("Country source", geography.country_source_url));
+    selection.append(node("p", "", geography.language_code ? `Published language: ${geography.language_code} · ${titleCase(geography.language_source)}` : "Published language unavailable; no language inferred from the channel name."));
+    if (geography.language_source_url) selection.append(researchLink("Language source", geography.language_source_url));
+    body.append(selection);
+  }
   const topics = researchItems(intelligence, "topics");
   if (topics.length) {
     const list = node("div", "opportunity-meta");
@@ -1576,6 +1932,9 @@ function prospectCard(prospect) {
   const candidates = prospectContactCandidates(prospect);
   meta.append(node("span", "chip", prospect.suppressed_at ? "Contact suppressed" : prospect.contact_authorized_at ? "Authorized contact" : candidates.length ? `${candidates.length} published contact${candidates.length === 1 ? "" : "s"} to review` : "No reviewed contact"));
   if (prospect.intelligence?.confidence) meta.append(node("span", "chip", `${titleCase(prospect.intelligence.confidence)} evidence confidence`));
+  const geography = prospect.intelligence?.geography;
+  meta.append(node("span", "chip", geography?.country_code ? `Channel declares ${geography.country_code}` : "Country not declared"));
+  if (!currentCreatorTarget(prospect).eligible) meta.append(node("span", "chip status-chip", "Outside current target · saved history"));
   if (prospect.latest_message) meta.append(node("span", "chip", `${titleCase(prospect.latest_message.stage)} · ${emailActionState(prospect.latest_message.action_status)[0]}`));
   card.append(meta);
   if (prospect.latest_content_title) {
@@ -1632,7 +1991,7 @@ function renderProspects() {
   $("#marketing-prospect-count").textContent = `${prospects.length} creator${prospects.length === 1 ? "" : "s"} · ${unreviewed} with published contacts to review`;
   $("#marketing-export").disabled = !prospects.length;
   if (!prospects.length) {
-    list.append(empty("No creators in this view", "Run discovery, add a prospect, or change the filters.", true));
+    list.append(empty("No creators in this view", "Run discovery with your country rules, refresh saved research, or choose All saved history to inspect unverified and excluded creators.", true));
     return;
   }
   prospects.forEach((prospect) => list.append(prospectCard(prospect)));
@@ -1642,12 +2001,13 @@ function renderProspects() {
 function exportProspects() {
   const prospects = filteredProspects();
   if (!prospects.length) return toast("No creators in this view to export", true);
-  const rows = [["Creator", "Platform", "Profile URL", "Fit score", "Audience", "Research confidence", "Research date", "Authorized business email", "Authorized contact source", "Published unreviewed emails", "Unreviewed contact origins", "Contact evidence sources", "Recent video", "Collaboration ideas", "Suggested opening", "Research gaps", "Outreach status"]];
+  const rows = [["Creator", "Platform", "Profile URL", "Fit score", "Audience", "Declared country", "Published language", "Matches current target", "Research confidence", "Research date", "Authorized business email", "Authorized contact source", "Published unreviewed emails", "Unreviewed contact origins", "Contact evidence sources", "Recent video", "Collaboration ideas", "Suggested opening", "Research gaps", "Outreach status"]];
   prospects.forEach((prospect) => {
     const intelligence = prospect.intelligence || {};
     const candidates = prospectContactCandidates(prospect);
     const authorized = Boolean(prospect.contact_authorized_at && !prospect.suppressed_at);
     rows.push([prospect.display_name, prospect.platform, prospect.profile_url, prospect.relevance_score, prospect.audience_size,
+      intelligence.geography?.country_code || "unknown", intelligence.geography?.language_code || "unknown", currentCreatorTarget(prospect).eligible,
       intelligence.confidence, intelligence.researched_at, authorized ? prospect.contact_email : "", authorized ? prospect.contact_source_url : "",
       candidates.map((item) => item.email).join("; "), candidates.map((item) => item.origin).join("; "), candidates.map((item) => item.source_url).join("; "), prospect.latest_content_url,
       researchItems(intelligence, "collaboration_ideas").map((item) => `${item.title}: ${item.concept}`).join(" | "), intelligence.personalized_hook,
@@ -1789,6 +2149,7 @@ function progressiveForm(form, groups) {
 }
 
 function initializeForms() {
+  $("#career-event-form").elements.status.append(new Option("Needs further review", "needs_review"));
   progressiveForm($("#profile-form"), [
     { title: "Match preferences", description: "Freshness, fit, and employment type", fields: ["required_keywords", "excluded_keywords", "max_age_hours", "min_score", "employment_types"] },
     { title: "Search sources", description: "Public feeds and employer boards", fields: ["arbeitnow"] },
@@ -1798,7 +2159,7 @@ function initializeForms() {
   $("#profile-form").elements.resume_text.rows = 5;
   progressiveForm($("#campaign-form"), [
     { title: "Offers and audience", description: "Check the claims each draft may use", fields: ["target_audience", "viewer_offer", "creator_offer", "paid_offer_enabled", "paid_offer_details"] },
-    { title: "Creator discovery", description: "Search terms, audience size, and location", fields: ["discovery_queries", "relevance_language", "region_code", "min_subscribers", "max_subscribers", "max_video_age_days", "results_per_query"] },
+    { title: "Creator discovery", description: "Country rules, published language, and audience size", fields: ["targeting_preset", "discovery_queries", "relevance_language", "region_code", "min_subscribers", "max_subscribers", "max_video_age_days", "results_per_query"] },
     { title: "Schedule and draft learning", description: "Discovery frequency and measured adaptation", fields: ["schedule_hours", "adaptive_mode"] },
   ]);
   $$('dialog button[value="cancel"]').forEach((close) => {
@@ -1855,10 +2216,11 @@ function openProfileDialog(profile = null) {
     form.elements.active.checked = profile.active;
     form.elements.auto_prepare.checked = profile.auto_prepare;
     form.elements.arbeitnow.checked = Boolean(profile.source_config.arbeitnow);
+    form.elements.remotive.checked = Boolean(profile.source_config.remotive);
     form.elements.ashby_boards.value = (profile.source_config.ashby_boards || []).join(", ");
     form.elements.greenhouse_boards.value = (profile.source_config.greenhouse_boards || []).join(", ");
     form.elements.lever_boards.value = (profile.source_config.lever_boards || []).join(", ");
-    for (const name of ["first_name", "last_name", "email", "phone", "identity_location", "linkedin_url", "github_url"]) {
+    for (const name of ["first_name", "last_name", "email", "phone", "identity_location", "linkedin_url", "github_url", "portfolio_url"]) {
       const identityName = name === "identity_location" ? "location" : name;
       form.elements[name].value = profile.application_identity?.[identityName] || "";
     }
@@ -1879,6 +2241,7 @@ async function saveProfile(event) {
     location: form.elements.identity_location.value.trim() || null,
     linkedin_url: form.elements.linkedin_url.value.trim() || null,
     github_url: form.elements.github_url.value.trim() || null,
+    portfolio_url: form.elements.portfolio_url.value.trim() || null,
   };
   const applicationIdentity = identityValues.email ? identityValues : null;
   const payload = {
@@ -1894,7 +2257,7 @@ async function saveProfile(event) {
     max_age_hours: Number(form.elements.max_age_hours.value),
     min_score: Number(form.elements.min_score.value),
     schedule_minutes: Number(form.elements.schedule_minutes.value),
-    source_config: { arbeitnow: form.elements.arbeitnow.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value) },
+    source_config: { arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value) },
     application_identity: applicationIdentity,
     resume_text: form.elements.resume_text.value || (id ? null : ""),
     auto_prepare: form.elements.auto_prepare.checked,
@@ -1929,6 +2292,10 @@ function openCampaignDialog(campaign = null) {
     form.elements.paid_offer_enabled.checked = campaign.paid_offer_enabled;
     form.elements.adaptive_mode.checked = campaign.adaptive_mode;
     form.elements.active.checked = campaign.active;
+    for (const name of ["country_mode", "language_mode"]) form.elements[name].value = campaign[name] || "any";
+    form.elements.target_country.value = campaign.target_country || "";
+    form.elements.target_language.value = campaign.target_language || "";
+    form.elements.targeting_preset.value = "custom";
   }
   $("#campaign-dialog").showModal();
 }
@@ -1952,6 +2319,10 @@ async function saveCampaign(event) {
     discovery_queries: csv(form.elements.discovery_queries.value),
     relevance_language: form.elements.relevance_language.value.trim(),
     region_code: form.elements.region_code.value.trim().toUpperCase() || null,
+    country_mode: form.elements.country_mode.value,
+    target_country: form.elements.target_country.value.trim().toUpperCase() || null,
+    language_mode: form.elements.language_mode.value,
+    target_language: form.elements.target_language.value.trim() || null,
     min_subscribers: Number(form.elements.min_subscribers.value),
     max_subscribers: Number(form.elements.max_subscribers.value),
     max_video_age_days: Number(form.elements.max_video_age_days.value),
@@ -2251,7 +2622,7 @@ function showOpportunity(id) {
   actionReviewId = null;
   actionReviewRecord = null;
   const root = $("#detail-content");
-  root.replaceChildren(node("span", "tag", `${titleCase(opportunity.source)} · ${opportunity.score}% fit`), node("h2", "", opportunity.title), node("p", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${formatDate(opportunity.published_at)}`));
+  root.replaceChildren(node("span", "tag", `${titleCase(opportunity.source)} · ${opportunity.score}% fit`), node("h2", "", opportunity.title), node("p", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${opportunityDateLabel(opportunity)}`));
   const reasons = node("ul", "reason-list");
   opportunity.score_reasons.forEach((reason) => reasons.append(node("li", "", reason)));
   root.append(reasons, node("div", "detail-description", opportunity.description || "No description supplied by source."));
@@ -2369,6 +2740,18 @@ document.addEventListener("click", async (event) => {
   if (action === "new-profile") return openProfileDialog();
   if (action === "edit-profile") return openProfileDialog(state.profiles.find((item) => item.id === id));
   if (action === "toggle-profile") return toggleProfile(id);
+  if (action === "play-career") return openCareerPlay(id);
+  if (action === "pause-career") return pauseCareerRun(id);
+  if (action === "sync-career-mail") return syncCareerMail(id);
+  if (action === "career-event") return openCareerEvent(id);
+  if (action === "review-career-mail") return openCareerEvent(null, Number(id));
+  if (action === "career-applications") {
+    $("#opportunity-profile-filter").value = id;
+    renderOpportunities();
+    switchView("opportunities");
+    $("#career-pipeline-title").scrollIntoView({ block: "start" });
+    return;
+  }
   if (action === "scan-profile") return scanProfile(id);
   if (action === "view-opportunity") return showOpportunity(id);
   if (action === "shortlist-opportunity") return updateOpportunity(id, "shortlisted");
@@ -2440,6 +2823,25 @@ $("#connect-form").addEventListener("submit", async (event) => {
   }
 });
 $("#profile-form").addEventListener("submit", (event) => guardedSubmit(event, saveProfile));
+$("#career-play-form").addEventListener("submit", async (event) => {
+  await guardedSubmit(event, startCareerRun);
+  if ($("#career-play-dialog").open) updateCareerPlayScope();
+});
+$("#career-event-form").addEventListener("submit", (event) => guardedSubmit(event, saveCareerEvent));
+$("#career-event-form").elements.opportunity_id.addEventListener("change", updateCareerEventChoices);
+$("#career-event-form").elements.status.addEventListener("change", (event) => {
+  const meeting = $("#career-event-form").elements.meeting_at;
+  meeting.disabled = event.target.value !== "interview";
+  if (meeting.disabled) meeting.value = "";
+});
+$("#career-play-form").addEventListener("input", (event) => {
+  if (event.target !== $("#career-play-form").elements.authorize_apply) $("#career-play-form").elements.authorize_apply.checked = false;
+  if ($("#career-play-form").dataset.busy !== "true") updateCareerPlayScope();
+});
+$("#career-play-form").elements.mode.addEventListener("change", () => {
+  $("#career-play-form").elements.authorize_apply.checked = false;
+  updateCareerPlayScope();
+});
 $("#campaign-form").addEventListener("submit", (event) => guardedSubmit(event, saveCampaign));
 $("#prospect-form").addEventListener("submit", (event) => guardedSubmit(event, saveProspect));
 $("#marketing-outcome-form").addEventListener("submit", (event) => guardedSubmit(event, saveMarketingOutcome));
@@ -2510,12 +2912,28 @@ $("#task-form").elements.kind.addEventListener("change", (event) => {
 $("#refresh-button").addEventListener("click", () => loadData());
 $("#opportunity-profile-filter").addEventListener("change", renderOpportunities);
 $("#opportunity-status-filter").addEventListener("change", renderOpportunities);
+$("#opportunity-search").addEventListener("input", renderOpportunities);
+$("#opportunity-age-filter").addEventListener("change", renderOpportunities);
 $("#marketing-campaign-filter").addEventListener("change", renderProspects);
 $("#marketing-status-filter").addEventListener("change", renderProspects);
 $("#marketing-contact-filter").addEventListener("change", renderProspects);
 $("#marketing-platform-filter").addEventListener("change", renderProspects);
+$("#marketing-target-filter").addEventListener("change", renderProspects);
 $("#marketing-sort").addEventListener("change", renderProspects);
 $("#marketing-search").addEventListener("input", renderProspects);
+$("#campaign-form").elements.targeting_preset.addEventListener("change", (event) => {
+  const preset = event.target.value;
+  if (preset === "custom") return;
+  const form = $("#campaign-form");
+  form.elements.country_mode.value = preset === "poland_strict" ? "strict" : preset === "poland_prefer" ? "prefer" : "any";
+  form.elements.target_country.value = preset === "global" ? "" : "PL";
+  form.elements.language_mode.value = preset === "global" ? "any" : "prefer";
+  form.elements.target_language.value = preset === "global" ? "" : "pl";
+  if (preset !== "global") { form.elements.region_code.value = "PL"; form.elements.relevance_language.value = "pl"; }
+});
+for (const name of ["country_mode", "target_country", "language_mode", "target_language"]) {
+  $("#campaign-form").elements[name].addEventListener("change", () => { $("#campaign-form").elements.targeting_preset.value = "custom"; });
+}
 $("#scan-now-button").addEventListener("click", async () => {
   const profiles = state.profiles.filter((item) => item.active);
   if (!profiles.length) return toast("Activate at least one career mission first", true);

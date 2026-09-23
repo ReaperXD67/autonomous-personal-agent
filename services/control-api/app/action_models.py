@@ -36,6 +36,7 @@ class ApplicationIdentity(BaseModel):
     location: str | None = Field(default=None, max_length=300)
     linkedin_url: str | None = Field(default=None, max_length=500)
     github_url: str | None = Field(default=None, max_length=500)
+    portfolio_url: str | None = Field(default=None, max_length=500)
 
     @field_validator("email")
     @classmethod
@@ -52,7 +53,7 @@ class ApplicationIdentity(BaseModel):
     def clean_optional_text(cls, value: str | None) -> str | None:
         return _optional_text(value, 300)
 
-    @field_validator("linkedin_url", "github_url")
+    @field_validator("linkedin_url", "github_url", "portfolio_url")
     @classmethod
     def validate_profile_url(cls, value: str | None) -> str | None:
         cleaned = _optional_text(value, 500)

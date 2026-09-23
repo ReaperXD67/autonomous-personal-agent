@@ -20,11 +20,15 @@ from app.career import (
     fetch_ashby,
     fetch_greenhouse,
     fetch_lever,
+    fetch_remotive,
     generate_application_draft_with_usage,
     parse_application_draft,
     prioritize_opportunities,
     score_opportunity,
 )
+from app.career_autopilot_store import CareerAutopilotStore
+from app.career_tracking import execute_gmail_sync
+from app.career_tracking_store import CareerTrackingStore
 from app.inference import OpenRouterError, OpenRouterFreeClient, OpenRouterPlan
 from app.logging_config import configure_logging
 from app.marketing import fetch_youtube_creators, fetch_youtube_prospect
@@ -91,6 +95,11 @@ def execute_career_task(
             client=openrouter_client, interrupt=interrupt,
         )
 
+    if task["kind"] == "career.gmail_sync":
+        return execute_gmail_sync(
+            task, CareerTrackingStore(settings.database_url), settings, interrupt=interrupt,
+        )
+
     if task["kind"] == "marketing.creator_discovery":
         campaign_id = UUID(str(payload["campaign_id"]))
         if database.recent_marketing_scan_count() > 30:
@@ -112,9 +121,15 @@ def execute_career_task(
             )
             saved = {"new": 0, "updated": 1}
         else:
-            prospects = fetch_youtube_creators(settings.youtube_api_key, campaign)
+            selection_stats: dict[str, int] = {}
+            prospects = fetch_youtube_creators(
+                settings.youtube_api_key, campaign, selection_stats=selection_stats,
+            )
             _check_interrupted(interrupt)
-            saved = database.save_discovered_prospects(campaign_id, prospects)
+            saved = database.save_discovered_prospects(
+                campaign_id, prospects, selection_stats=selection_stats,
+                expected_campaign_updated_at=campaign["updated_at"],
+            )
         candidates = sum(
             len(item.get("intelligence", {}).get("contact_candidates", []))
             for item in prospects
@@ -144,6 +159,18 @@ def execute_career_task(
         source_errors: list[str] = []
         sources_attempted = 0
         sources_succeeded = 0
+
+        if source_config.get("remotive"):
+            source_budget = CareerAutopilotStore(settings.database_url)
+            if source_budget.reserve_source_request("remotive"):
+                sources_attempted += 1
+                try:
+                    fetched.extend(fetch_remotive())
+                    sources_succeeded += 1
+                except Exception as exc:
+                    source_errors.append(f"remotive: {type(exc).__name__}")
+            else:
+                source_errors.append("remotive: global public API request budget respected")
 
         if source_config.get("arbeitnow"):
             if database.recent_profile_scan_count(profile_id) <= 4:
@@ -386,7 +413,15 @@ def execute_career_task(
 
 
 def _schedule_due_work(database: MarketingStore) -> None:
+    autopilot = CareerAutopilotStore(
+        settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
+    )
     for scope, schedule in (
+        ("autopilot", lambda: autopilot.reconcile(
+            sender=(settings.career_email_sender
+                    if settings.career_email_transport != "disabled" else ""),
+        )),
+        ("career-replies", autopilot.schedule_mail_sync if settings.gmail_enabled else lambda: []),
         ("career", database.schedule_due_profiles),
         ("marketing", database.schedule_due_campaigns),
     ):

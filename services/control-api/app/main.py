@@ -28,6 +28,8 @@ from app.auth import (
     require_bearer_token,
     require_same_origin,
 )
+from app.career_autopilot_routes import router as career_autopilot_router
+from app.career_autopilot_store import CareerAutopilotStore
 from app.career_models import (
     AuditEventView,
     CareerProfileCreate,
@@ -41,6 +43,8 @@ from app.career_store import (
     CareerStore,
     OpportunityNotFoundError,
 )
+from app.career_tracking_routes import router as career_tracking_router
+from app.career_tracking_store import CareerTrackingStore
 from app.communication_routes import router as communication_router
 from app.logging_config import configure_logging
 from app.marketing import build_promotion_kit
@@ -88,6 +92,10 @@ async def lifespan(application: FastAPI):
         email_pacing_policy=settings.email_pacing_policy(),
     )
     application.state.career = CareerStore(settings.database_url)
+    application.state.career_autopilot = CareerAutopilotStore(
+        settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
+    )
+    application.state.career_tracking = CareerTrackingStore(settings.database_url)
     application.state.actions = ActionStore(settings.database_url)
     application.state.marketing = MarketingStore(settings.database_url)
     application.state.workflows = WorkflowStore(settings.database_url)
@@ -112,6 +120,8 @@ app.add_middleware(TrustedHostMiddleware, allowed_hosts=list(settings.trusted_ho
 app.include_router(planning_router)
 app.include_router(readiness_router)
 app.include_router(communication_router)
+app.include_router(career_autopilot_router)
+app.include_router(career_tracking_router)
 
 
 def _correlation_id(value: str | None) -> UUID:

@@ -55,6 +55,12 @@ class MarketingCampaignFields(BaseModel):
         default="en", pattern=r"^(?:[A-Za-z]{2}|zh-(?:Hans|Hant))$"
     )
     region_code: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
+    country_mode: Literal["any", "prefer", "strict"] = "any"
+    target_country: str | None = Field(default=None, pattern=r"^[A-Z]{2}$")
+    language_mode: Literal["any", "prefer", "strict"] = "any"
+    target_language: str | None = Field(
+        default=None, pattern=r"^[a-z]{2,3}(?:-[a-z0-9]{2,8}){0,3}$", max_length=30,
+    )
     min_subscribers: int = Field(default=1000, ge=0, le=1_000_000_000)
     max_subscribers: int = Field(default=250000, ge=0, le=1_000_000_000)
     max_video_age_days: int = Field(default=120, ge=7, le=365)
@@ -91,6 +97,16 @@ class MarketingCampaignFields(BaseModel):
     def clean_paid_offer(cls, value: str | None) -> str | None:
         return _clean_text(value, 1200)
 
+    @field_validator("target_country", mode="before")
+    @classmethod
+    def normalize_target_country(cls, value: str | None) -> str | None:
+        return value.strip().upper() or None if isinstance(value, str) else value
+
+    @field_validator("target_language", mode="before")
+    @classmethod
+    def normalize_target_language(cls, value: str | None) -> str | None:
+        return value.strip().lower() or None if isinstance(value, str) else value
+
     @field_validator("discovery_queries")
     @classmethod
     def clean_queries(cls, values: list[str]) -> list[str]:
@@ -111,6 +127,10 @@ class MarketingCampaignFields(BaseModel):
             raise ValueError("Maximum subscribers cannot be below the minimum")
         if self.paid_offer_enabled and not self.paid_offer_details:
             raise ValueError("Describe the paid offer before enabling it")
+        if self.country_mode != "any" and not self.target_country:
+            raise ValueError("Choose a target country for preferred or strict country selection")
+        if self.language_mode != "any" and not self.target_language:
+            raise ValueError("Choose a target language for preferred or strict language selection")
         return self
 
 
@@ -128,6 +148,7 @@ class MarketingCampaignView(MarketingCampaignFields):
     id: UUID
     next_scan_at: datetime
     last_scan_at: datetime | None
+    last_discovery_summary: dict[str, int] = Field(default_factory=dict)
     created_by: str
     created_at: datetime
     updated_at: datetime
