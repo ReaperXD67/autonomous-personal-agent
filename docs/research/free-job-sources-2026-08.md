@@ -38,7 +38,7 @@ by the employer, while public Ashby data supplies a hosted `applyUrl`. Therefore
 Hermes uses the official hosted form only after an exact preflight and approval;
 it does not pretend that public discovery API access grants write access.
 
-The browser runtime is [Playwright Python 1.62](https://playwright.dev/python/docs/docker)
+The browser runtime is [Playwright Python 1.63](https://playwright.dev/python/docs/docker)
 in Microsoft's release/digest-pinned image. The official guidance supports a
 non-root user for untrusted browsing; this project also removes capabilities,
 keeps the filesystem read-only, and provides no persistent browser profile.

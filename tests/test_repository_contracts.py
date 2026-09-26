@@ -212,14 +212,9 @@ def test_side_effect_smoke_cleans_inference_ledger_before_tasks() -> None:
     assert inference_cleanup < task_cleanup
 
 
-def test_action_image_scan_exceptions_are_exact_and_expiring() -> None:
+def test_action_image_scan_has_no_vulnerability_exceptions() -> None:
     ignores = yaml.safe_load((ROOT / ".trivyignore.yaml").read_text(encoding="utf-8"))
-    entries = ignores["vulnerabilities"]
-    assert {entry["id"] for entry in entries} == {
-        "GHSA-6v7p-g79w-8964",
-        "CVE-2025-47273",
-    }
-    assert all(entry.get("purls") and entry.get("expired_at") for entry in entries)
+    assert ignores == {"vulnerabilities": []}
     dockerfile = (ROOT / "services/action-worker/Dockerfile").read_text(encoding="utf-8")
     assert "rm -rf /tmp/uv-cache" in dockerfile
 

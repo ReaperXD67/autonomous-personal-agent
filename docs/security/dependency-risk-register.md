@@ -1,25 +1,46 @@
 # Dependency risk register
 
-Last reviewed: 2026-08-25
+Last reviewed: 2026-09-26
 
-## Time-bounded Playwright base-attestation exception
+## Retired Playwright bundled-tool exceptions
 
-Two exact PURLs in the pinned Microsoft Playwright base image's third-party SBOM
-are suppressed until 2026-09-25:
+The two exceptions that expired on 2026-09-25 are removed. The action image now
+uses matching Playwright Python/package `1.63.0`, with Microsoft's Noble image
+pinned to `sha256:72bd171a9ffc2b4b59532aaa6210e21014d07093120dc25528870c0b840da1f0`.
+The official [release](https://github.com/microsoft/playwright-python/releases/tag/v1.63.0)
+and registry manifest were checked on 2026-09-26. No unrelated application
+dependency changed in the regenerated containerized uv lock.
 
-| Advisory | Attested package | Runtime evidence | Removal condition |
-|---|---|---|---|
-| `GHSA-6v7p-g79w-8964` | `pkg:pypi/msgpack@1.1.2` | no importable distribution or matching metadata in the final image | upstream base SBOM/digest no longer reports it, or Trivy inventory confirms a real package and it is upgraded |
-| `CVE-2025-47273` | `pkg:pypi/setuptools@70.3.0` | no importable distribution or matching metadata; embedded virtualenv wheels are fixed 82/83 | same |
+Upgrading the base alone did not remove the old package records: global pip
+`26.2.1` still included `pip/_vendor/bom.cdx.json` entries for
+`pkg:pypi/msgpack@1.1.2` and `pkg:pypi/setuptools@70.3.0`. Its vendored msgpack
+`1.1.2` Python code was present even though no standalone distribution was
+importable. The native `_cmsgpack` extension was absent and `Unpacker` used the
+Python fallback; the [upstream fix](https://github.com/msgpack/msgpack-python/commit/2c56ddb5d0025ed481d962c0f5d62d19dec7476d)
+changes the native unpacker. Virtualenv `21.7.8` contained setuptools wheels
+`82.0.1` and `84.0.0`, not the old attested version. Package absence alone was
+therefore insufficient evidence for the former msgpack explanation.
 
-Trivy itself warns that third-party SBOM input can be inaccurate. A merged-
-filesystem inspection found neither distribution, and `importlib.util.find_spec`
-returned `None` for both. The separately vendored msgpack under current pip and
-fixed setuptools wheels under virtualenv are not the suppressed PURLs. The
-exception is constrained by PURL, records a statement in `.trivyignore.yaml`,
-and expires in 31 days. It does not ignore any other finding. The action image's
-Ubuntu packages, application Python packages, and Playwright Node driver had zero
-unsuppressed high/critical findings in the 2026-08-25 Trivy `0.74.0` scan.
+The final Docker stage now uninstalls unused global pip and virtualenv after
+`uv sync --frozen`, and removes the build caches. The application's locked
+virtual environment is retained. A merged-filesystem inspection of the rebuilt
+image found no msgpack/setuptools paths or pip vendor SBOM. Both the global
+Python interpreter and application interpreter reported no importable
+msgpack/setuptools distribution, and global pip/virtualenv were absent.
+
+Playwright `1.63.0` launched Chromium `153.0.8010.12` and passed text entry,
+checkbox and local button interaction in a container with no network, a
+read-only filesystem, a temporary `/tmp`, dropped capabilities and the existing
+non-root runtime user. `.trivyignore.yaml` now has an empty vulnerability list;
+fixed high/critical findings remain blocking in the unfiltered image scan.
+
+Trivy `0.74.0`, with its vulnerability database refreshed on 2026-09-26, scanned
+the cleaned image at 08:45 UTC with no exceptions and reported **zero fixable
+high/critical findings** across Ubuntu packages, the Playwright Node driver,
+Python packages and the uv binary (`--severity HIGH,CRITICAL --ignore-unfixed`,
+exit code 0). The archive was staged inside the scanner's Linux filesystem;
+the scanner had no Docker socket. This does not claim that unfixed or lower-
+severity advisories are absent.
 
 ## Current package state
 

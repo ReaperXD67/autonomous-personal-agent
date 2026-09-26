@@ -2284,3 +2284,28 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   244 total, with 48 then holding public contact candidates. Country declaration
   does not prove nationality or audience location. Deeper scans are continuing.
   No creator outreach, job application, Gmail sync or model-route change occurred.
+
+### Browser runtime verification repair
+
+- PR validation passed its functional gates but failed the isolated image scan
+  because two previously recorded exceptions expired on September 25. Updated
+  the Microsoft Playwright image and matching Python package to verified release
+  1.63.0 and pinned registry digest; the lock changes no unrelated dependency.
+- A fresh inventory showed that the newer base still bundled pip's old package
+  BOM and vendored msgpack fallback. Removed unused global pip/virtualenv and
+  build caches after the application environment is installed. Retired both
+  exceptions instead of extending them, and corrected the old repository test
+  that required those exceptions to remain present.
+- Chromium 153.0.8010.12 passed an isolated form interaction with networking
+  disabled, read-only root, temporary /tmp and dropped capabilities. The final
+  filesystem has none of the removed package paths or pip's vendor BOM. Trivy
+  0.74 with a freshly updated database returned exit 0, zero fixed HIGH/CRITICAL
+  findings and zero suppressions on the cleaned image.
+- Found that Compose's default up did not refresh an already-running profiled
+  action worker. Verification now refreshes that service only when it was already
+  running. No queued/executing external action existed during the local refresh;
+  the running worker subsequently reported Playwright 1.63.0. This does not prove
+  external ATS compatibility or activate an absent side-effect profile.
+- Browser checks of the creator view passed at desktop and 375px widths without
+  overflow; quality/recency controls and the refresh shortcut worked. They used
+  an unauthenticated empty view and made no bootstrap or real-action attempt.
