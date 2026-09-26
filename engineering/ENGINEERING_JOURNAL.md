@@ -2337,7 +2337,7 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - Added bounded history for public email/source pairs absent from later samples.
   First and last actual observation dates remain distinct from the latest dossier
   date. Same-channel identity checks, row locks, existing suppression fences and
-  max20/30-day limits prevent cross-identity or indefinite evidence accumulation.
+  limits of 20 source pairs and 30 days prevent cross-identity or indefinite evidence accumulation.
 - Historical candidates expire on read and are physically trimmed in bounded
   audited worker batches. Current and historical contact counts, UI sections and
   CSV fields remain separate; neither path changes contact authorization.
@@ -2352,13 +2352,13 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   physical expiry, identity clearing and suppression. JavaScript syntax and
   `git diff --check` passed. No optional inference changes or external sends.
 - Finished 15 audited live campaign scans, using the 90-search rolling budget.
-  The local campaign now contains342 distinct PL-declared channel identities,
-  170 more than the complete172-channel baseline. All baseline identities remain.
-  The final private export has64 current-contact creators and one additional
-  historical-only creator:65 with any contact evidence,66 distinct addresses
+  The local campaign now contains 342 distinct PL-declared channel identities,
+  170 more than the complete 172-channel baseline. All baseline identities remain.
+  The final private export has 64 current-contact creators and one additional
+  historical-only creator: 65 with any contact evidence, 66 distinct addresses
   including history. No address was guessed or authorized; channel country is
   self-declared metadata, not verified nationality or audience location.
-- Delivered all342 rows and a separate contact-evidence CSV in ignored output,
+- Delivered all 342 rows and a separate contact-evidence CSV in ignored output,
   with source links, original dates, confidence/gaps and shared-contact flags.
   The export-only historical columns use dated prior snapshots; they do not
   silently import older contacts into the live database or claim reverification.
