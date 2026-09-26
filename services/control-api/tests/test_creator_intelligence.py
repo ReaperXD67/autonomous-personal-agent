@@ -195,7 +195,8 @@ def test_discovery_bounds_every_request_and_ignores_invalid_provider_items(monke
 
     monkeypatch.setattr(marketing, "_read_youtube_json", read)
     found = fetch_youtube_creators("key", {
-        **CAMPAIGN, "discovery_queries": ["Minecraft"] * 30, "results_per_query": 1000,
+        **CAMPAIGN, "discovery_queries": [f"Minecraft {n}" for n in range(30)],
+        "results_per_query": 1000,
     }, now=NOW)
     assert len(found) == 75 and searches == 3
     assert len(calls) == 7

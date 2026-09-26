@@ -113,7 +113,10 @@ def execute_career_task(
                 raise ValueError("Prospect does not belong to this campaign")
             if prospect["platform"] != "youtube" or prospect["suppressed_at"] is not None:
                 raise ValueError("Only unsuppressed YouTube prospects can be researched")
-            prospects = [fetch_youtube_prospect(settings.youtube_api_key, campaign, prospect)]
+            prospects = [fetch_youtube_prospect(
+                settings.youtube_api_key, campaign, prospect,
+                checkpoint=lambda: _check_interrupted(interrupt),
+            )]
             _check_interrupted(interrupt)
             database.save_prospect_research(
                 prospect_id, prospects[0], expected_profile_url=prospect["profile_url"],
@@ -124,6 +127,10 @@ def execute_career_task(
             selection_stats: dict[str, int] = {}
             prospects = fetch_youtube_creators(
                 settings.youtube_api_key, campaign, selection_stats=selection_stats,
+                reserve_search_request=lambda: database.reserve_youtube_search(
+                    UUID(str(task["id"])),
+                ),
+                checkpoint=lambda: _check_interrupted(interrupt),
             )
             _check_interrupted(interrupt)
             saved = database.save_discovered_prospects(

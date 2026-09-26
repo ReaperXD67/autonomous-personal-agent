@@ -2,6 +2,9 @@
 
 import os
 import re
+import csv
+import io
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from uuid import uuid4
 
@@ -11,6 +14,8 @@ from app.marketing_models import (
     MarketingProspectUpdate,
 )
 from app.marketing_store import MarketingOutreachError, MarketingStore
+from app.creator_export import creator_coverage, creator_csv
+from app.models import TaskCreate
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
@@ -18,6 +23,34 @@ from psycopg.conninfo import conninfo_to_dict, make_conninfo
 def check(condition, message):
     if not condition:
         raise AssertionError(message)
+
+
+def legacy_budget(dsn, migration):
+    store = MarketingStore(dsn)
+    task = store.create_task(TaskCreate(
+        title="Delayed legacy scan fixture", kind="marketing.creator_discovery",
+        payload={"campaign_id": str(uuid4())}, requested_by="research-smoke",
+    ))
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE agent_tasks SET created_at = now() - interval '2 days', "
+            "started_at = now(), attempt_count = 2 WHERE id = %s", (task["id"],),
+        )
+        connection.execute("DELETE FROM schema_migrations WHERE version = '018_creator_discovery_budget'")
+    with psycopg.connect(dsn, autocommit=True) as connection:
+        connection.execute(migration)
+        connection.execute(migration)
+    with store.connect() as connection:
+        row = connection.execute(
+            "SELECT count(*) AS count, min(requested_at) > now() - interval '1 minute' AS recent "
+            "FROM marketing_youtube_search_requests WHERE task_id = %s", (task["id"],),
+        ).fetchone()
+        check(row["count"] == 6 and row["recent"], "Legacy delayed/retried scan was not reserved once")
+        # Age only these synthetic reservations so the later concurrency proof has a fresh budget.
+        connection.execute(
+            "UPDATE marketing_youtube_search_requests SET requested_at = now() - interval '25 hours' "
+            "WHERE task_id = %s", (task["id"],),
+        )
 
 
 def exercise(dsn):
@@ -74,7 +107,9 @@ def exercise(dsn):
     edited = store.update_prospect(prospect["id"], MarketingProspectUpdate(
         display_name="Changed Fixture", profile_url=changed_url, actor="research-smoke",
     ))
-    check(not edited["intelligence"] and edited["latest_content_url"] is None
+    check(set(edited["intelligence"]) == {"geography", "gaps"}
+          and not edited["intelligence"]["geography"]["eligible"]
+          and edited["latest_content_url"] is None
           and edited["relevance_score"] == 0, "Identity edit retained unrelated evidence")
     check(store.save_discovered_prospects(campaign["id"], [research])["updated"] == 0,
           "Rescan rebound an edited profile to the previous identity")
@@ -117,10 +152,52 @@ def exercise(dsn):
         pass
     else:
         raise AssertionError("Suppressed creator accepted a research refresh")
+    # Full campaign export has no UI page ceiling and retains a single snapshot.
+    exported_campaign = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Complete export proof"},
+    ))
+    batch = [{**research, "external_id": f"UC{index:022}",
+              "profile_url": f"https://www.youtube.com/channel/UC{index:022}",
+              "display_name": f"Creator {index}"} for index in range(601)]
+    store.save_discovered_prospects(exported_campaign["id"], batch)
+    check(store.count_prospects(exported_campaign["id"], None) == 601, "Wrong full count")
+    pages = [store.list_prospects(campaign_id=exported_campaign["id"], prospect_status=None,
+                                limit=250, offset=offset) for offset in (0, 250, 500)]
+    check(len({row["id"] for page in pages for row in page}) == 601, "Paged list lost identities")
+    snapshot = store.iter_campaign_prospects(exported_campaign["id"])
+    first = next(snapshot)
+    store.save_discovered_prospects(exported_campaign["id"], [{
+        **research, "external_id": "UC" + "z" * 22,
+        "profile_url": "https://www.youtube.com/channel/UC" + "z" * 22,
+    }])
+    csv_rows = list(csv.DictReader(io.StringIO("".join(creator_csv(
+        [first, *snapshot],
+    )).lstrip("\ufeff"))))
+    check(len(csv_rows) == 601, "Export was truncated or changed its snapshot during iteration")
+    coverage = creator_coverage(store.iter_campaign_prospects(exported_campaign["id"]))
+    check(coverage["total"] == 602 and coverage["authorized"] == 0,
+          "Campaign coverage lost records or inferred authority")
+    # Independent reservations compete through the shared PostgreSQL lock.
+    tasks = [store.create_task(TaskCreate(
+        title="Synthetic search budget proof", kind="marketing.creator_discovery",
+        payload={"campaign_id": str(campaign["id"])}, requested_by="research-smoke",
+    )) for _ in range(11)]
+    with store.connect() as connection:
+        for task in tasks:
+            connection.execute("UPDATE agent_tasks SET status = 'running' WHERE id = %s",
+                               (task["id"],))
+    def reserve(task):
+        return sum(store.reserve_youtube_search(task["id"]) for _ in range(10))
+    with ThreadPoolExecutor(max_workers=11) as pool:
+        reserved = list(pool.map(reserve, tasks))
+    check(sum(reserved) == 90 and max(reserved) <= 9, "Concurrent search budget exceeded limits")
+    check(not store.reserve_youtube_search(tasks[0]["id"]), "Budget was not durable")
     return ["JSONB dossier persisted without authority", "identity edits clear stale evidence and resist rescan rebinding",
             "refresh preserves reviewed contact and identity",
             "suppression blocks scan updates and direct refresh",
-            "current Poland eligibility and stale campaign scan fence"]
+            "current Poland eligibility and stale campaign scan fence",
+            "601-row snapshot export, 602-row coverage, and stable list pagination",
+            "concurrent durable search reservations obey per-task and global limits"]
 
 
 def main():
@@ -148,7 +225,10 @@ def main():
         with psycopg.connect(probe_dsn, autocommit=True) as connection:
             for migration in migrations:
                 connection.execute(migration)
+        legacy_budget(probe_dsn, next(source for source in migrations
+                                    if "018_creator_discovery_budget" in source))
         results = exercise(probe_dsn)
+        results.append("legacy delayed/retried request accounting and migration replay")
     finally:
         if created:
             # Drop only the exact random database created by this invocation.

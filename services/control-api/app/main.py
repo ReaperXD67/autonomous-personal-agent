@@ -9,7 +9,7 @@ from uuid import UUID, uuid4
 
 import redis
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
-from fastapi.responses import HTMLResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse, StreamingResponse
 from fastapi.responses import Response as FastAPIResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -46,6 +46,7 @@ from app.career_store import (
 from app.career_tracking_routes import router as career_tracking_router
 from app.career_tracking_store import CareerTrackingStore
 from app.communication_routes import router as communication_router
+from app.creator_export import creator_coverage, creator_csv
 from app.logging_config import configure_logging
 from app.marketing import build_promotion_kit
 from app.marketing_models import (
@@ -693,13 +694,53 @@ def create_marketing_prospect(
 )
 def list_marketing_prospects(
     request: Request,
+    response: Response,
     campaign_id: UUID | None = None,
     prospect_status: str | None = Query(default=None, alias="status", max_length=40),
     limit: int = Query(default=300, ge=1, le=500),
+    offset: int = Query(default=0, ge=0, le=1_000_000),
 ) -> list[dict[str, Any]]:
+    response.headers["X-Total-Count"] = str(_marketing(request).count_prospects(
+        campaign_id, prospect_status,
+    ))
     return _marketing(request).list_prospects(
-        campaign_id=campaign_id, prospect_status=prospect_status, limit=limit
+        campaign_id=campaign_id, prospect_status=prospect_status, limit=limit, offset=offset,
     )
+
+
+@app.get(
+    "/v1/marketing/campaigns/{campaign_id}/prospects/export.csv",
+    dependencies=[Depends(require_api_token)],
+)
+def export_marketing_prospects(
+    request: Request, campaign_id: UUID, include_excluded: bool = False,
+) -> StreamingResponse:
+    store = _marketing(request)
+    try:
+        store.get_campaign(campaign_id)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+    return StreamingResponse(
+        creator_csv(store.iter_campaign_prospects(campaign_id), include_excluded=include_excluded),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="creators-{campaign_id}.csv"',
+            "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@app.get(
+    "/v1/marketing/campaigns/{campaign_id}/prospects/coverage",
+    dependencies=[Depends(require_api_token)],
+)
+def marketing_prospect_coverage(request: Request, campaign_id: UUID) -> dict[str, int]:
+    store = _marketing(request)
+    try:
+        store.get_campaign(campaign_id)
+    except MarketingCampaignNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Marketing campaign not found") from exc
+    return creator_coverage(store.iter_campaign_prospects(campaign_id))
 
 
 @app.put(

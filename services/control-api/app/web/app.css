@@ -251,6 +251,25 @@ h1 em { color: var(--lime); font-style: normal; }
 .research-context { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 20px; margin: 0 0 18px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .research-context > span { color: var(--ink); font-variant-numeric: tabular-nums; }
 .research-context p { margin: 0; }
+.creator-segments { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.creator-coverage-bar { display: flex; align-items: flex-start; gap: 24px; padding: 20px 0; margin-bottom: 16px; border-block: 1px solid var(--line); }
+.creator-coverage { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.creator-coverage > strong { font-size: 14px; }
+.creator-coverage p { margin: 9px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.creator-coverage-bar > .button { flex-shrink: 0; }
+.coverage-facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px 24px; margin: 16px 0; font-size: 12px; }
+.coverage-facts > div { min-width: 0; }
+.coverage-facts dt { color: var(--muted); line-height: 1.5; }
+.coverage-facts dd { margin: 4px 0 0; font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.discovery-coverage { margin-top: 12px; font-size: 12px; }
+.discovery-coverage summary { cursor: pointer; color: var(--cyan); padding: 7px 0; }
+.discovery-coverage summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 4px; }
+.discovery-coverage .coverage-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.research-selection-note { max-width: 90ch; margin-bottom: 18px; }
+#marketing-load-count { margin: 0 0 14px; }
+.research-pagination { display: flex; justify-content: center; margin-top: 24px; }
+.creator-readiness { display: grid; gap: 6px; padding-top: 14px; margin-top: 14px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.6; }
+.creator-readiness > span { color: var(--muted); }
 .prospect-grid { align-items: start; }
 .prospect-card { min-width: 0; overflow-wrap: anywhere; }
 .creator-fit { flex-shrink: 0; padding-top: 8px; color: var(--lime); text-align: right; font-size: 26px; font-weight: 760; font-variant-numeric: tabular-nums; }
@@ -285,6 +304,7 @@ h1 em { color: var(--lime); font-style: normal; }
 @media (max-width: 1080px) {
   .campaign-prospect-heading { align-items: flex-start; flex-direction: column; }
   .research-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .creator-coverage-bar { flex-direction: column; gap: 12px; }
 }
 @media (max-width: 520px) {
   .research-toolbar { grid-template-columns: minmax(0, 1fr); }
@@ -292,6 +312,8 @@ h1 em { color: var(--lime); font-style: normal; }
   .research-actions > .button { flex-grow: 1; }
   .dossier-source-actions { align-items: flex-start; flex-direction: column; }
   .dossier-source-actions small { flex-basis: auto; }
+  .coverage-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .creator-coverage-bar > .button { width: 100%; }
 }
 .promotion-kit { display: grid; gap: 14px; margin-top: 20px; }
 .promotion-reminder { margin: 0; padding: 13px 15px; border: 1px solid rgba(255, 202, 115, .22); border-radius: 12px; background: rgba(255, 202, 115, .05); }

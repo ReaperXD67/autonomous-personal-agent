@@ -50,6 +50,9 @@ capability must enter this registry before its handler is reachable.
 - official-host-only YouTube research with a worker-scoped API key, bounded
   queries/results, and unreviewed public business-contact candidates with source
   excerpts; discovery never grants contact authorization;
+- transactionally reserved YouTube search calls across campaigns, bounded pages,
+  cooperative cancellation, quota/rate stops, and complete authenticated creator
+  exports with formula escaping and explicit eligibility/suppression evidence;
 - operator-recorded public-contact source/basis/authorization, durable opt-out
   and bounce suppression, and pre-SMTP reply-state revalidation;
 - evidence-thresholded creator-copy adaptation limited to fixed draft variants;

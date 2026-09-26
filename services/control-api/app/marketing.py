@@ -4,6 +4,7 @@ import html
 import json
 import math
 import re
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -22,11 +23,38 @@ from app.creator_intelligence import (
 
 YOUTUBE_API_HOST = "www.googleapis.com"
 MAX_YOUTUBE_BYTES = 2 * 1024 * 1024
+MAX_DISCOVERY_QUERIES = 3
+MAX_SEARCH_PAGES = 3
+MAX_RESULTS_PER_PAGE = 25
+MAX_DISCOVERED_CHANNELS = MAX_DISCOVERY_QUERIES * MAX_SEARCH_PAGES * MAX_RESULTS_PER_PAGE
 USER_AGENT = (
     "HermesCreatorScout/0.1 "
     "(+https://github.com/ReaperXD67/autonomous-personal-agent)"
 )
 INITIAL_VARIANTS = ("viewer_value", "creator_pilot")
+
+
+class YouTubeRequestLimitError(RuntimeError):
+    """A provider-declared limit; callers must stop rather than retry another page."""
+
+    def __init__(self, *, quota_exhausted: bool = False, rate_limited: bool = False):
+        super().__init__("YouTube API request limit reached; research stopped")
+        self.quota_exhausted = quota_exhausted
+        self.rate_limited = rate_limited
+
+
+def _youtube_limit_error(payload: Any, status: int = 0) -> YouTubeRequestLimitError | None:
+    error = payload.get("error") if isinstance(payload, dict) else None
+    errors = error.get("errors", []) if isinstance(error, dict) else []
+    reasons = {
+        item.get("reason") for item in errors[:20]
+        if isinstance(item, dict) and isinstance(item.get("reason"), str)
+    } if isinstance(errors, list) else set()
+    quota = bool(reasons & {"quotaExceeded", "dailyLimitExceeded", "dailyLimitExceededUnreg"})
+    rate = status == 429 or bool(reasons & {"rateLimitExceeded", "userRateLimitExceeded"})
+    if quota or rate:
+        return YouTubeRequestLimitError(quota_exhausted=quota, rate_limited=rate)
+    return None
 
 
 class _YouTubeRedirectHandler(HTTPRedirectHandler):
@@ -52,6 +80,13 @@ def _read_youtube_json(path: str, parameters: dict[str, str | int]) -> dict[str,
                 raise ValueError("YouTube API resolved outside the reviewed host")
             raw = response.read(MAX_YOUTUBE_BYTES + 1)
     except HTTPError as exc:
+        try:
+            error_payload = json.loads(exc.read(16 * 1024))
+        except (ValueError, OSError):
+            error_payload = {}
+        limit_error = _youtube_limit_error(error_payload, exc.code)
+        if limit_error:
+            raise limit_error from None
         raise RuntimeError(f"YouTube API request failed with HTTP {exc.code}") from None
     except (URLError, TimeoutError, OSError):
         raise RuntimeError("YouTube API request failed") from None
@@ -59,10 +94,15 @@ def _read_youtube_json(path: str, parameters: dict[str, str | int]) -> dict[str,
         raise ValueError("YouTube API response exceeded the size limit")
     try:
         payload = json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError("YouTube API returned invalid JSON") from exc
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise ValueError("YouTube API returned invalid JSON") from None
     if not isinstance(payload, dict):
         raise ValueError("YouTube API returned an unexpected response")
+    if "error" in payload:
+        limit_error = _youtube_limit_error(payload)
+        if limit_error:
+            raise limit_error
+        raise RuntimeError("YouTube API returned an error response")
     return payload
 
 
@@ -125,18 +165,34 @@ def _apply_channel(item: dict[str, Any], prospect: dict[str, Any]) -> None:
     })
 
 
-def _enrich_videos(api_key: str, discovered: dict[str, dict[str, Any]]) -> None:
+def _enrich_videos(
+    api_key: str, discovered: dict[str, dict[str, Any]], *,
+    request_json: Callable[[str, dict[str, str | int]], dict[str, Any]] | None = None,
+    research_stats: dict[str, int] | None = None,
+    checkpoint: Callable[[], None] | None = None,
+) -> None:
+    read = request_json or _read_youtube_json
     by_video = {
         item["video_id"]: item for item in discovered.values() if item.get("video_id")
     }
-    ids = list(by_video)[:75]
+    ids = list(by_video)[:MAX_DISCOVERED_CHANNELS]
     for start in range(0, len(ids), 50):
         batch = ids[start:start + 50]
+        if checkpoint is not None:
+            checkpoint()
         try:
-            payload = _read_youtube_json("/youtube/v3/videos", {
+            payload = read("/youtube/v3/videos", {
                 "part": "snippet,statistics", "id": ",".join(batch), "key": api_key,
             })
+            if not isinstance(payload.get("items"), list):
+                raise ValueError("YouTube video metadata returned an unexpected result list")
+        except YouTubeRequestLimitError:
+            if research_stats is not None:
+                research_stats["enrichment_failures"] += 1
+            break
         except (RuntimeError, ValueError):
+            if research_stats is not None:
+                research_stats["enrichment_failures"] += 1
             continue
         for video in _youtube_items(payload):
             video_id = video.get("id")
@@ -194,6 +250,8 @@ def fetch_youtube_creators(
     *,
     now: datetime | None = None,
     selection_stats: dict[str, int] | None = None,
+    reserve_search_request: Callable[[], bool] | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> list[dict[str, Any]]:
     if not api_key.strip():
         raise RuntimeError("YouTube discovery requires a restricted API key")
@@ -201,50 +259,120 @@ def fetch_youtube_creators(
     published_after = reference - timedelta(days=campaign["max_video_age_days"])
     discovered: dict[str, dict[str, Any]] = {}
 
-    results_per_query = min(25, max(1, int(campaign["results_per_query"])))
-    for query in campaign["discovery_queries"][:3]:
-        parameters: dict[str, str | int] = {
-            "part": "snippet",
-            "type": "video",
-            "q": query,
-            "publishedAfter": published_after.isoformat().replace("+00:00", "Z"),
-            "safeSearch": "strict",
-            "order": "relevance",
-            "maxResults": results_per_query,
-            "relevanceLanguage": campaign["relevance_language"],
-            "key": api_key,
-        }
-        if campaign.get("region_code"):
-            parameters["regionCode"] = campaign["region_code"]
-        search = _read_youtube_json("/youtube/v3/search", parameters)
-        for item in _youtube_items(search, results_per_query):
-            snippet = item.get("snippet")
-            identity = item.get("id")
-            if not isinstance(snippet, dict) or not isinstance(identity, dict):
-                continue
-            channel_id = str(snippet.get("channelId") or "")
-            video_id = str(identity.get("videoId") or "")
-            if (not CHANNEL_ID.fullmatch(channel_id) or not VIDEO_ID.fullmatch(video_id)
-                    or channel_id in discovered or len(discovered) >= 75):
-                continue
-            discovered[channel_id] = {
-                "channel_id": channel_id,
-                "video_id": video_id,
-                "display_name": _bounded_text(snippet.get("channelTitle"), 300)
-                or "Unnamed YouTube channel",
-                "latest_content_title": _bounded_text(snippet.get("title"), 500) or None,
-                "latest_content_url": f"https://www.youtube.com/watch?v={video_id}",
-                "latest_content_published_at": _parse_youtube_datetime(
-                    snippet.get("publishedAt")
-                ),
-                "discovery_query": query,
+    results_per_page = min(MAX_RESULTS_PER_PAGE, max(1, int(campaign["results_per_query"])))
+    pages_per_query = min(MAX_SEARCH_PAGES, max(1, int(campaign.get("search_pages_per_query", 1))))
+    queries = list(dict.fromkeys(campaign["discovery_queries"][:MAX_DISCOVERY_QUERIES]))
+    research_stats = {
+        "query_count": len(queries), "pages_per_query": pages_per_query,
+        "results_per_page": results_per_page,
+        "search_request_limit": len(queries) * pages_per_query,
+        "channel_limit": len(queries) * pages_per_query * results_per_page,
+        "search_requests": 0, "search_pages": 0, "search_results": 0,
+        "duplicate_channels": 0, "invalid_results": 0, "search_failures": 0,
+        "queries_started": 0, "queries_exhausted": 0, "queries_page_limited": 0,
+        "pagination_errors": 0, "search_budget_exhausted": 0,
+        "quota_exhausted": 0, "rate_limited": 0,
+        "channel_requests": 0, "video_requests": 0, "enrichment_failures": 0,
+    }
+
+    def read(path: str, parameters: dict[str, str | int]) -> dict[str, Any]:
+        counter = {
+            "/youtube/v3/search": "search_requests",
+            "/youtube/v3/channels": "channel_requests",
+            "/youtube/v3/videos": "video_requests",
+        }[path]
+        research_stats[counter] += 1
+        try:
+            return _read_youtube_json(path, parameters)
+        except YouTubeRequestLimitError as exc:
+            research_stats["quota_exhausted"] = int(exc.quota_exhausted)
+            research_stats["rate_limited"] = int(exc.rate_limited)
+            raise
+
+    # Give every query its first page before spending budget on another page.
+    pending: list[tuple[str, str | None, set[str]]] = [(query, None, set()) for query in queries]
+    stop_search = False
+    for page_index in range(pages_per_query):
+        next_pages = []
+        for query, token, seen_tokens in pending:
+            if checkpoint is not None:
+                checkpoint()
+            if reserve_search_request is not None and not reserve_search_request():
+                research_stats["search_budget_exhausted"] = 1
+                stop_search = True
+                break
+            if page_index == 0:
+                research_stats["queries_started"] += 1
+            parameters: dict[str, str | int] = {
+                "part": "snippet", "type": "video", "q": query,
+                "publishedAfter": published_after.isoformat().replace("+00:00", "Z"),
+                "safeSearch": "strict", "order": "relevance", "maxResults": results_per_page,
+                "relevanceLanguage": campaign["relevance_language"], "key": api_key,
             }
+            if campaign.get("region_code"):
+                parameters["regionCode"] = campaign["region_code"]
+            if token is not None:
+                parameters["pageToken"] = token
+            try:
+                search = read("/youtube/v3/search", parameters)
+                if not isinstance(search.get("items"), list):
+                    raise ValueError("YouTube search returned an unexpected result list")
+            except (RuntimeError, ValueError):
+                research_stats["search_failures"] += 1
+                stop_search = True
+                break
+            research_stats["search_pages"] += 1
+            for item in search["items"][:results_per_page]:
+                research_stats["search_results"] += 1
+                snippet = item.get("snippet") if isinstance(item, dict) else None
+                identity = item.get("id") if isinstance(item, dict) else None
+                if not isinstance(snippet, dict) or not isinstance(identity, dict):
+                    research_stats["invalid_results"] += 1
+                    continue
+                channel_id = str(snippet.get("channelId") or "")
+                video_id = str(identity.get("videoId") or "")
+                if not CHANNEL_ID.fullmatch(channel_id) or not VIDEO_ID.fullmatch(video_id):
+                    research_stats["invalid_results"] += 1
+                    continue
+                if channel_id in discovered:
+                    research_stats["duplicate_channels"] += 1
+                    continue
+                discovered[channel_id] = {
+                    "channel_id": channel_id, "video_id": video_id,
+                    "display_name": _bounded_text(snippet.get("channelTitle"), 300)
+                    or "Unnamed YouTube channel",
+                    "latest_content_title": _bounded_text(snippet.get("title"), 500) or None,
+                    "latest_content_url": f"https://www.youtube.com/watch?v={video_id}",
+                    "latest_content_published_at": _parse_youtube_datetime(
+                        snippet.get("publishedAt")
+                    ),
+                    "discovery_query": query,
+                }
+            next_token = search.get("nextPageToken")
+            if next_token is None or next_token == "":
+                research_stats["queries_exhausted"] += 1
+            elif (not isinstance(next_token, str) or len(next_token) > 1024
+                  or not all(33 <= ord(char) <= 126 for char in next_token)
+                  or next_token in seen_tokens):
+                research_stats["pagination_errors"] += 1
+            elif page_index + 1 == pages_per_query:
+                research_stats["queries_page_limited"] += 1
+            else:
+                seen_tokens.add(next_token)
+                next_pages.append((query, next_token, seen_tokens))
+        if stop_search or not next_pages:
+            break
+        pending = next_pages
 
     channel_ids = list(discovered)
     for start in range(0, len(channel_ids), 50):
+        if research_stats["quota_exhausted"] or research_stats["rate_limited"]:
+            break
         batch = channel_ids[start : start + 50]
+        if checkpoint is not None:
+            checkpoint()
         try:
-            channels = _read_youtube_json(
+            channels = read(
                 "/youtube/v3/channels",
                 {
                     "part": "snippet,statistics",
@@ -253,7 +381,13 @@ def fetch_youtube_creators(
                     "key": api_key,
                 },
             )
+            if not isinstance(channels.get("items"), list):
+                raise ValueError("YouTube channel metadata returned an unexpected result list")
+        except YouTubeRequestLimitError:
+            research_stats["enrichment_failures"] += 1
+            break
         except (RuntimeError, ValueError):
+            research_stats["enrichment_failures"] += 1
             continue
         for item in _youtube_items(channels):
             channel_id = str(item.get("id") or "")
@@ -261,12 +395,19 @@ def fetch_youtube_creators(
                 continue
             _apply_channel(item, discovered[channel_id])
 
-    _enrich_videos(api_key, discovered)
+    if not research_stats["quota_exhausted"] and not research_stats["rate_limited"]:
+        _enrich_videos(api_key, discovered, request_json=read, research_stats=research_stats,
+                       checkpoint=checkpoint)
     normalized = [
         _normalize_researched_prospect(campaign, item, reference) for item in discovered.values()
     ]
     selected = []
     summary = {
+        **research_stats,
+        "queries_incomplete": len(queries) - research_stats["queries_exhausted"],
+        "channels_enriched": sum(bool(item.get("channel_enriched"))
+                                 for item in discovered.values()),
+        "videos_enriched": sum(bool(item.get("video_enriched")) for item in discovered.values()),
         "reviewed": len(normalized), "selected": 0, "excluded": 0,
         "country_known": 0, "country_matches": 0, "language_known": 0, "language_matches": 0,
         "excluded_country_unknown": 0, "excluded_country_mismatch": 0,
@@ -303,6 +444,7 @@ def fetch_youtube_creators(
 def fetch_youtube_prospect(
     api_key: str, campaign: dict[str, Any], prospect: dict[str, Any], *,
     now: datetime | None = None,
+    checkpoint: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
     """Refresh one imported channel through official APIs, with no arbitrary fetch."""
     if not api_key.strip():
@@ -313,6 +455,8 @@ def fetch_youtube_prospect(
         raise ValueError("Suppressed prospects cannot be researched")
     identity = public_youtube_identity(prospect["profile_url"])
     reference = now or datetime.now(UTC)
+    if checkpoint is not None:
+        checkpoint()
     response = _read_youtube_json("/youtube/v3/channels", {
         "part": "snippet,statistics", **identity, "maxResults": 1, "key": api_key,
     })
@@ -342,7 +486,7 @@ def fetch_youtube_prospect(
         "previous_sample": previous_sample, "direct_refresh": True, "discovery_query": None,
     }
     _apply_channel(channel, item)
-    _enrich_videos(api_key, {channel["id"]: item})
+    _enrich_videos(api_key, {channel["id"]: item}, checkpoint=checkpoint)
     return _normalize_researched_prospect(campaign, item, reference)
 
 

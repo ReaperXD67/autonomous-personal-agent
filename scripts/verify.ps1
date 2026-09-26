@@ -7,11 +7,19 @@ try {
     }
     docker compose config --quiet
     if ($LASTEXITCODE -ne 0) { throw 'Compose validation failed' }
+    $refreshActionWorker = @(docker compose ps --services --status running) -contains 'action-worker'
+    if ($LASTEXITCODE -ne 0) { throw 'Running service inspection failed' }
     docker compose build control-api dispatcher worker job-worker action-worker test
     if ($LASTEXITCODE -ne 0) { throw 'Image build failed' }
     & (Join-Path $PSScriptRoot 'test.ps1') -SkipBuild
     docker compose up -d
     if ($LASTEXITCODE -ne 0) { throw 'Stack startup failed' }
+    # Compose omits profiled services from a default up, even when already running.
+    # Refresh an existing action worker so its runtime matches the image just tested.
+    if ($refreshActionWorker) {
+        docker compose up -d --no-deps action-worker
+        if ($LASTEXITCODE -ne 0) { throw 'Existing action worker refresh failed' }
+    }
     & (Join-Path $PSScriptRoot 'health.ps1')
     & (Join-Path $PSScriptRoot 'smoke.ps1')
     & (Join-Path $PSScriptRoot 'recovery-smoke.ps1')

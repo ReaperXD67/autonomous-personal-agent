@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlparse
@@ -57,12 +58,12 @@ class MarketingStore(ActionStore):
                     min_subscribers, max_subscribers, max_video_age_days,
                     results_per_query, schedule_hours, adaptive_mode, active,
                     next_scan_at, created_by, country_mode, target_country,
-                    language_mode, target_language
+                    language_mode, target_language, search_pages_per_query
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s,
                     CASE WHEN %s THEN now() ELSE now() + interval '24 hours' END,
-                    %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s
                 )
                 RETURNING *
                 """,
@@ -94,6 +95,7 @@ class MarketingStore(ActionStore):
                     request.target_country,
                     request.language_mode,
                     request.target_language,
+                    request.search_pages_per_query,
                 ),
             ).fetchone()
             self._append_audit(
@@ -158,7 +160,8 @@ class MarketingStore(ActionStore):
                     max_video_age_days = %s, results_per_query = %s, schedule_hours = %s,
                     adaptive_mode = %s, active = %s, next_scan_at = %s,
                     country_mode = %s, target_country = %s, language_mode = %s,
-                    target_language = %s, last_discovery_summary = '{}'::jsonb
+                    target_language = %s, search_pages_per_query = %s,
+                    last_discovery_summary = '{}'::jsonb
                 WHERE id = %s
                 RETURNING *
                 """,
@@ -189,6 +192,7 @@ class MarketingStore(ActionStore):
                     request.target_country,
                     request.language_mode,
                     request.target_language,
+                    request.search_pages_per_query,
                     campaign_id,
                 ),
             ).fetchone()
@@ -263,6 +267,42 @@ class MarketingStore(ActionStore):
                 (hours,),
             ).fetchone()
         return row["count"]
+
+    def reserve_youtube_search(self, task_id: UUID) -> bool:
+        """Reserve before egress; failures/crashes consume capacity conservatively."""
+        with self.connect() as connection:
+            connection.execute("SELECT pg_advisory_xact_lock(709214682)")
+            task = connection.execute(
+                "SELECT kind, status, payload FROM agent_tasks WHERE id = %s FOR SHARE",
+                (task_id,),
+            ).fetchone()
+            if (task is None or task["kind"] != "marketing.creator_discovery"
+                    or task["status"] != "running" or task["payload"].get("prospect_id")):
+                return False
+            counts = connection.execute(
+                """SELECT count(*) FILTER (
+                       WHERE requested_at >= now() - interval '24 hours') AS recent,
+                       count(*) FILTER (WHERE task_id = %s) AS task_count
+                   FROM marketing_youtube_search_requests
+                   WHERE requested_at >= now() - interval '24 hours' OR task_id = %s""",
+                (task_id, task_id),
+            ).fetchone()
+            if counts["recent"] >= 90 or counts["task_count"] >= 9:
+                return False
+            connection.execute(
+                "INSERT INTO marketing_youtube_search_requests(task_id) VALUES (%s)",
+                (task_id,),
+            )
+            self._append_audit(
+                connection, correlation_id=uuid4(), task_id=task_id,
+                actor_type="worker", actor_id="job-worker",
+                tool_name="marketing.creator_discovery", risk_level=RiskLevel.LOW,
+                action="youtube_search_reserved", approval_status="not_required",
+                execution_status="reserved", input_metadata={
+                    "rolling_24h_reserved": counts["recent"] + 1, "limit": 90,
+                },
+            )
+            return True
 
     def save_discovered_prospects(
         self, campaign_id: UUID, prospects: list[dict[str, Any]], *,
@@ -573,7 +613,7 @@ class MarketingStore(ActionStore):
         """Recompute selection against current campaign controls without rewriting evidence."""
         campaign = row.pop("_campaign_targeting", None)
         intelligence = row.get("intelligence") or {}
-        if campaign is not None and intelligence:
+        if campaign is not None:
             previous_geography = intelligence.get("geography") or {}
             geography = assess_creator_geography(campaign, previous_geography)
             gaps = [
@@ -593,6 +633,7 @@ class MarketingStore(ActionStore):
         campaign_id: UUID | None,
         prospect_status: str | None,
         limit: int,
+        offset: int = 0,
     ) -> list[dict[str, Any]]:
         with self.connect() as connection:
             rows = connection.execute(
@@ -602,12 +643,41 @@ class MarketingStore(ActionStore):
                   AND (%s::text IS NULL OR p.status = %s)
                 ORDER BY
                     CASE WHEN p.suppressed_at IS NULL THEN 0 ELSE 1 END,
-                    p.relevance_score DESC, p.first_seen_at DESC
-                LIMIT %s
+                    p.relevance_score DESC, p.first_seen_at DESC, p.id
+                LIMIT %s OFFSET %s
                 """,
-                (campaign_id, campaign_id, prospect_status, prospect_status, limit),
+                (campaign_id, campaign_id, prospect_status, prospect_status, limit, offset),
             ).fetchall()
         return [self._current_targeting(row) for row in rows]
+
+    def count_prospects(self, campaign_id: UUID | None, prospect_status: str | None) -> int:
+        with self.connect() as connection:
+            return connection.execute(
+                """SELECT count(*) AS total FROM marketing_prospects
+                   WHERE (%s::uuid IS NULL OR campaign_id = %s)
+                     AND (%s::text IS NULL OR status = %s)""",
+                (campaign_id, campaign_id, prospect_status, prospect_status),
+            ).fetchone()["total"]
+
+    def iter_campaign_prospects(self, campaign_id: UUID) -> Iterator[dict[str, Any]]:
+        """A bounded-memory, consistent snapshot for complete public-data exports."""
+        with self.connect() as connection:
+            connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            with connection.cursor(name=f"creator_export_{uuid4().hex}") as cursor:
+                cursor.itersize = 250
+                cursor.execute(
+                    """SELECT p.*, jsonb_build_object(
+                           'country_mode', c.country_mode, 'target_country', c.target_country,
+                           'language_mode', c.language_mode, 'target_language', c.target_language
+                       ) AS _campaign_targeting
+                       FROM marketing_prospects p
+                       JOIN marketing_campaigns c ON c.id = p.campaign_id
+                       WHERE p.campaign_id = %s AND p.platform = 'youtube'
+                       ORDER BY p.relevance_score DESC, p.id""",
+                    (campaign_id,),
+                )
+                for row in cursor:
+                    yield self._current_targeting(row)
 
     def get_prospect(self, prospect_id: UUID) -> dict[str, Any]:
         with self.connect() as connection:

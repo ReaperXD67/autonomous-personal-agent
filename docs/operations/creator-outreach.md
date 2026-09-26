@@ -28,12 +28,23 @@ SMTP worker, task payloads, audit metadata, and dashboard.
 
 YouTube currently documents a dedicated `search.list` bucket of 100 calls per
 day, with each search costing one unit in that bucket, and a maximum of 50
-results per request. Hermes uses no more than three queries and 25 results per
-query, schedules no faster than daily, and caps discovery at 30 tasks per 24
-hours (at most 90 search calls). `channels.list` supplies public channel
+results per request. Hermes uses no more than three queries, 25 results per
+page and one to three pages per query (default one), cycling across queries
+before deeper pages. It schedules no faster than daily and retains the 30-task
+cap. A PostgreSQL ledger separately reserves at most 90 search requests in any
+rolling 24 hours across campaigns, and at most nine per task, before requests
+leave the worker. Failed requests and interrupted reservations retain their cost.
+Migration 018 conservatively reserves three calls per attempt of each recently
+active legacy scan for a full day from migration (up to 90 per task). Removing a
+disposable test task leaves its request reservations counted against the budget.
+This is an application limit, not a measurement of the provider's project quota;
+other applications using that project can consume additional quota. Provider
+quota/rate failures stop further requests without retry. See the current
+[official quota table](https://developers.google.com/youtube/v3/determine_quota_cost).
+`channels.list` supplies public channel
 statistics and public descriptions. There is no dedicated business-email field:
 Hermes only recognizes an address the creator wrote into a public description
-beside explicit business/collaboration wording. Up to two `videos.list` batches
+beside explicit business/collaboration wording. Up to five `videos.list` batches
 retrieve matched video descriptions and public statistics. Optional enrichment
 failure appears as partial research; it does not become a verified claim.
 
@@ -96,10 +107,28 @@ Obtain local legal advice for the countries and contact types actually used.
 ## Research and shortlist workflow
 
 Search the YouTube shortlist by creator, topic, or research text; filter by
-contact readiness and sort by fit. Expand a dossier to inspect source evidence
-before choosing a creative concept. CSV export contains the currently filtered
-shortlist and source links; keep real contact exports private. Formula-like
-cells are escaped for spreadsheet safety.
+public-contact availability, fit, evidence quality, research freshness and sampled
+activity. A sampled matching video's date is not a complete upload-history audit.
+Expand a dossier to inspect source evidence before choosing a creative concept.
+The shortlist loads 250 rows at a time with an explicit total and Load more.
+Client filters apply to loaded rows; Refresh returns to the first page.
+
+**Export loaded view** contains the visible filtered rows. **Full campaign CSV**
+uses `GET /v1/marketing/campaigns/{id}/prospects/export.csv`: an authenticated,
+read-only PostgreSQL snapshot streamed in bounded batches, with no UI row ceiling.
+It includes every YouTube identity meeting current country/language rules,
+including creators without public email. `include_excluded=true` also exports
+excluded history. Country declarations do not establish nationality or audience
+location. Suppression, recorded authorization, unreviewed contact evidence,
+source URLs, timestamps and research gaps remain explicit. No export grants
+permission to send. Keep real exports private; formula-like cells are escaped.
+
+`GET /v1/marketing/campaigns/{id}/prospects/coverage` counts the full saved YouTube
+campaign. Contact/authorization/suppression/refresh counts refer to eligible rows;
+country-unknown and excluded counts cover all saved rows. Refresh means evidence
+older than 30 days, missing a usable timestamp, or incomplete enrichment. The
+latest scan separately reports pages, duplicates, enrichment failures, exhaustion
+and budget stops; a bounded search never claims exhaustive YouTube coverage.
 
 **Refresh research** queues `POST /v1/marketing/prospects/{id}/research` through
 the existing `marketing.creator_discovery` capability. It accepts an existing

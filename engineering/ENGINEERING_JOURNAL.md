@@ -2243,3 +2243,69 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   delivery guards and queue recovery), and `git diff --check`. The verification
   script now rebuilds the action worker so deployed receipt guards match tested
   source. No optional inference configuration or model routing was changed.
+
+## 2026-09-26 — Multi-page creator discovery and complete campaign export
+
+### Implementation
+
+- Added one-to-three-page official YouTube scans with round-robin query coverage,
+  canonical channel deduplication, bounded token validation, cancellation checks,
+  explicit partial-enrichment/search counters and provider quota/rate stops.
+- Migration 018 adds a PostgreSQL request ledger. An advisory transaction lock
+  enforces 90 searches per rolling day across campaigns and nine per task before
+  egress. Failed requests retain reservations. Legacy delayed/retried scans are
+  conservatively counted once; fixture task deletion cannot refund global usage.
+- Added complete authenticated CSV exports using a bounded-memory read-only
+  snapshot cursor, explicit evidence/authorization/suppression fields, and
+  spreadsheet formula escaping. Country selection applies even to empty legacy
+  dossiers. Exported channel IDs use current evidence/profile, not stale import IDs.
+- Added full-campaign coverage, stable-order list pagination, explicit loaded-view
+  export scope, contact/quality/activity filters and research refresh indicators.
+  ADR-0023, operations, architecture, security and roadmap describe the boundaries.
+
+### Validation and observed limits
+
+- Recovered Docker Desktop from inaccessible stale runtime sockets by retaining
+  the two exact runtime directories under dated names while the backend was
+  stopped. No data volumes, credentials or Docker settings were removed.
+- Fixed initial lint findings. Containerized suite passed 430 tests. An additional
+  nine export identity regression cases passed with the export suite after review.
+- Required `docker compose config --quiet`, `scripts/test.ps1`, `scripts/verify.ps1`
+  and `git diff --check` passed. Verification includes eight disposable creator
+  PostgreSQL groups: 601-row consistent export during concurrent insert, full
+  602-row coverage, pagination, concurrent budget reservations, legacy migration
+  replay, current targeting, identity and suppression fences. Existing workflow,
+  scheduler, career, planner, delivery and queue recovery probes also passed.
+- Browser JavaScript syntax and focused synthetic filtering/CSV checks passed.
+  Authenticated visual behavior is not claimed from these checks.
+- Live research remains in ignored output and the local campaign. The starting
+  complete snapshot contained 172 PL-declared channels; 150 had the literal
+  Minecraft topic heuristic. Six broader first-page scans added 72 channels for
+  244 total, with 48 then holding public contact candidates. Country declaration
+  does not prove nationality or audience location. Deeper scans are continuing.
+  No creator outreach, job application, Gmail sync or model-route change occurred.
+
+### Browser runtime verification repair
+
+- PR validation passed its functional gates but failed the isolated image scan
+  because two previously recorded exceptions expired on September 25. Updated
+  the Microsoft Playwright image and matching Python package to verified release
+  1.63.0 and pinned registry digest; the lock changes no unrelated dependency.
+- A fresh inventory showed that the newer base still bundled pip's old package
+  BOM and vendored msgpack fallback. Removed unused global pip/virtualenv and
+  build caches after the application environment is installed. Retired both
+  exceptions instead of extending them, and corrected the old repository test
+  that required those exceptions to remain present.
+- Chromium 153.0.8010.12 passed an isolated form interaction with networking
+  disabled, read-only root, temporary /tmp and dropped capabilities. The final
+  filesystem has none of the removed package paths or pip's vendor BOM. Trivy
+  0.74 with a freshly updated database returned exit 0, zero fixed HIGH/CRITICAL
+  findings and zero suppressions on the cleaned image.
+- Found that Compose's default up did not refresh an already-running profiled
+  action worker. Verification now refreshes that service only when it was already
+  running. No queued/executing external action existed during the local refresh;
+  the running worker subsequently reported Playwright 1.63.0. This does not prove
+  external ATS compatibility or activate an absent side-effect profile.
+- Browser checks of the creator view passed at desktop and 375px widths without
+  overflow; quality/recency controls and the refresh shortcut worked. They used
+  an unauthenticated empty view and made no bootstrap or real-action attempt.

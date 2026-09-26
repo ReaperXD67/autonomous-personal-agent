@@ -13,6 +13,10 @@ const state = {
   actions: [],
   campaigns: [],
   prospects: [],
+  prospectTotal: null,
+  prospectOffset: 0,
+  prospectLoadNotice: "",
+  creatorCoverage: null,
   marketingResults: [],
   workflows: [],
   plans: [],
@@ -22,6 +26,10 @@ const state = {
   careerTracking: null,
   view: "overview",
 };
+let prospectRequestVersion = 0;
+let coverageRequestVersion = 0;
+let loadingMoreProspects = false;
+const exportingCampaigns = new Set();
 
 function isConnected() {
   return Boolean(state.token || state.browserSession);
@@ -108,7 +116,7 @@ function toast(message, error = false) {
   toastTimer = setTimeout(() => { element.hidden = true; }, 5000);
 }
 
-async function api(path, options = {}) {
+async function api(path, options = {}, responseType = "json") {
   if (!isConnected()) throw new Error("Connect the workspace first");
   const headers = new Headers(options.headers || {});
   if (state.token) headers.set("Authorization", `Bearer ${state.token}`);
@@ -147,6 +155,11 @@ async function api(path, options = {}) {
     throw error;
   }
   if (response.status === 204) return null;
+  if (responseType === "blob") return response.blob();
+  if (responseType === "page") {
+    const total = response.headers.get("X-Total-Count");
+    return { rows: await response.json(), total: total !== null && /^\d+$/.test(total) ? Number(total) : null };
+  }
   return response.json();
 }
 
@@ -174,6 +187,12 @@ function disconnect(showMessage = true) {
   state.actions = [];
   state.campaigns = [];
   state.prospects = [];
+  state.prospectTotal = null;
+  state.prospectOffset = 0;
+  state.prospectLoadNotice = "";
+  state.creatorCoverage = null;
+  prospectRequestVersion += 1;
+  coverageRequestVersion += 1;
   state.marketingResults = [];
   state.careerAutopilot = null;
   state.careerTracking = null;
@@ -236,8 +255,9 @@ async function loadData({ quiet = false } = {}) {
     renderAll();
     return false;
   }
+  const prospectVersion = ++prospectRequestVersion;
   try {
-    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications, careerAutopilot, careerTracking] = await Promise.all([
+    const [status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospectPage, marketingResults, workflows, plans, readiness, communications, careerAutopilot, careerTracking] = await Promise.all([
       api("/v1/system/status"),
       api("/v1/inference/status"),
       api("/v1/career/profiles"),
@@ -246,7 +266,7 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/audit-events?limit=100"),
       api("/v1/external-actions?limit=200"),
       api("/v1/marketing/campaigns"),
-      api("/v1/marketing/prospects?limit=500"),
+      api("/v1/marketing/prospects?limit=250&offset=0", {}, "page"),
       api("/v1/marketing/results"),
       api("/v1/workflows"),
       api("/v1/plans"),
@@ -255,10 +275,14 @@ async function loadData({ quiet = false } = {}) {
       api("/v1/career/autopilot").catch((error) => ({ error: error.message, runs: [], readiness: [], sources: [] })),
       api("/v1/career/tracking?limit=100").catch((error) => ({ error: error.message, applications: [], review_candidates: [], sync: [] })),
     ]);
-    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects, marketingResults, workflows, plans, readiness, communications, careerAutopilot, careerTracking });
+    if (prospectVersion !== prospectRequestVersion || !isConnected()) return false;
+    if (state.prospectOffset > 250) state.prospectLoadNotice = "Live refresh returned to the first 250 records so contact and outreach states stay current. Load more again or export the complete campaign.";
+    else if (!quiet) state.prospectLoadNotice = "";
+    Object.assign(state, { status, inference, profiles, opportunities, tasks, audits, actions, campaigns, prospects: prospectPage.rows, prospectTotal: prospectPage.total, prospectOffset: prospectPage.rows.length, marketingResults, workflows, plans, readiness, communications, careerAutopilot, careerTracking });
     $("#connection-notice").hidden = true;
     setConnection(true);
     renderAll();
+    loadCreatorCoverage();
     return true;
   } catch (error) {
     setConnection(false, "Connection failed");
@@ -1591,6 +1615,25 @@ function campaignCard(campaign) {
   if (campaign.last_discovery_summary && Number.isFinite(campaign.last_discovery_summary.reviewed)) {
     const summary = campaign.last_discovery_summary;
     card.append(node("p", "fine-print", `Last selection: ${summary.reviewed} reviewed · ${summary.selected || 0} selected · ${summary.excluded || 0} excluded by targeting`));
+    const coverage = node("details", "discovery-coverage");
+    coverage.append(node("summary", "", "Last discovery coverage"));
+    const lines = node("dl", "coverage-facts");
+    const facts = [
+      ["Search pages fetched", summary.search_pages], ["Search results examined", summary.search_results],
+      ["Repeated channels removed", summary.duplicate_channels], ["Queries with more pages available", summary.queries_page_limited],
+      ["Excluded: country unknown", summary.excluded_country_unknown], ["Excluded: other declared country", summary.excluded_country_mismatch],
+      ["Excluded: language unknown", summary.excluded_language_unknown], ["Excluded: other published language", summary.excluded_language_mismatch],
+      ["Optional enrichment failures", summary.enrichment_failures],
+    ];
+    facts.filter(([, value]) => Number.isFinite(value)).forEach(([label, value]) => {
+      const pair = node("div");
+      pair.append(node("dt", "", label), node("dd", "", Number(value).toLocaleString()));
+      lines.append(pair);
+    });
+    coverage.append(lines, node("p", "fine-print", "A bounded search sample, not a count of every matching channel on YouTube. Country declarations do not establish nationality or viewer location."));
+    if (summary.search_budget_exhausted || summary.quota_exhausted || summary.rate_limited) coverage.append(node("p", "notice", "A discovery budget or provider limit stopped this run. Its coverage is partial."));
+    if (summary.search_failures || summary.pagination_errors) coverage.append(node("p", "notice", "Some search pages could not be read. Inspect the task history before relying on this run's coverage."));
+    card.append(coverage);
   }
 
   const learning = node("div", "campaign-learning");
@@ -1607,6 +1650,7 @@ function campaignCard(campaign) {
     button("Find and research creators", "button", "scan-campaign", campaign.id),
     button("Promotion kit", "button secondary", "promotion-kit", campaign.id),
     button("Edit campaign", "text-button", "edit-campaign", campaign.id),
+    button("Export full campaign CSV", "text-button", "export-campaign", campaign.id),
   );
   card.append(actions, node("p", "fine-print", `Last discovery: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
   return card;
@@ -1687,6 +1731,88 @@ function renderMarketingFilters() {
   if ([...filter.options].some((option) => option.value === selected)) filter.value = selected;
 }
 
+async function loadCreatorCoverage() {
+  const campaignId = $("#marketing-campaign-filter").value;
+  const version = ++coverageRequestVersion;
+  if (!campaignId || !isConnected()) {
+    state.creatorCoverage = null;
+    renderCreatorCoverage();
+    return;
+  }
+  if (state.creatorCoverage?.campaignId !== campaignId) state.creatorCoverage = { campaignId, loading: true };
+  renderCreatorCoverage();
+  try {
+    const data = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/prospects/coverage`);
+    if (version !== coverageRequestVersion || !isConnected()) return;
+    state.creatorCoverage = { campaignId, data };
+  } catch (error) {
+    if (version !== coverageRequestVersion) return;
+    state.creatorCoverage = { campaignId, error: error.message };
+  }
+  renderCreatorCoverage();
+}
+
+function renderCreatorCoverage() {
+  const content = $("#creator-coverage");
+  const campaignId = $("#marketing-campaign-filter").value;
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  const exportButton = $("#marketing-export-all");
+  exportButton.disabled = !campaign || exportingCampaigns.has(campaignId);
+  exportButton.textContent = exportingCampaigns.has(campaignId) ? "Preparing full CSV…" : "Export full campaign CSV";
+  content.replaceChildren();
+  if (!campaign) {
+    content.append(node("p", "", "Select a campaign to see its complete saved coverage and export every YouTube creator matching its current target."));
+    return;
+  }
+  const coverage = state.creatorCoverage;
+  content.append(node("strong", "", `${campaign.name} · complete saved coverage`));
+  if (coverage?.campaignId !== campaignId || coverage.loading) content.append(node("p", "", "Loading campaign totals…"));
+  else if (coverage.error) content.append(node("p", "notice", `Coverage could not be loaded: ${coverage.error}. Use Refresh to try again.`));
+  else {
+    const data = coverage.data;
+    const facts = node("dl", "coverage-facts");
+    [["Saved YouTube creators", data.total], ["Match current target", data.eligible], ["With public contact", data.with_public_contact], ["No public contact", data.without_public_contact], ["Authorized contacts", data.authorized], ["Suppressed contacts", data.suppressed], ["Need research refresh", data.needs_refresh], ["Outside target", data.excluded], ["Country unknown, all saved", data.country_unknown]].forEach(([label, value]) => {
+      const pair = node("div");
+      pair.append(node("dt", "", label), node("dd", "", Number(value || 0).toLocaleString()));
+      facts.append(pair);
+    });
+    content.append(facts);
+  }
+  content.append(node("p", "fine-print", "Contact and refresh totals cover current-target matches. Full CSV includes matches with and without contacts, plus review and suppression status. The filters below apply only to the loaded view."));
+}
+
+async function loadMoreProspects() {
+  if (loadingMoreProspects || !isConnected()) return;
+  const version = prospectRequestVersion;
+  const offset = state.prospectOffset;
+  loadingMoreProspects = true;
+  renderProspects();
+  try {
+    const page = await api(`/v1/marketing/prospects?limit=250&offset=${offset}`, {}, "page");
+    if (version !== prospectRequestVersion || !isConnected()) return;
+    const merged = new Map(state.prospects.map((item) => [item.id, item]));
+    page.rows.forEach((item) => merged.set(item.id, item));
+    state.prospects = [...merged.values()];
+    state.prospectOffset = offset + page.rows.length;
+    state.prospectTotal = page.total;
+    state.prospectLoadNotice = page.rows.length ? "Loaded view expanded. Automatic refresh returns to the first 250 records; full campaign CSV always includes every current match." : "No further records were returned. Refresh if discovery is still running.";
+  } catch (error) { toast(`Could not load more creators: ${error.message}`, true); }
+  finally { loadingMoreProspects = false; renderProspects(); }
+}
+
+async function exportCampaignProspects(campaignId) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  if (!campaign || exportingCampaigns.has(campaignId)) return;
+  exportingCampaigns.add(campaignId);
+  renderCreatorCoverage();
+  try {
+    const content = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/prospects/export.csv`, {}, "blob");
+    downloadCreatorCsv(content, `youtube-${campaign.name.replace(/[^a-z0-9_-]+/gi, "-").slice(0, 70)}-full-${new Date().toISOString().slice(0, 10)}.csv`);
+    toast("Full campaign CSV downloaded: every current-target YouTube match, including creators without a public contact");
+  } catch (error) { toast(`Could not export campaign: ${error.message}`, true); }
+  finally { exportingCampaigns.delete(campaignId); renderCreatorCoverage(); }
+}
+
 function currentCreatorTarget(prospect) {
   const campaign = state.campaigns.find((item) => item.id === prospect.campaign_id);
   const geography = prospect.intelligence?.geography || {};
@@ -1700,13 +1826,42 @@ function currentCreatorTarget(prospect) {
   };
 }
 
+function creatorQuality(prospect) {
+  const intelligence = prospect.intelligence || {};
+  const researched = typeof intelligence.researched_at === "string" && /(?:Z|[+-]\d{2}:\d{2})$/i.test(intelligence.researched_at) ? Date.parse(intelligence.researched_at) : NaN;
+  const datedVideos = researchItems(intelligence, "recent_videos")
+    .filter((video) => !["unverified_reference", "search_result_only"].includes(video.metadata_status))
+    .map((video) => Date.parse(video.published_at)).filter((date) => Number.isFinite(date) && date <= Date.now());
+  const newestSample = datedVideos.length ? Math.max(...datedVideos) : null;
+  const ageDays = newestSample === null ? null : Math.floor((Date.now() - newestSample) / 86400000);
+  const incomplete = intelligence.enrichment_status !== "complete";
+  const needsRefresh = !Number.isFinite(researched) || researched > Date.now() || Date.now() - researched > 30 * 86400000 || incomplete;
+  const contactState = prospect.suppressed_at ? "suppressed" : prospect.contact_authorized_at && prospect.contact_email ? "authorized" : prospectContactCandidates(prospect).length ? "candidate" : "missing";
+  return { ageDays, needsRefresh, contactState, incomplete };
+}
+
+function setCreatorSegment(segment) {
+  $("#marketing-target-filter").value = "eligible";
+  $("#marketing-contact-filter").value = segment === "contacts" ? "candidate" : segment === "missing" ? "missing" : "";
+  $("#marketing-evidence-filter").value = segment === "refresh" ? "refresh" : "";
+  $("#marketing-status-filter").value = "";
+  $("#marketing-fit-filter").value = "";
+  $("#marketing-activity-filter").value = "";
+  $("#marketing-platform-filter").value = "youtube";
+  $("#marketing-search").value = "";
+  renderProspects();
+}
+
 function filteredProspects() {
   const campaignId = $("#marketing-campaign-filter").value;
   const status = $("#marketing-status-filter").value;
   const platform = $("#marketing-platform-filter").value;
   const contact = $("#marketing-contact-filter").value;
   const target = $("#marketing-target-filter").value;
-  const search = $("#marketing-search").value.trim().toLocaleLowerCase();
+  const minFit = Number($("#marketing-fit-filter").value || 0);
+  const activity = $("#marketing-activity-filter").value;
+  const evidence = $("#marketing-evidence-filter").value;
+  const terms = $("#marketing-search").value.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
   const prospects = state.prospects.filter((item) => {
     if ((campaignId && item.campaign_id !== campaignId) || (status && item.status !== status) || (platform && item.platform !== platform)) return false;
     const geography = item.intelligence?.geography || {};
@@ -1716,15 +1871,24 @@ function filteredProspects() {
     if (target === "unknown" && geography.country_code) return false;
     if (target === "excluded" && currentTarget.eligible) return false;
     const candidates = prospectContactCandidates(item);
+    const quality = creatorQuality(item);
     const authorized = Boolean(item.contact_authorized_at && !item.suppressed_at);
     if (contact === "candidate" && (!candidates.length || authorized || item.suppressed_at)) return false;
     if (contact === "authorized" && !authorized) return false;
-    if (contact === "missing" && (candidates.length || item.contact_email)) return false;
+    if (contact === "missing" && quality.contactState !== "missing") return false;
     const intelligence = item.intelligence || {};
-    const searchable = [item.display_name, item.contact_email, item.latest_content_title, intelligence.channel_summary,
+    if (Number(item.relevance_score || 0) < minFit) return false;
+    if (activity === "unknown" && quality.ageDays !== null) return false;
+    if (activity && activity !== "unknown" && (quality.ageDays === null || quality.ageDays > Number(activity))) return false;
+    if (evidence === "refresh" && !quality.needsRefresh) return false;
+    if (evidence === "partial" && !quality.incomplete) return false;
+    if (evidence === "high" && intelligence.confidence !== "high") return false;
+    const searchable = [item.display_name, item.contact_email, item.profile_url, item.latest_content_title, intelligence.channel_summary,
+      geography.country_code, geography.language_code, intelligence.personalized_hook,
       ...researchItems(intelligence, "topics"), ...candidates.map((candidate) => candidate.email),
-      ...researchItems(intelligence, "recent_videos").map((video) => video.title)].join(" ").toLocaleLowerCase();
-    return !search || searchable.includes(search);
+      ...researchItems(intelligence, "recent_videos").map((video) => video.title),
+      ...researchItems(intelligence, "collaboration_ideas").map((idea) => `${idea.title} ${idea.concept}`)].join(" ").toLocaleLowerCase();
+    return terms.every((term) => searchable.includes(term));
   });
   const sort = $("#marketing-sort").value;
   return prospects.sort((left, right) => {
@@ -1930,15 +2094,20 @@ function prospectCard(prospect) {
   const meta = node("div", "opportunity-meta");
   meta.append(node("span", "chip status-chip", titleCase(prospect.status)));
   const candidates = prospectContactCandidates(prospect);
-  meta.append(node("span", "chip", prospect.suppressed_at ? "Contact suppressed" : prospect.contact_authorized_at ? "Authorized contact" : candidates.length ? `${candidates.length} published contact${candidates.length === 1 ? "" : "s"} to review` : "No reviewed contact"));
+  const quality = creatorQuality(prospect);
+  meta.append(node("span", "chip", prospect.suppressed_at ? "Contact suppressed" : prospect.contact_authorized_at ? "Authorized contact" : candidates.length ? `${candidates.length} published contact${candidates.length === 1 ? "" : "s"} to review` : "No public contact found"));
   if (prospect.intelligence?.confidence) meta.append(node("span", "chip", `${titleCase(prospect.intelligence.confidence)} evidence confidence`));
   const geography = prospect.intelligence?.geography;
   meta.append(node("span", "chip", geography?.country_code ? `Channel declares ${geography.country_code}` : "Country not declared"));
   if (!currentCreatorTarget(prospect).eligible) meta.append(node("span", "chip status-chip", "Outside current target · saved history"));
   if (prospect.latest_message) meta.append(node("span", "chip", `${titleCase(prospect.latest_message.stage)} · ${emailActionState(prospect.latest_message.action_status)[0]}`));
   card.append(meta);
+  const readiness = node("div", "creator-readiness");
+  const nextStep = quality.contactState === "suppressed" ? "Outreach blocked" : !currentCreatorTarget(prospect).eligible ? "Review target mismatch" : quality.contactState === "candidate" ? "Review public contact evidence" : quality.needsRefresh || quality.incomplete ? "Refresh missing or older research" : quality.contactState === "authorized" ? "Contact reviewed · inspect outreach status" : "Research available · public contact missing";
+  readiness.append(node("strong", "", nextStep), node("span", "", `${quality.ageDays === null ? "No dated video sample" : `Newest dated sample published ${quality.ageDays} days ago`} · ${quality.needsRefresh ? "Research incomplete, missing, or over 30 days old" : `Researched ${researchDate(prospect.intelligence?.researched_at)}`}`));
+  card.append(readiness);
   if (prospect.latest_content_title) {
-    const content = node("p", "prospect-evidence", `Recent match: ${prospect.latest_content_title}`);
+    const content = node("p", "prospect-evidence", `Content sample: ${prospect.latest_content_title}`);
     card.append(content);
   }
   const reasons = node("ul", "reason-list");
@@ -1957,7 +2126,7 @@ function prospectCard(prospect) {
   card.append(links);
 
   const actions = node("div", "card-actions");
-  if (!prospect.suppressed_at) actions.append(button(prospect.contact_authorized_at ? "Edit evidence" : "Review contact", "button", "edit-prospect", prospect.id));
+  if (!prospect.suppressed_at) actions.append(button(prospect.contact_authorized_at ? "Edit evidence" : candidates.length ? "Review contact" : "Add contact evidence", "button", "edit-prospect", prospect.id));
   if (prospect.contact_authorized_at && ["discovered", "qualified"].includes(prospect.status)) {
     const blocked = prospect.latest_message && ["pending_approval", "queued", "executing", "succeeded", "ambiguous"].includes(prospect.latest_message.action_status) && prospect.latest_message.stage === "initial";
     if (!blocked) actions.append(button("Prepare introduction", "button primary", "plan-marketing-initial", prospect.id));
@@ -1988,10 +2157,17 @@ function renderProspects() {
   list.replaceChildren();
   const prospects = filteredProspects();
   const unreviewed = prospects.filter(hasUnreviewedContact).length;
-  $("#marketing-prospect-count").textContent = `${prospects.length} creator${prospects.length === 1 ? "" : "s"} · ${unreviewed} with published contacts to review`;
+  $("#marketing-prospect-count").textContent = `${prospects.length} matching loaded creator${prospects.length === 1 ? "" : "s"} · ${unreviewed} public contacts to review`;
+  $("#marketing-load-count").textContent = `${state.prospects.length.toLocaleString()} of ${state.prospectTotal === null ? "an unknown number of" : state.prospectTotal.toLocaleString()} saved records loaded across campaigns. Search and segments apply to these records.`;
+  $("#marketing-load-notice").textContent = state.prospectLoadNotice;
+  $("#marketing-load-notice").hidden = !state.prospectLoadNotice;
+  const loadMore = $("#marketing-load-more");
+  loadMore.hidden = state.prospectTotal !== null && state.prospectOffset >= state.prospectTotal;
+  loadMore.disabled = !isConnected() || loadingMoreProspects;
+  loadMore.textContent = loadingMoreProspects ? "Loading creators…" : "Load next 250 creators";
   $("#marketing-export").disabled = !prospects.length;
   if (!prospects.length) {
-    list.append(empty("No creators in this view", "Run discovery with your country rules, refresh saved research, or choose All saved history to inspect unverified and excluded creators.", true));
+    list.append(empty("No loaded creators match these filters", state.prospectTotal > state.prospectOffset ? "Load more records, clear the filters, or export the full campaign. Additional saved creators have not been loaded yet." : "Clear the filters, refresh research, or run discovery with your country rules. All saved history also includes excluded creators.", true));
     return;
   }
   prospects.forEach((prospect) => list.append(prospectCard(prospect)));
@@ -2020,15 +2196,19 @@ function exportProspects() {
     return `"${text.replaceAll('"', '""')}"`;
   };
   const content = "\uFEFF" + rows.map((row) => row.map(encodeCell).join(",")).join("\r\n");
-  const url = URL.createObjectURL(new Blob([content], { type: "text/csv;charset=utf-8" }));
+  downloadCreatorCsv(new Blob([content], { type: "text/csv;charset=utf-8" }), `youtube-loaded-view-${new Date().toISOString().slice(0, 10)}.csv`);
+  toast(`Exported ${prospects.length} loaded creators with research and contact-review status`);
+}
+
+function downloadCreatorCsv(content, filename) {
+  const url = URL.createObjectURL(content);
   const link = node("a");
   link.href = url;
-  link.download = `youtube-creator-research-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.download = filename;
   document.body.append(link);
   link.click();
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  toast(`Exported ${prospects.length} creators with research and contact-review status`);
 }
 
 function renderInferenceStatus() {
@@ -2065,6 +2245,7 @@ function renderAll() {
   renderMarketingFilters();
   renderCampaigns();
   renderProspects();
+  renderCreatorCoverage();
   renderInferenceStatus();
   if (actionReviewId && $("#detail-dialog").open) {
     const action = state.actions.find((item) => item.id === actionReviewId) || actionReviewRecord;
@@ -2159,7 +2340,7 @@ function initializeForms() {
   $("#profile-form").elements.resume_text.rows = 5;
   progressiveForm($("#campaign-form"), [
     { title: "Offers and audience", description: "Check the claims each draft may use", fields: ["target_audience", "viewer_offer", "creator_offer", "paid_offer_enabled", "paid_offer_details"] },
-    { title: "Creator discovery", description: "Country rules, published language, and audience size", fields: ["targeting_preset", "discovery_queries", "relevance_language", "region_code", "min_subscribers", "max_subscribers", "max_video_age_days", "results_per_query"] },
+    { title: "Creator discovery", description: "Country rules, published language, audience size, and search coverage", fields: ["targeting_preset", "discovery_queries", "relevance_language", "region_code", "min_subscribers", "max_subscribers", "max_video_age_days", "results_per_query", "search_pages_per_query"] },
     { title: "Schedule and draft learning", description: "Discovery frequency and measured adaptation", fields: ["schedule_hours", "adaptive_mode"] },
   ]);
   $$('dialog button[value="cancel"]').forEach((close) => {
@@ -2293,6 +2474,7 @@ function openCampaignDialog(campaign = null) {
     form.elements.adaptive_mode.checked = campaign.adaptive_mode;
     form.elements.active.checked = campaign.active;
     for (const name of ["country_mode", "language_mode"]) form.elements[name].value = campaign[name] || "any";
+    form.elements.search_pages_per_query.value = campaign.search_pages_per_query || 1;
     form.elements.target_country.value = campaign.target_country || "";
     form.elements.target_language.value = campaign.target_language || "";
     form.elements.targeting_preset.value = "custom";
@@ -2327,6 +2509,7 @@ async function saveCampaign(event) {
     max_subscribers: Number(form.elements.max_subscribers.value),
     max_video_age_days: Number(form.elements.max_video_age_days.value),
     results_per_query: Number(form.elements.results_per_query.value),
+    search_pages_per_query: Number(form.elements.search_pages_per_query.value),
     schedule_hours: Number(form.elements.schedule_hours.value),
     adaptive_mode: form.elements.adaptive_mode.checked,
     active: form.elements.active.checked,
@@ -2770,6 +2953,10 @@ document.addEventListener("click", async (event) => {
   if (action === "review-candidate") return openProspectDialog(state.prospects.find((item) => item.id === id), Number(target.dataset.candidateIndex));
   if (action === "research-prospect") return researchProspect(id);
   if (action === "export-prospects") return exportProspects();
+  if (action === "export-campaign") return exportCampaignProspects(id);
+  if (action === "export-selected-campaign") return exportCampaignProspects($("#marketing-campaign-filter").value);
+  if (action === "load-more-prospects") return loadMoreProspects();
+  if (action === "creator-segment") return setCreatorSegment(id);
   if (action === "copy-creator-hook") {
     const hook = state.prospects.find((item) => item.id === id)?.intelligence?.personalized_hook;
     if (!hook) return toast("No suggested opening is available", true);
@@ -2914,13 +3101,14 @@ $("#opportunity-profile-filter").addEventListener("change", renderOpportunities)
 $("#opportunity-status-filter").addEventListener("change", renderOpportunities);
 $("#opportunity-search").addEventListener("input", renderOpportunities);
 $("#opportunity-age-filter").addEventListener("change", renderOpportunities);
-$("#marketing-campaign-filter").addEventListener("change", renderProspects);
+$("#marketing-campaign-filter").addEventListener("change", () => { renderProspects(); loadCreatorCoverage(); });
 $("#marketing-status-filter").addEventListener("change", renderProspects);
 $("#marketing-contact-filter").addEventListener("change", renderProspects);
 $("#marketing-platform-filter").addEventListener("change", renderProspects);
 $("#marketing-target-filter").addEventListener("change", renderProspects);
 $("#marketing-sort").addEventListener("change", renderProspects);
 $("#marketing-search").addEventListener("input", renderProspects);
+for (const id of ["marketing-fit-filter", "marketing-activity-filter", "marketing-evidence-filter"]) $("#" + id).addEventListener("change", renderProspects);
 $("#campaign-form").elements.targeting_preset.addEventListener("change", (event) => {
   const preset = event.target.value;
   if (preset === "custom") return;
