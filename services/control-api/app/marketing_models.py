@@ -65,6 +65,7 @@ class MarketingCampaignFields(BaseModel):
     max_subscribers: int = Field(default=250000, ge=0, le=1_000_000_000)
     max_video_age_days: int = Field(default=120, ge=7, le=365)
     results_per_query: int = Field(default=10, ge=1, le=25)
+    search_pages_per_query: int = Field(default=1, ge=1, le=3)
     schedule_hours: int = Field(default=24, ge=24, le=168)
     adaptive_mode: bool = True
     active: bool = False

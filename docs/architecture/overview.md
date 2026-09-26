@@ -65,6 +65,10 @@ YouTube prospects also retain bounded research dossiers in PostgreSQL: public
 business-contact candidates, source evidence, explained fit, creative ideas,
 and gaps. Candidates never update recipient authorization. Campaign scans and
 single-prospect refresh use the existing discovery task and worker budget.
+Multi-page scans reserve each search in PostgreSQL before provider egress, with
+a shared rolling budget and per-task cap. The control API streams full creator
+exports from a consistent read-only database snapshot and exposes full-campaign
+coverage independently of paged dashboard records. See ADR-0023 for boundaries.
 
 ### Agent and model plane
 

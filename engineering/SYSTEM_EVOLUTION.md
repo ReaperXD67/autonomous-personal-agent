@@ -383,3 +383,17 @@ shared request reservations; update timestamps do not qualify as posting dates.
 YouTube campaigns gain independent country/language rules, declared metadata
 provenance, strict unknown exclusion, current-criteria projection and a stale-scan
 fence. Neither discovery nor geography grants contact authorization.
+
+## 2026-09-26 — Bounded creator expansion and complete exports
+
+ADR-0023 introduces an authoritative per-request YouTube search ledger with
+cross-campaign rolling and per-task limits. Campaigns select up to three pages
+per query; partial provider outcomes and search coverage are retained. Research
+still enters the existing policy, task, audit and cancellation path.
+
+Complete authenticated CSV exports use a read-only PostgreSQL snapshot and
+bounded cursor batches, independent of the paged dashboard. Coverage counts
+distinguish declared eligibility, unknown country, public contact availability,
+authorization, suppression and evidence needing refresh. Strict targeting now
+also applies to empty legacy dossiers. No contact grant, inference route, runtime
+service or outbound messaging authority changes.
