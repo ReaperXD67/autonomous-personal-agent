@@ -65,6 +65,7 @@
 - [x] YouTube-focused research dossiers: public business-contact candidates, source evidence, explainable fit, collaboration concepts, per-creator refresh, searchable shortlist, and CSV export
 - [x] Explicit country/language targeting with any/prefer/strict modes, Poland-only channel declarations, honest unknowns, and preserved excluded history
 - [x] Bounded multi-page creator search with PostgreSQL request reservations, partial/duplicate coverage, complete campaign snapshot exports, pagination, and evidence/contact/recency segmentation
+- [x] Dated creator contact history across changing samples, bounded expiry, concurrent refresh preservation, historical CSV evidence and Polish Biznes recognition
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources

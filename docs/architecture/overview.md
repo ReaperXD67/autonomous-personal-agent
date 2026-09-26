@@ -72,6 +72,10 @@ Multi-page scans reserve each search in PostgreSQL before provider egress, with
 a shared rolling budget and per-task cap. The control API streams full creator
 exports from a consistent read-only database snapshot and exposes full-campaign
 coverage independently of paged dashboard records. See ADR-0023 for boundaries.
+Contact history merges under prospect row locks for the same canonical channel,
+keeps original observation dates, expires on read after 30 days and is physically
+trimmed by bounded worker housekeeping. It never grants recipient authorization.
+See [ADR-0024](../decisions/ADR-0024-dated-creator-contact-history.md).
 
 ### Agent and model plane
 

@@ -106,6 +106,12 @@ Obtain local legal advice for the countries and contact types actually used.
 
 ## Research and shortlist workflow
 
+Rescans preserve up to 20 earlier email/source observations separately from
+current candidates, with original dates and a 30-day expiry. The historical
+section and CSV columns require source rechecking and confer no authority.
+See [dated contact history](creator-contact-history.md) for retention, identity,
+suppression and export behavior. Polish business extraction includes `Biznes`.
+
 Search the YouTube shortlist by creator, topic, or research text; filter by
 public-contact availability, fit, evidence quality, research freshness and sampled
 activity. A sampled matching video's date is not a complete upload-history audit.

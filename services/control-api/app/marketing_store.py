@@ -10,6 +10,7 @@ from uuid import UUID, uuid4
 from psycopg.types.json import Jsonb
 
 from app.action_store import ActionStore
+from app.creator_contact_history import merge_contact_history, trim_contact_history
 from app.creator_intelligence import assess_creator_geography
 from app.marketing import (
     INITIAL_VARIANTS,
@@ -324,11 +325,22 @@ class MarketingStore(ActionStore):
             for prospect in prospects:
                 existing = connection.execute(
                     """
-                    SELECT id FROM marketing_prospects
+                    SELECT id, profile_url, suppressed_at, status, intelligence
+                    FROM marketing_prospects
                     WHERE campaign_id = %s AND platform = %s AND external_id = %s
+                    FOR UPDATE
                     """,
                     (campaign_id, prospect["platform"], prospect["external_id"]),
                 ).fetchone()
+                if existing is not None and (
+                    existing["profile_url"] != prospect["profile_url"] or existing["suppressed_at"]
+                    or existing["status"] in {"suppressed", "bounced"}
+                ):
+                    continue
+                intelligence = merge_contact_history(
+                    existing.get("intelligence", {}) if existing else {},
+                    prospect.get("intelligence", {}),
+                )
                 saved = connection.execute(
                     """
                     INSERT INTO marketing_prospects (
@@ -366,7 +378,7 @@ class MarketingStore(ActionStore):
                         prospect["discovery_query"],
                         prospect["relevance_score"],
                         Jsonb(prospect["relevance_reasons"]),
-                        Jsonb(prospect.get("intelligence", {})),
+                        Jsonb(intelligence),
                     ),
                 )
                 if saved.rowcount == 0:
@@ -390,7 +402,8 @@ class MarketingStore(ActionStore):
         """Research updates evidence only; reviewed identity and contact authority stay fixed."""
         with self.connect() as connection:
             existing = connection.execute(
-                "SELECT id, platform, profile_url, campaign_id, suppressed_at, status "
+                "SELECT id, platform, profile_url, campaign_id, suppressed_at, status, "
+                "intelligence "
                 "FROM marketing_prospects "
                 "WHERE id = %s FOR UPDATE", (prospect_id,),
             ).fetchone()
@@ -405,6 +418,9 @@ class MarketingStore(ActionStore):
                 raise MarketingOutreachError(
                     "Creator identity changed during research; refresh again"
                 )
+            intelligence = merge_contact_history(
+                existing.get("intelligence", {}), research["intelligence"],
+            )
             connection.execute(
                 """
                 UPDATE marketing_prospects
@@ -417,11 +433,43 @@ class MarketingStore(ActionStore):
                     research.get("audience_size"), research.get("latest_content_title"),
                     research.get("latest_content_url"), research.get("latest_content_published_at"),
                     research["relevance_score"], Jsonb(research["relevance_reasons"]),
-                    Jsonb(research["intelligence"]), prospect_id,
+                    Jsonb(intelligence), prospect_id,
                 ),
             )
             connection.commit()
         return self.get_prospect(prospect_id)
+
+    def expire_creator_contact_history(
+        self, *, limit: int = 250, now: datetime | None = None,
+    ) -> int:
+        """Reclaim due history in bounded batches; expiry itself is enforced on every read."""
+        reference = now or datetime.now(UTC)
+        batch_limit = min(250, max(1, limit))
+        changed = 0
+        with self.connect() as connection:
+            rows = connection.execute(
+                """SELECT id, intelligence FROM marketing_prospects
+                   WHERE intelligence->>'contact_history_expires_at' <= %s
+                   ORDER BY intelligence->>'contact_history_expires_at', id
+                   LIMIT %s FOR UPDATE SKIP LOCKED""",
+                (reference.isoformat(), batch_limit),
+            ).fetchall()
+            for row in rows:
+                intelligence = trim_contact_history(row["intelligence"], now=reference)
+                connection.execute(
+                    "UPDATE marketing_prospects SET intelligence = %s WHERE id = %s",
+                    (Jsonb(intelligence), row["id"]),
+                )
+                changed += 1
+            if changed:
+                self._append_audit(
+                    connection, correlation_id=uuid4(), task_id=None,
+                    actor_type="worker", actor_id="job-worker",
+                    tool_name="marketing.creator_discovery", risk_level=RiskLevel.LOW,
+                    action="marketing.contact_history_expired", approval_status="not_required",
+                    execution_status="succeeded", result_metadata={"prospects_trimmed": changed},
+                )
+        return changed
 
     def create_prospect(self, request: MarketingProspectCreate) -> dict[str, Any]:
         correlation_id = uuid4()
@@ -612,7 +660,8 @@ class MarketingStore(ActionStore):
     def _current_targeting(row: dict[str, Any]) -> dict[str, Any]:
         """Recompute selection against current campaign controls without rewriting evidence."""
         campaign = row.pop("_campaign_targeting", None)
-        intelligence = row.get("intelligence") or {}
+        intelligence = trim_contact_history(row.get("intelligence") or {})
+        row["intelligence"] = intelligence
         if campaign is not None:
             previous_geography = intelligence.get("geography") or {}
             geography = assess_creator_geography(campaign, previous_geography)

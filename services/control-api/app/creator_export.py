@@ -5,10 +5,12 @@ from __future__ import annotations
 import csv
 import io
 import json
+import re
 from collections.abc import Iterable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from app.creator_contact_history import trim_contact_history
 from app.creator_intelligence import CHANNEL_ID, public_youtube_identity
 
 FIELDS = (
@@ -17,7 +19,8 @@ FIELDS = (
     "country_code", "country_source_url", "country_evidence", "language_code",
     "language_source", "language_source_url", "topics", "recorded_contact_email",
     "recorded_contact_source_url", "recorded_contact_basis", "public_contact_candidates",
-    "contact_evidence_json", "contact_status", "outreach_authorized", "suppressed",
+    "contact_evidence_json", "historical_public_contacts", "historical_contact_evidence_json",
+    "contact_status", "outreach_authorized", "suppressed",
     "prospect_status", "sample_video_title", "sample_video_url", "sample_video_published_at",
     "collaboration_ideas_json", "personalized_hook", "research_gaps", "researched_at",
     "first_seen_at", "last_seen_at",
@@ -33,7 +36,7 @@ def _cell(value: Any) -> str:
         return str(value).lower()
     text = str(value)
     # Excel/LibreOffice may ignore leading whitespace before a formula marker.
-    if text.lstrip().startswith(("=", "+", "-", "@")) or text.startswith(("\t", "\r", "\n")):
+    if re.match(r"^[\s\x00-\x1f\x7f\ufeff]*[=+\-@]|^[\x00-\x1f\x7f]", text):
         return "'" + text
     return text
 
@@ -54,19 +57,23 @@ def channel_identity(row: dict[str, Any]) -> str:
         return ""
 
 
-def creator_csv(rows: Iterable[dict[str, Any]], *, include_excluded: bool = False) -> Iterator[str]:
+def creator_csv(
+    rows: Iterable[dict[str, Any]], *, include_excluded: bool = False, now: datetime | None = None,
+) -> Iterator[str]:
     """One row per saved YouTube identity, including creators with no public email."""
     buffer = io.StringIO(newline="")
+    reference = now or datetime.now(UTC)
     writer = csv.writer(buffer)
     writer.writerow(FIELDS)
     yield "\ufeff" + buffer.getvalue()
     for row in rows:
-        intelligence = row.get("intelligence") or {}
+        intelligence = trim_contact_history(row.get("intelligence") or {}, now=reference)
         geo = intelligence.get("geography") or {}
         eligible = geo.get("eligible") is True
         if not include_excluded and not eligible:
             continue
         candidates = public_contacts(row)
+        history = intelligence.get("contact_history") or []
         recorded = row.get("contact_email")
         suppressed = bool(row.get("suppressed_at") or row.get("status") in {
             "suppressed", "bounced",
@@ -74,7 +81,8 @@ def creator_csv(rows: Iterable[dict[str, Any]], *, include_excluded: bool = Fals
         authorized = bool(recorded and row.get("contact_authorized_at") and not suppressed)
         contact_status = (
             "suppressed" if suppressed else "authorized_recorded_contact" if authorized else
-            "public_contact_unreviewed" if recorded or candidates else "no_public_contact_found"
+            "public_contact_unreviewed" if recorded or candidates else
+            "historical_contact_requires_recheck" if history else "no_public_contact_found"
         )
         values = (
             row["id"], channel_identity(row), row["display_name"], row["profile_url"],
@@ -88,7 +96,9 @@ def creator_csv(rows: Iterable[dict[str, Any]], *, include_excluded: bool = Fals
             " | ".join(intelligence.get("topics") or []), recorded,
             row.get("contact_source_url"), row.get("contact_basis_note"),
             " | ".join(dict.fromkeys(str(item["email"]) for item in candidates)),
-            json.dumps(candidates, ensure_ascii=False), contact_status, authorized, suppressed,
+            json.dumps(candidates, ensure_ascii=False),
+            " | ".join(dict.fromkeys(str(item["email"]) for item in history)),
+            json.dumps(history, ensure_ascii=False), contact_status, authorized, suppressed,
             row.get("status"), row.get("latest_content_title"), row.get("latest_content_url"),
             row.get("latest_content_published_at"),
             json.dumps(intelligence.get("collaboration_ideas") or [], ensure_ascii=False),
@@ -104,14 +114,16 @@ def creator_csv(rows: Iterable[dict[str, Any]], *, include_excluded: bool = Fals
 def creator_coverage(
     rows: Iterable[dict[str, Any]], *, now: datetime | None = None,
 ) -> dict[str, int]:
-    cutoff = (now or datetime.now(UTC)) - timedelta(days=30)
+    reference = now or datetime.now(UTC)
+    cutoff = reference - timedelta(days=30)
     counts = dict.fromkeys((
         "total", "eligible", "excluded", "country_unknown", "with_public_contact",
         "without_public_contact", "authorized", "suppressed", "needs_refresh",
+        "with_historical_contact", "historical_contact_only",
     ), 0)
     for row in rows:
         counts["total"] += 1
-        intelligence = row.get("intelligence") or {}
+        intelligence = trim_contact_history(row.get("intelligence") or {}, now=reference)
         geo = intelligence.get("geography") or {}
         counts["country_unknown"] += int(not geo.get("country_code"))
         if geo.get("eligible") is not True:
@@ -120,6 +132,9 @@ def creator_coverage(
         counts["eligible"] += 1
         contact = bool(row.get("contact_email") or public_contacts(row))
         counts["with_public_contact" if contact else "without_public_contact"] += 1
+        history = bool(intelligence.get("contact_history"))
+        counts["with_historical_contact"] += int(history)
+        counts["historical_contact_only"] += int(history and not contact)
         suppressed = bool(row.get("suppressed_at") or row.get("status") in {
             "suppressed", "bounced",
         })

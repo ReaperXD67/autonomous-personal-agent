@@ -5,6 +5,7 @@ import re
 import csv
 import io
 from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -53,6 +54,82 @@ def legacy_budget(dsn, migration):
         )
 
 
+def exercise_history(store, campaign_request, research):
+    campaign = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Source history proof"},
+    ))
+    channel = "UC" + "h" * 22
+    profile = f"https://www.youtube.com/channel/{channel}"
+    observed = datetime.now(UTC)
+    first_observed = observed - timedelta(days=10)
+
+    def packet(email=None, when=observed):
+        return {
+            **research, "external_id": channel, "profile_url": profile,
+            "intelligence": {"source_channel_id": channel, "researched_at": when.isoformat(),
+                             "contact_candidates": [{
+                                 "email": email, "source_url": profile,
+                                 "evidence": f"Business: {email}", "observed_at": when.isoformat(),
+                                 "status": "unreviewed",
+                             }] if email else []},
+        }
+
+    store.save_discovered_prospects(campaign["id"], [packet("history@example.test", first_observed)])
+    prospect = store.list_prospects(campaign_id=campaign["id"], prospect_status=None, limit=1)[0]
+    store.save_discovered_prospects(campaign["id"], [packet()])
+    archived = store.get_prospect(prospect["id"])
+    check(not archived["intelligence"]["contact_candidates"], "Old source became current")
+    history = archived["intelligence"]["contact_history"][0]
+    check(history["observed_at"] == history["last_seen_at"] == first_observed.isoformat()
+          and history["status"] == "historical_unreviewed", "Historical source was freshened")
+    reappeared = store.save_prospect_research(
+        prospect["id"], packet("history@example.test"), expected_profile_url=profile,
+        expected_campaign_id=campaign["id"],
+    )
+    current = reappeared["intelligence"]["contact_candidates"][0]
+    check(current["first_observed_at"] == first_observed.isoformat()
+          and current["observed_at"] == observed.isoformat()
+          and not reappeared["intelligence"]["contact_history"], "Reappearance lost source timing")
+
+    def refresh(email):
+        store.save_prospect_research(prospect["id"], packet(email), expected_profile_url=profile,
+                                    expected_campaign_id=campaign["id"])
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        list(pool.map(refresh, ["first@example.test", "second@example.test"]))
+    concurrent = store.get_prospect(prospect["id"])
+    dossier = concurrent["intelligence"]
+    addresses = {item["email"] for item in dossier["contact_candidates"] + dossier["contact_history"]}
+    check({"first@example.test", "second@example.test"} <= addresses,
+          "Concurrent refresh lost public source evidence")
+    check(concurrent["contact_email"] is None and concurrent["contact_authorized_at"] is None,
+          "History merge granted contact authority")
+    expired = store.expire_creator_contact_history(now=observed + timedelta(days=30))
+    check(expired == 1, "Due source history cleanup did not persist")
+    with store.connect() as connection:
+        durable = connection.execute("SELECT intelligence FROM marketing_prospects WHERE id = %s",
+                                     (prospect["id"],)).fetchone()["intelligence"]
+    check(durable["contact_history"] == [] and durable["contact_history_expires_at"] is None
+          and durable["contact_candidates"], "History expiry removed current evidence or kept old data")
+
+    # Populate history again, then prove suppression and identity edits preserve their boundaries.
+    store.save_discovered_prospects(campaign["id"], [packet()])
+    before_suppression = store.get_prospect(prospect["id"])["intelligence"]["contact_history"]
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET suppressed_at = now(), status = 'suppressed' "
+                           "WHERE id = %s", (prospect["id"],))
+    check(store.save_discovered_prospects(campaign["id"], [packet("blocked@example.test")])["updated"] == 0,
+          "Suppression accepted a new history merge")
+    check(store.get_prospect(prospect["id"])["intelligence"]["contact_history"] == before_suppression,
+          "Suppression changed existing source evidence")
+    edited = store.update_prospect(prospect["id"], MarketingProspectUpdate(
+        display_name="Changed history fixture", profile_url="https://youtube.com/@new_fixture",
+        actor="research-smoke",
+    ))
+    check(not edited["intelligence"].get("contact_history")
+          and not edited["intelligence"].get("contact_candidates"),
+          "Identity edit retained the former channel contact evidence")
+
+
 def exercise(dsn):
     store = MarketingStore(dsn)
     campaign_request = MarketingCampaignCreate(
@@ -73,16 +150,20 @@ def exercise(dsn):
         "latest_content_url": "https://www.youtube.com/watch?v=abcdefghijk",
         "latest_content_published_at": None, "discovery_query": "Minecraft SMP",
         "relevance_score": 75, "relevance_reasons": ["Fixture evidence"],
-        "intelligence": {"schema_version": 1, "contact_candidates": [{
+        "intelligence": {"schema_version": 1, "source_channel_id": channel_id,
+                         "contact_candidates": [{
             "email": "candidate@example.test", "source_url": profile_url,
             "evidence": "Business: candidate@example.test", "status": "unreviewed",
+            "observed_at": datetime.now(UTC).isoformat(),
         }]},
     }
     check(store.save_discovered_prospects(campaign["id"], [research])["new"] == 1,
           "Research prospect was not inserted")
     prospect = store.list_prospects(campaign_id=campaign["id"], prospect_status=None, limit=10)[0]
-    check(all(prospect["intelligence"].get(key) == value
-              for key, value in research["intelligence"].items()), "Dossier was not persisted")
+    check(prospect["intelligence"]["source_channel_id"] == channel_id
+          and all(prospect["intelligence"]["contact_candidates"][0].get(key) == value
+                  for key, value in research["intelligence"]["contact_candidates"][0].items()),
+          "Dossier was not persisted")
     check(prospect["intelligence"]["geography"]["eligible"],
           "Unrestricted campaign unexpectedly excluded the fixture")
     check(prospect["contact_email"] is None and prospect["contact_authorized_at"] is None,
@@ -158,7 +239,12 @@ def exercise(dsn):
     ))
     batch = [{**research, "external_id": f"UC{index:022}",
               "profile_url": f"https://www.youtube.com/channel/UC{index:022}",
-              "display_name": f"Creator {index}"} for index in range(601)]
+              "display_name": f"Creator {index}",
+              "intelligence": {**research["intelligence"], "source_channel_id": f"UC{index:022}",
+                               "contact_candidates": [{
+                                   **research["intelligence"]["contact_candidates"][0],
+                                   "source_url": f"https://www.youtube.com/channel/UC{index:022}",
+                               }]}} for index in range(601)]
     store.save_discovered_prospects(exported_campaign["id"], batch)
     check(store.count_prospects(exported_campaign["id"], None) == 601, "Wrong full count")
     pages = [store.list_prospects(campaign_id=exported_campaign["id"], prospect_status=None,
@@ -192,12 +278,14 @@ def exercise(dsn):
         reserved = list(pool.map(reserve, tasks))
     check(sum(reserved) == 90 and max(reserved) <= 9, "Concurrent search budget exceeded limits")
     check(not store.reserve_youtube_search(tasks[0]["id"]), "Budget was not durable")
+    exercise_history(store, campaign_request, research)
     return ["JSONB dossier persisted without authority", "identity edits clear stale evidence and resist rescan rebinding",
             "refresh preserves reviewed contact and identity",
             "suppression blocks scan updates and direct refresh",
             "current Poland eligibility and stale campaign scan fence",
             "601-row snapshot export, 602-row coverage, and stable list pagination",
-            "concurrent durable search reservations obey per-task and global limits"]
+            "concurrent durable search reservations obey per-task and global limits",
+            "source history preserves dates, survives concurrent refresh, expires, and respects identity/suppression"]
 
 
 def main():
