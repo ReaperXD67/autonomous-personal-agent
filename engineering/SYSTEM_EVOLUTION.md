@@ -407,3 +407,12 @@ locking serializes reservations. The selected application cap remains unchanged.
 Migration 019 adds an exact-action foreign key to prepared items and backfills
 only known authorization links. Progress can follow preparation-only packets
 through later manual action outcomes without inferring an approval or a match.
+
+## 2026-09-26 — Creator contact source continuity
+
+ADR-0024 adds bounded, dated source history within existing PostgreSQL dossiers.
+Row locks preserve observations through concurrent refreshes; matching uses the
+same canonical channel plus email/source pair. Historical evidence remains
+separate from current candidates, expires after 30 days and has a persisted
+deadline for bounded worker housekeeping. Reads exclude expired history at once.
+No new external capability, provider, model route or outreach grant is introduced.

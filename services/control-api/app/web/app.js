@@ -1781,6 +1781,7 @@ function renderCreatorCoverage() {
       facts.append(pair);
     });
     content.append(facts);
+    if (data.with_historical_contact) content.append(node("p", "fine-print", `${data.with_historical_contact} creators also have earlier source observations; ${data.historical_contact_only || 0} have historical contacts only. These need a fresh source check and are separate from current contact totals.`));
   }
   content.append(node("p", "fine-print", "Contact and refresh totals cover current-target matches. Full CSV includes matches with and without contacts, plus review and suppression status. The filters below apply only to the loaded view."));
 }
@@ -1880,6 +1881,7 @@ function filteredProspects() {
     if (contact === "candidate" && (!candidates.length || authorized || item.suppressed_at)) return false;
     if (contact === "authorized" && !authorized) return false;
     if (contact === "missing" && quality.contactState !== "missing") return false;
+    if (contact === "history" && !researchItems(item.intelligence, "contact_history").length) return false;
     const intelligence = item.intelligence || {};
     if (Number(item.relevance_score || 0) < minFit) return false;
     if (activity === "unknown" && quality.ageDays !== null) return false;
@@ -2020,6 +2022,20 @@ function prospectResearch(prospect) {
     contacts.append(item);
   });
   body.append(contacts);
+
+  const history = researchItems(intelligence, "contact_history");
+  if (history.length) {
+    const archive = node("section", "dossier-section");
+    archive.append(node("h4", "", "Earlier contact observations"), node("p", "fine-print", "These source observations came from earlier research. The current samples do not reverify them. Recheck the source before contact review; earlier evidence does not authorize outreach."));
+    history.slice(0, 20).forEach((candidate) => {
+      const item = node("div", "dossier-contact");
+      item.append(node("strong", "", candidate.email || "Address unavailable"), node("span", "chip", "Historical · unreviewed"));
+      if (candidate.evidence) item.append(node("blockquote", "source-excerpt", candidate.evidence));
+      item.append(researchLink("Recheck original source", candidate.source_url), node("p", "fine-print", `First observed ${researchDate(candidate.observed_at)} · last observed ${researchDate(candidate.last_seen_at)}`));
+      archive.append(item);
+    });
+    body.append(archive);
+  }
 
   const fit = researchItems(intelligence, "fit_breakdown");
   if (fit.length) {
@@ -2181,7 +2197,7 @@ function renderProspects() {
 function exportProspects() {
   const prospects = filteredProspects();
   if (!prospects.length) return toast("No creators in this view to export", true);
-  const rows = [["Creator", "Platform", "Profile URL", "Fit score", "Audience", "Declared country", "Published language", "Matches current target", "Research confidence", "Research date", "Authorized business email", "Authorized contact source", "Published unreviewed emails", "Unreviewed contact origins", "Contact evidence sources", "Recent video", "Collaboration ideas", "Suggested opening", "Research gaps", "Outreach status"]];
+  const rows = [["Creator", "Platform", "Profile URL", "Fit score", "Audience", "Declared country", "Published language", "Matches current target", "Research confidence", "Research date", "Authorized business email", "Authorized contact source", "Published unreviewed emails", "Unreviewed contact origins", "Contact evidence sources", "Recent video", "Collaboration ideas", "Suggested opening", "Research gaps", "Outreach status", "Historical contacts (recheck)", "Historical source evidence and dates"]];
   prospects.forEach((prospect) => {
     const intelligence = prospect.intelligence || {};
     const candidates = prospectContactCandidates(prospect);
@@ -2191,7 +2207,9 @@ function exportProspects() {
       intelligence.confidence, intelligence.researched_at, authorized ? prospect.contact_email : "", authorized ? prospect.contact_source_url : "",
       candidates.map((item) => item.email).join("; "), candidates.map((item) => item.origin).join("; "), candidates.map((item) => item.source_url).join("; "), prospect.latest_content_url,
       researchItems(intelligence, "collaboration_ideas").map((item) => `${item.title}: ${item.concept}`).join(" | "), intelligence.personalized_hook,
-      researchItems(intelligence, "gaps").join(" | "), prospect.status]);
+      researchItems(intelligence, "gaps").join(" | "), prospect.status,
+      researchItems(intelligence, "contact_history").map((item) => item.email).join("; "),
+      JSON.stringify(researchItems(intelligence, "contact_history"))]);
   });
   const encodeCell = (value) => {
     let text = String(value ?? "");

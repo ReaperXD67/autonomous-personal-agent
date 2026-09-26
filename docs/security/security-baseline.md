@@ -53,6 +53,8 @@ capability must enter this registry before its handler is reachable.
 - transactionally reserved YouTube search calls across campaigns, bounded pages,
   cooperative cancellation, quota/rate stops, and complete authenticated creator
   exports with formula escaping and explicit eligibility/suppression evidence;
+- separately dated public-contact history, bounded by source count and expiry,
+  with identity/suppression fences and audited database housekeeping;
 - separate finite career preparation allowances across runs; stored action links
   improve traceability without granting additional submission authority;
 - operator-recorded public-contact source/basis/authorization, durable opt-out

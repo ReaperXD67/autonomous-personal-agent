@@ -70,12 +70,22 @@ def test_public_emails_have_local_business_evidence_provenance_and_no_authority(
     "No sponsorship: hello@example.test", "Not for business: hello@example.test",
     "We do not accept collaborations: hello@example.test",
     "Nie przyjmuję współpracy: hello@example.test",
+    "Nie interesuje mnie biznes: hello@example.test",
+    "Biznes: niedostępny. hello@example.test",
     "Brak współpracy: hello@example.test", "Współpraca niedostępna: hello@example.test",
     "Business enquiries\nSupport: support@example.test\nFan mail: hello@example.test",
     "Business enquiries: not-an-email", "Business enquiries: ..bad@example.test",
 ])
 def test_unqualified_or_negative_context_is_not_a_business_candidate(description):
     assert public_contact_candidates([(description, PROFILE)], observed_at=NOW) == []
+
+
+def test_polish_standalone_business_label_is_explicit_context():
+    candidates = public_contact_candidates([
+        ("Biznes: creator@example.test", PROFILE),
+    ], observed_at=NOW)
+    assert len(candidates) == 1 and candidates[0]["status"] == "unreviewed"
+    assert candidates[0]["evidence"] == "Biznes: creator@example.test"
 
 
 def test_contact_candidates_reject_unreviewed_sources_and_stay_bounded():

@@ -21,7 +21,7 @@ EMAIL = re.compile(
 BUSINESS_CONTEXT = re.compile(
     r"\b(?:business(?:\s+(?:inquir\w*|contact|email|mail))?|collab(?:oration)?s?"
     r"|sponsor(?:ship|ships)?|commercial|partnerships?|wspolprac\w*"
-    r"|biznesow\w*|reklam\w*)\b"
+    r"|biznes(?:ow\w*)?|reklam\w*)\b"
 )
 NEGATIVE_CONTEXT = re.compile(
     r"\b(?:no|not|never|don't|do not|cannot|can't|unavailable|declin\w*|closed"

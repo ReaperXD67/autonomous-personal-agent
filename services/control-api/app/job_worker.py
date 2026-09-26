@@ -457,9 +457,22 @@ def run() -> None:
     )
     worker_id = f"career:{socket.gethostname()}:{os.getpid()}"[:120]
     next_schedule_check = 0.0
+    next_contact_history_cleanup = 0.0
     logger.info("career worker started", extra={"action": "startup"})
 
     while not stopping:
+        if time.monotonic() >= next_contact_history_cleanup:
+            try:
+                trimmed = database.expire_creator_contact_history()
+                delay = 30 if trimmed == 250 else 3600
+            except Exception as error:
+                logger.error(
+                    "creator contact history cleanup deferred",
+                    extra={"action": "marketing.history_cleanup_failed",
+                           "error_type": type(error).__name__},
+                )
+                delay = 60
+            next_contact_history_cleanup = time.monotonic() + delay
         if time.monotonic() >= next_schedule_check:
             _schedule_due_work(database)
             next_schedule_check = time.monotonic() + settings.career_scheduler_seconds
