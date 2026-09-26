@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -22,9 +23,33 @@ from app.career_autopilot_models import CareerPlay
 from app.career_store import CareerProfileNotFoundError
 from app.models import ApprovalDecision, TaskCreate
 
+PREPARATION_PROFILE_LIMIT = 20
+
+
+def preparation_capacity(run: dict[str, Any], profile_used: int, run_used: int) -> int:
+    """Bound preparation independently of irreversible application reservations."""
+    return max(0, min(
+        PREPARATION_PROFILE_LIMIT - profile_used,
+        min(PREPARATION_PROFILE_LIMIT, run["max_applications_per_day"] * 2) - run_used,
+    ))
+
 
 def public_run(run: dict[str, Any]) -> dict[str, Any]:
-    return {key: value for key, value in run.items() if key not in {"answers", "profile_hash"}}
+    result = {key: value for key, value in run.items() if key not in {"answers", "profile_hash"}}
+    result["preparation_limit_24h"] = PREPARATION_PROFILE_LIMIT
+    result["run_preparation_limit_24h"] = min(
+        PREPARATION_PROFILE_LIMIT, run["max_applications_per_day"] * 2,
+    )
+    profile_used = run.get("preparation_used_today", 0)
+    run_used = run.get("run_preparation_used_today", 0)
+    if profile_used >= PREPARATION_PROFILE_LIMIT:
+        reason = "Profile preparation limit reached; earlier attempts leave the 24-hour window"
+    elif run_used >= result["run_preparation_limit_24h"]:
+        reason = "Run preparation limit reached; review prepared actions and blocked attempts"
+    else:
+        reason = None
+    result["preparation_limit_reason"] = reason
+    return result
 
 
 class CareerAutopilotStore(ActionStore):
@@ -193,25 +218,35 @@ class CareerAutopilotStore(ActionStore):
                 """SELECT r.*, (SELECT count(*) FROM career_autopilot_actions a
                     WHERE a.profile_id = r.profile_id
                       AND a.created_at > now() - interval '24 hours')
-                    AS used_today FROM career_autopilot_runs r
+                    AS used_today,
+                    (SELECT count(*) FROM career_autopilot_items i
+                     JOIN career_autopilot_runs history ON history.id = i.run_id
+                     WHERE history.profile_id = r.profile_id
+                       AND i.created_at > now() - interval '24 hours') AS preparation_used_today,
+                    (SELECT count(*) FROM career_autopilot_items i WHERE i.run_id = r.id
+                       AND i.created_at > now() - interval '24 hours')
+                       AS run_preparation_used_today
+                    FROM career_autopilot_runs r
                     WHERE (%s::uuid IS NULL OR r.profile_id = %s)
                     ORDER BY r.created_at DESC LIMIT 50""",
                 (profile_id, profile_id),
             ).fetchall()
             items = connection.execute(
                 """SELECT i.run_id, i.opportunity_id, i.created_at,
-                    CASE WHEN i.state = 'authorized' THEN COALESCE(a.status, i.state)
+                    CASE WHEN a.status IN ('queued', 'executing', 'succeeded', 'failed',
+                                          'ambiguous', 'cancelled', 'expired') THEN a.status
+                         WHEN i.state = 'authorized' THEN COALESCE(a.status, i.state)
                          ELSE i.state END AS state,
                     CASE WHEN a.status = 'succeeded' THEN 'Application submission recorded'
                          WHEN a.status IN ('failed', 'ambiguous', 'cancelled')
                          THEN 'Submission needs review; inspect the exact action result'
+                         WHEN a.status = 'expired' THEN 'Exact action expired; prepare new material'
                          ELSE i.reason END AS reason,
-                    a.id AS action_id, o.company, o.title FROM career_autopilot_items i
+                    a.id AS action_id, a.status AS action_status,
+                    o.company, o.title FROM career_autopilot_items i
                     JOIN career_autopilot_runs r ON r.id = i.run_id
                     JOIN job_opportunities o ON o.id = i.opportunity_id
-                    LEFT JOIN career_autopilot_actions aa ON aa.run_id = i.run_id
-                        AND aa.opportunity_id = i.opportunity_id
-                    LEFT JOIN external_actions a ON a.id = aa.action_id
+                    LEFT JOIN external_actions a ON a.id = i.action_id
                     WHERE (%s::uuid IS NULL OR r.profile_id = %s)
                     ORDER BY i.created_at DESC LIMIT 100""",
                 (profile_id, profile_id),
@@ -286,11 +321,14 @@ class CareerAutopilotStore(ActionStore):
                 (profile["id"], run["max_age_hours"], run["min_score"]),
             ).fetchall()
             prepared = connection.execute(
-                "SELECT count(*) AS n FROM career_autopilot_items i JOIN career_autopilot_runs r "
+                "SELECT count(*) AS profile_used, "
+                "count(*) FILTER (WHERE i.run_id = %s) AS run_used "
+                "FROM career_autopilot_items i JOIN career_autopilot_runs r "
                 "ON r.id = i.run_id WHERE r.profile_id = %s "
                 "AND i.created_at > now() - interval '24 hours'",
-                (profile["id"],),
-            ).fetchone()["n"]
+                (run_id, profile["id"]),
+            ).fetchone()
+            available = preparation_capacity(run, prepared["profile_used"], prepared["run_used"])
             for opportunity in opportunities:
                 reason = eligibility_reason(run, profile, opportunity, now)
                 browser = allowed_url(opportunity["apply_url"], run["allowed_hosts"])
@@ -304,7 +342,7 @@ class CareerAutopilotStore(ActionStore):
                     "WHERE run_id = %s AND opportunity_id = %s",
                     (run_id, opportunity["id"]),
                 ).fetchone()
-                if item is None and prepared < run["max_applications_per_day"]:
+                if item is None and available > 0:
                     connection.execute(
                         "INSERT INTO career_autopilot_items "
                         "(run_id, opportunity_id, opportunity_hash) "
@@ -330,13 +368,13 @@ class CareerAutopilotStore(ActionStore):
                                 idempotency_key=f"autopilot:{run_id}:{opportunity['id']}:{kind}",
                             ),
                         )
-                    prepared += 1
+                    available -= 1
             connection.commit()
         # Preparation and network execution happen on existing policy-routed worker queues.
         with self.connect() as connection:
             items = connection.execute(
                 "SELECT * FROM career_autopilot_items WHERE run_id = %s "
-                "AND state = 'preparing' LIMIT 10",
+                "AND state IN ('preparing', 'waiting_budget') ORDER BY created_at LIMIT 10",
                 (run_id,),
             ).fetchall()
         for item in items:
@@ -419,9 +457,23 @@ class CareerAutopilotStore(ActionStore):
                     actor="scheduler:career-autopilot",
                     approval_window_minutes=1440,
                 )
-            if run["mode"] == "prepare":
-                self._item_state(item, "prepared", "Draft and exact action are ready for review")
+            if action["status"] != "pending_approval":
+                self._item_state(
+                    item, "prepared" if action["status"] in {"queued", "executing", "succeeded"}
+                    else "needs_review", "Exact action progressed; inspect its recorded result",
+                    action_id=action["id"],
+                )
                 return
+            if action["expires_at"] <= datetime.now(UTC):
+                self._item_state(item, "needs_review", "Exact action expired; review again",
+                                 action_id=action["id"])
+                return
+            if run["mode"] == "prepare":
+                self._item_state(item, "prepared", "Draft and exact action are ready for review",
+                                 action_id=action["id"])
+                return
+            self._item_state(item, "preparing", "Exact action prepared; checking submission scope",
+                             action_id=action["id"])
             self._authorize(run_id, item, action)
         except ActionPreparationError as exc:
             reason = (
@@ -431,12 +483,15 @@ class CareerAutopilotStore(ActionStore):
             )
             self._item_state(item, "needs_review", reason[:500])
 
-    def _item_state(self, item: dict[str, Any], state: str, reason: str) -> None:
+    def _item_state(self, item: dict[str, Any], state: str, reason: str,
+                    *, action_id: UUID | None = None) -> None:
         with self.connect() as connection:
             connection.execute(
-                "UPDATE career_autopilot_items SET state = %s, reason = %s "
-                "WHERE run_id = %s AND opportunity_id = %s",
-                (state, reason, item["run_id"], item["opportunity_id"]),
+                "UPDATE career_autopilot_items SET state = %s, reason = %s, "
+                "action_id = COALESCE(%s, action_id) "
+                "WHERE run_id = %s AND opportunity_id = %s "
+                "AND state IN ('preparing', 'waiting_budget')",
+                (state, reason, action_id, item["run_id"], item["opportunity_id"]),
             )
             connection.commit()
 
@@ -449,6 +504,13 @@ class CareerAutopilotStore(ActionStore):
             run = connection.execute(
                 "SELECT * FROM career_autopilot_runs WHERE id = %s FOR UPDATE", (run_id,)
             ).fetchone()
+            current_item = connection.execute(
+                "SELECT state FROM career_autopilot_items "
+                "WHERE run_id = %s AND opportunity_id = %s FOR UPDATE",
+                (run_id, item["opportunity_id"]),
+            ).fetchone()
+            if current_item is None or current_item["state"] not in {"preparing", "waiting_budget"}:
+                return
             profile = connection.execute(
                 "SELECT * FROM career_profiles WHERE id = %s FOR SHARE", (run["profile_id"],)
             ).fetchone()
@@ -468,6 +530,14 @@ class CareerAutopilotStore(ActionStore):
                 (profile["id"],),
             ).fetchone()["n"]
             if used >= run["max_applications_per_day"]:
+                connection.execute(
+                    "UPDATE career_autopilot_items SET state = 'waiting_budget', "
+                    "reason = 'Application limit reached; waiting for an earlier reservation "
+                    "to leave the rolling 24-hour window' "
+                    "WHERE run_id = %s AND opportunity_id = %s",
+                    (run_id, item["opportunity_id"]),
+                )
+                connection.commit()
                 return
             # Only this run's freshly prepared material may be approved by its grant.
             execution = connection.execute(

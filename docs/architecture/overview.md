@@ -41,6 +41,9 @@ Career Play grants can authorize those exact digests within a frozen, expiring
 scope. PostgreSQL stores the grant, preparation records, rolling budget and
 normalized application target ledger. The action worker rechecks the grant at
 the receipt boundary. See [ADR-0022](../decisions/ADR-0022-scoped-career-autopilot-and-reply-tracking.md).
+Preparation items use an independent bounded per-profile/per-run allowance;
+they do not consume the actual application ledger. Each prepared item retains
+its exact action ID so review and later manual outcomes remain traceable.
 Gmail reply tracking runs in the research worker with read-only OAuth and a
 selected label. Only that worker receives Gmail refresh credentials. Career
 email preparation receives sender metadata and pacing policy; SMTP credentials

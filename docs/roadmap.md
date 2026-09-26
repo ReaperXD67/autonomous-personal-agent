@@ -72,6 +72,7 @@
 - [x] Local résumé evidence and cover-letter drafting
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter
 - [x] Career Play/Pause with prepare/apply modes, explicit expiring scope, trusted ATS hosts, fresh-job and fit gates, shared rolling application limits, profile binding, and duplicate protection
+- [x] Separate bounded preparation allowance, preparation-limit explanations, and durable exact-action links through review and later submission outcomes
 - [x] Opt-in application email only to one hiring address explicitly published in the matched job, sharing the ATS budget and dedupe guard
 - [x] Private mission readiness, application preparation/blocker visibility, and durable application/reply/interview/outcome timelines
 - [ ] Real external automatic-application and hiring-email canaries with user-configured identity and provider
