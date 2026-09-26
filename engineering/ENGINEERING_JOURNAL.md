@@ -2309,3 +2309,25 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - Browser checks of the creator view passed at desktop and 375px widths without
   overflow; quality/recency controls and the refresh shortcut worked. They used
   an unauthenticated empty view and made no bootstrap or real-action attempt.
+
+## 2026-09-26 — Separate career preparation from application usage
+
+- Corrected the Prepare-to-Apply transition: earlier preparation no longer consumes
+  the actual submission allowance. Preparation remains bounded across runs and
+  failures (20 per profile per rolling day, twice the selected application cap
+  per run, maximum 20). Existing profile locks serialize reservation decisions.
+- Migration 019 stores each prepared packet's exact action ID. The overview and
+  mission expose preparation usage, its limiting reason, linked action status,
+  waiting submission budget and later manual results. Migration backfills only
+  known action reservations. A link grants no approval or new destination scope.
+- Retained actual submission caps, normalized target deduplication, expiry,
+  profile/job/material checks and exact approvals. Expired or already manually
+  approved actions stop automatic authorization; concurrent reconciliation cannot
+  overwrite the same item's recorded authorization with stale state.
+- Narrow container lint and 81 tests passed. The disposable PostgreSQL autonomy
+  smoke passed 12 groups, including five new preparation/progress/concurrency
+  scenarios and all-migration replay. The complete integration gate passed with
+  482 tests, nine creator groups, twelve career groups and the existing lifecycle,
+  workflow, scheduler, planner, action and recovery checks. JavaScript syntax and
+  `git diff --check` passed. No live application, message, mailbox read or grant
+  activation was performed; Gmail/provider onboarding remains unchanged.

@@ -1,5 +1,11 @@
 # ADR-0022: Scoped career Play authorization and Gmail reply tracking
 
+September 26 clarification: preparation has a separate allowance of 20
+opportunities per profile per rolling day and twice the selected application
+cap per run (up to 20). Failed attempts remain counted. Actual submission
+reservations keep the user's selected cap and final guards. Migration 019 links
+prepared items directly to exact actions; links convey no authorization.
+
 - Status: Accepted
 - Date: 2026-09-23
 - Supersedes: the per-click-only career approval requirement in ADR-0009/0010;

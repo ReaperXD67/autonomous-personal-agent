@@ -397,3 +397,13 @@ distinguish declared eligibility, unknown country, public contact availability,
 authorization, suppression and evidence needing refresh. Strict targeting now
 also applies to empty legacy dossiers. No contact grant, inference route, runtime
 service or outbound messaging authority changes.
+
+## 2026-09-26 — Career preparation and progress correction
+
+Preparation allowance is separated from the durable application reservation
+budget. PostgreSQL retains a per-profile daily preparation bound across Play
+runs and a smaller per-run bound, including failed preparation. Existing profile
+locking serializes reservations. The selected application cap remains unchanged.
+Migration 019 adds an exact-action foreign key to prepared items and backfills
+only known authorization links. Progress can follow preparation-only packets
+through later manual action outcomes without inferring an approval or a match.

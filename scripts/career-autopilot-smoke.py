@@ -21,7 +21,7 @@ from app.career_models import CareerProfileCreate
 from app.career_tracking import GmailSyncError, correlate_message
 from app.career_tracking_models import CareerEventCreate
 from app.career_tracking_store import CareerTrackingStore
-from app.models import TaskCreate
+from app.models import ApprovalDecision, TaskCreate
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
@@ -31,7 +31,7 @@ def check(value, message):
         raise AssertionError(message)
 
 
-def create_run(store, *, count=1, cap=3, email=False, duplicate=False):
+def create_run(store, *, count=1, cap=3, email=False, duplicate=False, mode="apply"):
     profile = store.create_profile(CareerProfileCreate(
         name="Synthetic autonomy proof", candidate_name="Synthetic Applicant",
         desired_titles=["Python Engineer"], skills=["Python"],
@@ -60,7 +60,7 @@ def create_run(store, *, count=1, cap=3, email=False, duplicate=False):
             opportunities.append(opportunity)
         connection.commit()
     run = store.play(profile["id"], CareerPlay(
-        actor="autopilot-smoke", mode="apply", max_applications_per_day=cap, min_score=20,
+        actor="autopilot-smoke", mode=mode, max_applications_per_day=cap, min_score=20,
         max_age_hours=72, allowed_hosts=[] if email else ["boards.greenhouse.io"],
         include_cold_email=email,
     ))
@@ -293,6 +293,123 @@ def exercise(dsn):
     check(items_for(store, run)[0]["state"] == "needs_review", "Stale preflight was not flagged")
     groups.append("Browser/email draft provenance and hash guards; stale browser preflight refusal")
     groups.append("Gmail persistence/replay/cursor fencing, manual correction and cancellation")
+    groups.extend(exercise_preparation_progress(store))
+    return groups
+
+
+def exercise_preparation_progress(store):
+    groups = []
+    profile, prepared_run, _ = create_run(store, count=3, cap=3, mode="prepare")
+    complete_preparation(store, profile, prepared_run)
+    store._reconcile_run(prepared_run["id"], sender="sender@example.test")
+    prepared_items = items_for(store, prepared_run)
+    check(all(item["state"] == "prepared" and item["action_id"] for item in prepared_items),
+          "Preparation-only items did not retain their exact action links")
+    check(not actions_for(store, prepared_run), "Preparation link incorrectly grants authority")
+    overview = store.overview(profile["id"])
+    check(all(item["action_id"] and item["action_status"] == "pending_approval"
+              and item["state"] == "prepared" for item in overview["items"]),
+          "Prepared exact actions are not available in mission progress")
+    next_run = store.play(profile["id"], CareerPlay(
+        actor="autopilot-smoke", mode="apply", max_applications_per_day=3, min_score=20,
+        allowed_hosts=["boards.greenhouse.io"],
+    ))
+    store._reconcile_run(next_run["id"], sender="sender@example.test")
+    check(len(items_for(store, next_run)) == 3, "Prepare exhausted the new Apply preparation budget")
+    complete_preparation(store, profile, next_run)
+    store._reconcile_run(next_run["id"], sender="sender@example.test")
+    check(len(actions_for(store, next_run)) == 3, "Apply did not progress after a Prepare run")
+    progress = next(row for row in store.overview(profile["id"])["runs"]
+                    if row["id"] == next_run["id"])
+    check(progress["used_today"] == 3 and progress["preparation_used_today"] == 6,
+          "Preparation attempts are conflated with application reservations")
+    groups.append("Prepare-to-Apply progresses with separate bounded preparation and submission usage")
+
+    profile, run, _ = create_run(store, count=25, cap=3, mode="prepare")
+    for expected in (6, 6, 6, 2, 0):
+        check(len(items_for(store, run)) == expected, "Preparation bound was reset or exceeded")
+        for item in items_for(store, run):
+            store._item_state(item, "needs_review", "Synthetic failed preparation")
+        run = store.play(profile["id"], CareerPlay(
+            actor="autopilot-smoke", mode="prepare", max_applications_per_day=3, min_score=20,
+            allowed_hosts=["boards.greenhouse.io"],
+        ))
+        store._reconcile_run(run["id"], sender="sender@example.test")
+    progress = next(row for row in store.overview(profile["id"])["runs"] if row["id"] == run["id"])
+    check(progress["preparation_used_today"] == 20 and progress["used_today"] == 0,
+          "Failed preparation reset the rolling bound or consumed submissions")
+    check("Profile preparation limit" in progress["preparation_limit_reason"],
+          "Preparation budget exhaustion has no actionable progress reason")
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE career_autopilot_items SET created_at = now() - interval '25 hours' "
+            "WHERE run_id IN (SELECT id FROM career_autopilot_runs WHERE profile_id = %s)",
+            (profile["id"],),
+        )
+        connection.commit()
+    store._reconcile_run(run["id"], sender="sender@example.test")
+    check(len(items_for(store, run)) == 6, "Preparation allowance did not recover after 24 hours")
+    groups.append("Per-run and profile preparation limits survive failed attempts and repeated Play")
+
+    profile, run, _ = create_run(store, mode="prepare")
+    complete_preparation(store, profile, run)
+    store._reconcile_run(run["id"], sender="sender@example.test")
+    item = items_for(store, run)[0]
+    action = store.get_external_action(item["action_id"])
+    check(store.transition_to_running(action["task_id"], 300, "autopilot-smoke") is None,
+          "A linked preparation action was executable without exact approval")
+    store.pause(profile["id"], "autopilot-smoke")
+    # An independent manual exact approval remains separate from a paused prepare run.
+    store.decide_task(action["task_id"], ApprovalDecision(
+        decision="approved", actor="autopilot-smoke", reason="Approve this synthetic exact action",
+    ))
+    task = store.transition_to_running(action["task_id"], 300, "autopilot-smoke")
+    fingerprint = hashlib.sha256(f"synthetic:{action['id']}".encode()).hexdigest()
+    store.begin_side_effect(task["id"], fingerprint, task["lease_id"])
+    store.complete_side_effect(task["id"], fingerprint, "synthetic-manual-submission")
+    overview = store.overview(profile["id"])
+    check(overview["items"][0]["state"] == "succeeded"
+          and overview["items"][0]["action_id"] == action["id"],
+          "Manual action result is missing from its preparation item")
+    check(not actions_for(store, run), "Manual action accidentally acquired an autopilot grant")
+    groups.append("Preparation links expose manual outcomes without authorizing or inheriting a grant")
+
+    for resolution in ("expired", "manually_approved"):
+        profile, run, _ = create_run(store, count=2, cap=1)
+        complete_preparation(store, profile, run)
+        store._reconcile_run(run["id"], sender="sender@example.test")
+        waiting = next(item for item in items_for(store, run) if item["state"] == "waiting_budget")
+        action = store.get_external_action(waiting["action_id"])
+        if resolution == "expired":
+            with store.connect() as connection:
+                connection.execute("UPDATE external_actions SET expires_at = now() "
+                                   "- interval '1 second' WHERE id = %s", (action["id"],))
+                connection.commit()
+        else:
+            store.decide_task(action["task_id"], ApprovalDecision(
+                decision="approved", actor="autopilot-smoke",
+                reason="Independent exact approval for a synthetic prepared action",
+            ))
+        store._advance_item(run["id"], waiting, sender="sender@example.test")
+        updated = next(item for item in items_for(store, run)
+                       if item["opportunity_id"] == waiting["opportunity_id"])
+        check(updated["state"] == ("needs_review" if resolution == "expired" else "prepared"),
+              "Resolved waiting action remained stuck in automatic reconciliation")
+        check(len(actions_for(store, run)) == 1,
+              "Manual resolution or expired material changed the automatic reservation budget")
+    groups.append("Waiting submissions expose their limit and stop on expired or manually approved actions")
+
+    profile, run, _ = create_run(store)
+    complete_preparation(store, profile, run)
+    item = items_for(store, run)[0]
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        attempts = [executor.submit(store._advance_item, run["id"], item,
+                                    sender="sender@example.test") for _ in range(2)]
+        for attempt in attempts:
+            attempt.result(timeout=20)
+    check(len(actions_for(store, run)) == 1 and items_for(store, run)[0]["state"] == "authorized",
+          "Concurrent progress overwrote a completed authorization")
+    groups.append("Concurrent reconciliation preserves the same item's exact action and authorization")
     return groups
 
 

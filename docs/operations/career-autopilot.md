@@ -16,6 +16,21 @@ preferences, identity or resume invalidates the existing grant. Press Play again
 after reviewing the changed scope. Pause stops new submissions at the durable
 receipt boundary; already submitted requests cannot be undone.
 
+Preparation uses a separate rolling allowance: at most 20 opportunities per
+profile in 24 hours, across all runs and including failed preparation, and at
+most twice the selected daily application limit per run (maximum 20). Starting
+another Play run cannot reset the profile preparation allowance. A default
+Prepare run can therefore be followed by Apply without treating its drafts as
+submitted applications. Exact submission reservations retain the selected daily
+cap, destination deduplication and final execution checks. The mission shows
+both counters and explains when preparation has reached its limit.
+
+Each newly prepared packet retains a direct link to its exact action. Follow
+**View exact action** to review it; progress reflects its queued or terminal
+result, including a later manual submission. The link itself grants no authority.
+Migration 019 backfills links only from known authorization reservations; older
+preparation-only history is not matched by guesswork.
+
 Optional hiring email applies only to a fresh matching job that explicitly
 publishes one unambiguous hiring address. It uses a run-bound resume-derived
 cover letter and saved portfolio, never guessed addresses. Email and ATS
