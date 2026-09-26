@@ -738,6 +738,8 @@ function updateCareerPlayScope() {
   scope.append(node("p", "", apply
     ? `Submit at most ${form.elements.max_applications_per_day.value} applications per rolling 24 hours, at ${form.elements.min_score.value}+ fit, for listings no older than ${form.elements.max_age_hours.value} hours. Authorization lasts ${form.elements.expires_in_hours.value} hours and covers ${hosts.join(", ") || "no ATS hosts"}${includeEmail ? " plus application emails to one unambiguous hiring address explicitly published in each matched job" : " only"}. ATS and email share the cap and one-application-per-job guard.`
     : `Find and prepare relevant applications at ${form.elements.min_score.value}+ fit for listings no older than ${form.elements.max_age_hours.value} hours.${includeEmail ? " Include hiring-email drafts only for explicitly published job contacts." : ""} This run lasts ${form.elements.expires_in_hours.value} hours. Final submissions and sends wait for separate review.`));
+  const preparationLimit = Math.min(20, Math.max(0, Number(form.elements.max_applications_per_day.value) || 0) * 2);
+  scope.append(node("p", "fine-print", `Preparation is counted separately: up to ${preparationLimit} job preparations for this run and 20 across this mission's runs per rolling 24 hours. Failed attempts count toward preparation limits. Pressing Play again does not reset those limits or the application allowance.`));
   const ready = apply ? readiness?.can_apply : readiness?.can_prepare;
   if (!ready) scope.append(node("p", "notice", "This mission does not yet meet the selected mode's requirements. Check its résumé, application identity, reviewed sources, and feature readiness before pressing Play."));
   const submit = $('button[type="submit"]', form);
@@ -818,7 +820,9 @@ function missionCard(profile, compact = false) {
     node("span", "", profile.resume_present ? `Résumé: ${profile.resume_characters.toLocaleString()} chars` : "Résumé missing"),
   );
   card.append(meta);
-  if (run) card.append(node("p", "career-run-summary", `${running ? "Current scope" : `Last run: ${titleCase(run.state === "running" ? "expired" : run.state)}`} · ${run.min_score}+ fit · ${run.max_age_hours}h freshness · ${run.used_today || 0}/${run.max_applications_per_day} applications used in 24h · ${run.include_cold_email ? "ATS + published hiring email" : "selected ATS hosts"} · expires ${researchDate(run.expires_at)}`));
+  if (run) card.append(node("p", "career-run-summary", `${running ? "Current scope" : `Last run: ${titleCase(run.state === "running" ? "expired" : run.state)}`} · ${run.min_score}+ fit · ${run.max_age_hours}h freshness · ${run.used_today || 0}/${run.max_applications_per_day} application reservations in 24h · ${run.include_cold_email ? "ATS + published hiring email" : "selected ATS hosts"} · expires ${researchDate(run.expires_at)}`));
+  if (run && Number.isFinite(run.preparation_used_today)) card.append(node("p", "fine-print", `Preparation attempts in 24h: ${run.run_preparation_used_today}/${run.run_preparation_limit_24h} for this run · ${run.preparation_used_today}/${run.preparation_limit_24h} across this mission. Preparation does not consume application reservations.`));
+  if (run?.preparation_limit_reason) card.append(node("p", "notice", run.preparation_limit_reason));
   if (run?.last_error) card.append(node("p", "notice", `Run needs attention: ${run.last_error}`));
   if (!compact) {
     const readiness = (state.careerAutopilot?.readiness || []).find((item) => item.profile_id === profile.id);
