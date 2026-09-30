@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
 
-FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS python_base
+FROM python:3.13.15-slim-bookworm@sha256:ed86c82274b3c69b52fb5820f358f0bd7df0b603332063cb5c6e32bd220c3e6e AS python_base
 # Debian's targeted fix for CVE-2026-86145 and CVE-2026-89161.
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends --only-upgrade libpcre2-8-0=10.42-1+deb12u1 && \
