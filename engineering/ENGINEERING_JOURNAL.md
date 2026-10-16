@@ -2362,3 +2362,44 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   with source links, original dates, confidence/gaps and shared-contact flags.
   The export-only historical columns use dated prior snapshots; they do not
   silently import older contacts into the live database or claim reverification.
+
+## 2026-10-16 — Minecraft creator partnerships and reviewed feedback
+
+- Added paid-first creator campaigns with explicit revenue-share/fixed-fee
+  proposals, optional percentage and earning window, and owner email/Discord.
+  The dashboard starter contact is `karixai`; 30% over two weeks is illustrative,
+  not a default rate. Existing campaigns retain their prior mode and settings.
+- Added finite operator-authorized runs, exact-action reservations, durable
+  shared-recipient/creator deduplication, global suppression and one terminal
+  handoff after reviewed interest. No new runtime, host dependency or model route.
+- Added a separate label-scoped Gmail metadata adapter, mailbox identity checks,
+  cursor/replay guards and manual reply review. Known foreign-campaign replies
+  do not block unrelated runs. Opt-outs apply globally, including migrated legacy
+  records; source leases and expiry are checked after blocking locks.
+- Added eight reviewed feedback tags, a distinct-creator learning report and
+  three fixed future-copy strategies. Three creators can motivate a hypothesis;
+  observed preference needs ten sends per strategy and a five-point/1.5× lead.
+  Adaptation retains 20% exploration and never alters approved packets,
+  commercial terms, sending authority, or model weights. No outcome guarantee.
+- Review fixed stale-packet authorization, task/campaign lock order, source lease
+  expiry during row waits, candidate starvation, pending-packet pause cleanup,
+  legacy suppression, cross-campaign mailbox routing and manual opt-out races.
+  Concurrent manual/Gmail suppression uses one writer lock before prospect rows;
+  recognizable quoted footers and instructional/negated opt-out mentions no
+  longer trigger automatic suppression.
+- Container lint and 582 unit/contract tests passed; the full verifier passed
+  workflow, scheduler, nine creator-research, nineteen creator-automation,
+  twelve career-autonomy, planner, lifecycle, action and queue-recovery checks.
+  Compose validation and whitespace checks passed. A synthetic Mailpit run sent
+  an introduction and owner email/Discord handoff, then proved terminal duplicate
+  refusal and suppression. No email or discovery request left that test network.
+- Networkless Chromium checks passed at 1440×1080 and 375×812: revenue-share
+  defaults, owner-contact preservation, explicit run-consent reset, reviewed
+  feedback controls and no page errors or horizontal overflow. Screenshots
+  contain synthetic fixtures and remain in ignored local output.
+- Docker Desktop initially failed on stale socket directories. Preserved its
+  two exact local socket directories while the backend was stopped, then started
+  it successfully; no volumes, settings, credentials or application data deleted.
+- External SMTP delivery/inbox placement, real creator Gmail OAuth monitoring,
+  revenue attribution, payouts and real collaboration outcomes remain unverified.
+  No creator was contacted, real mailbox read, grant activated or payment promised.

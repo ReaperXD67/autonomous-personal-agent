@@ -23,6 +23,8 @@ class TaskCreate(BaseModel):
         "career.application_preflight",
         "career.application_submit",
         "marketing.creator_discovery",
+        "marketing.creator_automation",
+        "marketing.gmail_sync",
         "communications.email_send",
         "communications.smtp_check",
     ] = "foundation.echo"

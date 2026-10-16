@@ -36,6 +36,13 @@ fallbacks. Do not describe the interactive free router itself as benchmark-best.
 Approval mode stays manual. MCP stays empty. Terminal, host filesystem, and
 external messaging credentials are intentionally not provisioned here.
 
+The Minecraft creator partnership workflow is implemented in the trusted control
+plane and existing research/action workers. It supports paid-first or revenue-share
+proposals, bounded run grants, reviewed replies, and a single owner email/Discord
+handoff. This interactive Hermes runtime does not bypass that path or receive
+SMTP/Gmail credentials. See the
+[creator workflow guide](../../docs/operations/minecraft-creator-workflow.md).
+
 Dashboard is not published by Compose. Release `v2026.8.3` correctly refuses
 non-loopback binding without a registered authentication provider; add a
 reviewed override only after configuring password or OAuth authentication.

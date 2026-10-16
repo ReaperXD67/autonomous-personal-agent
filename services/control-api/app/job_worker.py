@@ -29,6 +29,8 @@ from app.career import (
 from app.career_autopilot_store import CareerAutopilotStore
 from app.career_tracking import execute_gmail_sync
 from app.career_tracking_store import CareerTrackingStore
+from app.creator_automation_gmail import execute_creator_gmail_sync
+from app.creator_automation_store import CreatorAutomationStore
 from app.inference import OpenRouterError, OpenRouterFreeClient, OpenRouterPlan
 from app.logging_config import configure_logging
 from app.marketing import fetch_youtube_creators, fetch_youtube_prospect
@@ -98,6 +100,18 @@ def execute_career_task(
     if task["kind"] == "career.gmail_sync":
         return execute_gmail_sync(
             task, CareerTrackingStore(settings.database_url), settings, interrupt=interrupt,
+        )
+
+    if task["kind"] in {"marketing.gmail_sync", "marketing.creator_automation"}:
+        automation = CreatorAutomationStore(
+            settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
+        )
+        _check_interrupted(interrupt)
+        if task["kind"] == "marketing.gmail_sync":
+            return execute_creator_gmail_sync(task, automation, settings, interrupt=interrupt)
+        return automation.execute(
+            task, sender=(settings.career_email_sender
+                          if settings.career_email_transport != "disabled" else ""),
         )
 
     if task["kind"] == "marketing.creator_discovery":
@@ -423,6 +437,7 @@ def _schedule_due_work(database: MarketingStore) -> None:
     autopilot = CareerAutopilotStore(
         settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
     )
+    creators = CreatorAutomationStore(settings.database_url)
     for scope, schedule in (
         ("autopilot", lambda: autopilot.reconcile(
             sender=(settings.career_email_sender
@@ -431,6 +446,9 @@ def _schedule_due_work(database: MarketingStore) -> None:
         ("career-replies", autopilot.schedule_mail_sync if settings.gmail_enabled else lambda: []),
         ("career", database.schedule_due_profiles),
         ("marketing", database.schedule_due_campaigns),
+        ("creator-automation", lambda: creators.schedule(
+            gmail_enabled=settings.creator_gmail_enabled,
+        )),
     ):
         try:
             for scheduled in schedule():

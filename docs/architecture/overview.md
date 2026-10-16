@@ -1,5 +1,11 @@
 # Architecture overview
 
+Creator partnerships use the existing marketing and exact-action layers. The
+pure `creator_learning` component reads reviewed outcome tags and accepted-send
+counts to select fixed draft strategies. PostgreSQL stores the evidence and
+selection reason; Gmail snippets are suggestions until reviewed. Adaptation
+cannot change commercial terms, scope, limits, approvals, or prepared packets.
+
 ## Goals
 
 Foundation favors explicit boundaries over premature features:
@@ -76,6 +82,17 @@ Contact history merges under prospect row locks for the same canonical channel,
 keeps original observation dates, expires on read after 30 days and is physically
 trimmed by bounded worker housekeeping. It never grants recipient authorization.
 See [ADR-0024](../decisions/ADR-0024-dated-creator-contact-history.md).
+
+Paid-first creator campaigns add revenue-share proposals and an owner-contact
+handoff to that same path. PostgreSQL stores finite creator run grants, exact
+message reservations, reply reviews, cross-campaign suppression, and mailbox
+cursors. The research worker prepares generated messages and records delegated
+exact approvals; only the isolated action worker sends. It checks campaign and
+contact snapshots, remaining run authority, reply state, and duplicate/suppression
+evidence before acquiring a receipt. Accepted handoffs terminate the sequence.
+Read-only creator Gmail uses a separate label and confirmed mailbox identity;
+snippets cannot authorize positive interest. No new service or inference route
+is introduced. See [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
 
 ### Agent and model plane
 

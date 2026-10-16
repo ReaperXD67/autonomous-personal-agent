@@ -12,13 +12,20 @@ from psycopg.types.json import Jsonb
 from app.action_store import ActionStore
 from app.creator_contact_history import merge_contact_history, trim_contact_history
 from app.creator_intelligence import assess_creator_geography
+from app.creator_learning import PAID_VARIANTS, choose_paid_variant, creator_learning_insights
 from app.marketing import (
     INITIAL_VARIANTS,
+    campaign_outreach_hash,
+    campaign_outreach_snapshot,
     campaign_suggestions,
     choose_initial_variant,
+    compose_handoff_email,
     compose_initial_email,
     compose_paid_offer_email,
     compose_reviewed_email,
+    contact_is_suppressed,
+    contact_outreach_snapshot,
+    outreach_duplicate_action,
     percentage,
 )
 from app.marketing_models import (
@@ -59,12 +66,15 @@ class MarketingStore(ActionStore):
                     min_subscribers, max_subscribers, max_video_age_days,
                     results_per_query, schedule_hours, adaptive_mode, active,
                     next_scan_at, created_by, country_mode, target_country,
-                    language_mode, target_language, search_pages_per_query
+                    language_mode, target_language, search_pages_per_query,
+                    outreach_mode, handoff_name, handoff_email, handoff_discord,
+                    compensation_model, revenue_share_percent, revenue_share_weeks,
+                    revenue_share_basis
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s, %s, %s, %s,
                     CASE WHEN %s THEN now() ELSE now() + interval '24 hours' END,
-                    %s, %s, %s, %s, %s, %s
+                    %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
                 )
                 RETURNING *
                 """,
@@ -97,6 +107,14 @@ class MarketingStore(ActionStore):
                     request.language_mode,
                     request.target_language,
                     request.search_pages_per_query,
+                    request.outreach_mode,
+                    request.handoff_name,
+                    request.handoff_email,
+                    request.handoff_discord,
+                    request.compensation_model,
+                    request.revenue_share_percent,
+                    request.revenue_share_weeks,
+                    request.revenue_share_basis,
                 ),
             ).fetchone()
             self._append_audit(
@@ -162,6 +180,9 @@ class MarketingStore(ActionStore):
                     adaptive_mode = %s, active = %s, next_scan_at = %s,
                     country_mode = %s, target_country = %s, language_mode = %s,
                     target_language = %s, search_pages_per_query = %s,
+                    outreach_mode = %s, handoff_name = %s, handoff_email = %s,
+                    handoff_discord = %s, compensation_model = %s,
+                    revenue_share_percent = %s, revenue_share_weeks = %s, revenue_share_basis = %s,
                     last_discovery_summary = '{}'::jsonb
                 WHERE id = %s
                 RETURNING *
@@ -194,6 +215,14 @@ class MarketingStore(ActionStore):
                     request.language_mode,
                     request.target_language,
                     request.search_pages_per_query,
+                    request.outreach_mode,
+                    request.handoff_name,
+                    request.handoff_email,
+                    request.handoff_discord,
+                    request.compensation_model,
+                    request.revenue_share_percent,
+                    request.revenue_share_weeks,
+                    request.revenue_share_basis,
                     campaign_id,
                 ),
             ).fetchone()
@@ -484,6 +513,10 @@ class MarketingStore(ActionStore):
             ).fetchone()
             if campaign is None:
                 raise MarketingCampaignNotFoundError(str(request.campaign_id))
+            if request.authorize_contact and contact_is_suppressed(
+                connection, request.contact_email,
+            ):
+                raise MarketingOutreachError("This address is durably suppressed across campaigns")
             row = connection.execute(
                 """
                 INSERT INTO marketing_prospects (
@@ -549,6 +582,10 @@ class MarketingStore(ActionStore):
                 raise MarketingProspectNotFoundError(str(prospect_id))
             if existing["suppressed_at"] is not None and request.authorize_contact:
                 raise MarketingOutreachError("A suppressed prospect cannot be re-authorized")
+            if request.authorize_contact and contact_is_suppressed(
+                connection, request.contact_email,
+            ):
+                raise MarketingOutreachError("This address is durably suppressed across campaigns")
             identity_changed = existing["profile_url"] != request.profile_url
             authorized_at = datetime.now(UTC) if request.authorize_contact else None
             status = (
@@ -738,12 +775,12 @@ class MarketingStore(ActionStore):
         return self._current_targeting(row)
 
     def _variant_metrics_in_connection(
-        self, connection: Any, campaign_id: UUID
+        self, connection: Any, campaign_id: UUID, *, paid: bool = False,
     ) -> list[dict[str, Any]]:
         rows = connection.execute(
             """
             SELECT m.variant,
-                   count(*) FILTER (WHERE a.status = 'succeeded')::int AS sent,
+                   count(DISTINCT m.prospect_id) FILTER (WHERE a.status = 'succeeded')::int AS sent,
                    count(DISTINCT m.prospect_id) FILTER (
                        WHERE a.status = 'succeeded' AND EXISTS (
                            SELECT 1 FROM marketing_outcomes o
@@ -774,8 +811,17 @@ class MarketingStore(ActionStore):
         by_variant = {row["variant"]: dict(row) for row in rows}
         return [
             by_variant.get(name, {"variant": name, "sent": 0, "replies": 0, "positive": 0})
-            for name in INITIAL_VARIANTS
+            for name in (PAID_VARIANTS if paid else INITIAL_VARIANTS)
         ]
+
+    @staticmethod
+    def _feedback_in_connection(connection: Any, campaign_id: UUID) -> list[dict[str, Any]]:
+        return connection.execute(
+            """SELECT o.prospect_id, o.classification, o.feedback_tags
+               FROM marketing_outcomes o
+               JOIN marketing_prospects p ON p.id = o.prospect_id
+               WHERE p.campaign_id = %s""", (campaign_id,),
+        ).fetchall()
 
     def plan_outreach_email(
         self,
@@ -783,28 +829,30 @@ class MarketingStore(ActionStore):
         request: MarketingEmailPlanCreate,
         *,
         sender: str,
+        automation_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         with self.connect() as connection:
             context = connection.execute(
                 """
-                SELECT p.*, c.name AS campaign_name, c.product_name, c.product_url,
-                       c.privacy_url, c.product_summary, c.target_audience,
-                       c.viewer_offer, c.creator_offer, c.paid_offer_enabled,
-                       c.paid_offer_details, c.sender_name, c.adaptive_mode
+                SELECT p.*, to_jsonb(c) AS _campaign
                 FROM marketing_prospects p
                 JOIN marketing_campaigns c ON c.id = p.campaign_id
                 WHERE p.id = %s
-                FOR UPDATE OF p
+                FOR UPDATE OF c, p
                 """,
                 (prospect_id,),
             ).fetchone()
             if context is None:
                 raise MarketingProspectNotFoundError(str(prospect_id))
+            if contact_is_suppressed(connection, context["contact_email"]):
+                raise MarketingOutreachError("This contact is durably suppressed across campaigns")
             if context["suppressed_at"] is not None or context["status"] in {
                 "suppressed",
                 "bounced",
             }:
                 raise MarketingOutreachError("This contact is suppressed")
+            if context["status"] == "handed_off":
+                raise MarketingOutreachError("This conversation has been handed to the owner")
             if (
                 context["contact_authorized_at"] is None
                 or not context["contact_email"]
@@ -813,6 +861,13 @@ class MarketingStore(ActionStore):
             ):
                 raise MarketingOutreachError(
                     "Review and authorize the public business contact before planning email"
+                )
+
+            duplicate = outreach_duplicate_action(connection, context, request.stage)
+            if duplicate is not None:
+                raise MarketingOutreachError(
+                    "This creator or recipient already has an active or completed "
+                    f"{duplicate['stage'].replace('_', ' ')} conversation"
                 )
 
             active_stage = connection.execute(
@@ -828,13 +883,12 @@ class MarketingStore(ActionStore):
                 """,
                 (prospect_id, request.stage),
             ).fetchone()
-            if active_stage is not None and request.stage in {"initial", "paid_offer"}:
+            if active_stage is not None and request.stage in {"initial", "paid_offer", "handoff"}:
                 raise MarketingOutreachError(
                     f"A {request.stage.replace('_', ' ')} email is already {active_stage['status']}"
                 )
 
-            campaign = dict(context)
-            campaign["name"] = context["campaign_name"]
+            campaign = context.pop("_campaign")
             prospect = dict(context)
             if request.stage == "initial":
                 if context["status"] not in {"discovered", "qualified"}:
@@ -849,6 +903,16 @@ class MarketingStore(ActionStore):
                     subject, body = compose_reviewed_email(
                         campaign, prospect, request.subject, request.body
                     )
+                elif campaign.get("outreach_mode") == "paid":
+                    variants = self._variant_metrics_in_connection(
+                        connection, context["campaign_id"], paid=True,
+                    )
+                    variant, selection_reason = choose_paid_variant(
+                        prospect_id,
+                        self._feedback_in_connection(connection, context["campaign_id"]),
+                        variants, adaptive_mode=campaign["adaptive_mode"],
+                    )
+                    subject, body = compose_initial_email(campaign, prospect, variant)
                 else:
                     variants = self._variant_metrics_in_connection(
                         connection, context["campaign_id"]
@@ -856,7 +920,7 @@ class MarketingStore(ActionStore):
                     variant, selection_reason = choose_initial_variant(
                         prospect_id,
                         variants,
-                        adaptive_mode=context["adaptive_mode"],
+                        adaptive_mode=campaign["adaptive_mode"],
                     )
                     subject, body = compose_initial_email(campaign, prospect, variant)
             elif request.stage == "question_reply":
@@ -896,7 +960,19 @@ class MarketingStore(ActionStore):
                 subject, body = compose_reviewed_email(
                     campaign, prospect, request.subject, request.body
                 )
+            elif request.stage == "handoff":
+                if context["status"] != "interested":
+                    raise MarketingOutreachError(
+                        "An owner handoff requires a reviewed interested reply"
+                    )
+                variant = "owner_handoff"
+                selection_reason = "One owner introduction after reviewed creator interest"
+                subject, body = compose_handoff_email(campaign, prospect)
             else:
+                if campaign.get("outreach_mode") == "paid":
+                    raise MarketingOutreachError(
+                        "Paid-first campaigns do not send an unpaid-decline follow-up"
+                    )
                 if context["status"] != "declined_unpaid":
                     raise MarketingOutreachError(
                         "A paid offer is allowed only after an unpaid-only decline"
@@ -919,12 +995,23 @@ class MarketingStore(ActionStore):
                     "selection_reason": selection_reason,
                 },
             }
+            private_context = {
+                **public_context,
+                "marketing": {
+                    **public_context["marketing"],
+                    "campaign_snapshot": campaign_outreach_snapshot(campaign),
+                    "campaign_hash": campaign_outreach_hash(campaign),
+                    "contact_snapshot": contact_outreach_snapshot(prospect),
+                },
+            }
+            if automation_context is not None:
+                private_context["creator_automation"] = dict(automation_context)
             action = self._create_external_action(
                 action_type="communications.email_send",
                 opportunity_id=None,
                 target_display=context["contact_email"],
                 public_context=public_context,
-                private_context=public_context,
+                private_context=private_context,
                 actor=request.actor,
                 approval_window_minutes=request.approval_window_minutes,
                 connection=connection,
@@ -974,6 +1061,12 @@ class MarketingStore(ActionStore):
         self, prospect_id: UUID, request: MarketingOutcomeCreate
     ) -> dict[str, Any]:
         with self.connect() as connection:
+            if request.classification in {"do_not_contact", "bounced"}:
+                # Gmail suppression also takes this writer lock before prospect rows.
+                # Keep manual opt-outs from reversing the global-row/prospect order.
+                connection.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended('creator-automation', 0))"
+                )
             prospect = connection.execute(
                 "SELECT * FROM marketing_prospects WHERE id = %s FOR UPDATE", (prospect_id,)
             ).fetchone()
@@ -1012,19 +1105,36 @@ class MarketingStore(ActionStore):
                 "bounced": "bounced",
             }
             new_status = status_map[request.classification]
+            if prospect["status"] == "handed_off" and request.classification not in {
+                "do_not_contact", "bounced", "converted", "promotion_published",
+            }:
+                # Later replies remain evidence; they cannot reopen agent outreach.
+                new_status = "handed_off"
             suppression_reason = None
             if request.classification == "do_not_contact":
                 suppression_reason = "Recipient objected to further outreach"
             elif request.classification == "bounced":
                 suppression_reason = "Delivery bounced; address suppressed"
             suppressed_at = datetime.now(UTC) if suppression_reason else None
+            if suppression_reason and prospect["contact_email"]:
+                # Match the recipient lock taken at the final delivery boundary.
+                # A manual opt-out in another campaign must win over a waiting send.
+                connection.execute(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+                    (f"creator-email:{prospect['contact_email'].strip().casefold()}",),
+                )
+                connection.execute(
+                    "INSERT INTO creator_contact_suppressions(email,reason) VALUES (lower(%s),%s) "
+                    "ON CONFLICT (email) DO NOTHING",
+                    (prospect["contact_email"], suppression_reason),
+                )
             connection.execute(
                 """
                 INSERT INTO marketing_outcomes (
                     prospect_id, classification, note, promotion_url,
                     attributed_views, attributed_clicks, attributed_signups,
-                    attributed_server_owners, viewer_points_issued, recorded_by
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    attributed_server_owners, viewer_points_issued, recorded_by, feedback_tags
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 """,
                 (
                     prospect_id,
@@ -1037,6 +1147,7 @@ class MarketingStore(ActionStore):
                     request.attributed_server_owners,
                     request.viewer_points_issued,
                     request.actor,
+                    Jsonb(request.feedback_tags),
                 ),
             )
             updated = connection.execute(
@@ -1045,9 +1156,9 @@ class MarketingStore(ActionStore):
                 SET status = %s,
                     suppressed_at = COALESCE(%s, suppressed_at),
                     suppression_reason = COALESCE(%s, suppression_reason),
-                    contact_authorized_at = CASE WHEN %s IS NULL
+                    contact_authorized_at = CASE WHEN %s::timestamptz IS NULL
                         THEN contact_authorized_at ELSE NULL END,
-                    contact_authorized_by = CASE WHEN %s IS NULL
+                    contact_authorized_by = CASE WHEN %s::timestamptz IS NULL
                         THEN contact_authorized_by ELSE NULL END
                 WHERE id = %s
                 RETURNING *
@@ -1076,6 +1187,7 @@ class MarketingStore(ActionStore):
                     "campaign_id": str(updated["campaign_id"]),
                     "prospect_id": str(prospect_id),
                     "classification": request.classification,
+                    "feedback_tags": request.feedback_tags,
                     "suppressed": suppressed_at is not None,
                     "attributed_views": request.attributed_views,
                     "attributed_clicks": request.attributed_clicks,
@@ -1137,6 +1249,7 @@ class MarketingStore(ActionStore):
                         count(*) FILTER (
                             WHERE status IN ('suppressed', 'bounced')
                         )::int AS suppressed,
+                        count(*) FILTER (WHERE status = 'handed_off')::int AS handed_off,
                         count(*) FILTER (
                             WHERE EXISTS (
                                 SELECT 1 FROM marketing_outcomes o
@@ -1161,7 +1274,10 @@ class MarketingStore(ActionStore):
                         )::int AS initial_sent,
                         count(*) FILTER (
                             WHERE a.status = 'succeeded' AND m.stage = 'paid_offer'
-                        )::int AS paid_offers_sent
+                        )::int AS paid_offers_sent,
+                        count(*) FILTER (
+                            WHERE a.status = 'succeeded' AND m.stage = 'handoff'
+                        )::int AS handoffs_sent
                     FROM marketing_outreach_messages m
                     JOIN marketing_prospects p ON p.id = m.prospect_id
                     JOIN external_actions a ON a.id = m.action_id
@@ -1200,7 +1316,10 @@ class MarketingStore(ActionStore):
                 metrics["conversion_rate_percent"] = percentage(
                     metrics["converted"], metrics["initial_sent"]
                 )
-                variants = self._variant_metrics_in_connection(connection, campaign["id"])
+                paid = campaign.get("outreach_mode") == "paid"
+                variants = self._variant_metrics_in_connection(
+                    connection, campaign["id"], paid=paid,
+                )
                 for variant in variants:
                     variant["reply_rate_percent"] = percentage(
                         variant["replies"], variant["sent"]
@@ -1214,7 +1333,10 @@ class MarketingStore(ActionStore):
                         "campaign_name": campaign["name"],
                         "metrics": metrics,
                         "variants": variants,
-                        "suggestions": campaign_suggestions(metrics, variants),
+                        "suggestions": campaign_suggestions(metrics, variants, paid=paid),
+                        "learning": creator_learning_insights(
+                            self._feedback_in_connection(connection, campaign["id"]), variants,
+                        ) if paid else {},
                     }
                 )
         return results

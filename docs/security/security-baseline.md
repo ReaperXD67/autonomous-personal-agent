@@ -164,8 +164,7 @@ host home/root; never use privileged mode/host networking; never expose admin
 dashboards without authentication; never disable approval to fix workflow
 friction; never log request bodies by default.
 
-The current application/email adapter deliberately optimizes the work around
-approval rather than replacing authorization with an “intelligent” model. An
+The current application/email adapter keeps authorization separate from model output. An
 LLM cannot approve its own external action, infer legal consent, or change the
 capability policy that authorizes its executor.
 
@@ -180,3 +179,30 @@ no agent may broaden the grant. Gmail is read-only, matched to the profile
 mailbox, label-restricted in the adapter, bounded and disabled by configuration.
 Message content is untrusted data and cannot trigger tools. See ADR-0022 for the
 full boundary and residual mailbox-wide OAuth scope.
+
+### Scoped creator partnerships (2026-10-16)
+
+Creator runs grant only bounded generated introductions and optional owner
+handoffs to previously authorized business contacts. Defaults are three first
+emails per rolling day and 24-hour expiry; maxima are ten and seven days. Exact
+action digests, campaign/contact snapshots, cross-campaign creator/recipient
+duplicates, durable address suppression, shared SMTP pacing, and final receipt
+guards remain authoritative. Legacy creator packets need preparation again.
+
+The dedicated creator Gmail adapter reuses worker-only read-only OAuth, validates
+mailbox identity, and restricts requests to one custom label. No attachment,
+message URL, or model-selected tool is executed. Metadata snippets are untrusted;
+positive interest requires review and new pending replies block sending. Explicit
+opt-outs suppress current and future contacts by address. Mailbox ingestion and
+final send checks serialize on the campaign row. A send already past that boundary
+may complete. Read-only monitoring can outlive send authority, but never renew it.
+Discord is a validated handoff username only. Revenue-share percentages and periods
+are proposals; payments, negotiated agreements, revenue attribution, and earnings
+claims are outside the executor. See ADR-0025 and the Minecraft workflow guide.
+
+Feedback learning accepts only allowlisted operator-reviewed objection tags.
+Inbound text can suggest tags but cannot authorize actions or silently update
+learning. Adaptation selects fixed future-copy strategies and retains evidence,
+commercial terms and required footers. It cannot change a frozen packet or expand
+authority. Legacy opt-outs are backfilled into durable global address suppression;
+manual suppression and final delivery synchronize on the same recipient lock.

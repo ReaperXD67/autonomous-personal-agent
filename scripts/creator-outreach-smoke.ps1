@@ -1,5 +1,6 @@
 [CmdletBinding()]
 param(
+    [switch]$PaidHandoff,
     [ValidateRange(30, 300)]
     [int]$TimeoutSeconds = 120
 )
@@ -107,8 +108,15 @@ try {
         target_audience = 'Synthetic Minecraft viewers and server owners'
         viewer_offer = 'a synthetic no-value test offer for local validation'
         creator_offer = 'a synthetic no-value server pilot for local validation'
-        paid_offer_enabled = $false
-        paid_offer_details = $null
+        paid_offer_enabled = [bool]$PaidHandoff
+        paid_offer_details = $(if ($PaidHandoff) { 'A paid Minecraft video integration; the owner agrees scope and price directly.' } else { $null })
+        outreach_mode = $(if ($PaidHandoff) { 'paid' } else { 'community' })
+        compensation_model = $(if ($PaidHandoff) { 'revenue_share' } else { 'fixed_fee' })
+        revenue_share_percent = $(if ($PaidHandoff) { 30 } else { $null })
+        revenue_share_weeks = $(if ($PaidHandoff) { 2 } else { $null })
+        handoff_name = $(if ($PaidHandoff) { 'Synthetic owner' } else { $null })
+        handoff_email = $(if ($PaidHandoff) { 'owner@example.test' } else { $null })
+        handoff_discord = $(if ($PaidHandoff) { 'synthetic_owner' } else { $null })
         sender_name = 'Hermes local test'
         discovery_queries = @('Synthetic Minecraft creator')
         relevance_language = 'en'
@@ -152,8 +160,8 @@ try {
 
     $planBody = @{
         stage = 'initial'
-        subject = "Personalized local pilot $runId"
-        body = 'Hello Synthetic Block Builder, this is a reviewed local-only introduction. No real offer or external recipient is involved.'
+        subject = $(if ($PaidHandoff) { $null } else { "Personalized local pilot $runId" })
+        body = $(if ($PaidHandoff) { $null } else { 'Hello Synthetic Block Builder, this is a reviewed local-only introduction. No real offer or external recipient is involved.' })
         actor = "local-creator-outreach-smoke:$runId"
         approval_window_minutes = 15
     } | ConvertTo-Json
@@ -162,8 +170,11 @@ try {
         $action.status -ne 'pending_approval' -or
         $action.context_hash.Length -ne 64 -or
         $action.public_context.recipient -ne $recipient -or
-        $action.public_context.marketing.variant -ne 'manual_initial' -or
-        $action.public_context.body -notmatch 'reviewed local-only introduction' -or
+        (-not $PaidHandoff -and $action.public_context.marketing.variant -ne 'manual_initial') -or
+        (-not $PaidHandoff -and $action.public_context.body -notmatch 'reviewed local-only introduction') -or
+        ($PaidHandoff -and $action.public_context.body -notmatch '(?i)paid') -or
+        ($PaidHandoff -and $action.public_context.body -notmatch 'proposed 30% share') -or
+        ($PaidHandoff -and $action.public_context.body -notmatch 'proposed 2-week earning window') -or
         $action.public_context.body -notmatch 'do not contact'
     ) {
         throw 'The exact creator introduction was not prepared with the expected safeguards.'
@@ -185,6 +196,50 @@ try {
         $_.Subject -eq $action.public_context.subject
     })) {
         throw 'Mailpit did not capture the approved creator introduction.'
+    }
+
+    if ($PaidHandoff) {
+        $interestBody = @{
+            classification = 'interested'
+            note = 'Synthetic creator explicitly requested contact with the campaign owner.'
+            actor = "local-creator-outreach-smoke:$runId"
+        } | ConvertTo-Json
+        Invoke-RestMethod -Method Post -Uri "$baseUrl/v1/marketing/prospects/$prospectId/outcomes" -Headers $headers -ContentType 'application/json' -Body $interestBody | Out-Null
+        $handoffBody = @{
+            stage = 'handoff'
+            actor = "local-creator-outreach-smoke:$runId"
+            approval_window_minutes = 15
+        } | ConvertTo-Json
+        $handoff = Invoke-RestMethod -Method Post -Uri "$baseUrl/v1/marketing/prospects/$prospectId/email-plan" -Headers $headers -ContentType 'application/json' -Body $handoffBody
+        if ($handoff.status -ne 'pending_approval' -or
+            $handoff.public_context.body -notmatch 'owner@example.test' -or
+            $handoff.public_context.body -notmatch 'synthetic_owner' -or
+            $handoff.public_context.recipient -ne $recipient) {
+            throw 'The owner handoff did not freeze both contact routes and the original recipient.'
+        }
+        Invoke-RestMethod -Method Post -Uri "$baseUrl/v1/tasks/$($handoff.task_id)/decision" -Headers $headers -ContentType 'application/json' -Body $decisionBody | Out-Null
+        $handoffTask = Wait-AgentTask -BaseUrl $baseUrl -Headers $headers -TaskId $handoff.task_id
+        if ($handoffTask.status -ne 'succeeded' -or -not $handoffTask.output.smtp_accepted) {
+            throw 'The owner handoff was not accepted by Mailpit.'
+        }
+        $mailbox = Invoke-RestMethod -Method Get -Uri "$mailpitUrl/api/v1/messages"
+        if (-not ($mailbox.messages | Where-Object { $_.Subject -eq $handoff.public_context.subject })) {
+            throw 'Mailpit did not capture the owner handoff.'
+        }
+        $prospects = @(Invoke-RestMethod -Method Get -Uri "$baseUrl/v1/marketing/prospects?campaign_id=$campaignId" -Headers $headers)
+        if (($prospects | Where-Object { $_.id -eq $prospectId }).status -ne 'handed_off') {
+            throw 'Accepted handoff did not stop the automated conversation.'
+        }
+        $duplicateBlocked = $false
+        try {
+            Invoke-RestMethod -Method Post -Uri "$baseUrl/v1/marketing/prospects/$prospectId/email-plan" -Headers $headers -ContentType 'application/json' -Body $handoffBody | Out-Null
+        }
+        catch {
+            if ([int]$_.Exception.Response.StatusCode -eq 409) { $duplicateBlocked = $true }
+            else { throw }
+        }
+        if (-not $duplicateBlocked) { throw 'A second owner handoff was incorrectly allowed.' }
+        Write-Host 'Paid introduction, reviewed interest, owner email/Discord handoff, and terminal duplicate guard passed'
     }
 
     $outcomeBody = @{
@@ -218,12 +273,12 @@ try {
     $results = @(Invoke-RestMethod -Method Get -Uri "$baseUrl/v1/marketing/results?campaign_id=$campaignId" -Headers $headers)
     if (
         $results.Count -ne 1 -or
-        [int]$results[0].metrics.emails_sent -ne 1 -or
+        [int]$results[0].metrics.emails_sent -ne $(if ($PaidHandoff) { 2 } else { 1 }) -or
         [int]$results[0].metrics.suppressed -ne 1
     ) {
         throw 'Creator campaign metrics did not reflect delivery and suppression.'
     }
-    if (($results[0].variants | Measure-Object -Property sent -Sum).Sum -ne 0) {
+    if (-not $PaidHandoff -and ($results[0].variants | Measure-Object -Property sent -Sum).Sum -ne 0) {
         throw 'The personalized introduction incorrectly entered template A/B learning.'
     }
 
@@ -235,7 +290,7 @@ try {
     Write-Host "Creator campaign passed: $campaignId"
     Write-Host "Exact introduction passed: $($action.task_id)"
     Write-Host 'Promotion kit passed: five distinct attributed assets'
-    Write-Host 'Personalized introduction, exact-action lookup, and A/B isolation passed'
+    Write-Host 'Exact-action lookup and introduction policy passed'
     Write-Host 'Suppression guard passed: future outreach refused'
     Write-Host 'No discovery request or email left the local Docker test network.'
 }
@@ -265,6 +320,9 @@ DELETE FROM audit_events
 WHERE task_id IN (SELECT task_id FROM smoke_task_ids)
    OR input_metadata->>'campaign_id' = '$campaignId';
 DELETE FROM agent_tasks WHERE id IN (SELECT task_id FROM smoke_task_ids);
+DELETE FROM creator_contact_suppressions WHERE email IN (
+    SELECT lower(contact_email) FROM marketing_prospects WHERE id IN (SELECT id FROM smoke_prospect_ids)
+);
 DELETE FROM marketing_prospects WHERE id IN (SELECT id FROM smoke_prospect_ids);
 DELETE FROM marketing_campaigns
 WHERE id = '$campaignId'::uuid

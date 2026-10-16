@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, Literal
 from urllib.parse import urlparse
@@ -49,6 +50,14 @@ class MarketingCampaignFields(BaseModel):
     creator_offer: str = Field(min_length=3, max_length=1000)
     paid_offer_enabled: bool = True
     paid_offer_details: str | None = Field(default=None, max_length=1200)
+    outreach_mode: Literal["community", "paid"] = "community"
+    compensation_model: Literal["fixed_fee", "revenue_share"] = "fixed_fee"
+    revenue_share_percent: float | None = Field(default=None, gt=0, le=100, allow_inf_nan=False)
+    revenue_share_weeks: int | None = Field(default=None, ge=1, le=52)
+    revenue_share_basis: str | None = Field(default=None, max_length=500)
+    handoff_name: str | None = Field(default=None, max_length=160)
+    handoff_email: str | None = Field(default=None, max_length=320)
+    handoff_discord: str | None = Field(default=None, max_length=40)
     sender_name: str = Field(min_length=1, max_length=160)
     discovery_queries: list[str] = Field(min_length=1, max_length=3)
     relevance_language: str = Field(
@@ -98,6 +107,39 @@ class MarketingCampaignFields(BaseModel):
     def clean_paid_offer(cls, value: str | None) -> str | None:
         return _clean_text(value, 1200)
 
+    @field_validator("revenue_share_basis")
+    @classmethod
+    def clean_revenue_basis(cls, value: str | None) -> str | None:
+        return _clean_text(value, 500)
+
+    @field_validator("handoff_name")
+    @classmethod
+    def clean_handoff_name(cls, value: str | None) -> str | None:
+        return _clean_text(value, 160)
+
+    @field_validator("handoff_email")
+    @classmethod
+    def validate_handoff_email(cls, value: str | None) -> str | None:
+        if not value or not value.strip():
+            return None
+        if any(ord(char) < 32 or ord(char) == 127 for char in value):
+            raise ValueError("Owner email must be one plain email address")
+        return _valid_email(value)
+
+    @field_validator("handoff_discord")
+    @classmethod
+    def validate_handoff_discord(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if "\r" in value or "\n" in value or not re.fullmatch(
+            r"@?[A-Za-z0-9_.]{2,32}(?:#[0-9]{4})?", cleaned
+        ):
+            raise ValueError("Owner Discord must be one username, such as @yourname")
+        return cleaned
+
     @field_validator("target_country", mode="before")
     @classmethod
     def normalize_target_country(cls, value: str | None) -> str | None:
@@ -128,6 +170,11 @@ class MarketingCampaignFields(BaseModel):
             raise ValueError("Maximum subscribers cannot be below the minimum")
         if self.paid_offer_enabled and not self.paid_offer_details:
             raise ValueError("Describe the paid offer before enabling it")
+        if self.outreach_mode == "paid":
+            if not self.paid_offer_enabled or not self.paid_offer_details:
+                raise ValueError("Paid outreach requires an enabled, described paid offer")
+            if not (self.handoff_email or self.handoff_discord):
+                raise ValueError("Paid outreach requires an owner email or Discord for handoff")
         if self.country_mode != "any" and not self.target_country:
             raise ValueError("Choose a target country for preferred or strict country selection")
         if self.language_mode != "any" and not self.target_language:
@@ -298,6 +345,12 @@ class MarketingProspectUpdate(BaseModel):
         return self
 
 
+CreatorFeedbackTag = Literal[
+    "too_generic", "unclear_offer", "unclear_revenue_share", "prefers_fixed_fee",
+    "weak_content_fit", "unclear_attribution", "too_long", "unclear_next_step",
+]
+
+
 class MarketingOutcomeCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -311,6 +364,7 @@ class MarketingOutcomeCreate(BaseModel):
         "promotion_published",
     ]
     note: str | None = Field(default=None, max_length=4000)
+    feedback_tags: list[CreatorFeedbackTag] = Field(default_factory=list, max_length=8)
     promotion_url: str | None = None
     attributed_views: int = Field(default=0, ge=0, le=2_000_000_000)
     attributed_clicks: int = Field(default=0, ge=0, le=2_000_000_000)
@@ -318,6 +372,11 @@ class MarketingOutcomeCreate(BaseModel):
     attributed_server_owners: int = Field(default=0, ge=0, le=2_000_000_000)
     viewer_points_issued: int = Field(default=0, ge=0, le=9_000_000_000_000)
     actor: str = Field(min_length=1, max_length=120)
+
+    @field_validator("feedback_tags")
+    @classmethod
+    def unique_feedback_tags(cls, value: list[CreatorFeedbackTag]) -> list[CreatorFeedbackTag]:
+        return list(dict.fromkeys(value))
 
     @field_validator("promotion_url")
     @classmethod
@@ -335,7 +394,7 @@ class MarketingOutcomeCreate(BaseModel):
 class MarketingEmailPlanCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    stage: Literal["initial", "question_reply", "paid_offer"]
+    stage: Literal["initial", "question_reply", "paid_offer", "handoff"]
     subject: str | None = Field(default=None, max_length=240)
     body: str | None = Field(default=None, max_length=20000)
     actor: str = Field(min_length=1, max_length=120)
@@ -365,6 +424,8 @@ class MarketingEmailPlanCreate(BaseModel):
             raise ValueError("Personalized introductions require both subject and body")
         if self.stage == "paid_offer" and (self.subject or self.body):
             raise ValueError("Paid-offer copy is generated from the campaign packet")
+        if self.stage == "handoff" and (self.subject or self.body):
+            raise ValueError("Handoff copy is generated from the campaign owner contacts")
         return self
 
 
@@ -410,3 +471,4 @@ class MarketingResultsView(BaseModel):
     metrics: dict[str, int | float]
     variants: list[dict[str, Any]]
     suggestions: list[dict[str, Any]]
+    learning: dict[str, Any] = Field(default_factory=dict)
