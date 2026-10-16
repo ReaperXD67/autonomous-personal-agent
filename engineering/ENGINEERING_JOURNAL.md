@@ -2403,3 +2403,9 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - External SMTP delivery/inbox placement, real creator Gmail OAuth monitoring,
   revenue attribution, payouts and real collaboration outcomes remain unverified.
   No creator was contacted, real mailbox read, grant activated or payment promised.
+- The first clean GitHub build failed before tests because the existing Debian
+  PCRE2 `10.42-1+deb12u1` pin was no longer in the signed repositories. Fresh APT
+  metadata in the exact pinned Python base and Debian's trackers verified
+  `10.42-1+deb12u2`; updated only that package pin and retained image digests.
+  The rebuilt control image reports that exact version. Repeated container lint,
+  all 582 tests and the complete integration verifier passed after the update.
