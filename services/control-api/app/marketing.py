@@ -12,6 +12,7 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID
 
+from app.application_browser import canonical_hash
 from app.creator_intelligence import (
     CHANNEL_ID,
     VIDEO_ID,
@@ -32,6 +33,120 @@ USER_AGENT = (
     "(+https://github.com/ReaperXD67/autonomous-personal-agent)"
 )
 INITIAL_VARIANTS = ("viewer_value", "creator_pilot")
+
+# Only durable operator settings belong here: scans and scheduling timestamps
+# must not invalidate an approved message or an explicitly bounded run.
+OUTREACH_CAMPAIGN_FIELDS = (
+    "name", "product_name", "product_url", "privacy_url", "product_summary",
+    "target_audience", "viewer_offer", "creator_offer", "paid_offer_enabled",
+    "paid_offer_details", "sender_name", "outreach_mode", "handoff_name",
+    "handoff_email", "handoff_discord", "country_mode", "target_country",
+    "compensation_model", "revenue_share_percent", "revenue_share_weeks", "revenue_share_basis",
+    "language_mode", "target_language", "min_subscribers", "max_subscribers",
+    "max_video_age_days",
+)
+OUTREACH_STAGE_STATUSES = {
+    "initial": {"discovered", "qualified"},
+    "question_reply": {"question"},
+    "paid_offer": {"declined_unpaid"},
+    "handoff": {"interested"},
+}
+
+
+def campaign_outreach_snapshot(campaign: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: campaign.get(key, "community" if key == "outreach_mode" else None)
+        for key in OUTREACH_CAMPAIGN_FIELDS
+    }
+
+
+def campaign_outreach_hash(campaign: dict[str, Any]) -> str:
+    return canonical_hash(campaign_outreach_snapshot(campaign))
+
+
+def contact_outreach_snapshot(prospect: dict[str, Any]) -> dict[str, Any]:
+    snapshot = {
+        key: prospect.get(key) for key in (
+            "platform", "external_id", "profile_url", "contact_email",
+            "contact_source_url", "contact_basis_note", "contact_authorized_by",
+        )
+    }
+    authorized_at = prospect.get("contact_authorized_at")
+    snapshot["contact_authorized_at"] = (
+        authorized_at.isoformat() if isinstance(authorized_at, datetime) else authorized_at
+    )
+    return snapshot
+
+
+def outreach_context_error(
+    campaign: dict[str, Any], prospect: dict[str, Any], action: dict[str, Any],
+) -> str | None:
+    """Recheck an approved packet against rows locked at the SMTP boundary."""
+    private = action["private_context"]
+    marketing = private["marketing"]
+    if (
+        prospect.get("suppressed_at") is not None
+        or prospect.get("contact_authorized_at") is None
+        or prospect.get("contact_email") != private.get("recipient")
+    ):
+        return "Marketing contact was withdrawn, changed, or suppressed after approval"
+    if str(prospect.get("campaign_id")) != marketing.get("campaign_id"):
+        return "Marketing campaign identity changed after approval"
+    # A legacy pending packet must be prepared again to acquire the stronger fence.
+    if (
+        marketing.get("campaign_snapshot") != campaign_outreach_snapshot(campaign)
+        or marketing.get("campaign_hash") != campaign_outreach_hash(campaign)
+    ):
+        return "Marketing campaign packet changed; prepare and approve a new email"
+    if marketing.get("contact_snapshot") != contact_outreach_snapshot(prospect):
+        return "Marketing contact provenance or authorization changed after approval"
+    stage = marketing.get("stage")
+    if prospect.get("status") not in OUTREACH_STAGE_STATUSES.get(stage, set()):
+        return "Marketing reply state changed after the email was approved"
+    if stage == "paid_offer" and campaign.get("outreach_mode") == "paid":
+        return "Paid-first campaigns do not send an unpaid-decline follow-up"
+    return None
+
+
+def outreach_duplicate_action(
+    connection: Any, prospect: dict[str, Any], stage: str,
+    *, exclude_action_id: UUID | None = None,
+) -> dict[str, Any] | None:
+    """Serialize matching creators/recipients, including across campaigns."""
+    email = str(prospect.get("contact_email") or "").strip().casefold()
+    profile = str(prospect.get("profile_url") or "").rstrip("/").casefold()
+    platform = prospect["platform"]
+    external_id = prospect["external_id"]
+    identity_keys = [
+        f"creator-email:{email}", f"creator-profile:{profile}",
+        f"creator-platform:{platform}:{external_id}",
+    ]
+    for key in sorted(identity_keys):
+        connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (key,))
+    return connection.execute(
+        """
+        SELECT a.id, a.status, m.stage
+        FROM marketing_outreach_messages m
+        JOIN marketing_prospects p ON p.id = m.prospect_id
+        JOIN external_actions a ON a.id = m.action_id
+        WHERE (lower(a.private_context->>'recipient') = %s
+               OR lower(rtrim(p.profile_url, '/')) = %s
+               OR (p.platform = %s AND p.external_id = %s))
+          AND a.status IN ('pending_approval', 'queued', 'executing', 'succeeded', 'ambiguous')
+          AND (%s::uuid IS NULL OR a.id <> %s::uuid)
+          AND (%s = 'initial' OR m.stage = 'handoff')
+        ORDER BY m.created_at DESC LIMIT 1
+        """,
+        (email, profile, platform, external_id, exclude_action_id, exclude_action_id, stage),
+    ).fetchone()
+
+
+def contact_is_suppressed(connection: Any, email: str | None) -> bool:
+    if not email:
+        return False
+    return connection.execute(
+        "SELECT 1 FROM creator_contact_suppressions WHERE email = lower(%s)", (email,),
+    ).fetchone() is not None
 
 
 class YouTubeRequestLimitError(RuntimeError):
@@ -665,6 +780,8 @@ def _contact_footer(campaign: dict[str, Any], prospect: dict[str, Any]) -> str:
 def compose_initial_email(
     campaign: dict[str, Any], prospect: dict[str, Any], variant: str
 ) -> tuple[str, str]:
+    if campaign.get("outreach_mode", "community") == "paid":
+        return compose_paid_initial_email(campaign, prospect, variant)
     if variant not in INITIAL_VARIANTS:
         raise ValueError("Unknown initial outreach variant")
     subject = (
@@ -701,6 +818,126 @@ def compose_initial_email(
         "Would you be open to testing it and, if it is genuinely useful, discussing an honest "
         "video, Short, stream segment, or community post? There is no obligation to endorse it.\n\n"
         f"Pilot link: {tracking_url(campaign, prospect)}\n\n"
+        f"Thanks,\n{campaign['sender_name']}"
+        f"{_contact_footer(campaign, prospect)}"
+    )
+    return subject[:240], body[:20000]
+
+
+def compose_paid_initial_email(
+    campaign: dict[str, Any], prospect: dict[str, Any], variant: str = "content_first",
+) -> tuple[str, str]:
+    if variant not in {"content_first", "terms_first", "concise", "paid_initial"}:
+        raise ValueError("Unknown paid outreach variant")
+    if not campaign.get("paid_offer_enabled") or not campaign.get("paid_offer_details"):
+        raise ValueError("This campaign has no approved paid-offer description")
+    title = " ".join(str(prospect.get("latest_content_title") or "").split())[:300]
+    source = prospect.get("latest_content_url")
+    evidence = (
+        f"I came across your video “{title}” ({source}) while researching creators.\n\n"
+        if title and source and public_video_id(source) else ""
+    )
+    revenue_share = campaign.get("compensation_model") == "revenue_share"
+    proposal = revenue_share_proposal(
+        campaign, concise=variant == "concise",
+    ) if revenue_share else (
+        "Would this be of interest? If so, please share your rate card or usual rates "
+        "and preferred format. I can then connect you with the campaign owner to "
+        "discuss scope, budget, timing, and sponsorship disclosure. "
+        "No fee or booking is agreed by this message."
+    )
+    compensation_label = "Revenue-share" if revenue_share else "Paid"
+    collaboration_label = "revenue-share collaboration" if revenue_share else "paid promotion"
+    subject = (
+        f"{compensation_label} {campaign['product_name']} collaboration "
+        f"— {prospect['display_name']}"
+    )
+    product = (
+        f"{campaign['product_name']} is {campaign['product_summary'].rstrip('.')}. "
+        f"It is designed for {campaign['target_audience'].rstrip('.')}.\n\n"
+    )
+    content = f"The proposed collaboration: {campaign['paid_offer_details'].rstrip('.')}.\n\n"
+    if variant == "terms_first":
+        middle = f"{proposal}\n\n{evidence}{product}{content}"
+    elif variant == "concise":
+        product = f"{campaign['product_name']}: {campaign['product_summary'].rstrip('.')}.\n\n"
+        middle = f"{evidence}{product}{content}{proposal}\n\n"
+    else:
+        middle = f"{evidence}{product}{content}{proposal}\n\n"
+    body = (
+        f"Hi {prospect['display_name']} team,\n\n"
+        f"I’m {campaign['sender_name']} from {campaign['product_name']}. "
+        f"I’m reaching out about a {collaboration_label}.\n\n"
+        f"{middle}"
+        f"Product: {tracking_url(campaign, prospect)}\n\n"
+        f"Thanks,\n{campaign['sender_name']}"
+        f"{_contact_footer(campaign, prospect)}"
+    )
+    return subject[:240], body[:20000]
+
+
+def revenue_share_proposal(campaign: dict[str, Any], *, concise: bool = False) -> str:
+    percent = campaign.get("revenue_share_percent")
+    weeks = campaign.get("revenue_share_weeks")
+    terms = []
+    if percent is not None:
+        terms.append(f"a proposed {percent:g}% share")
+    if weeks is not None:
+        terms.append(f"a proposed {weeks}-week earning window")
+    opening = (
+        "A starting point for discussion is " + " over ".join(terms) + ". "
+        if terms else
+        "The percentage and earning window would be negotiated with you individually. "
+    )
+    basis = campaign.get("revenue_share_basis")
+    if concise:
+        return (
+            opening + (f"Proposed basis: {basis.rstrip('.')}. " if basis else "")
+            + "A share of attributable earnings, not a guaranteed upfront fee or income. "
+            "The owner must agree revenue or profit, attribution, start date, duration, "
+            "reporting and payment schedule. Interested? What percentage, earning window "
+            "in weeks and content format would you propose? No terms are agreed yet."
+        )
+    return (
+        opening + (f"Proposed basis: {basis.rstrip('.')}. " if basis else "")
+        + "This is a share of attributable earnings, not a guaranteed upfront fee or income. "
+        "The earnings definition (revenue or profit), attribution, start date, duration, "
+        "reporting and payment schedule all need to be agreed with the owner. "
+        "Would you be interested? Please share the percentage, number of weeks and content "
+        "format you would like to discuss. Your channel size and content can inform that "
+        "conversation; this email does not set or accept terms."
+    )
+
+
+def compose_handoff_email(
+    campaign: dict[str, Any], prospect: dict[str, Any],
+) -> tuple[str, str]:
+    owner = campaign.get("handoff_name") or campaign["sender_name"]
+    contacts = []
+    if campaign.get("handoff_email"):
+        contacts.append(f"Email: {campaign['handoff_email']}")
+    if campaign.get("handoff_discord"):
+        contacts.append(f"Discord: {campaign['handoff_discord']}")
+    if not contacts:
+        raise ValueError("Add an owner email or Discord before preparing the handoff")
+    subject = f"Next step: {campaign['product_name']} collaboration"
+    channels = "\n".join(contacts)
+    discussion = (
+        "Please share the percentage, earning window in weeks, and content idea you would "
+        "like to discuss. The owner will agree the earnings definition, attribution, "
+        "reporting and payment details with you personally. "
+        if campaign.get("compensation_model") == "revenue_share" else
+        "You can share your rate card, preferred format, and availability with them. "
+        "They will discuss the details with you personally. "
+    )
+    body = (
+        f"Hi {prospect['display_name']} team,\n\n"
+        f"Thank you for your interest in collaborating with {campaign['product_name']}. "
+        f"Please contact {owner}, the campaign owner, to continue the conversation:\n\n"
+        f"{channels}\n\n"
+        f"{discussion}Scope, compensation, timing, "
+        "and sponsorship disclosure still need to be agreed; this introduction "
+        "does not confirm a booking. I will leave the conversation with you and the owner.\n\n"
         f"Thanks,\n{campaign['sender_name']}"
         f"{_contact_footer(campaign, prospect)}"
     )
@@ -771,16 +1008,16 @@ def choose_initial_variant(
 
 
 def campaign_suggestions(
-    metrics: dict[str, int | float], variants: list[dict[str, Any]]
+    metrics: dict[str, int | float], variants: list[dict[str, Any]], *, paid: bool = False,
 ) -> list[dict[str, Any]]:
-    sent = int(metrics.get("emails_sent", 0))
+    sent = int(metrics.get("initial_sent" if paid else "emails_sent", 0))
     replies = int(metrics.get("replies", 0))
     positive = int(metrics.get("positive_replies", 0))
     questions = int(metrics.get("questions", 0))
     declined = int(metrics.get("declined_unpaid", 0))
     suppressed = int(metrics.get("suppressed", 0))
     suggestions: list[dict[str, Any]] = []
-    if sent < 10:
+    if sent < 10 and not paid:
         suggestions.append(
             {
                 "kind": "sample",
@@ -789,7 +1026,7 @@ def campaign_suggestions(
                 "evidence": f"{sent} SMTP-accepted email(s); minimum comparison sample is 10.",
             }
         )
-    elif replies / sent < 0.10:
+    elif sent >= 10 and replies / sent < 0.10:
         suggestions.append(
             {
                 "kind": "targeting",
@@ -809,12 +1046,14 @@ def campaign_suggestions(
                 "kind": "clarity",
                 "priority": "test",
                 "message": (
+                    "Review the questions and clarify the collaboration format and revenue terms."
+                    if paid else
                     "Test a shorter explanation of verified play, portable points, and funding."
                 ),
                 "evidence": f"{questions} of {replies} replies were questions.",
             }
         )
-    if replies and declined / replies >= 0.50:
+    if replies and declined / replies >= 0.50 and not paid:
         suggestions.append(
             {
                 "kind": "offer",
@@ -836,7 +1075,7 @@ def campaign_suggestions(
             }
         )
     qualified = [item for item in variants if item.get("sent", 0) >= 10]
-    if len(qualified) == len(INITIAL_VARIANTS):
+    if not paid and len(qualified) == len(INITIAL_VARIANTS):
         ranked = sorted(
             qualified,
             key=lambda item: item.get("positive", 0) / max(1, item["sent"]),

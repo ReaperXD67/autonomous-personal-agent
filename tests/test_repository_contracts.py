@@ -170,7 +170,9 @@ def test_creator_outreach_is_durable_approval_bound_and_key_scoped() -> None:
     for service in ("control-api", "worker", "dispatcher", "action-worker"):
         assert "YOUTUBE_API_KEY" not in compose["services"][service]["environment"]
     guard = (ROOT / "services/control-api/app/action_store.py").read_text(encoding="utf-8")
-    assert "Marketing contact was withdrawn, changed, or suppressed" in guard
+    assert "outreach_context_error" in guard
+    outreach_guard = (ROOT / "services/control-api/app/marketing.py").read_text(encoding="utf-8")
+    assert "Marketing contact was withdrawn, changed, or suppressed" in outreach_guard
 
 
 def test_promotion_assets_are_local_copy_only_and_setup_hides_credentials() -> None:

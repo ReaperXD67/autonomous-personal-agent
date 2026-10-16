@@ -27,6 +27,7 @@ try {
     & (Join-Path $PSScriptRoot 'workflow-smoke.ps1')
     & (Join-Path $PSScriptRoot 'scheduler-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-research-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'creator-automation-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-autopilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'planning-smoke.ps1')
     & (Join-Path $PSScriptRoot 'action-delivery-smoke.ps1')

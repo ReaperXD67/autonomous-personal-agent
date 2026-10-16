@@ -26,3 +26,6 @@ history.
 - [ADR-0020](ADR-0020-durable-low-volume-email-pacing.md): durable low-volume email pacing
 - [ADR-0021](ADR-0021-evidence-backed-youtube-research.md): public business-contact candidates and evidence-backed YouTube research
 - [ADR-0022](ADR-0022-scoped-career-autopilot-and-reply-tracking.md): expiring career Play grants, truthful freshness, Poland selection and Gmail reply tracking
+- [ADR-0023](ADR-0023-bounded-creator-expansion-and-export.md): bounded multi-page discovery and complete exports
+- [ADR-0024](ADR-0024-dated-creator-contact-history.md): bounded source history with observation dates
+- [ADR-0025](ADR-0025-creator-partnership-handoff.md): bounded creator partnerships, revenue-share proposals, reviewed replies, and owner handoff

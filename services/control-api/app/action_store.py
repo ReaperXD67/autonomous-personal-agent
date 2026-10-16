@@ -421,33 +421,42 @@ class ActionStore(CareerStore):
             guard_autopilot_action(connection, row, datetime.now(UTC))
             marketing = row["private_context"].get("marketing")
             if isinstance(marketing, dict):
+                from app.creator_automation import validate_creator_automation
+                from app.marketing import (
+                    contact_is_suppressed,
+                    outreach_context_error,
+                    outreach_duplicate_action,
+                )
+
                 prospect = connection.execute(
                     """
-                    SELECT status, contact_email, contact_authorized_at, suppressed_at
-                    FROM marketing_prospects
-                    WHERE id = %s
-                    FOR UPDATE
+                    SELECT p.*, to_jsonb(c) AS _campaign
+                    FROM marketing_prospects p
+                    JOIN marketing_campaigns c ON c.id = p.campaign_id
+                    WHERE p.id = %s
+                    FOR UPDATE OF c, p
                     """,
                     (marketing.get("prospect_id"),),
                 ).fetchone()
-                if (
-                    prospect is None
-                    or prospect["suppressed_at"] is not None
-                    or prospect["contact_authorized_at"] is None
-                    or prospect["contact_email"] != row["private_context"].get("recipient")
-                ):
+                if prospect is None:
                     raise SideEffectGuardError(
-                        "Marketing contact was withdrawn, changed, or suppressed after approval"
+                        "Marketing prospect no longer exists"
                     )
-                valid_statuses = {
-                    "initial": {"discovered", "qualified"},
-                    "question_reply": {"question"},
-                    "paid_offer": {"declined_unpaid"},
-                }
-                if prospect["status"] not in valid_statuses.get(marketing.get("stage"), set()):
+                error = outreach_context_error(prospect.pop("_campaign"), prospect, row)
+                if error:
+                    raise SideEffectGuardError(error)
+                duplicate = outreach_duplicate_action(
+                    connection, prospect, marketing["stage"], exclude_action_id=row["id"],
+                )
+                if contact_is_suppressed(connection, row["private_context"].get("recipient")):
+                    raise SideEffectGuardError("Creator contact is durably suppressed")
+                if duplicate is not None:
                     raise SideEffectGuardError(
-                        "Marketing reply state changed after the email was approved"
+                        "Another active or completed conversation exists for this creator/contact"
                     )
+                error = validate_creator_automation(connection, row)
+                if error:
+                    raise SideEffectGuardError(error)
             receipt = connection.execute(
                 "SELECT * FROM side_effect_receipts WHERE fingerprint = %s",
                 (fingerprint,),
@@ -554,6 +563,16 @@ class ActionStore(CareerStore):
                     (action["opportunity_id"],),
                 )
             elif action["action_type"] == "communications.email_send":
+                marketing = action["private_context"].get("marketing")
+                if isinstance(marketing, dict) and marketing.get("stage") == "handoff":
+                    connection.execute(
+                        """
+                        UPDATE marketing_prospects SET status = 'handed_off'
+                        WHERE id = %s AND suppressed_at IS NULL
+                          AND status NOT IN ('suppressed', 'bounced', 'converted')
+                        """,
+                        (marketing["prospect_id"],),
+                    )
                 # SMTP acceptance is submission evidence, not proof of inbox delivery.
                 connection.execute(
                     "UPDATE job_opportunities SET status = 'applied', applied_at = now() "

@@ -17,6 +17,7 @@ const state = {
   prospectOffset: 0,
   prospectLoadNotice: "",
   creatorCoverage: null,
+  creatorAutomation: {},
   marketingResults: [],
   workflows: [],
   plans: [],
@@ -28,6 +29,8 @@ const state = {
 };
 let prospectRequestVersion = 0;
 let coverageRequestVersion = 0;
+let creatorAutomationVersion = 0;
+const creatorRunBusy = new Set();
 let loadingMoreProspects = false;
 const exportingCampaigns = new Set();
 
@@ -191,6 +194,8 @@ function disconnect(showMessage = true) {
   state.prospectOffset = 0;
   state.prospectLoadNotice = "";
   state.creatorCoverage = null;
+  state.creatorAutomation = {};
+  creatorAutomationVersion += 1;
   prospectRequestVersion += 1;
   coverageRequestVersion += 1;
   state.marketingResults = [];
@@ -283,6 +288,7 @@ async function loadData({ quiet = false } = {}) {
     setConnection(true);
     renderAll();
     loadCreatorCoverage();
+    loadCreatorAutomation();
     return true;
   } catch (error) {
     setConnection(false, "Connection failed");
@@ -300,7 +306,7 @@ const viewCopy = {
   missions: ["", "Set the scope. <em>Press Play.</em>", "Hunt fresh roles, prepare or submit within reviewed limits, and keep every application traceable."],
   workflows: ["Coordinated autonomy", "Plan. Execute. <em>Verify.</em>", "Turn a multi-step objective into durable work with dependencies, result checks, and a clear stopping point."],
   opportunities: ["", "Your <em>job inbox.</em>", "Compare fresh matches, prepare truthful drafts, and decide what to apply for."],
-  campaigns: ["", "Find creators with <em>a reason to fit.</em>", "Research YouTube audiences, trace published business contacts, and develop a relevant collaboration."],
+  campaigns: ["", "Find the creators. <em>You close the deal.</em>", "Research Minecraft channels, start a relevant paid conversation, and hand interested creators back to you."],
   approvals: ["Human control", "Decide before <em>impact.</em>", "Approve or reject high-risk tasks before they can enter execution."],
   tasks: ["Durable execution", "Assign and <em>inspect work.</em>", "Create safe one-off tasks and follow every transition in the audit trail."],
   settings: ["", "Settings <em>and help.</em>", "Manage your private connection and understand how models, discovery, and approvals work."],
@@ -1565,18 +1571,151 @@ async function checkSmtpConnection() {
   }
 }
 
+function creatorHandoffLabel(campaign) {
+  return [campaign.handoff_email, campaign.handoff_discord ? `Discord: ${campaign.handoff_discord}` : ""].filter(Boolean).join(" · ") || "No owner contact configured";
+}
+
+async function loadCreatorAutomation() {
+  if (!isConnected()) return;
+  const version = ++creatorAutomationVersion;
+  const results = await Promise.all(state.campaigns.map(async (campaign) => {
+    try { return [campaign.id, await api(`/v1/marketing/campaigns/${campaign.id}/automation`)]; }
+    catch (error) { return [campaign.id, { error: error.message }]; }
+  }));
+  if (version !== creatorAutomationVersion || !isConnected()) return;
+  state.creatorAutomation = Object.fromEntries(results);
+  renderCampaigns();
+  renderCreatorWork();
+}
+
+function creatorAutomationPanel(campaign) {
+  const panel = node("div", "creator-automation");
+  const data = state.creatorAutomation[campaign.id];
+  if (!data) { panel.append(node("p", "fine-print", "Loading outreach run status…")); return panel; }
+  if (data.error) { panel.append(node("p", "notice", data.error)); return panel; }
+  const run = data.run;
+  const active = run?.state === "running" && new Date(run.expires_at) > new Date();
+  panel.append(node("strong", "", active ? "Automatic outreach is running" : run ? `Run ${run.state === "running" ? "expired" : titleCase(run.state).toLowerCase()}` : "Automatic outreach is off"));
+  if (run) {
+    panel.append(node("p", "fine-print", `${run.used_today || 0} / ${run.max_initials_per_day} introductions authorized in 24h · expires ${formatDate(run.expires_at)}`));
+    panel.append(node("p", "fine-print", run.auto_handoff ? "Owner handoff enabled after reviewed interest." : "Handoff emails require individual approval."));
+    if (run.reason) panel.append(node("p", "fine-print", run.reason));
+  }
+  const controls = node("div", "card-actions");
+  const toggle = button(active ? "Pause outreach" : "Authorize outreach run", active ? "button" : "button primary", active ? "pause-creator-run" : "start-creator-run", campaign.id);
+  toggle.disabled = creatorRunBusy.has(campaign.id) || (!active && !data.readiness?.smtp_configured);
+  controls.append(toggle);
+  const sync = button("Check creator replies", "text-button", "sync-creator-replies", campaign.id);
+  sync.disabled = !data.readiness?.gmail_configured || creatorRunBusy.has(campaign.id);
+  controls.append(sync);
+  panel.append(controls, node("p", "fine-print", data.readiness?.gmail_configured ? `Gmail label read configured · last sync ${formatDate(data.gmail_sync?.last_sync_at)} · ${data.pending_reply_count || 0} replies need review.` : "Creator Gmail is not configured. Record replies manually; no mailbox is being monitored."));
+  if (!data.readiness?.smtp_configured) panel.append(node("p", "notice", "Configure a sending transport in Email setup before authorizing a run."));
+  return panel;
+}
+
+function renderCreatorWork() {
+  const queue = $("#creator-work-queue");
+  const inbox = $("#creator-reply-inbox");
+  queue.replaceChildren(); inbox.replaceChildren();
+  const interested = state.prospects.filter(canPrepareCreatorHandoff);
+  const questions = state.prospects.filter((item) => item.status === "question" && !item.suppressed_at);
+  const contacts = state.prospects.filter((item) => !item.suppressed_at && hasUnreviewedContact(item));
+  for (const [label, items, action, cta] of [["Ready for your handoff", interested, "plan-marketing-handoff", "Prepare handoff"], ["Questions to answer", questions, "reply-prospect", "Write answer"], ["Public contacts to review", contacts, "edit-prospect", "Review contact"]]) {
+    const section = node("div", "creator-decision-group");
+    section.append(node("h3", "", `${label} · ${items.length}`));
+    items.slice(0, 3).forEach((prospect) => {
+      const row = node("div", "creator-decision-row");
+      row.append(node("span", "", prospect.display_name), button(cta, "text-button", action, prospect.id));
+      section.append(row);
+    });
+    if (!items.length) section.append(node("p", "fine-print", "Nothing waiting in the loaded shortlist."));
+    queue.append(section);
+  }
+  for (const campaign of state.campaigns) {
+    const data = state.creatorAutomation[campaign.id];
+    if (!data?.pending_replies?.length) continue;
+    const section = node("section", "creator-reply-group");
+    section.append(node("h3", "", `${campaign.name} · reply review`));
+    for (const reply of data.pending_replies) {
+      const row = node("article", "creator-mail-row");
+      row.append(node("strong", "", reply.subject || "No subject"), node("p", "fine-print", `${reply.sender} · ${formatDate(reply.received_at)}`), node("p", "", reply.snippet || "No excerpt available. Open the original in your mailbox."), node("p", "fine-print", `${titleCase(reply.suggested_classification)} suggestion · ${reply.match_reason}`));
+      const review = button("Review reply", "button", "review-creator-mail", reply.id);
+      review.dataset.campaignId = campaign.id;
+      row.append(review); section.append(row);
+    }
+    if (data.pending_reply_count > data.pending_replies.length) section.append(node("p", "fine-print", `Showing ${data.pending_replies.length} of ${data.pending_reply_count} replies. Review these to load earlier replies.`));
+    inbox.append(section);
+  }
+}
+
+function openCreatorRun(campaignId) {
+  const campaign = state.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return;
+  const form = $("#creator-run-form"); form.reset(); clearFormError(form);
+  form.elements.campaign_id.value = campaignId;
+  const context = $("#creator-run-context"); context.replaceChildren();
+  context.append(node("strong", "", campaign.name), node("p", "", campaign.paid_offer_details), node("p", "fine-print", `Owner contact: ${creatorHandoffLabel(campaign)}`));
+  $("#creator-run-dialog").showModal();
+}
+
+async function saveCreatorRun(event) {
+  const form = event.currentTarget;
+  if (!form.elements.authorize_run.checked) throw new Error("Confirm the displayed sending scope before starting.");
+  await api(`/v1/marketing/campaigns/${form.elements.campaign_id.value}/automation/start`, { method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", max_initials_per_day: Number(form.elements.max_initials_per_day.value), expires_in_hours: Number(form.elements.expires_in_hours.value), auto_handoff: form.elements.auto_handoff.checked }) });
+  $("#creator-run-dialog").close(); toast("Limited creator run authorized"); await loadData({ quiet: true });
+}
+
+async function creatorRunAction(campaignId, action) {
+  if (creatorRunBusy.has(campaignId)) return;
+  creatorRunBusy.add(campaignId); renderCampaigns();
+  try {
+    await api(`/v1/marketing/campaigns/${campaignId}/${action === "pause" ? "automation/pause" : "replies/sync"}`, { method: "POST", body: JSON.stringify({ actor: "dashboard:marketing" }) });
+    toast(action === "pause" ? "Outreach authority paused" : "Creator reply check queued");
+    await loadData({ quiet: true });
+  } catch (error) { toast(error.message, true); }
+  finally { creatorRunBusy.delete(campaignId); renderCampaigns(); }
+}
+
+function openCreatorMailReview(campaignId, replyId) {
+  const reply = state.creatorAutomation[campaignId]?.pending_replies?.find((item) => item.id === replyId);
+  if (!reply) return;
+  const form = $("#creator-mail-review-form"); form.reset(); clearFormError(form);
+  form.elements.campaign_id.value = campaignId; form.elements.reply_id.value = replyId;
+  form.elements.prospect_id.replaceChildren(new Option("Choose the matching creator", ""));
+  state.prospects.filter((item) => item.campaign_id === campaignId && item.contact_email?.toLowerCase() === reply.sender.toLowerCase()).forEach((item) => form.elements.prospect_id.append(new Option(item.display_name, item.id)));
+  if (reply.prospect_id && !Array.from(form.elements.prospect_id.options).some((option) => option.value === reply.prospect_id)) form.elements.prospect_id.append(new Option("Matched creator outside loaded shortlist", reply.prospect_id));
+  form.elements.prospect_id.value = reply.prospect_id || "";
+  form.elements.prospect_id.required = true;
+  const context = $("#creator-mail-review-context"); context.replaceChildren();
+  context.append(node("strong", "", reply.subject), node("p", "fine-print", `${reply.sender} · ${formatDate(reply.received_at)}`), node("p", "", reply.snippet), node("p", "notice", "This is a metadata excerpt, not the full email. Confirm the complete message in your mailbox before recording interest."));
+  if (reply.suggested_feedback_tags?.length) context.append(node("p", "fine-print", `Possible feedback to check: ${reply.suggested_feedback_tags.map(titleCase).join(", ")}. Confirm only what the creator actually said below.`));
+  $("#creator-mail-review-dialog").showModal();
+}
+
+function canPrepareCreatorHandoff(prospect) {
+  const exists = prospect.latest_message?.stage === "handoff"
+    && ["pending_approval", "queued", "executing", "succeeded", "ambiguous"].includes(prospect.latest_message.action_status);
+  return prospect.status === "interested" && !prospect.suppressed_at && !exists;
+}
+
+async function saveCreatorMailReview(event) {
+  const form = event.currentTarget;
+  await api(`/v1/marketing/campaigns/${form.elements.campaign_id.value}/replies/${form.elements.reply_id.value}/review`, { method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", prospect_id: form.elements.prospect_id.value || null, classification: form.elements.classification.value, note: form.elements.note.value.trim(), feedback_tags: reviewedFeedbackTags(form) }) });
+  $("#creator-mail-review-dialog").close(); toast("Reply review recorded"); await loadData({ quiet: true });
+}
+
 function renderMarketingMetrics() {
   const totals = state.marketingResults.reduce((summary, result) => {
-    for (const key of ["discovered", "emails_sent", "replies", "initial_sent", "attributed_signups"]) {
+    for (const key of ["discovered", "emails_sent", "replies", "initial_sent", "handoffs_sent"]) {
       summary[key] += Number(result.metrics[key] || 0);
     }
     return summary;
-  }, { discovered: 0, emails_sent: 0, replies: 0, initial_sent: 0, attributed_signups: 0 });
+  }, { discovered: 0, emails_sent: 0, replies: 0, initial_sent: 0, handoffs_sent: 0 });
   const replyRate = totals.initial_sent ? (totals.replies / totals.initial_sent) * 100 : 0;
   $("#marketing-metric-found").textContent = totals.discovered.toLocaleString();
   $("#marketing-metric-sent").textContent = totals.emails_sent.toLocaleString();
   $("#marketing-metric-replies").textContent = `${replyRate.toFixed(1)}%`;
-  $("#marketing-metric-signups").textContent = totals.attributed_signups.toLocaleString();
+  $("#marketing-metric-signups").textContent = totals.handoffs_sent.toLocaleString();
 }
 
 function campaignCard(campaign) {
@@ -1586,11 +1725,11 @@ function campaignCard(campaign) {
   const top = node("div", "campaign-card-top");
   const copy = node("div");
   copy.append(
-    node("span", "tag", campaign.active ? "Discovery running" : "Discovery paused"),
+    node("span", "chip", campaign.outreach_mode === "paid" ? "Paid partnerships" : "Community pilot"),
     node("h3", "", campaign.name),
     node("p", "", `${campaign.discovery_queries.join(" · ")} · ${campaign.min_subscribers.toLocaleString()}–${campaign.max_subscribers.toLocaleString()} subscribers`),
   );
-  top.append(copy, node("span", "score", campaign.adaptive_mode ? "Adaptive drafts" : "Fixed A/B drafts"));
+  top.append(copy);
   card.append(top);
 
   const funnel = node("div", "funnel-list");
@@ -1599,7 +1738,7 @@ function campaignCard(campaign) {
     ["Introductions", metrics.initial_sent || 0],
     ["Replies", metrics.replies || 0],
     ["Positive", metrics.positive_replies || 0],
-    ["Converted", metrics.converted || 0],
+    [campaign.outreach_mode === "paid" ? "Handed over" : "Converted", campaign.outreach_mode === "paid" ? metrics.handoffs_sent || 0 : metrics.converted || 0],
   ];
   const maximum = Math.max(1, ...stages.map((item) => Number(item[1])));
   stages.forEach(([label, value]) => {
@@ -1613,6 +1752,11 @@ function campaignCard(campaign) {
     funnel.append(row);
   });
   card.append(funnel);
+  if (campaign.outreach_mode === "paid") {
+    card.append(node("p", "campaign-brief", campaign.paid_offer_details || "Add a paid collaboration brief."));
+    card.append(node("p", "fine-print", `Owner handoff: ${creatorHandoffLabel(campaign)}. You agree the scope, compensation, and next steps.`));
+    card.append(creatorAutomationPanel(campaign));
+  }
   const countryRule = campaign.country_mode === "strict" ? `Requires declared ${campaign.target_country}` : campaign.country_mode === "prefer" ? `Prefers ${campaign.target_country}` : "Any country";
   const languageRule = campaign.language_mode === "strict" ? `requires published ${campaign.target_language}` : campaign.language_mode === "prefer" ? `prefers ${campaign.target_language}` : "any published language";
   card.append(node("p", "fine-print", `${countryRule} · ${languageRule}`));
@@ -1649,14 +1793,30 @@ function campaignCard(campaign) {
     learning.append(item);
   });
   card.append(learning);
+  if (campaign.outreach_mode === "paid" && result.learning?.samples) {
+    const report = result.learning;
+    const feedback = node("details", "campaign-learning");
+    feedback.append(node("summary", "", `What creators are teaching us · ${report.samples.tagged_creators} with reviewed feedback`));
+    feedback.append(node("p", "", report.reason));
+    if (!campaign.adaptive_mode) feedback.append(node("p", "notice", "Adaptive copy is disabled. Insights remain visible; new drafts use balanced assignment."));
+    report.recommendations.forEach((recommendation) => {
+      const item = node("div", "learning-item creator-learning-item");
+      item.append(node("strong", "", `${titleCase(recommendation.tag)} · ${recommendation.creators} creator${recommendation.creators === 1 ? "" : "s"}`), node("p", "", recommendation.message), node("small", "", recommendation.enough_evidence ? "Repeated feedback; test this change." : "Early observation; too few creators to adapt on this tag alone."));
+      feedback.append(item);
+    });
+    if (!report.recommendations.length) feedback.append(node("p", "fine-print", "Record objections from actual replies. Silence does not tell us why a creator declined."));
+    report.variants.forEach((variant) => feedback.append(node("p", "fine-print", `${titleCase(variant.variant)}: ${variant.sent} introductions · ${variant.positive} interested creators`)));
+    feedback.append(node("p", "fine-print", report.caveat));
+    card.append(feedback);
+  }
   const actions = node("div", "card-actions");
   actions.append(
-    button("Find and research creators", "button", "scan-campaign", campaign.id),
+    button("Find Minecraft creators", "button", "scan-campaign", campaign.id),
     button("Promotion kit", "button secondary", "promotion-kit", campaign.id),
     button("Edit campaign", "text-button", "edit-campaign", campaign.id),
     button("Export full campaign CSV", "text-button", "export-campaign", campaign.id),
   );
-  card.append(actions, node("p", "fine-print", `Last discovery: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
+  card.append(actions, node("p", "fine-print", `${campaign.active ? "Discovery scheduled" : "Discovery paused"} · last: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
   return card;
 }
 
@@ -1664,7 +1824,7 @@ function renderCampaigns() {
   const list = $("#campaign-list");
   list.replaceChildren();
   if (!state.campaigns.length) {
-    list.append(empty("No campaigns yet", "Create the KarixMC pilot, then add a restricted YouTube API key for official creator discovery.", true));
+    list.append(empty("Start your first paid creator campaign", "Add a truthful product brief and your email or Discord. Then research Minecraft creators and review their public business contacts.", true));
     return;
   }
   state.campaigns.forEach((campaign) => list.append(campaignCard(campaign)));
@@ -2158,10 +2318,12 @@ function prospectCard(prospect) {
   const canAnswer = prospect.status === "question"
     && (prospect.latest_message?.stage !== "question_reply" || answerRetryable || newerQuestion);
   if (canAnswer) actions.append(button("Write manual answer", "button primary", "reply-prospect", prospect.id));
-  if (prospect.status === "declined_unpaid") {
+  if (prospect.status === "declined_unpaid" && campaign?.outreach_mode !== "paid") {
     const paidExists = prospect.latest_message?.stage === "paid_offer" && ["pending_approval", "queued", "executing", "succeeded", "ambiguous"].includes(prospect.latest_message.action_status);
     if (!paidExists) actions.append(button("Prepare final paid option", "button primary", "plan-marketing-paid", prospect.id));
   }
+  if (canPrepareCreatorHandoff(prospect)) actions.append(button("Prepare owner handoff", "button primary", "plan-marketing-handoff", prospect.id));
+  if (prospect.status === "handed_off") card.append(node("p", "notice", "Handed over to the owner. Hermes has stopped this conversation."));
   if (prospect.sent_message_count > 0 && !["suppressed", "bounced"].includes(prospect.status)) actions.append(button(prospect.status === "converted" ? "Update results" : "Record reply or result", "text-button", "outcome-prospect", prospect.id));
   if (prospect.latest_message?.action_id) actions.append(button("Review message", "text-button", "review-action", prospect.latest_message.action_id));
   if (prospect.latest_message?.task_id) actions.append(button("View send history", "text-button", "view-audit", prospect.latest_message.task_id));
@@ -2268,6 +2430,7 @@ function renderAll() {
   renderCampaigns();
   renderProspects();
   renderCreatorCoverage();
+  renderCreatorWork();
   renderInferenceStatus();
   if (actionReviewId && $("#detail-dialog").open) {
     const action = state.actions.find((item) => item.id === actionReviewId) || actionReviewRecord;
@@ -2352,6 +2515,7 @@ function progressiveForm(form, groups) {
 }
 
 function initializeForms() {
+  ["#marketing-outcome-form", "#creator-mail-review-form"].forEach((selector) => addFeedbackFields($(selector)));
   $("#career-event-form").elements.status.append(new Option("Needs further review", "needs_review"));
   progressiveForm($("#profile-form"), [
     { title: "Match preferences", description: "Freshness, fit, and employment type", fields: ["required_keywords", "excluded_keywords", "max_age_hours", "min_score", "employment_types"] },
@@ -2483,12 +2647,15 @@ function openCampaignDialog(campaign = null) {
   const form = $("#campaign-form");
   form.reset();
   form.elements.campaign_id.value = campaign?.id || "";
-  $("#campaign-dialog-title").textContent = campaign ? "Edit creator campaign" : "Create the KarixMC creator pilot";
+  clearFormError(form);
+  $("#campaign-dialog-title").textContent = campaign ? "Edit creator campaign" : "Create a creator partnership";
   if (campaign) {
     for (const name of [
       "name", "sender_name", "product_name", "product_url", "privacy_url",
       "product_summary", "target_audience", "viewer_offer", "creator_offer",
-      "paid_offer_details", "relevance_language", "region_code", "min_subscribers",
+      "paid_offer_details", "outreach_mode", "handoff_name", "handoff_email", "handoff_discord",
+      "compensation_model", "revenue_share_percent", "revenue_share_weeks", "revenue_share_basis",
+      "relevance_language", "region_code", "min_subscribers",
       "max_subscribers", "max_video_age_days", "results_per_query", "schedule_hours",
     ]) form.elements[name].value = campaign[name] ?? "";
     form.elements.discovery_queries.value = campaign.discovery_queries.join(", ");
@@ -2519,6 +2686,14 @@ async function saveCampaign(event) {
     creator_offer: form.elements.creator_offer.value.trim(),
     paid_offer_enabled: form.elements.paid_offer_enabled.checked,
     paid_offer_details: form.elements.paid_offer_details.value.trim() || null,
+    outreach_mode: form.elements.outreach_mode.value,
+    compensation_model: form.elements.compensation_model.value,
+    revenue_share_percent: form.elements.revenue_share_percent.value ? Number(form.elements.revenue_share_percent.value) : null,
+    revenue_share_weeks: form.elements.revenue_share_weeks.value ? Number(form.elements.revenue_share_weeks.value) : null,
+    revenue_share_basis: form.elements.revenue_share_basis.value.trim() || null,
+    handoff_name: form.elements.handoff_name.value.trim() || null,
+    handoff_email: form.elements.handoff_email.value.trim() || null,
+    handoff_discord: form.elements.handoff_discord.value.trim() || null,
     sender_name: form.elements.sender_name.value.trim(),
     discovery_queries: csv(form.elements.discovery_queries.value),
     relevance_language: form.elements.relevance_language.value.trim(),
@@ -2701,13 +2876,33 @@ function openMarketingOutcome(prospect) {
   $("#marketing-outcome-dialog").showModal();
 }
 
+function addFeedbackFields(form) {
+  const fields = node("fieldset", "creator-feedback-fields");
+  fields.append(node("legend", "", "What could the outreach do better?"), node("p", "fine-print", "Optional. Select only objections supported by the creator's reply. These teach future drafts; they never change payment terms."));
+  const labels = { too_generic: "Too generic", unclear_offer: "Offer is unclear", unclear_revenue_share: "Revenue share is unclear", prefers_fixed_fee: "Prefers a fixed fee", weak_content_fit: "Poor fit for their content", unclear_attribution: "Attribution is unclear", too_long: "Message is too long", unclear_next_step: "Next step is unclear" };
+  for (const [value, text] of Object.entries(labels)) {
+    const label = node("label", "checkbox-row");
+    const input = document.createElement("input"); input.type = "checkbox"; input.name = "feedback_tag"; input.value = value;
+    label.append(input, document.createTextNode(text)); fields.append(label);
+  }
+  $(".dialog-actions", form).before(fields);
+}
+
+function reviewedFeedbackTags(form) {
+  return $$('input[name="feedback_tag"]:checked', form).map((input) => input.value);
+}
+
 async function saveMarketingOutcome(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const id = form.elements.prospect_id.value;
+  if (form.elements.classification.value === "interested" && !form.elements.note.value.trim()) {
+    throw new Error("Add a brief note confirming the creator's interest before the owner handoff.");
+  }
   const payload = {
     classification: form.elements.classification.value,
     note: form.elements.note.value.trim() || null,
+    feedback_tags: reviewedFeedbackTags(form),
     promotion_url: form.elements.promotion_url.value.trim() || null,
     attributed_views: Number(form.elements.attributed_views.value),
     attributed_clicks: Number(form.elements.attributed_clicks.value),
@@ -2988,6 +3183,11 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "plan-marketing-initial") return openMarketingReply(state.prospects.find((item) => item.id === id), "initial");
   if (action === "plan-marketing-paid") return planMarketingEmail(id, "paid_offer");
+  if (action === "plan-marketing-handoff") return planMarketingEmail(id, "handoff");
+  if (action === "start-creator-run") return openCreatorRun(id);
+  if (action === "pause-creator-run") return creatorRunAction(id, "pause");
+  if (action === "sync-creator-replies") return creatorRunAction(id, "sync");
+  if (action === "review-creator-mail") return openCreatorMailReview(target.dataset.campaignId, id);
   if (action === "reply-prospect") return openMarketingReply(state.prospects.find((item) => item.id === id));
   if (action === "outcome-prospect") return openMarketingOutcome(state.prospects.find((item) => item.id === id));
   if (action === "review-action") return showActionReview(id);
@@ -3052,6 +3252,10 @@ $("#career-play-form").elements.mode.addEventListener("change", () => {
   updateCareerPlayScope();
 });
 $("#campaign-form").addEventListener("submit", (event) => guardedSubmit(event, saveCampaign));
+$("#creator-run-form").addEventListener("submit", (event) => guardedSubmit(event, saveCreatorRun));
+$("#creator-run-form").addEventListener("input", (event) => { if (event.target.name !== "authorize_run") event.currentTarget.elements.authorize_run.checked = false; });
+$("#creator-mail-review-form").addEventListener("submit", (event) => guardedSubmit(event, saveCreatorMailReview));
+$("#creator-mail-review-form").elements.classification.addEventListener("change", (event) => { $("#creator-mail-review-form").elements.prospect_id.required = event.target.value !== "ignore"; });
 $("#prospect-form").addEventListener("submit", (event) => guardedSubmit(event, saveProspect));
 $("#marketing-outcome-form").addEventListener("submit", (event) => guardedSubmit(event, saveMarketingOutcome));
 $("#marketing-reply-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {

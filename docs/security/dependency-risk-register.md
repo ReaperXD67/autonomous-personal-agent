@@ -62,7 +62,7 @@ local runtime testing and GitHub Actions passed. Repository contract tests also
 continue to forbid the unused high-risk surfaces (`StaticFiles`, `FileResponse`,
 `HTTPEndpoint`, form parsing, and hostname-derived policy) as defense in depth.
 
-## September 2026 Debian PCRE2 security update
+## Debian PCRE2 security updates
 
 The 2026-09-13 clean-checkout scan newly flagged `libpcre2-8-0=10.42-1` in
 the pinned Python Bookworm image. Debian identifies `10.42-1+deb12u1` as fixed
@@ -77,6 +77,33 @@ No broad distribution upgrade or vulnerability suppression was introduced.
 Future removal depends on verifying that a replacement pinned Python base
 already contains the patched version. Ubuntu Noble's status must be evaluated
 separately; the Debian patch does not establish that the Playwright base is fixed.
+
+On 2026-10-16, a clean CI build found that `10.42-1+deb12u1` had left the
+current repositories. The exact pinned Python base's fresh signed APT metadata
+identifies `10.42-1+deb12u2` as the candidate; the Dockerfile now pins that version.
+The same Debian trackers mark both original issues fixed there. The update also
+includes Debian's [DLA-4816-1](https://security-tracker.debian.org/tracker/DLA-4816-1)
+PCRE2 fix. Image digests remain pinned; the separate Perl update is described below.
+
+## October 2026 Debian Perl update
+
+The clean runtime scan also identified seven fixable findings in the base image's
+`perl-base=5.36.0-7+deb12u3`. Debian's
+[DLA-4821-1](https://security-tracker.debian.org/tracker/DLA-4821-1) lists all seven
+and fixes Bookworm in `5.36.0-7+deb12u4`. The shared Python base pins that targeted
+upgrade alongside PCRE2. An isolated installation on the exact image digest
+upgraded only these two packages, installed/removed none, and passed APT's
+dependency check. No vulnerability ignore or broad distribution upgrade is used.
+
+## October 2026 Ubuntu OpenSSL update
+
+The separate action-runtime scan identified CVE-2026-84782 in `libssl3t64` and
+`openssl` at `3.0.13-0ubuntu3.15`. Ubuntu's
+[USN-8847-1](https://ubuntu.com/security/notices/USN-8847-1) fixes Noble in
+`3.0.13-0ubuntu3.16`. The action Dockerfile upgrades those exact two packages
+from signed Ubuntu repositories while retaining the pinned Playwright image.
+An isolated install on that exact base upgraded two packages, added/removed
+none and required no dependent-package updates. No vulnerability ignores are used.
 
 ## Review rule
 

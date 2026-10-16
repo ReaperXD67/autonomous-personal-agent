@@ -2362,3 +2362,67 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   with source links, original dates, confidence/gaps and shared-contact flags.
   The export-only historical columns use dated prior snapshots; they do not
   silently import older contacts into the live database or claim reverification.
+
+## 2026-10-16 — Minecraft creator partnerships and reviewed feedback
+
+- Added paid-first creator campaigns with explicit revenue-share/fixed-fee
+  proposals, optional percentage and earning window, and owner email/Discord.
+  The dashboard starter contact is `karixai`; 30% over two weeks is illustrative,
+  not a default rate. Existing campaigns retain their prior mode and settings.
+- Added finite operator-authorized runs, exact-action reservations, durable
+  shared-recipient/creator deduplication, global suppression and one terminal
+  handoff after reviewed interest. No new runtime, host dependency or model route.
+- Added a separate label-scoped Gmail metadata adapter, mailbox identity checks,
+  cursor/replay guards and manual reply review. Known foreign-campaign replies
+  do not block unrelated runs. Opt-outs apply globally, including migrated legacy
+  records; source leases and expiry are checked after blocking locks.
+- Added eight reviewed feedback tags, a distinct-creator learning report and
+  three fixed future-copy strategies. Three creators can motivate a hypothesis;
+  observed preference needs ten sends per strategy and a five-point/1.5× lead.
+  Adaptation retains 20% exploration and never alters approved packets,
+  commercial terms, sending authority, or model weights. No outcome guarantee.
+- Review fixed stale-packet authorization, task/campaign lock order, source lease
+  expiry during row waits, candidate starvation, pending-packet pause cleanup,
+  legacy suppression, cross-campaign mailbox routing and manual opt-out races.
+  Concurrent manual/Gmail suppression uses one writer lock before prospect rows;
+  recognizable quoted footers and instructional/negated opt-out mentions no
+  longer trigger automatic suppression.
+- Container lint and 582 unit/contract tests passed; the full verifier passed
+  workflow, scheduler, nine creator-research, nineteen creator-automation,
+  twelve career-autonomy, planner, lifecycle, action and queue-recovery checks.
+  Compose validation and whitespace checks passed. A synthetic Mailpit run sent
+  an introduction and owner email/Discord handoff, then proved terminal duplicate
+  refusal and suppression. No email or discovery request left that test network.
+- Networkless Chromium checks passed at 1440×1080 and 375×812: revenue-share
+  defaults, owner-contact preservation, explicit run-consent reset, reviewed
+  feedback controls and no page errors or horizontal overflow. Screenshots
+  contain synthetic fixtures and remain in ignored local output.
+- Docker Desktop initially failed on stale socket directories. Preserved its
+  two exact local socket directories while the backend was stopped, then started
+  it successfully; no volumes, settings, credentials or application data deleted.
+- External SMTP delivery/inbox placement, real creator Gmail OAuth monitoring,
+  revenue attribution, payouts and real collaboration outcomes remain unverified.
+  No creator was contacted, real mailbox read, grant activated or payment promised.
+- The first clean GitHub build failed before tests because the existing Debian
+  PCRE2 `10.42-1+deb12u1` pin was no longer in the signed repositories. Fresh APT
+  metadata in the exact pinned Python base and Debian's trackers verified
+  `10.42-1+deb12u2`; updated only that package pin and retained image digests.
+  The rebuilt control image reports that exact version. Repeated container lint,
+  all 582 tests and the complete integration verifier passed after the update.
+- CI then reached the runtime scan and reported seven fixable findings in the
+  existing Perl base package. Debian DLA-4821-1 and an isolated exact-image
+  install verified `perl-base=5.36.0-7+deb12u4`; added that one targeted upgrade.
+  Combined PCRE2/Perl installation upgrades two packages, adds/removes none and
+  passes APT dependency checks. No scan exceptions or image-digest changes.
+  Repeated all 582 tests and the complete integration gate on the patched image.
+  A fresh Trivy 0.74.0 scan reports zero fixable HIGH/CRITICAL findings for the
+  rebuilt control image; no ignores were applied.
+- The separate browser-runtime scan identified CVE-2026-84782 in its existing
+  OpenSSL packages. Verified Ubuntu USN-8847-1 and an isolated signed-APT install,
+  then pinned `libssl3t64` and `openssl` to `3.0.13-0ubuntu3.16`. Only those two
+  packages upgrade; none are added/removed and the Playwright digest is retained.
+  The final rebuilt images both pass fresh Trivy 0.74.0 scans with zero fixable
+  HIGH/CRITICAL findings and no ignore rules. Repeated the complete verifier
+  (582 tests and all integration groups), desktop/mobile browser checks and
+  synthetic Mailpit introduction/handoff/suppression proof after the last patch;
+  all passed. External-provider and performance limitations above still apply.

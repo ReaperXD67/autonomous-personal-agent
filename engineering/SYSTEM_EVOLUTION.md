@@ -416,3 +416,27 @@ same canonical channel plus email/source pair. Historical evidence remains
 separate from current candidates, expires after 30 days and has a persisted
 deadline for bounded worker housekeeping. Reads exclude expired history at once.
 No new external capability, provider, model route or outreach grant is introduced.
+
+## 2026-10-16 — Creator partnerships, handoff and reviewed learning
+
+ADR-0025 extends the existing exact-action boundary with finite campaign-scoped
+authority for generated creator introductions and optional owner handoffs.
+Migrations 020–022 add compensation proposals and contacts, terminal handoff,
+durable run reservations, reply review/cursors, global address suppression and
+reviewed feedback tags. PostgreSQL remains authoritative; no new service or
+inference route is introduced. Policy/audit/outbox tasks dispatch through the
+existing research worker and email executor.
+
+The final send boundary rechecks campaign/contact snapshots, duplicate identity,
+run expiry, pending replies, monitored-inbox freshness and global suppression.
+Source leases are checked again after locks. Outgoing task/action locks precede
+campaign locks; pause cleans unapproved packets after withdrawing authority.
+Manual opt-outs synchronize with final delivery using the same recipient lock.
+Legacy opt-outs are backfilled. Known replies from other campaigns do not pause
+unrelated runs, while opt-outs still suppress their address globally.
+
+Read-only creator Gmail shares the worker credential compartment but uses its
+own label and mailbox identity. Positive snippets need review. The pure learning
+component consumes reviewed objection tags and accepted-send counts, deduplicates
+creators, and explains changes among three fixed copy strategies. It does not
+train model weights, negotiate, change commercial terms or grant send authority.

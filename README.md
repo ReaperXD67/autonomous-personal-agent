@@ -8,19 +8,47 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status: local alpha](https://img.shields.io/badge/status-local_alpha-16a085.svg)](#implemented-now)
 
-**A control plane for useful autonomy: durable work, explicit approvals, and an audit trail by default.**
+**Find Minecraft creators. Prepare a paid collaboration. Bring interested people back to you.**
 
-This is a security-first, self-hosted foundation for an autonomous personal agent. This
-repository establishes durable task state, approval gates, audit events,
-containerized workers, persistent memory storage, model-routing boundaries,
-and a curated MCP policy layer before broad autonomy is enabled.
+Hermes is a self-hosted personal-agent workspace with a focused creator outreach
+workflow: research Minecraft YouTubers, explain why they fit, prepare relevant
+paid-promotion emails, track replies, and hand interested creators to your email
+or Discord. You handle the conversation, agreement, and payment from there.
+Revenue-share campaigns discuss a percentage and an earning window in weeks;
+neither compensation nor income is invented. Reviewed objections teach future
+drafts and appear in a **What creators are teaching us** report.
+
+The same control plane also supports career missions and durable workflows.
+PostgreSQL owns the work, approvals, budgets, and audit trail; containers execute
+bounded tasks and every outgoing message has an exact, inspectable packet.
+
+```mermaid
+flowchart LR
+    A["Discover Minecraft channels"] --> B["Review public business contacts"]
+    B --> C["Paid offer with source evidence"]
+    C --> D["Track and review replies"]
+    D -->|"Interested"| E["Send your email / Discord"]
+    E --> F["You take over · Hermes stops"]
+    D -->|"No / opt-out"| G["Suppress further outreach"]
+    D -->|"Reviewed feedback"| H["Explain objections · improve future drafts"]
+    H --> C
+```
+
+**Start here:** [Minecraft creator workflow](docs/operations/minecraft-creator-workflow.md)
+· [Local proof](#quick-start-windows--docker-desktop)
+· [Architecture](docs/architecture/overview.md)
+· [Roadmap](docs/roadmap.md)
 
 > [!IMPORTANT]
 > **Local-alpha status:** the private web dashboard, scheduled fresh-job
 > discovery, matching, tracking, local application drafting, exact-action review,
 > isolated single-page ATS submission, and test-sink email work. Career Play can
 > authorize bounded automatic applications within an explicit, expiring scope;
-> manually prepared actions and creator emails retain exact-action approval. Telegram,
+> manually prepared actions retain exact-action approval. Creator runs can authorize
+> generated introductions and optional handoffs within a finite campaign scope;
+> contact qualification and positive-reply confirmation stay reviewed. Creator Gmail
+> reading needs read-only OAuth and its own real canary. Discord is a handoff contact,
+> not a connected account. Telegram,
 > generic browser automation, coding workers, and broad MCP access are not
 > enabled. Never expose the dashboard port directly to the internet.
 > The Linux VPS commands prepare a private single-operator deployment reached
@@ -28,10 +56,23 @@ and a curated MCP policy layer before broad autonomy is enabled.
 
 ## Why this exists
 
-Personal agents can read hostile content and invoke powerful tools. Building
-features first and controls later creates an unsafe system. This project starts
-with explicit trust boundaries, least privilege, durable state, observability,
-and human approval for high-impact actions.
+Useful autonomy needs more than a generated email. This project keeps the
+evidence, message, recipient, decision, and delivery result together so you can
+understand what happened and take over at the right moment.
+
+- **Research you can inspect:** public sources, recent-video evidence, fit factors,
+  dated contact observations, and explicit gaps instead of guessed addresses.
+- **A relevant first approach:** paid-first campaigns use your real offer and
+  observed content; rates and commercial terms remain yours to agree.
+- **A clear stopping point:** one owner handoff after confirmed interest, with
+  email, Discord, or both. No automated negotiation or repeated reminders.
+- **Learning you can inspect:** reviewed objections, distinct-creator counts,
+  three draft strategies, and reasons for each selection. Sparse data stays a
+  hypothesis; there is no promise of replies, collaborations, or revenue.
+- **Control that survives restarts:** finite send authority, durable pacing,
+  duplicate protection, opt-out suppression, and a final check before SMTP.
+- **Honest delivery evidence:** a captured local message, SMTP acceptance, and
+  inbox arrival are separate claims. Unconfigured providers stay visibly unverified.
 
 ## Implemented now
 
@@ -51,6 +92,10 @@ and human approval for high-impact actions.
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit; external SMTP unconfigured | Exact approval, durable SMTP acceptance, and PostgreSQL-backed external pacing: 15-minute global/30-minute same-domain gaps, rolling 3/hour and 12/day caps, and jitter |
 | Creator research and outreach | Research verified; external send pending | Multi-page discovery with a durable shared search budget, current and dated historical business-contact evidence, fit explanations, collaboration concepts, country/language selectors, coverage counts, paged shortlist and complete campaign CSV export. Strict Poland selection requires a channel-declared PL country; discovery does not authorize outreach |
+| Minecraft paid-promotion workflow | Verified locally with Mailpit; real provider proof pending | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery |
+| Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
+| Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |
+| Creator reply inbox | Adapter prepared; Gmail canary pending | Label-scoped read-only Gmail metadata, conservative reply suggestions, durable review and opt-out handling. Snippets cannot establish positive interest by themselves |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -198,36 +243,34 @@ usage, privacy mode, and recorded cost. Hosted drafting sends résumé/job text 
 OpenRouter and an upstream provider; leave it disabled to keep all drafting
 on-device.
 
-For KarixMC promotion, run `./scripts/promotion.ps1` for a secret-safe readiness
-check, then open **Creator campaigns**. Each campaign now produces ready-to-copy
-YouTube, Discord, Reddit/community, and partner promotion assets with distinct
-UTM links at no provider cost. Official discovery needs a restricted user-owned
-YouTube key and now extracts unreviewed business-contact candidates from public
-channel/video descriptions. Research includes source excerpts, fit explanations,
-video evidence, creative collaboration ideas, and explicit gaps. The YouTube
-shortlist supports search, contact filters, individual refresh, and CSV export.
-Country and language rules can accept any metadata, prefer a target, or require
-it strictly. **Poland only** requires the channel to declare PL; unknown countries
-are excluded rather than inferred from a name or search region. Published
-language metadata is evaluated separately. This proves neither nationality nor
-the location of viewers. Excluded saved prospects remain available as history.
-Review each contact source before authorizing outreach; every individual creator email
-remains exact-approval gated. External SMTP approvals reserve a
-durable low-volume slot, so several approvals cannot become a restart-time burst.
-Pacing reduces reputation risk but cannot guarantee inbox placement. See the
-[creator outreach guide](docs/operations/creator-outreach.md).
+For creator outreach, run `./scripts/promotion.ps1` for a secret-safe readiness
+check, then open **Creator campaigns**. Create a paid-promotion campaign with
+your product, truthful offer, sender, and owner email or Discord. New dashboard
+campaigns start with broad Minecraft discovery; country, language, creator size,
+and activity remain adjustable. Search results are bounded samples, not every
+YouTuber. Review each published business-contact source, then prepare individual
+messages or authorize a finite automatic run for reviewed contacts.
+
+The reply inbox supports a dedicated Gmail label when OAuth is configured.
+Confirm positive interest before an optional automatic handoff. A handoff sends
+your chosen contact details to the creator and closes the agent's sequence.
+External SMTP still reserves durable low-volume slots; pauses, changed briefs,
+withdrawn contact authority, and opt-outs are checked at the send boundary.
+See the [Minecraft workflow guide](docs/operations/minecraft-creator-workflow.md)
+for setup, limits, and the precise division between automatic and reviewed work.
 
 Prove the creator workflow locally before configuring or using external mail:
 
 ```powershell
 ./scripts/promotion.ps1 -LocalTest
+./scripts/creator-outreach-smoke.ps1 -PaidHandoff
 ```
 
-It creates only synthetic campaign/contact data, generates the five promotion
-assets and one exact introduction, approves delivery to Mailpit, verifies a
-durable opt-out, and removes its PostgreSQL records. It makes no YouTube API
-request, sends no external email, and does not pass saved SMTP credentials into
-the test containers.
+The first command proves community outreach and promotion assets. The second
+exercises a paid introduction, recorded interest, owner email/Discord handoff,
+terminal duplicate refusal, and opt-out suppression. Both use synthetic data and
+Mailpit, clean their own PostgreSQL records, make no YouTube request, and omit
+saved SMTP credentials from the test containers.
 
 Before using any real destination, prove the side-effect path entirely locally:
 

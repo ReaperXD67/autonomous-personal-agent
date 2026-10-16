@@ -1,5 +1,9 @@
 # Creator outreach operations
 
+For the paid-first revenue-sharing and owner-handoff flow, start with the
+[Minecraft creator workflow](minecraft-creator-workflow.md). Existing community
+campaigns retain the optional paid follow-up sequence documented below.
+
 The **Creator campaigns** workspace turns a KarixMC promotion strategy into a
 low-volume, reviewable funnel. It researches relevant public YouTube channels,
 finds published business-contact candidates, explains fit and collaboration
@@ -8,8 +12,10 @@ actions, records replies/results, and suggests evidence-based changes.
 
 It reads only public official-API channel/video descriptions for business
 contact candidates. It does not unlock gated About emails, guess addresses,
-read a mailbox, send in bulk, post publicly, negotiate or pay creators, issue
-KarixMC points, or approve its own messages.
+send in bulk, post publicly, negotiate or pay creators, or issue KarixMC points.
+Optional creator Gmail reads one configured custom label; positive interest
+requires review. Expiring operator-authorized runs can approve exact generated
+introductions and optional handoffs within their frozen scope.
 
 ## 1. Configure official YouTube discovery
 
@@ -310,7 +316,8 @@ does not establish inbox placement, reading, or a reply.
 
 ## Known gaps
 
-- inbound email reading/classification is manual;
+- inbound Gmail metadata reading is implemented but needs user-owned read-only
+  OAuth and a real canary; positive-interest classification remains reviewed;
 - UTM performance is entered manually until KarixMC exposes a scoped analytics
   import/webhook;
 - discovery covers official YouTube metadata; Twitch, TikTok, Discord,

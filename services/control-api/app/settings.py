@@ -85,6 +85,9 @@ class Settings:
     gmail_client_secret: str = ""
     gmail_refresh_token: str = ""
     gmail_career_label: str = "Hermes/Careers"
+    creator_gmail_enabled: bool = False
+    gmail_creator_label: str = "Hermes/Creators"
+    creator_gmail_mailbox: str = ""
     career_email_transport: str = "disabled"
     career_email_sender: str = ""
 
@@ -158,6 +161,9 @@ class Settings:
             gmail_client_secret=os.getenv("GMAIL_CLIENT_SECRET", "").strip(),
             gmail_refresh_token=os.getenv("GMAIL_REFRESH_TOKEN", "").strip(),
             gmail_career_label=os.getenv("GMAIL_CAREER_LABEL", "Hermes/Careers").strip(),
+            creator_gmail_enabled=_boolean_environment("CREATOR_GMAIL_ENABLED", False),
+            gmail_creator_label=os.getenv("GMAIL_CREATOR_LABEL", "Hermes/Creators").strip(),
+            creator_gmail_mailbox=os.getenv("CREATOR_GMAIL_MAILBOX", "").strip().casefold(),
             career_email_transport=os.getenv("CAREER_EMAIL_TRANSPORT", "disabled").strip(),
             career_email_sender=os.getenv("CAREER_EMAIL_SENDER", "").strip(),
         )

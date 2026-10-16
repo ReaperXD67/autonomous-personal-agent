@@ -130,12 +130,25 @@ the prospect and rechecks address, authorization, suppression, and the required
 reply state before the pre-SMTP receipt. `do_not_contact` and bounce outcomes
 clear authorization durably, so already-approved mail refuses to execute.
 
-Reply classifications and attributed promotion results are manual until a
-scoped inbound provider adapter exists. Aggregate campaign results select only
+The optional creator Gmail adapter stores bounded metadata from a separate
+custom label, matches contacted addresses/subjects, and suggests reply meaning.
+Positive interest requires operator confirmation; opt-outs suppress and pending
+review blocks sending. Monitoring recent sent conversations can continue after
+the send run expires without extending send authority. Attributed promotion
+results remain manually entered. Aggregate community campaign results select only
 between two fixed introduction templates after explicit sample/effect
 thresholds; they never authorize or send an email. Operator-personalized initial
 copy preserves the provenance/opt-out footer and exact approval rules but is
 excluded from template A/B learning.
+
+A paid-first run freezes the campaign, compensation proposal, owner contact,
+daily introduction allowance, expiry, and optional handoff permission. Ordinary
+policy-classified research tasks prepare exact packets, reserve them in PostgreSQL,
+and record approvals attributed to the operator grant. Every send still uses the
+existing high-risk action worker, pacing, digest, lease, and receipt path. A changed
+campaign/contact, paused/expired grant, suppression, unreviewed reply, or required
+stale mailbox scan blocks execution. A single accepted handoff sets `handed_off`;
+the owner continues, and Hermes cannot send another sequence stage.
 
 The creator-outreach smoke follows this same durable path using an inactive
 synthetic campaign and a `.test` recipient, but replaces external SMTP with
@@ -162,6 +175,8 @@ posting remains outside Hermes and outside the action worker.
 | Preflights/exact actions/receipts | PostgreSQL | Approval context, expiry, execution state, and duplicate guard are authoritative |
 | Outbound email schedule | PostgreSQL | External SMTP release time, rolling-cap policy snapshot, recipient-domain spacing, and accepted/skipped/ambiguous state |
 | Creator campaigns/prospects/outcomes | PostgreSQL | Contact provenance, authorization, suppression, stage links, attribution, and learning evidence are authoritative |
+| Creator send runs/reply review | PostgreSQL | Expiring delegation, unique recipient/creator reservations, Gmail cursors and reviewed interest |
+| Creator copy feedback | PostgreSQL | Allowlisted reviewed objections; distinct-creator counts select fixed future variants without expanding authority |
 | Goal proposals | PostgreSQL | Explicit request context, server action inventory, model result, digest, expiry, task binding, and atomic workflow adoption link |
 | Feature-test evidence | PostgreSQL | Bearer-attested fixed metadata only; historical prerequisites and 24-hour verification freshness, no raw logs or user content |
 | Embeddings | pgvector column | Model/version metadata must accompany future writes |

@@ -55,6 +55,11 @@
 
 ## Phase 4 — personal workflows
 
+- [x] Minecraft paid-first/revenue-share proposals, bounded creator runs and owner email/Discord handoff
+- [x] Reviewed creator feedback with explainable, bounded future-copy adaptation
+- [ ] Verify creator Gmail and external SMTP with real, owned-account canaries
+- [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
+
 - [ ] Telegram control with pairing and allowlist
 - [x] Narrow read-only Gmail career-label adapter, durable reply evidence, uncertainty review, and manual interview/outcome recording
 - [ ] Configure Gmail OAuth and complete a real labeled-mail canary; broader email/account adapters remain deferred
@@ -66,6 +71,10 @@
 - [x] Explicit country/language targeting with any/prefer/strict modes, Poland-only channel declarations, honest unknowns, and preserved excluded history
 - [x] Bounded multi-page creator search with PostgreSQL request reservations, partial/duplicate coverage, complete campaign snapshot exports, pagination, and evidence/contact/recency segmentation
 - [x] Dated creator contact history across changing samples, bounded expiry, concurrent refresh preservation, historical CSV evidence and Polish Biznes recognition
+- [x] Paid-first Minecraft creator partnerships, optional revenue-share percentage/window proposals, owner email/Discord handoff, and terminal conversation state
+- [x] Finite creator sending grants for reviewed contacts, exact-action reservations, Pause/expiry, campaign/contact snapshot checks, and cross-campaign duplicate/suppression guards
+- [x] Dedicated read-only creator Gmail label adapter, conservative reply suggestions, operator review, durable cursors, and monitoring after send authority expires
+- [ ] Real creator Gmail reply and external SMTP canaries; attribution/revenue import, agreements, negotiation, and payments remain outside the agent
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources
@@ -96,9 +105,11 @@ application packets under an explicitly selected, finite scope: reviewed hosts,
 fresh publication evidence, score, daily cap, optional job-published hiring email,
 profile, and expiry. Pause withdraws that run's authority before final submission.
 This is not blanket permission to execute tools or message arbitrary contacts.
-Manually prepared external actions and creator sends keep individual exact-action
-approval. Creator discovery and business-contact extraction may be scheduled, but
-contact qualification, creator reply classification, paid terms, and public
+Manually prepared external actions keep individual exact-action approval.
+Creator runs may authorize generated first approaches and optional owner handoffs
+within a frozen campaign, rolling cap, expiry, and already-reviewed contact scope.
+Discovery and business-contact extraction may be scheduled, but contact
+qualification, positive-interest confirmation, commercial terms, and public
 placement remain reviewed. Gmail classification is inferred evidence, with
 uncertain matches and interview times left for explicit review.
 

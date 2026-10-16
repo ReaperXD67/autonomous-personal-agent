@@ -670,6 +670,34 @@ enforced again at the send boundary. The experiment does not establish external
 SMTP acceptance, domain authentication, inbox placement, complaint handling, or
 future reputation; those remain real-provider canary work.
 
+## Experiment 29 — Bounded creator handoff and reviewed learning (2026-10-16)
+
+Method: execute the Docker lint/test and complete verification gates; exercise
+creator automation and migration replay in a disposable PostgreSQL database;
+send synthetic creator introduction/handoff messages to Mailpit; render the
+actual dashboard sources in networkless Chromium with synthetic fixtures.
+
+Observed: 582 unit/contract tests and the full integration verifier passed,
+including nineteen creator-automation groups. Checks covered duplicate concurrent
+reservations, pause/expiry/campaign changes, stale worker leases, reply review,
+foreign-campaign routing, durable opt-outs, legacy backfill and exact-action
+learning. Three distinct reviewed objections produced a terms-first hypothesis;
+unreviewed snippet suggestions did not affect learning. Subsequent preparation
+preserved the commercial proposal and pending exact approval.
+
+The Mailpit test accepted both the introduction and owner email/Discord handoff,
+then refused repeat handoff and suppressed future outreach. Desktop/mobile
+browser checks passed without page errors or horizontal overflow. All evidence
+was synthetic; no live outreach, mailbox, attribution or revenue experiment ran.
+This verifies state transitions and bounded adaptation, not reply-rate lift,
+commercial acceptance, statistical significance or provider readiness.
+
+After targeted Debian PCRE2/Perl and Ubuntu OpenSSL package updates, the same
+full verifier, desktop/mobile browser checks and Mailpit proof passed again.
+Trivy 0.74.0 with its 2026-10-16 database reported zero fixable HIGH/CRITICAL
+findings in both final runtime images, with no ignore rules. This is a dated
+dependency scan, not a claim that all vulnerabilities are absent.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
