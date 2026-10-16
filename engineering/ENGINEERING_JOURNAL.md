@@ -2417,3 +2417,12 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   Repeated all 582 tests and the complete integration gate on the patched image.
   A fresh Trivy 0.74.0 scan reports zero fixable HIGH/CRITICAL findings for the
   rebuilt control image; no ignores were applied.
+- The separate browser-runtime scan identified CVE-2026-84782 in its existing
+  OpenSSL packages. Verified Ubuntu USN-8847-1 and an isolated signed-APT install,
+  then pinned `libssl3t64` and `openssl` to `3.0.13-0ubuntu3.16`. Only those two
+  packages upgrade; none are added/removed and the Playwright digest is retained.
+  The final rebuilt images both pass fresh Trivy 0.74.0 scans with zero fixable
+  HIGH/CRITICAL findings and no ignore rules. Repeated the complete verifier
+  (582 tests and all integration groups), desktop/mobile browser checks and
+  synthetic Mailpit introduction/handoff/suppression proof after the last patch;
+  all passed. External-provider and performance limitations above still apply.

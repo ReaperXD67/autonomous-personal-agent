@@ -692,6 +692,12 @@ was synthetic; no live outreach, mailbox, attribution or revenue experiment ran.
 This verifies state transitions and bounded adaptation, not reply-rate lift,
 commercial acceptance, statistical significance or provider readiness.
 
+After targeted Debian PCRE2/Perl and Ubuntu OpenSSL package updates, the same
+full verifier, desktop/mobile browser checks and Mailpit proof passed again.
+Trivy 0.74.0 with its 2026-10-16 database reported zero fixable HIGH/CRITICAL
+findings in both final runtime images, with no ignore rules. This is a dated
+dependency scan, not a claim that all vulnerabilities are absent.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

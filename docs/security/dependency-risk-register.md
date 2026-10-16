@@ -95,6 +95,16 @@ upgrade alongside PCRE2. An isolated installation on the exact image digest
 upgraded only these two packages, installed/removed none, and passed APT's
 dependency check. No vulnerability ignore or broad distribution upgrade is used.
 
+## October 2026 Ubuntu OpenSSL update
+
+The separate action-runtime scan identified CVE-2026-84782 in `libssl3t64` and
+`openssl` at `3.0.13-0ubuntu3.15`. Ubuntu's
+[USN-8847-1](https://ubuntu.com/security/notices/USN-8847-1) fixes Noble in
+`3.0.13-0ubuntu3.16`. The action Dockerfile upgrades those exact two packages
+from signed Ubuntu repositories while retaining the pinned Playwright image.
+An isolated install on that exact base upgraded two packages, added/removed
+none and required no dependent-package updates. No vulnerability ignores are used.
+
 ## Review rule
 
 Do not dismiss a future alert without either:
