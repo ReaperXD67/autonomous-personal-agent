@@ -2409,3 +2409,11 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   `10.42-1+deb12u2`; updated only that package pin and retained image digests.
   The rebuilt control image reports that exact version. Repeated container lint,
   all 582 tests and the complete integration verifier passed after the update.
+- CI then reached the runtime scan and reported seven fixable findings in the
+  existing Perl base package. Debian DLA-4821-1 and an isolated exact-image
+  install verified `perl-base=5.36.0-7+deb12u4`; added that one targeted upgrade.
+  Combined PCRE2/Perl installation upgrades two packages, adds/removes none and
+  passes APT dependency checks. No scan exceptions or image-digest changes.
+  Repeated all 582 tests and the complete integration gate on the patched image.
+  A fresh Trivy 0.74.0 scan reports zero fixable HIGH/CRITICAL findings for the
+  rebuilt control image; no ignores were applied.

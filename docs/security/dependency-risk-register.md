@@ -83,7 +83,17 @@ current repositories. The exact pinned Python base's fresh signed APT metadata
 identifies `10.42-1+deb12u2` as the candidate; the Dockerfile now pins that version.
 The same Debian trackers mark both original issues fixed there. The update also
 includes Debian's [DLA-4816-1](https://security-tracker.debian.org/tracker/DLA-4816-1)
-PCRE2 fix. Only this existing package is upgraded; image digests remain pinned.
+PCRE2 fix. Image digests remain pinned; the separate Perl update is described below.
+
+## October 2026 Debian Perl update
+
+The clean runtime scan also identified seven fixable findings in the base image's
+`perl-base=5.36.0-7+deb12u3`. Debian's
+[DLA-4821-1](https://security-tracker.debian.org/tracker/DLA-4821-1) lists all seven
+and fixes Bookworm in `5.36.0-7+deb12u4`. The shared Python base pins that targeted
+upgrade alongside PCRE2. An isolated installation on the exact image digest
+upgraded only these two packages, installed/removed none, and passed APT's
+dependency check. No vulnerability ignore or broad distribution upgrade is used.
 
 ## Review rule
 
