@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
+FROM ghcr.io/astral-sh/uv:0.13.2-python3.13-trixie@sha256:fad852dc40fa6780b143d02ab9fd5e52761b0c941a7f9eeaf1b8bf5cf15602e6 AS uv_source
 
 FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS python_base
 # Targeted security updates verified in the signed Debian Bookworm repository.
