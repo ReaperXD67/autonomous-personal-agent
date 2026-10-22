@@ -2543,3 +2543,62 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   not establish creator-copy quality. SMTP remained unconfigured and zero
   creator emails were sent. An owned-inbox delivery/reply canary and a durable
   Google publishing/verification plan remain necessary for unattended use.
+
+## 2026-10-22 — Natural creator hooks and bounded local reasoning
+
+- Independent review reproduced a false rejection caused by requiring the
+  literal English word `title` in a model hook. An accurate reference to the
+  recorded building-plot subject failed while unsupported prose containing
+  that word could pass. The complete email already includes the exact observed
+  title and public URL through server composition; keyword presence is not
+  evidence of truth.
+- Aligned the hook contract and repair guidance around the supplied metadata
+  without requiring that literal word. Existing negative-copy restrictions,
+  fixed commercial wording, source citation, exact review, budgets and
+  policy/task/audit paths remain in force. No provider route, scope, service or
+  sending authority was added.
+- The regression accepts a natural building-plot reference without the literal
+  keyword and confirms that the
+  complete server-composed message still carries the exact recorded title and
+  public URL. Existing negative-copy rejection coverage remains passing.
+- A governed live creator request completed through local `qwen3:8b` with a
+  saved response, but review found unsupported video-content and audience
+  inferences plus an awkward third-person filming suggestion. Generation is
+  verified; usable creator-specific copy remains unverified. No email packet
+  was prepared and no message was sent by this canary.
+- Added regressions for the demonstrated unsupported video-content phrasing
+  and third-person recipient suggestion. The emitted email must address the
+  recipient directly; operator-only rationale may still discuss the creator.
+- Installed Qwen metadata confirmed internal-reasoning support. Requested that
+  mode only for existing local creator calls with a 2,048-token output bound,
+  retaining the 180-second timeout, response-size cap and at most two separately accounted
+  attempts. The separate reasoning field is ignored, never persisted or logged;
+  tests verify final-content-only handling. The final narrow creator suite
+  passed all 56 tests and lint, followed by all 676 unit/contract tests and lint.
+- One governed Vixen canary passed the schema/current copy checks through the
+  existing local Qwen route with `think:true` requested. Its accounted local
+  attempt took 47,875 ms and reported 1,433 prompt, 144 completion and 1,577 total
+  tokens with zero credits. This is one final-JSON probe, not evidence of a
+  general quality or speed improvement, independently measured internal
+  reasoning, delivery or recipient interest. Operator usability is assessed
+  separately; internal reasoning was not retained.
+- Operator review confirmed that the thinking-mode request translated the
+  recorded title's subject and proposed a relevant, second-person feature test.
+  The copy was not approved to send: its opening remained awkward and the
+  rationale inferred feedback alignment despite zero reviewed/tagged samples.
+  AI drafting remains experimental and usable unedited copy is unverified.
+  No exact action or send was created, and no additional model call was made.
+- A normal HTTPS launch check returned HTTP 200 for the configured public
+  `https://karixmc.pl/privacy` footer link. This proves that the link resolves;
+  it is not a legal or policy-content review and changed no site or campaign.
+- The final coherent gate passed all 676 tests and lint, the complete verifier
+  with existing draft/shortlist/creator/career PostgreSQL groups and native
+  OAuth/SMTP regressions, Compose configuration and whitespace checks.
+  `doctor.ps1 -Agent` and `agent-smoke.ps1` passed; the general canary returned
+  `ROUTE_OK` through `free/default` using Mistral. The first doctor probe
+  coincided with an intentional worker restart; its subsequent clean run passed.
+- A previously rejected saved draft now reads stale with no linked email
+  action. The final changed-source scan of eight files against eleven
+  configured-secret values and credential/private-key patterns found no
+  matches. SMTP credentials remained unsaved; no creator email was approved,
+  prepared or sent during this milestone.

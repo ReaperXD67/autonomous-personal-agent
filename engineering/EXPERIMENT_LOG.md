@@ -800,6 +800,53 @@ quality remains experimental; external SMTP and an owned-inbox delivery/reply
 canary remain unverified. No reply-rate, collaboration or earnings result was
 measured.
 
+## Experiment 34 — Natural creator hooks and bounded local reasoning (2026-10-22)
+
+Method: reproduce the literal-keyword false rejection, remove only the positive
+`title` requirement, align the prompt and repair hint, then run the narrow
+creator suite and complete container unit/contract suite. After confirming
+installed-model capability metadata, request internal reasoning only for local
+creator drafting with 2,048 output tokens and unchanged request/attempt limits.
+
+Observed: a natural reference to the recorded Minecraft building-plot subject
+passed without containing the literal English keyword. The complete message
+retained its exact recorded video title and public URL. All 56 narrow
+creator tests and all 676 unit/contract tests passed with lint, including the
+existing negative-copy rejections, demonstrated unsupported-content/recipient
+patterns, request bounds and final-content-only handling. These results verify the copy
+contract, not semantic correctness of arbitrary model output or delivery.
+
+A subsequent governed creator request completed using local `qwen3:8b`.
+Review found unsupported video-content and audience inferences and an awkward
+third-person filming suggestion. A saved model response is verified, but
+usable creator-specific copy remains unverified. No exact email packet was
+prepared or message sent by the canary.
+
+One subsequent governed Vixen request with `think:true` passed schema and
+current-copy checks through local `qwen3:8b` on its first local attempt.
+The inference ledger reported 47,875 ms, 1,433 prompt tokens, 144 completion
+tokens and 1,577 total tokens at zero credits. The complete governed task took
+about 53.4 seconds including hosted routing. Internal reasoning was not
+retained; the visible operator rationale is a separate final-output field.
+This single final-JSON probe does not establish a general quality/speed gain,
+independently measured internal reasoning, delivery or recipient interest.
+
+Operator review confirmed accurate title-subject translation and a relevant
+second-person feature-testing idea. The copy was not approved for sending:
+the opening was awkward and its rationale inferred feedback alignment despite
+zero reviewed/tagged samples. Usable unedited copy remains unverified; no exact
+email action or send was created. No output-quality guarantee follows from
+passing the schema or this single reviewed example.
+
+The final coherent verifier passed with all 676 tests/lint, native OAuth and
+SMTP setup regressions, nine draft, seven shortlist, nineteen creator-automation and twelve
+career PostgreSQL groups, plus existing workflow/scheduler/planner/action/recovery
+checks. Compose validation, whitespace checks, `doctor.ps1 -Agent` and the
+general `agent-smoke.ps1` route canary passed. Its `ROUTE_OK` result through
+`free/default` using Mistral is general route evidence, not creator-copy proof.
+A previously rejected saved draft read stale with no linked action. No creator
+email was approved, prepared or sent; SMTP credentials remained unsaved.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

@@ -43,6 +43,13 @@ reject common invented commercial terms, links, contacts, certainty, personal
 endorsements and false claims of having watched the creator. They cannot prove
 semantic truth or product fit; exact human review remains necessary.
 
+The hook need not contain a particular English evidence keyword. The server
+already inserts the exact observed title and URL into the complete message.
+Requiring the literal word `title` rejected accurate, natural references while
+accepting unsupported claims that happened to contain it. The validator retains
+the existing negative copy checks; it does not treat a keyword as proof of
+grounding. The prompt and repair hint must describe that same contract.
+
 The server supplies the subject, greeting, sender, product description,
 commercial proposal, call to action, tracked product URL, contact-source,
 privacy and opt-out footer. The existing strict-free OpenRouter route retains
@@ -54,6 +61,16 @@ The rejected text is not persisted or reused in a prompt. Each attempt receives
 a fresh inference reservation and lease/cancellation/context checkpoint;
 transport failures do not trigger this repair. Template and manual writing
 remain separate, explicit dashboard choices.
+
+The existing local creator model may use bounded internal reasoning within its
+normal request. Only final message content is validated and saved; the model's
+separate reasoning field is ignored and never enters draft records, inference
+audit or logs. The visible operator rationale is an explicit output field,
+not the internal reasoning trace. Local requests retain the same timeout,
+response-size and two-attempt limits, with each attempt accounted separately.
+The request uses [Ollama's documented thinking control](https://docs.ollama.com/capabilities/thinking)
+for [Qwen3's thinking mode](https://qwenlm.github.io/blog/qwen3/); the installed
+model's capability metadata was checked independently of those references.
 
 Preparing a successfully completed draft checks its digest, expiry, current
 campaign/contact/research snapshot and eligibility, then creates the ordinary

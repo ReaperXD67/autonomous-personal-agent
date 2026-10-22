@@ -36,9 +36,9 @@ def local_draft_completion(messages, model):
         "http://ollama:11434/api/chat", method="POST",
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         data=json.dumps({
-            "model": model, "messages": messages, "stream": False, "think": False,
+            "model": model, "messages": messages, "stream": False, "think": True,
             "format": CreatorModelCopy.model_json_schema(),
-            "options": {"temperature": 0.3, "num_predict": 1100},
+            "options": {"temperature": 0.3, "num_predict": 2048},
         }).encode("utf-8"),
     )
     try:
@@ -47,6 +47,8 @@ def local_draft_completion(messages, model):
         if len(body) > 65536:
             raise ValueError("Response too large")
         envelope = json.loads(body)
+        # Ollama returns reasoning separately in message.thinking. Only final JSON
+        # enters validation, persistence or logs; token accounting includes all work.
         content = envelope["message"]["content"]
         if not isinstance(content, str):
             raise ValueError("Response content must be text")
@@ -135,9 +137,9 @@ def _model_copy(task, row, database, runtime, client, interrupt):
                 "content": (
                     "The previous attempt failed the fixed copy contract. Regenerate from the "
                     "same evidence and original schema. " + COPY_CORRECTIONS[repair_code]
-                    + " Recheck every original field rule: the hook explicitly refers to the "
-                    "public title, the idea suggests independent testing, and numbers or "
-                    "commercial discussion belong only in the operator rationale."
+                    + " Recheck the original rules: connect the recorded subject tentatively, "
+                    "suggest independent testing, and keep numbers or commercial discussion "
+                    "out of the email fields."
                 ),
             }]
         started = time.monotonic()

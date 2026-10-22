@@ -124,7 +124,7 @@ def test_prompt_does_not_seed_generic_finished_copy_instead_of_creator_evidence(
     context = model_context(campaign, prospect, creator_learning_insights([], []))
     messages = drafting_messages(context)
     assert "A Minecraft building plot" in messages[1]["content"]
-    assert "translate its distinguishing subject accurately" in messages[0]["content"]
+    assert "translate its distinguishing subject accurately" in messages[0]["content"].casefold()
     # The live local model repeated a complete contentful example verbatim. Keep the
     # JSON schema, but never supply finished sentences it can mistake for evidence.
     assert "Your public title about exploring Minecraft servers" not in messages[0]["content"]
@@ -139,6 +139,37 @@ def test_repeated_legacy_example_is_not_accepted_as_creator_personalization():
             "connection to this server directory."
         )), row["model_context"])
     assert rejected.value.code == "CREATOR_COPY_EVIDENCE"
+
+
+def test_natural_subject_connection_does_not_require_the_literal_word_title():
+    campaign, prospect = fixture()
+    prospect["latest_content_title"] = "Ta działka zrobiła na mnie ogromne wrażenie! Minecraft"
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    hook = (
+        "A Minecraft building plot seems like a possible starting point for "
+        "independently trying another world through this directory."
+    )
+    copy = parse_model_copy(response(hook=hook), context)
+    assert copy.hook == hook
+    _, body = compose_ai_email(campaign, prospect, copy)
+    assert prospect["latest_content_title"] in body
+    assert prospect["latest_content_url"] in body
+
+
+@pytest.mark.parametrize("idea", [
+    "Perhaps the creator could independently test a server from the directory, document "
+    "the experience, and share findings about rewards and community engagement.",
+    "The creator might independently explore a listed server and report their findings.",
+])
+def test_sent_copy_addresses_recipient_directly_but_operator_rationale_can_discuss_creator(idea):
+    _, row, _ = setup()
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(response(content_idea=idea), row["model_context"])
+    assert rejected.value.code == "CREATOR_COPY_RECIPIENT"
+    copy = parse_model_copy(response(
+        rationale="The creator could consider a manageable trial based on the observed size.",
+    ), row["model_context"])
+    assert "The creator could" in copy.rationale
 
 
 @pytest.mark.parametrize("overrides", [
@@ -292,6 +323,11 @@ def test_copy_rejection_diagnostics_never_include_rejected_response():
      "CREATOR_COPY_EVIDENCE"),
     ({"hook": "The public title caught my attention; the video shows engaging server gameplay."},
      "CREATOR_COPY_EVIDENCE"),
+    ({"hook": "This video highlights a Minecraft server experience that resonates with "
+              "community-driven gameplay, aligning with the interests of creators focused "
+              "on survival and multiplayer worlds."}, "CREATOR_COPY_EVIDENCE"),
+    ({"hook": "The upload highlighted the server's friendly and active community."},
+     "CREATOR_COPY_EVIDENCE"),
     ({"content_idea": "A creator could use the directory to find high-quality, community-driven "
                       "servers for their audience."}, "CREATOR_COPY_QUALITY"),
     ({"rationale": "This proposal aligns with the platform's verified Minecraft server options."},
@@ -413,6 +449,49 @@ def test_provider_outage_uses_accounted_local_and_never_exposes_error_body(monke
     assert "SECRET" not in json.dumps(result)
     assert [call.kwargs["provider"] for call in database.start_inference_invocation.call_args_list
             ] == ["openrouter", "ollama"]
+
+
+def test_creator_local_thinking_is_bounded_and_only_final_copy_is_persisted(monkeypatch):
+    task, _, database = setup()
+    envelope = {
+        "message": {"content": response(), "thinking": "PRIVATE_REASONING_MUST_NOT_ESCAPE"},
+        "prompt_eval_count": 80, "eval_count": 120,
+    }
+    transport = Mock()
+    received = Mock()
+    received.read.return_value = json.dumps(envelope).encode()
+    transport.open.return_value.__enter__ = Mock(return_value=received)
+    transport.open.return_value.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(creator_drafting, "build_opener", Mock(return_value=transport))
+    result = creator_drafting.execute_creator_draft_task(task, database, get_settings())
+    request = transport.open.call_args.args[0]
+    payload = json.loads(request.data)
+    assert request.full_url == "http://ollama:11434/api/chat"
+    assert payload["think"] is True and payload["stream"] is False
+    assert payload["options"]["num_predict"] == 2048
+    assert transport.open.call_args.kwargs["timeout"] == 180
+    received.read.assert_called_once_with(65537)
+    assert result["source"] == "ollama"
+    assert database.complete_inference_invocation.call_args.kwargs["total_tokens"] == 200
+    assert "PRIVATE_REASONING_MUST_NOT_ESCAPE" not in repr(database.mock_calls)
+    database.save_draft.assert_called_once()
+
+
+def test_reasoning_without_final_json_never_becomes_saved_creator_copy(monkeypatch):
+    task, _, database = setup()
+    transport = Mock()
+    received = Mock()
+    received.read.return_value = json.dumps({
+        "message": {"content": "", "thinking": response()},
+    }).encode()
+    transport.open.return_value.__enter__ = Mock(return_value=received)
+    transport.open.return_value.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(creator_drafting, "build_opener", Mock(return_value=transport))
+    with pytest.raises(creator_drafting.CreatorDraftModelError, match="No valid AI draft"):
+        creator_drafting.execute_creator_draft_task(task, database, get_settings())
+    assert transport.open.call_count == database.start_inference_invocation.call_count == 2
+    database.save_draft.assert_not_called()
+    database.complete_inference_invocation.assert_not_called()
 
 
 def test_cancellation_after_model_reply_prevents_persistence(monkeypatch):
