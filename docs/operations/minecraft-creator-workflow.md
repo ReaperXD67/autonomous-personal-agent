@@ -135,7 +135,10 @@ The review shows the actual model and source, complete message, evidence links,
 quality notes, and feedback context. Inspect those sources and confirm that the
 idea matches what the website can actually offer. The existing free-only hosted
 model route and local fallback are used; neither route has authority to contact
-the creator. Invalid local output can trigger one bounded regeneration from the
+the creator. The local creator model can reason internally within a bounded
+request; only its final copy and explicit operator rationale are saved. Internal
+reasoning traces are discarded. Invalid local output can trigger one bounded
+regeneration from the
 same evidence and a fixed validation hint; rejected text is neither retained nor
 fed back into the prompt. Each attempt reserves inference separately and rechecks
 the task's lease, cancellation and context. Transport failures are not retried

@@ -16,9 +16,10 @@ paid-promotion emails, track replies, and hand interested creators to your email
 or Discord. You handle the conversation, agreement, and payment from there.
 Revenue-share campaigns discuss a percentage and an earning window in weeks;
 neither compensation nor income is invented. Ask for a model-written introduction
-grounded in the creator's recorded videos and reach, inspect its sources and
-reasoning, then prepare the exact email for approval. Reviewed objections inform
-future drafts and appear in a **What creators are teaching us** report.
+grounded in public video titles and observed subscriber metadata, inspect its
+sources and approach, then prepare the exact email for approval. Reviewed
+objections inform future drafts and appear in a **What creators are teaching
+us** report.
 
 The same control plane also supports career missions and durable workflows.
 PostgreSQL owns the work, approvals, budgets, and audit trail; containers execute
@@ -67,8 +68,8 @@ understand what happened and take over at the right moment.
   dated contact observations, and explicit gaps instead of guessed addresses.
   Discovery and shortlist research use the official YouTube API. A small batch
   refreshes up to ten saved creators and ranks their evidence without model calls.
-- **A relevant first approach:** AI drafts connect recorded creator content and
-  reach to your real collaboration brief, show their sources and approach, and
+- **A relevant first approach:** AI drafts connect recorded public metadata to
+  your real collaboration brief, show their sources and approach, and
   use reviewed feedback. Templates and manual writing remain explicit choices;
   rates and commercial terms remain yours to agree.
 - **A clear stopping point:** one owner handoff after confirmed interest, with
@@ -101,7 +102,7 @@ understand what happened and take over at the right moment.
 | Creator research and outreach | Research verified; external send pending | Multi-page discovery with a durable shared search budget, current and dated historical business-contact evidence, fit explanations, collaboration concepts, country/language selectors, coverage counts, paged shortlist and complete campaign CSV export. Strict Poland selection requires a channel-declared PL country; discovery does not authorize outreach |
 | API creator shortlist | Live two-creator batch verified | Batch refresh of at most ten saved creators, up to three recent uploads each, deterministic ranking, dated activity and public-contact evidence. Zero model calls or sends; review contacts before drafting |
 | Minecraft paid-promotion workflow | Verified locally with Mailpit; real provider proof pending | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery |
-| AI creator introductions | Experimental; live-copy quality unverified | Local lifecycle/UI and real model responses verified; usable creator-specific copy did not pass the live review. Asynchronous drafts retain inspectable evidence/model metadata and exact individual approval. English copy; failure never silently becomes a template or send |
+| AI creator introductions | Experimental; unedited copy unverified | Real model generation verified; the latest reviewed copy needed editing and was not approved to send. Bounded local reasoning, inspectable evidence/model metadata and exact individual approval. English copy; failure never silently becomes a template or send |
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |
 | Creator reply inbox | Empty-label live read verified; real reply pending | Label-scoped read-only Gmail metadata, conservative reply suggestions, durable review and opt-out handling. Matching, replay protection and interest review still need a real labeled-reply canary; snippets alone cannot establish positive interest |
