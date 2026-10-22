@@ -347,6 +347,10 @@ def build_creator_intelligence(
         published = prospect.get("latest_content_published_at")
         recent_videos.append({
             "title": prospect.get("latest_content_title"),
+            "topics": content_topics(
+                plain_text(prospect.get("latest_content_title"), 500) + " "
+                + plain_text(video_description, 6000)
+            ),
             "url": prospect["latest_content_url"],
             "published_at": published.isoformat() if published else None,
             "view_count": prospect.get("view_count"),

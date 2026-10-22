@@ -65,6 +65,7 @@ def _google_json(request: Request, *, limit: int = 1024 * 1024) -> dict[str, Any
         with build_opener(_NoRedirect()).open(request, timeout=15) as response:
             if response.geturl() != request.full_url:
                 raise GmailSyncError("Gmail response changed endpoint")
+            response_status = response.status
             raw = response.read(limit + 1)
     except HTTPError as exc:
         if exc.code == 404:
@@ -74,10 +75,27 @@ def _google_json(request: Request, *, limit: int = 1024 * 1024) -> dict[str, Any
         raise GmailSyncError("Google request failed; check worker configuration") from None
     if len(raw) > limit:
         raise GmailSyncError("Google response exceeded the size limit")
+    # Google can return 204 when a partial message-list response has no selected
+    # fields. Only this exact read-only collection may represent an empty page;
+    # missing token, identity, label or individual-message data remains an error.
+    if (response_status == 204 and not raw and request.get_method() == "GET"
+            and parsed.netloc == "gmail.googleapis.com"
+            and parsed.path == "/gmail/v1/users/me/messages"):
+        return {}
     try:
         data = json.loads(raw)
     except (UnicodeError, ValueError):
-        raise GmailSyncError("Google returned invalid metadata") from None
+        # Report only fixed protocol categories, never response text, tokens,
+        # mailbox data, URLs or arbitrary provider headers.
+        resource = parsed.path.rsplit("/", 1)[-1]
+        operation = ("token" if parsed.netloc == "oauth2.googleapis.com" else
+                     resource if resource in {"profile", "labels", "messages"} else "message")
+        shape = ("empty" if not raw else "gzip" if raw.startswith(b"\x1f\x8b")
+                 else "html" if raw.lstrip().startswith(b"<") else "other")
+        status = response_status if isinstance(response_status, int) else "unknown"
+        raise GmailSyncError(
+            f"Google returned invalid metadata ({operation}:{shape}:http{status})"
+        ) from None
     if not isinstance(data, dict):
         raise GmailSyncError("Google returned unexpected metadata")
     return data
@@ -143,7 +161,7 @@ class GmailReadClient:
     def list_messages(self, label_id: str, page_token: str | None) -> tuple[list[str], str | None]:
         parameters: dict[str, Any] = {
             "labelIds": label_id, "maxResults": MAX_LIST, "includeSpamTrash": "false",
-            "fields": "messages(id),nextPageToken",
+            "fields": "messages(id),nextPageToken,resultSizeEstimate",
         }
         if page_token:
             if len(page_token) > 2048:

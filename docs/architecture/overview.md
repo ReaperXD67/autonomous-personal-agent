@@ -5,6 +5,9 @@ pure `creator_learning` component reads reviewed outcome tags and accepted-send
 counts to select fixed draft strategies. PostgreSQL stores the evidence and
 selection reason; Gmail snippets are suggestions until reviewed. Adaptation
 cannot change commercial terms, scope, limits, approvals, or prepared packets.
+The same reviewed aggregates can inform a constrained model-written introduction.
+The model supplies an opening and optional content idea; deterministic code fixes
+the commercial envelope. Model copy requires individual exact-message review.
 
 ## Goals
 
@@ -38,9 +41,12 @@ dispatch. Published queue signals can be reconstructed from durable queued
 tasks; delivery generations fence stale acknowledgments.
 The dedicated career worker implements allowlisted fresh discovery, verified
 free-only hosted drafting with local fallback, and official YouTube creator
-discovery while using the
-same lifecycle, policy, and audit model. YouTube tasks carry only campaign IDs;
-the restricted API key exists only in this egress-enabled worker.
+discovery and reviewed creator AI drafts while using the
+same lifecycle, policy, and audit model. YouTube tasks carry bounded campaign
+and creator references; the restricted API key exists only in this egress-enabled
+worker. Shortlist batches reserve server-selected creator IDs under a shared
+rolling budget before dispatch, then check the issued payload, current identity
+and owned lease before each provider request or evidence write.
 The isolated action worker handles reviewed browser and email side effects only
 after an exact approval digest has entered the durable queue.
 Career Play grants can authorize those exact digests within a frozen, expiring
@@ -93,6 +99,15 @@ evidence before acquiring a receipt. Accepted handoffs terminate the sequence.
 Read-only creator Gmail uses a separate label and confirmed mailbox identity;
 snippets cannot authorize positive interest. No new service or inference route
 is introduced. See [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
+
+Creator AI drafts are separate immutable product records in PostgreSQL. They
+retain input snapshots, sanitized prompt context, evidence, copy, model route,
+expiry and digest; inference audit still omits prompts and outputs. The research
+worker executes `marketing.creator_draft`, validates constrained suggestions and
+composes fixed commercial wording. Exact-digest preparation rechecks current
+research/contact/campaign context. AI copy cannot use a run's delegated template
+approval; the usual action worker retains final delivery authority.
+See [ADR-0026](../decisions/ADR-0026-reviewed-creator-ai-drafts.md).
 
 ### Agent and model plane
 

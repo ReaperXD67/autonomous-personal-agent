@@ -14,8 +14,10 @@ It reads only public official-API channel/video descriptions for business
 contact candidates. It does not unlock gated About emails, guess addresses,
 send in bulk, post publicly, negotiate or pay creators, or issue KarixMC points.
 Optional creator Gmail reads one configured custom label; positive interest
-requires review. Expiring operator-authorized runs can approve exact generated
-introductions and optional handoffs within their frozen scope.
+requires review. Expiring operator-authorized runs can approve exact template
+introductions and optional handoffs within their frozen scope. Optional
+model-written paid introductions retain individual exact-message review; see
+the [AI draft workflow](minecraft-creator-workflow.md#a-model-written-introduction-for-each-creator).
 
 ## 1. Configure official YouTube discovery
 
@@ -222,12 +224,16 @@ Use **Record reply or result** to capture question/interest/decline state,
 published placement URL, attributed views/clicks/signups/server owners, and
 viewer points actually issued. Do not enter projections as results.
 
-The dashboard shows the linear funnel and two introduction variants. For fewer
+Community campaigns use two introduction variants. For fewer
 than ten SMTP-accepted introductions, the agent recommends collecting evidence.
 Only after both variants have ten SMTP-accepted emails can a variant win. It must
 lead positive-reply rate by at least five percentage points and 1.5×; then 80%
 of future drafts use it while 20% continues exploration. High suppression,
 question, or unpaid-decline rates produce stop/review suggestions.
+Paid campaigns use three strategies and distinct-creator reviewed feedback;
+their [learning rules](minecraft-creator-workflow.md#learning-from-real-replies)
+also inform optional AI drafts. Manual and AI copy are excluded from fixed
+template performance comparisons.
 
 These are associations, not proof of causation. The agent never changes an
 offer, budget, contact, policy, code, or approval. An operator decides whether a
@@ -283,14 +289,21 @@ For Gmail or Google Workspace, first enable two-step verification and create a
 user-owned [app password](https://support.google.com/accounts/answer/185833?hl=en).
 Google states that app passwords require two-step
 verification, may be unavailable for organization-managed or Advanced
-Protection accounts, and recommends OAuth when available; this deployment does
-not yet hold mail OAuth tokens. The guided hidden prompt writes the fixed
+Protection accounts, and recommends OAuth when available. Hermes' SMTP adapter
+uses an app password; read-only reply OAuth cannot send mail. The guided hidden
+prompt writes the fixed
 `smtp.gmail.com:587` STARTTLS settings only to ignored `.env`:
 
 ```powershell
 ./scripts/promotion.ps1 -ConfigureGmail
 ./scripts/promotion.ps1 -OpenDashboard
 ```
+
+Enter the generated **16-character Google app password**, rather than the normal
+account password, at the local hidden prompt and press Enter. Nothing appears
+while you type or paste. Grouping spaces are removed; an invalid length prompts
+again without saving. Press Ctrl+C to cancel. A valid format still needs the
+audited SMTP connection check and owned-inbox delivery test below.
 
 For an existing provider, use the generic local prompt. Enter credentials only
 at its hidden password prompt, never in dashboard fields or chat:

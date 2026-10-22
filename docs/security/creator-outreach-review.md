@@ -1,10 +1,11 @@
 # Creator outreach security review
 
-Review date: 2026-08-28
+Review date: 2026-10-20
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
-bounded draft adaptation. This is an implementation review, not legal advice or
+bounded draft adaptation, constrained AI copy, and local Gmail onboarding.
+This is an implementation review, not legal advice or
 a review of a configured mail provider's terms.
 
 ## Findings
@@ -14,8 +15,9 @@ a review of a configured mail provider's terms.
 - Severity: Critical
 - Status: Prevented by design
 - Evidence: discovery creates unreviewed business-contact candidates. Each authorized contact requires
-  an operator attestation and provenance. Each individual email remains a high-
-  risk exact action requiring its own approval.
+  an operator attestation and provenance. Each email remains a high-risk exact
+  action. A finite campaign grant can authorize eligible template introductions
+  and reviewed-interest handoffs; model-written copy requires individual review.
 - Residual risk: an operator can still approve unsuitable outreach. Campaign
   owners must verify applicable direct-marketing and platform rules.
 
@@ -62,12 +64,13 @@ a review of a configured mail provider's terms.
 
 - Severity: Critical
 - Status: Prevented by bounded adaptation
-- Evidence: learning reads SMTP-accepted-message and operator-recorded outcome
-  counts. It can choose between two fixed truthful introduction templates only
-  after minimum samples and a material lead. It preserves exploration and does
+- Evidence: learning reads SMTP-accepted-message and operator-reviewed outcomes
+  with distinct-creator deduplication. It can choose among three fixed paid-copy
+  strategies under sample/effect thresholds and inform later constrained AI
+  prompts using reviewed aggregates. It preserves exploration and does
   not mutate code, offers, contacts, policy, budgets, SMTP, or approvals.
   Operator-personalized introductions retain exact approval and contact guards,
-  but their `manual_initial` variant is excluded from template learning.
+  but manual and AI variants are excluded from template performance comparison.
 - Residual risk: manually entered attribution can be inaccurate. Suggestions
   show their sample evidence and should not be treated as causal proof.
 
@@ -91,12 +94,57 @@ a review of a configured mail provider's terms.
 - Residual risk: the operator must check each community's rules, contextualize
   the copy, avoid repetitive posting, and disclose material relationships.
 
+### CO-009 — Model personalization could fabricate claims or change the offer
+
+- Severity: High
+- Status: Constrained suggestions with individual review
+- Evidence: `marketing.creator_draft` follows policy, durable task, audit and
+  inference-accounting paths. Models see sanitized public metadata and reviewed
+  aggregates, excluding recipient addresses and raw descriptions/inbox text.
+  Only a hook, optional idea, rationale, fixed evidence reference and assigned
+  reach strategy are accepted. Server code composes commercial terms and footer.
+  Immutable digest/context and lease checks fence stale drafts; AI messages
+  cannot use delegated template authority.
+- Residual risk: lexical/schema validation cannot prove truth, contextual
+  relevance or product availability. The operator must inspect the sources and
+  complete copy. The model sees only sampled metadata, not the actual video.
+
+### CO-010 — Gmail setup could connect the wrong account or disclose credentials
+
+- Severity: High
+- Status: Explicit local account and scope checks
+- Evidence: the native helper uses PKCE, random state, a bounded loopback
+  callback, fixed Google endpoints and exact `gmail.readonly` scope. It verifies
+  the expected mailbox and creator label before an atomic ignored-config write.
+  A shared lock coordinates SMTP/OAuth writers; conflicting existing career
+  credentials stop setup. Tokens and provider responses are not printed.
+- Residual risk: Google grants mailbox-wide read access even though runtime
+  reads use one label. Local configuration still contains secrets, Google may
+  revoke grants, and Testing-mode token expiry requires reauthorization.
+
+### CO-011 — A batch shortlist could become an implicit sending decision
+
+- Severity: High
+- Status: Research-only capability
+- Evidence: `marketing.creator_pilot` uses the existing policy/task/audit path,
+  official YouTube metadata, a maximum of ten creators and three uploads each,
+  and a shared rolling refresh allowance. Ranking is deterministic; output
+  separates reasons, missing evidence, contact-review needs and publication
+  dates. It makes no model call and creates no contact authorization or email.
+  The dashboard loads the current dossier before a review or draft.
+- Residual risk: a small source sample can miss relevant activity, contacts or
+  context. A score is a prioritization heuristic, not evidence of ownership,
+  accurate audience demographics or willingness to collaborate.
+
 ## Production blockers and operating limits
 
-- No inbound OAuth email reader or automatic reply classification is present.
+- A label-scoped read-only Gmail adapter and conservative reply suggestions are
+  implemented; live account setup and a labeled-reply canary are separate proof.
+  Positive interest and uncertain matches still require review.
 - Business-contact discovery is limited to unreviewed candidates in official
   public descriptions; no gated About email extraction or general website crawl
-  is present. Research ideas and fit scores are deterministic suggestions.
+  is present. Fit scores and research ideas are deterministic; optional AI
+  introduction suggestions are separately labeled and individually reviewed.
 - No real YouTube API key or external SMTP compatibility is claimed by the
   implementation alone.
 - No public posting, creator-account login, direct message, payment, contract,

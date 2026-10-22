@@ -832,6 +832,17 @@ class MarketingStore(ActionStore):
         automation_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         with self.connect() as connection:
+            ai_draft = None
+            if request.ai_draft_id is not None:
+                if automation_context is not None:
+                    raise MarketingOutreachError("AI drafts require individual exact approval")
+                from app.creator_draft_store import lock_draft_for_prepare
+
+                ai_draft = lock_draft_for_prepare(
+                    connection, request.ai_draft_id, prospect_id, request.ai_draft_digest,
+                )
+                if ai_draft["status"] == "prepared":
+                    return self.get_external_action(ai_draft["action_id"])
             context = connection.execute(
                 """
                 SELECT p.*, to_jsonb(c) AS _campaign
@@ -890,12 +901,29 @@ class MarketingStore(ActionStore):
 
             campaign = context.pop("_campaign")
             prospect = dict(context)
+            if ai_draft is not None:
+                from app.creator_draft_store import CreatorDraftConflictError, check_draft_context
+
+                # A campaign/prospect row wait can outlive the first expiry check.
+                now = connection.execute("SELECT clock_timestamp() AS value").fetchone()["value"]
+                if ai_draft["expires_at"] <= now:
+                    raise CreatorDraftConflictError(
+                        "AI draft expired; generate and review a fresh draft"
+                    )
+                check_draft_context(ai_draft, campaign, prospect)
             if request.stage == "initial":
                 if context["status"] not in {"discovered", "qualified"}:
                     raise MarketingOutreachError(
                         "Initial outreach is not valid in this reply state"
                     )
-                if request.subject is not None and request.body is not None:
+                if ai_draft is not None:
+                    variant = "ai_reviewed_initial"
+                    selection_reason = (
+                        "Model-assisted copy individually reviewed; "
+                        "excluded from template comparisons"
+                    )
+                    subject, body = ai_draft["subject"], ai_draft["body"]
+                elif request.subject is not None and request.body is not None:
                     variant = "manual_initial"
                     selection_reason = (
                         "Operator personalized this introduction; excluded from A/B learning"
@@ -1004,6 +1032,13 @@ class MarketingStore(ActionStore):
                     "contact_snapshot": contact_outreach_snapshot(prospect),
                 },
             }
+            if ai_draft is not None:
+                public_context["marketing"]["draft_id"] = str(ai_draft["id"])
+                public_context["marketing"]["draft_source"] = ai_draft["source"]
+                private_context["marketing"]["ai_research_snapshot"] = (
+                    ai_draft["input_snapshot"]["research"]
+                )
+                private_context["marketing"]["ai_draft_digest"] = ai_draft["draft_digest"]
             if automation_context is not None:
                 private_context["creator_automation"] = dict(automation_context)
             action = self._create_external_action(
@@ -1020,6 +1055,11 @@ class MarketingStore(ActionStore):
                 raise MarketingOutreachError(
                     "An identical outreach action already ended as "
                     f"{action['status']}; review the evidence or revise the manual answer"
+                )
+            if ai_draft is not None:
+                connection.execute(
+                    "UPDATE creator_email_drafts SET status='prepared',action_id=%s WHERE id=%s",
+                    (action["id"], ai_draft["id"]),
                 )
             message = connection.execute(
                 """

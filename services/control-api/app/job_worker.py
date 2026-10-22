@@ -31,6 +31,10 @@ from app.career_tracking import execute_gmail_sync
 from app.career_tracking_store import CareerTrackingStore
 from app.creator_automation_gmail import execute_creator_gmail_sync
 from app.creator_automation_store import CreatorAutomationStore
+from app.creator_draft_store import CreatorDraftStore
+from app.creator_drafting import execute_creator_draft_task
+from app.creator_pilot_runner import execute_creator_pilot
+from app.creator_pilot_store import CreatorPilotStore
 from app.inference import OpenRouterError, OpenRouterFreeClient, OpenRouterPlan
 from app.logging_config import configure_logging
 from app.marketing import fetch_youtube_creators, fetch_youtube_prospect
@@ -95,6 +99,17 @@ def execute_career_task(
         return execute_planning_task(
             task, PlanningStore(settings.database_url), settings,
             client=openrouter_client, interrupt=interrupt,
+        )
+
+    if task["kind"] == "marketing.creator_draft":
+        return execute_creator_draft_task(
+            task, CreatorDraftStore(settings.database_url), settings,
+            client=openrouter_client, interrupt=interrupt,
+        )
+
+    if task["kind"] == "marketing.creator_pilot":
+        return execute_creator_pilot(
+            task, CreatorPilotStore(settings.database_url), settings, interrupt=interrupt,
         )
 
     if task["kind"] == "career.gmail_sync":

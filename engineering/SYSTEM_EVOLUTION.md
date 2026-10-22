@@ -440,3 +440,44 @@ own label and mailbox identity. Positive snippets need review. The pure learning
 component consumes reviewed objection tags and accepted-send counts, deduplicates
 creators, and explains changes among three fixed copy strategies. It does not
 train model weights, negotiate, change commercial terms or grant send authority.
+
+## 2026-10-20 — Reviewed creator AI copy and local mailbox onboarding
+
+ADR-0026 adds a constrained model drafting capability to the existing research
+worker and policy/task/audit/outbox path. Migration 023 retains immutable
+campaign/contact/research snapshots, sanitized public context, exact copy,
+model provenance, expiry and digest in PostgreSQL. The inference ledger keeps
+its existing metadata-only contract; model copy is a separate product record.
+The existing strict-free OpenRouter route and configured local Ollama fallback
+provide suggestions without receiving SMTP credentials or new tool authority.
+
+The model supplies a short opening and optional content idea with an
+operator-facing rationale. Deterministic code fixes the commercial envelope,
+sender, links and footer. Digest/context, lease and cancellation checks fence
+stale generation and preparation. AI copy retains individual exact-message
+approval and is excluded from delegated template runs and their performance
+comparisons. Reviewed aggregate feedback may inform future prompts; no weights,
+policy, compensation, recipients or already-approved messages are learned.
+
+Native PowerShell Gmail onboarding uses PKCE/state and a loopback callback,
+verifies the expected mailbox/label and exact read-only scope, and coordinates
+atomic ignored-config writes with SMTP setup. Shared career credentials cannot
+silently switch mailbox. Runtime label restriction remains application-enforced;
+SMTP and live reply ingestion still require their own provider canaries.
+No new service, dependency, broad browser capability or host mount is added.
+
+A second bounded capability, `marketing.creator_pilot`, reuses the research
+worker and durable task/audit records to refresh and rank up to ten saved
+creators using official YouTube metadata and recent-upload evidence. The
+research allowance is thirty creators per rolling day. It makes no model call
+and grants no contact, draft or send authority. The dashboard exposes the
+persisted shortlist with dated sources and gaps before the operator spends
+inference on individually selected drafts. No browser-per-channel workflow
+or new data service is introduced.
+
+Issuance is serialized through a PostgreSQL transaction lock, with one active
+batch per campaign. A nonce and canonical task-payload hash in the creation
+audit bind each reservation to its exact task; generic caller tasks cannot
+inherit it. Failed/cancelled tasks retain their rolling budget and receive no
+automatic execution retry. Targeting, creator identity and owned lease are
+rechecked after locks and before fixed API requests or evidence writes.

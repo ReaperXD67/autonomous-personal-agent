@@ -229,6 +229,30 @@ def test_network_errors_do_not_retain_secret_bearing_causes(monkeypatch):
     assert caught.value.__suppress_context__
 
 
+@pytest.mark.parametrize(("raw", "shape"), [
+    (b"", "empty"), (b"\x1f\x8bSECRET_SHOULD_NOT_ESCAPE", "gzip"),
+    (b"<html>SECRET_SHOULD_NOT_ESCAPE</html>", "html"),
+    (b"SECRET_SHOULD_NOT_ESCAPE", "other"),
+])
+def test_invalid_google_response_reports_only_fixed_protocol_categories(monkeypatch, raw, shape):
+    from urllib.request import Request
+
+    url = "https://oauth2.googleapis.com/token"
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=False)
+    response.geturl.return_value = url
+    response.status = 200
+    response.read.return_value = raw
+    opener = Mock()
+    opener.open.return_value = response
+    monkeypatch.setattr(tracking, "build_opener", lambda *args: opener)
+    with pytest.raises(GmailSyncError) as caught:
+        tracking._google_json(Request(url))
+    assert str(caught.value) == f"Google returned invalid metadata (token:{shape}:http200)"
+    assert caught.value.__suppress_context__
+
+
 def test_list_is_label_scoped_and_message_get_never_requests_bodies(monkeypatch):
     client = object.__new__(GmailReadClient)
     client._access_token = "fixture"  # noqa: S105 - synthetic token, no network
@@ -239,10 +263,44 @@ def test_list_is_label_scoped_and_message_get_never_requests_bodies(monkeypatch)
     assert len(ids) == 50 and cursor == "next"
     assert getter.call_args.args[1]["labelIds"] == "Label_Careers"
     assert getter.call_args.args[1]["maxResults"] == 50
+    assert "resultSizeEstimate" in getter.call_args.args[1]["fields"]
     client.message("a123")
     parameters = getter.call_args.args[1]
     assert parameters["format"] == "metadata"
     assert "body" not in parameters["fields"] and "attachments" not in parameters["fields"]
+
+
+@pytest.mark.parametrize(("host", "resource", "method", "status", "accepted"), [
+    ("gmail.googleapis.com", "messages", "GET", 204, True),
+    ("gmail.googleapis.com", "messages", "GET", 200, False),
+    ("gmail.googleapis.com", "messages", "POST", 204, False),
+    ("gmail.googleapis.com", "profile", "GET", 204, False),
+    ("gmail.googleapis.com", "labels", "GET", 204, False),
+    ("gmail.googleapis.com", "messages/a123", "GET", 204, False),
+    ("oauth2.googleapis.com", "token", "POST", 204, False),
+])
+def test_empty_google_response_is_only_valid_for_204_message_list(
+    monkeypatch, host, resource, method, status, accepted,
+):
+    from urllib.request import Request
+
+    path = "/token" if host == "oauth2.googleapis.com" else f"/gmail/v1/users/me/{resource}"
+    url = f"https://{host}{path}"
+    response = Mock()
+    response.__enter__ = Mock(return_value=response)
+    response.__exit__ = Mock(return_value=False)
+    response.geturl.return_value = url
+    response.status = status
+    response.read.return_value = b""
+    opener = Mock()
+    opener.open.return_value = response
+    monkeypatch.setattr(tracking, "build_opener", lambda *args: opener)
+    request = Request(url, method=method)
+    if accepted:
+        assert tracking._google_json(request) == {}
+    else:
+        with pytest.raises(GmailSyncError, match="invalid metadata"):
+            tracking._google_json(request)
 
 
 def sync_fixture(monkeypatch, count=50):

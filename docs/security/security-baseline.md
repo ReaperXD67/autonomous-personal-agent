@@ -168,6 +168,35 @@ The current application/email adapter keeps authorization separate from model ou
 LLM cannot approve its own external action, infer legal consent, or change the
 capability policy that authorizes its executor.
 
+### Reviewed creator AI copy and mailbox setup
+
+Creator AI drafting derives medium risk from the capability allowlist and uses
+the existing research worker, model privacy policy and inference ledger.
+Sanitized public metadata and reviewed aggregate feedback reach the model;
+recipient addresses, contact provenance and raw descriptions/replies do not.
+The model controls only constrained suggestions. Commercial terms, URLs,
+sender and footer are server-composed. Schema/lexical checks are not a truth
+test; individual review remains required.
+
+PostgreSQL stores immutable inputs and copy, idempotency, expiry and exact
+digests. Owned leases and current context are checked after blocking locks and
+before preparation. Creator-run grants cannot approve AI copy. The existing
+email boundary still enforces exact approval, suppression, duplicates and pacing.
+
+API shortlist research derives low risk from the capability allowlist. A
+server-issued task reserves up to ten saved creators, with one active batch per
+campaign and thirty globally per rolling day. PostgreSQL serializes reservations
+and binds the issued payload hash to its creation audit. Failed and cancelled
+tasks retain their budget reservation. The worker checks that binding, frozen
+targeting/identity and its current lease before fixed YouTube requests and
+evidence writes; it cannot grant contact authorization or create an email.
+
+The optional native Gmail setup helper verifies state, PKCE, exact scope,
+mailbox identity and label access before atomically merging ignored secrets.
+SMTP and OAuth writers share a process lock; conflicting shared career-account
+credentials cannot be overwritten. Read-only OAuth is distinct from SMTP,
+and Google authorization is mailbox-wide even when Hermes restricts runtime
+reads to a label. A setup success is not a reply-ingestion or delivery canary.
 
 ### Scoped career authorization and Gmail (2026-09-23)
 
@@ -182,7 +211,7 @@ full boundary and residual mailbox-wide OAuth scope.
 
 ### Scoped creator partnerships (2026-10-16)
 
-Creator runs grant only bounded generated introductions and optional owner
+Creator runs grant only bounded template introductions and optional owner
 handoffs to previously authorized business contacts. Defaults are three first
 emails per rolling day and 24-hour expiry; maxima are ten and seven days. Exact
 action digests, campaign/contact snapshots, cross-campaign creator/recipient

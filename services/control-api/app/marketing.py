@@ -100,6 +100,12 @@ def outreach_context_error(
         return "Marketing campaign packet changed; prepare and approve a new email"
     if marketing.get("contact_snapshot") != contact_outreach_snapshot(prospect):
         return "Marketing contact provenance or authorization changed after approval"
+    if marketing.get("variant") == "ai_reviewed_initial":
+        from app.creator_draft_content import evidence_error, research_snapshot
+
+        if (marketing.get("ai_research_snapshot") != research_snapshot(prospect)
+                or evidence_error(campaign, prospect)):
+            return "Creator research changed or expired; prepare and review a fresh AI draft"
     stage = marketing.get("stage")
     if prospect.get("status") not in OUTREACH_STAGE_STATUSES.get(stage, set()):
         return "Marketing reply state changed after the email was approved"
@@ -181,7 +187,10 @@ class _YouTubeRedirectHandler(HTTPRedirectHandler):
 
 
 def _read_youtube_json(path: str, parameters: dict[str, str | int]) -> dict[str, Any]:
-    if path not in {"/youtube/v3/search", "/youtube/v3/channels", "/youtube/v3/videos"}:
+    if path not in {
+        "/youtube/v3/search", "/youtube/v3/channels", "/youtube/v3/videos",
+        "/youtube/v3/playlistItems",
+    }:
         raise ValueError("YouTube API path is outside the reviewed endpoints")
     url = f"https://{YOUTUBE_API_HOST}{path}?{urlencode(parameters)}"
     request = Request(  # noqa: S310 - exact HTTPS host and API prefix are fixed above
@@ -285,6 +294,7 @@ def _enrich_videos(
     request_json: Callable[[str, dict[str, str | int]], dict[str, Any]] | None = None,
     research_stats: dict[str, int] | None = None,
     checkpoint: Callable[[], None] | None = None,
+    propagate_errors: bool = False,
 ) -> None:
     read = request_json or _read_youtube_json
     by_video = {
@@ -302,10 +312,14 @@ def _enrich_videos(
             if not isinstance(payload.get("items"), list):
                 raise ValueError("YouTube video metadata returned an unexpected result list")
         except YouTubeRequestLimitError:
+            if propagate_errors:
+                raise
             if research_stats is not None:
                 research_stats["enrichment_failures"] += 1
             break
         except (RuntimeError, ValueError):
+            if propagate_errors:
+                raise
             if research_stats is not None:
                 research_stats["enrichment_failures"] += 1
             continue
@@ -560,6 +574,7 @@ def fetch_youtube_prospect(
     api_key: str, campaign: dict[str, Any], prospect: dict[str, Any], *,
     now: datetime | None = None,
     checkpoint: Callable[[], None] | None = None,
+    include_recent_activity: bool = False,
 ) -> dict[str, Any]:
     """Refresh one imported channel through official APIs, with no arbitrary fetch."""
     if not api_key.strip():
@@ -573,7 +588,8 @@ def fetch_youtube_prospect(
     if checkpoint is not None:
         checkpoint()
     response = _read_youtube_json("/youtube/v3/channels", {
-        "part": "snippet,statistics", **identity, "maxResults": 1, "key": api_key,
+        "part": "snippet,statistics,contentDetails" if include_recent_activity
+        else "snippet,statistics", **identity, "maxResults": 1, "key": api_key,
     })
     channels = _youtube_items(response, 1)
     if not channels or not CHANNEL_ID.fullmatch(str(channels[0].get("id", ""))):
@@ -601,8 +617,23 @@ def fetch_youtube_prospect(
         "previous_sample": previous_sample, "direct_refresh": True, "discovery_query": None,
     }
     _apply_channel(channel, item)
-    _enrich_videos(api_key, {channel["id"]: item}, checkpoint=checkpoint)
-    return _normalize_researched_prospect(campaign, item, reference)
+    _enrich_videos(api_key, {channel["id"]: item}, checkpoint=checkpoint,
+                   propagate_errors=include_recent_activity)
+    research = _normalize_researched_prospect(campaign, item, reference)
+    if include_recent_activity:
+        from app.creator_pilot import recent_uploads
+
+        activity, contacts = recent_uploads(
+            api_key, channel, now=reference, checkpoint=checkpoint or (lambda: None),
+        )
+        research["intelligence"]["activity"] = activity
+        current = research["intelligence"]["contact_candidates"]
+        seen = {candidate["email"].casefold() for candidate in current}
+        for candidate in contacts:
+            if candidate["email"].casefold() not in seen and len(current) < 5:
+                current.append(candidate)
+                seen.add(candidate["email"].casefold())
+    return research
 
 
 def tracking_url(campaign: dict[str, Any], prospect: dict[str, Any]) -> str:
@@ -790,7 +821,7 @@ def compose_initial_email(
         else f"Minecraft creator pilot for {prospect['display_name']}"
     )
     recent = (
-        f" I found your recent video “{prospect['latest_content_title']}” relevant to the pilot."
+        f" I found your public video “{prospect['latest_content_title']}” relevant to the pilot."
         if prospect.get("latest_content_title")
         else ""
     )

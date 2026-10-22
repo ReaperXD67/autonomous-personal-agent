@@ -516,6 +516,8 @@ class CreatorAutomationStore(MarketingStore):
                 (prospect_id,),
             ).fetchone()
             marketing = action["private_context"].get("marketing", {})
+            if marketing.get("variant") == "ai_reviewed_initial":
+                raise MarketingOutreachError("AI introductions require individual exact approval")
             if (
                 not prospect
                 or prospect["campaign_id"] != run["campaign_id"]
