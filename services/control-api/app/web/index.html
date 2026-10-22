@@ -107,7 +107,7 @@
         <div class="section-bar"><div><h2>Creator campaigns</h2><p>Build a relevant paid pitch. Bring the interested creators back to you.</p></div><button class="button primary" data-action="new-campaign">Create paid campaign</button></div>
         <div class="campaign-grid" id="campaign-list"><div class="empty-state panel"><strong>No campaigns yet</strong><p>Create the KarixMC pilot, then connect a restricted YouTube Data API key for discovery.</p></div></div>
         <section class="creator-workspace" aria-labelledby="creator-work-title"><div class="section-bar"><div><h2 id="creator-work-title">Your next decisions</h2><p>Reply review and handoffs first. Research and contact authorization next.</p></div></div><div id="creator-work-queue" class="creator-work-queue" aria-live="polite"></div><div id="creator-reply-inbox" class="creator-reply-inbox"></div></section>
-        <div class="section-bar campaign-prospect-heading"><div><h2>YouTube creator research</h2><p>Compare content fit, public contact evidence, and ideas grounded in each channel.</p></div><div class="research-actions"><button class="button" data-action="new-prospect">Add YouTube creator</button><button class="button" id="marketing-export" data-action="export-prospects">Export loaded view CSV</button></div></div>
+        <div class="section-bar campaign-prospect-heading"><div><h2>YouTube creator research</h2><p>Official YouTube data supplies content fit and public contact evidence. Use a campaign's shortlist research to refresh a small batch before writing.</p></div><div class="research-actions"><button class="button" data-action="new-prospect">Add YouTube creator</button><button class="button" id="marketing-export" data-action="export-prospects">Export loaded view CSV</button></div></div>
         <div class="research-toolbar">
           <label class="research-search">Search research<input id="marketing-search" type="search" placeholder="Creator, topic, contact, video, or idea…" maxlength="200"><small>All words must match somewhere in the research.</small></label>
           <label>Campaign<select id="marketing-campaign-filter"><option value="">All campaigns</option></select></label>
@@ -241,7 +241,38 @@
     <label class="span-2">Internal note<textarea name="note" rows="3" maxlength="4000" placeholder="Do not paste secrets or unnecessary personal data."></textarea></label><label class="span-2">Promotion URL <small>optional</small><input name="promotion_url" type="url" maxlength="2048"></label>
     <label>Attributed views<input name="attributed_views" type="number" min="0" value="0"></label><label>Attributed clicks<input name="attributed_clicks" type="number" min="0" value="0"></label><label>Attributed signups<input name="attributed_signups" type="number" min="0" value="0"></label><label>Server owners joined<input name="attributed_server_owners" type="number" min="0" value="0"></label><label>Viewer points issued<input name="viewer_points_issued" type="number" min="0" value="0"></label>
   </div><div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit" value="default">Record outcome</button></div></form></dialog>
-  <dialog id="marketing-reply-dialog" class="dialog wide-dialog"><form method="dialog" id="marketing-reply-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag amber-tag">One message, exact approval</span><h2 id="marketing-message-title">Answer the creator's question</h2><p id="marketing-message-guidance">Answer only what you know. The exact message will wait for approval.</p><input type="hidden" name="prospect_id"><input type="hidden" name="stage" value="question_reply"><details class="form-section" id="marketing-message-fields" open><summary>Personalize this introduction <span>Optional subject and body</span></summary><p class="fine-print" id="marketing-message-custom-help">Leave both fields blank to use the campaign introduction. To personalize it, fill both fields.</p><label>Subject<input name="subject" maxlength="240" required></label><label>Plain-text message<textarea name="body" rows="9" maxlength="20000" required></textarea></label></details><p class="fine-print">The required contact-source, privacy and opt-out footer is added automatically. Review the final packet before approving this one email.</p><div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit" value="default">Prepare exact answer</button></div></form></dialog>
+  <dialog id="marketing-reply-dialog" class="dialog wide-dialog">
+    <form method="dialog" id="marketing-reply-form">
+      <button class="dialog-close" value="cancel" aria-label="Close">×</button>
+      <h2 id="marketing-message-title">Answer the creator's question</h2>
+      <p id="marketing-message-guidance">Answer only what you know. The exact message will wait for approval.</p>
+      <input type="hidden" name="prospect_id"><input type="hidden" name="stage" value="question_reply">
+      <label id="marketing-draft-method-field" hidden>Draft method
+        <select name="draft_method">
+          <option value="template">Campaign template · no model</option>
+          <option value="ai">AI personalized draft · review required</option>
+          <option value="manual">Write my own introduction</option>
+        </select>
+      </label>
+      <section id="creator-ai-draft" class="creator-ai-draft" aria-label="AI draft review" hidden>
+        <p class="fine-print">Uses this campaign, the creator's recorded content and reach, and reviewed feedback. Check the original sources and offer before preparing the email.</p>
+        <div id="creator-ai-status" role="status" aria-live="polite"></div>
+        <div class="card-actions">
+          <button class="button" type="button" data-action="generate-creator-draft" id="creator-ai-generate">Generate personalized draft</button>
+          <button class="text-button" type="button" data-action="refresh-creator-draft" id="creator-ai-refresh">Refresh draft status</button>
+        </div>
+        <div id="creator-ai-review"></div>
+      </section>
+      <details class="form-section" id="marketing-message-fields" open>
+        <summary>Write the message <span>Subject and body</span></summary>
+        <p class="fine-print" id="marketing-message-custom-help">Keep creator references and product claims factual. The exact message will wait for approval.</p>
+        <label>Subject<input name="subject" maxlength="240" required></label>
+        <label>Plain-text message<textarea name="body" rows="9" maxlength="20000" required></textarea></label>
+      </details>
+      <p class="fine-print">The required contact-source, privacy and opt-out footer is added automatically. Review the final packet before approving this one email.</p>
+      <div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit" value="default">Prepare exact answer</button></div>
+    </form>
+  </dialog>
   <dialog id="promotion-kit-dialog" class="dialog wide-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Free distribution assets</span><h2>Promotion kit</h2><p>Copy truthful, campaign-specific posts with separate analytics links. Hermes never posts these publicly for you.</p><div id="promotion-kit-content" class="promotion-kit"></div></form></dialog>
   <dialog id="audit-dialog" class="dialog detail-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Audit trail</span><h2 id="audit-title">Task history</h2><div class="activity" id="audit-list"></div></form></dialog>
   <dialog id="workflow-dialog" class="dialog wide-dialog" aria-labelledby="workflow-detail-title"><div class="workflow-detail-body"><button class="dialog-close" type="button" data-action="close-workflow" aria-label="Close workflow details">×</button><span class="tag">Durable workflow</span><h2 id="workflow-detail-title">Workflow details</h2><div id="workflow-detail-content"></div></div></dialog>

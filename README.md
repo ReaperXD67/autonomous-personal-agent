@@ -15,8 +15,10 @@ workflow: research Minecraft YouTubers, explain why they fit, prepare relevant
 paid-promotion emails, track replies, and hand interested creators to your email
 or Discord. You handle the conversation, agreement, and payment from there.
 Revenue-share campaigns discuss a percentage and an earning window in weeks;
-neither compensation nor income is invented. Reviewed objections teach future
-drafts and appear in a **What creators are teaching us** report.
+neither compensation nor income is invented. Ask for a model-written introduction
+grounded in the creator's recorded videos and reach, inspect its sources and
+reasoning, then prepare the exact email for approval. Reviewed objections inform
+future drafts and appear in a **What creators are teaching us** report.
 
 The same control plane also supports career missions and durable workflows.
 PostgreSQL owns the work, approvals, budgets, and audit trail; containers execute
@@ -45,8 +47,9 @@ flowchart LR
 > isolated single-page ATS submission, and test-sink email work. Career Play can
 > authorize bounded automatic applications within an explicit, expiring scope;
 > manually prepared actions retain exact-action approval. Creator runs can authorize
-> generated introductions and optional handoffs within a finite campaign scope;
-> contact qualification and positive-reply confirmation stay reviewed. Creator Gmail
+> template introductions and optional handoffs within a finite campaign scope;
+> AI creator drafts require individual exact-message review.
+> Contact qualification and positive-reply confirmation stay reviewed. Creator Gmail
 > reading needs read-only OAuth and its own real canary. Discord is a handoff contact,
 > not a connected account. Telegram,
 > generic browser automation, coding workers, and broad MCP access are not
@@ -62,8 +65,12 @@ understand what happened and take over at the right moment.
 
 - **Research you can inspect:** public sources, recent-video evidence, fit factors,
   dated contact observations, and explicit gaps instead of guessed addresses.
-- **A relevant first approach:** paid-first campaigns use your real offer and
-  observed content; rates and commercial terms remain yours to agree.
+  Discovery and shortlist research use the official YouTube API. A small batch
+  refreshes up to ten saved creators and ranks their evidence without model calls.
+- **A relevant first approach:** AI drafts connect recorded creator content and
+  reach to your real collaboration brief, show their sources and approach, and
+  use reviewed feedback. Templates and manual writing remain explicit choices;
+  rates and commercial terms remain yours to agree.
 - **A clear stopping point:** one owner handoff after confirmed interest, with
   email, Discord, or both. No automated negotiation or repeated reminders.
 - **Learning you can inspect:** reviewed objections, distinct-creator counts,
@@ -92,10 +99,13 @@ understand what happened and take over at the right moment.
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Verified with Mailpit; external SMTP unconfigured | Exact approval, durable SMTP acceptance, and PostgreSQL-backed external pacing: 15-minute global/30-minute same-domain gaps, rolling 3/hour and 12/day caps, and jitter |
 | Creator research and outreach | Research verified; external send pending | Multi-page discovery with a durable shared search budget, current and dated historical business-contact evidence, fit explanations, collaboration concepts, country/language selectors, coverage counts, paged shortlist and complete campaign CSV export. Strict Poland selection requires a channel-declared PL country; discovery does not authorize outreach |
+| API creator shortlist | Live two-creator batch verified | Batch refresh of at most ten saved creators, up to three recent uploads each, deterministic ranking, dated activity and public-contact evidence. Zero model calls or sends; review contacts before drafting |
 | Minecraft paid-promotion workflow | Verified locally with Mailpit; real provider proof pending | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery |
+| AI creator introductions | Experimental; live-copy quality unverified | Local lifecycle/UI and real model responses verified; usable creator-specific copy did not pass the live review. Asynchronous drafts retain inspectable evidence/model metadata and exact individual approval. English copy; failure never silently becomes a template or send |
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |
-| Creator reply inbox | Adapter prepared; Gmail canary pending | Label-scoped read-only Gmail metadata, conservative reply suggestions, durable review and opt-out handling. Snippets cannot establish positive interest by themselves |
+| Creator reply inbox | Empty-label live read verified; real reply pending | Label-scoped read-only Gmail metadata, conservative reply suggestions, durable review and opt-out handling. Matching, replay protection and interest review still need a real labeled-reply canary; snippets alone cannot establish positive interest |
+| Gmail onboarding | Live account, label and runtime read verified | Local Desktop OAuth flow with PKCE, exact read-only scope, expected-mailbox and label checks, and atomic secret-safe configuration. Tested against an empty creator label; SMTP remains a separate setup |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -249,7 +259,14 @@ your product, truthful offer, sender, and owner email or Discord. New dashboard
 campaigns start with broad Minecraft discovery; country, language, creator size,
 and activity remain adjustable. Search results are bounded samples, not every
 YouTuber. Review each published business-contact source, then prepare individual
-messages or authorize a finite automatic run for reviewed contacts.
+messages or authorize a finite automatic run for reviewed contacts. Choose
+**Research a creator shortlist** to refresh and rank a small saved batch through
+the YouTube API. Its source, activity and contact gaps explain where to spend
+review time; browser spot checks are optional evidence review, not the discovery
+engine. Choose
+**AI personalized draft** for an individually reviewed opening and content idea
+based on the sampled video, subscriber evidence and reviewed feedback. Inspect
+the sources and full email before preparing its exact approval packet.
 
 The reply inbox supports a dedicated Gmail label when OAuth is configured.
 Confirm positive interest before an optional automatic handoff. A handoff sends
@@ -258,6 +275,8 @@ External SMTP still reserves durable low-volume slots; pauses, changed briefs,
 withdrawn contact authority, and opt-outs are checked at the send boundary.
 See the [Minecraft workflow guide](docs/operations/minecraft-creator-workflow.md)
 for setup, limits, and the precise division between automatic and reviewed work.
+The [Gmail setup guide](docs/operations/gmail-setup.md) connects labeled reply
+reading through local OAuth; a YouTube API key does not connect a mailbox.
 
 Prove the creator workflow locally before configuring or using external mail:
 
@@ -329,6 +348,10 @@ normal operation. Real side effects are controlled by
 | `./scripts/promotion.ps1` | — | Show secret-safe YouTube/SMTP/Docker promotion readiness and exact next steps |
 | `./scripts/promotion.ps1 -LocalTest` | — | Start Docker if needed and run the creator-specific no-egress proof |
 | `./scripts/promotion.ps1 -ConfigureSMTP` | — | Configure an existing SMTP provider through local prompts with a hidden password; save settings atomically |
+| `./scripts/promotion.ps1 -ConfigureGmail` | — | Configure Gmail SMTP locally using a hidden app-password prompt after Google 2-Step Verification setup |
+| `./scripts/gmail-oauth.ps1 -ClientJsonPath <private-file> -Mailbox <sender>` | — | Connect read-only labeled Gmail replies using the owner's Desktop OAuth client; verify the mailbox before saving ignored configuration |
+| `./scripts/creator-draft-smoke.ps1` | — | Exercise creator drafting and exact-digest preparation in a disposable PostgreSQL database with synthetic model output |
+| `./scripts/creator-pilot-smoke.ps1` | — | Exercise shortlist reservations, budgets, lease fencing and unchanged contact authority in a disposable PostgreSQL database without provider or model requests |
 | `./scripts/promotion.ps1 -CheckSMTP` | — | Queue an audited fixed-provider connection/TLS/authentication check; send no email |
 | `./scripts/promotion.ps1 -OpenDashboard` | — | Start Docker if needed and open an auto-authenticated promotion-capable dashboard |
 | `./scripts/up.ps1 -SideEffects` | `make side-effects-up` | Start the isolated browser/email executor for configured real destinations |
@@ -439,8 +462,13 @@ and [remaining manual setup](docs/operations/manual-setup.md).
   hourly/daily caps, same-domain spacing, and jitter; the worker rechecks it at
   the send boundary. Mailpit fixtures remain immediate.
 - Creator outreach revalidates contact provenance, authorization, suppression,
-  and reply state immediately before SMTP. Learning can select only fixed draft
-  variants and cannot send, spend, or change policy.
+  and reply state immediately before SMTP. Reviewed feedback informs fixed
+  templates and constrained AI suggestions; neither can alter commercial terms,
+  sending authority, budgets, or policy. AI copy keeps individual exact review.
+- AI prompts contain bounded public creator evidence and reviewed aggregate
+  feedback, excluding recipient addresses, raw descriptions and raw inbox text.
+  Schema and lexical checks do not establish factual accuracy; the operator
+  reviews the source and complete message.
 - Audit metadata stores keys and outcomes, not raw secrets or request bodies.
 - Hermes receives no Docker socket or host filesystem mount.
 - MCP registry starts disabled; each server needs review and scoped credentials.
@@ -463,6 +491,7 @@ proxy, rate limiting, secret management, and VPS hardening described in the
 | Inference route/usage metadata | PostgreSQL | Authoritative; requested/selected models, provider, tokens, fallback, latency, privacy mode, and cost only—never prompt or output text |
 | Exact external actions and side-effect receipts | PostgreSQL | Authoritative; approval digest and duplicate guard survive restarts |
 | Creator campaigns, research dossiers, contact provenance, suppressions, messages, outcomes | PostgreSQL | Authoritative; public description contacts remain unreviewed evidence until separately authorized, and every creator send links to an exact action |
+| Creator AI drafts and immutable input snapshots | PostgreSQL | Authoritative; model source, exact copy, evidence, expiry and digest remain linked to the reviewed action; these product records are distinct from prompt-free inference audit metadata |
 | Long-term memory and embeddings | PostgreSQL + pgvector | Authoritative, backed up |
 | Ready queue, cache, transient state | Redis | Recoverable; AOF enabled, not authoritative |
 | Hermes state | `hermes_data` volume | Optional; back up after onboarding |

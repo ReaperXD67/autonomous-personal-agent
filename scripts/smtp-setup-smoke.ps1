@@ -4,6 +4,7 @@ param()
 # Tests only dummy settings, isolated containers, and mocked HTTP responses.
 # It neither loads a real SMTP credential nor invokes the live setup entrypoint.
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'environment-lock.ps1')
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $realEnvPath = Join-Path $projectRoot '.env'
 $realEnvExisted = Test-Path -LiteralPath $realEnvPath
@@ -93,6 +94,7 @@ for i in range(5):
         $answer = $answers.Dequeue()
         if ($AsSecureString) {
             $script:hiddenPrompts++
+            if (-not $answer) { return [Security.SecureString]::new() }
             return ConvertTo-SecureString $answer -AsPlainText -Force
         }
         return $answer
@@ -120,6 +122,27 @@ for i in range(5):
     if ($loaded.SMTP_HOST -ne 'smtp.gmail.com' -or $loaded.SMTP_PORT -ne '587' -or
         $loaded.SMTP_TLS_MODE -ne 'starttls' -or $loaded.SMTP_PASSWORD -cne 'abcdefghijklmnop' -or $hiddenPrompts -ne 2) {
         throw 'Gmail compatibility failed.'
+    }
+    $unchanged = [IO.File]::ReadAllText($envPath)
+    Set-Answers @('sender@example.test', 'not-an-app-code', '', 'abcdefghijklmnopq')
+    $rejected = $false
+    $diagnostics = @()
+    try { $diagnostics = @(Configure-SmtpTransport -Gmail 3>&1 6>&1) }
+    catch { $rejected = $true }
+    if (-not $rejected -or [IO.File]::ReadAllText($envPath) -cne $unchanged -or $hiddenPrompts -ne 5) {
+        throw 'Invalid Gmail app-password attempts must retry without changing configuration.'
+    }
+    Set-Answers @('sender@example.test', 'not-an-app-code', 'qrst uvwx yzab cdef')
+    $diagnostics = @(Configure-SmtpTransport -Gmail 3>&1 6>&1)
+    $loaded = Read-EnvironmentFile
+    if ($answers.Count -ne 0 -or $hiddenPrompts -ne 7 -or $loaded.SMTP_PASSWORD -cne 'qrstuvwxyzabcdef') {
+        throw 'Gmail app-password correction did not complete the same setup safely.'
+    }
+    $diagnosticText = ($diagnostics | ForEach-Object { [string]$_ }) -join "`n"
+    if ($diagnosticText -notmatch 'normal Google account password will not work' -or
+        $diagnosticText -notmatch 'Nothing was written; try again' -or
+        $diagnosticText -match 'not-an-app-code|qrst uvwx yzab cdef|qrstuvwxyzabcdef') {
+        throw 'Gmail retry instructions are missing or exposed credential input.'
     }
     $invalidInputs = @(
         @('https://smtp.example.test'),
@@ -191,4 +214,4 @@ finally {
         throw 'Real environment was changed during the smoke.'
     }
 }
-Write-Host 'SMTP setup smoke passed: five credential round trips in one isolated container; generic/Gmail hidden prompts; atomic preservation; five invalid-input rejections; governed check reporting.'
+Write-Host 'SMTP setup smoke passed: five credential round trips in one isolated container; generic/Gmail hidden prompts; Gmail app-password retry without writes or input disclosure; atomic preservation; five invalid-input rejections; governed check reporting.'

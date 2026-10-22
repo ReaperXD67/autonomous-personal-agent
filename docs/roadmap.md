@@ -57,7 +57,12 @@
 
 - [x] Minecraft paid-first/revenue-share proposals, bounded creator runs and owner email/Discord handoff
 - [x] Reviewed creator feedback with explainable, bounded future-copy adaptation
-- [ ] Verify creator Gmail and external SMTP with real, owned-account canaries
+- [x] Policy-bound AI creator introductions with recorded video evidence, reviewed feedback, immutable copy and exact-digest individual review
+- [x] Native local Gmail OAuth onboarding with PKCE, expected mailbox/label checks, and atomic secret-safe setup
+- [x] Real creator-mailbox OAuth, identity, configured-label and empty-label runtime read canary
+- [x] API-only bounded creator shortlist refresh with deterministic ranking, dated upload evidence and explicit review gaps
+- [ ] Verify creator-specific copy quality from a real configured model response
+- [ ] Verify actual labeled creator-reply matching/replay and external SMTP with owned-account canaries
 - [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
 
 - [ ] Telegram control with pairing and allowlist
@@ -106,8 +111,10 @@ fresh publication evidence, score, daily cap, optional job-published hiring emai
 profile, and expiry. Pause withdraws that run's authority before final submission.
 This is not blanket permission to execute tools or message arbitrary contacts.
 Manually prepared external actions keep individual exact-action approval.
-Creator runs may authorize generated first approaches and optional owner handoffs
+Creator runs may authorize template first approaches and optional owner handoffs
 within a frozen campaign, rolling cap, expiry, and already-reviewed contact scope.
+Model-written creator introductions use a separate, individually reviewed exact
+packet; the model and campaign run cannot approve that copy.
 Discovery and business-contact extraction may be scheduled, but contact
 qualification, positive-interest confirmation, commercial terms, and public
 placement remain reviewed. Gmail classification is inferred evidence, with

@@ -698,6 +698,108 @@ Trivy 0.74.0 with its 2026-10-16 database reported zero fixable HIGH/CRITICAL
 findings in both final runtime images, with no ignore rules. This is a dated
 dependency scan, not a claim that all vulnerabilities are absent.
 
+## Experiment 30 — Reviewed creator AI draft lifecycle and interface (2026-10-20)
+
+Method: run the complete container verification gate and a disposable PostgreSQL
+draft proof with synthetic model output; run the actual dashboard sources in the
+existing unprivileged
+action-worker image, with networking disabled, read-only web sources, a temporary
+filesystem and synthetic intercepted API responses. Exercise desktop 1440×1080
+and mobile 375×812 viewports.
+
+Observed: lint, 621 unit/contract tests and the complete integration verifier
+passed. Nine draft database groups covered idempotent policy dispatch, concurrent
+exact preparation, immutable digest checks, refused delegated AI approval, stale
+research/campaign context, forged task links and cancellation/lease/expiry changes
+during lock waits. Changed research also prevented an approved packet from
+crossing the final SMTP boundary. Native loopback OAuth and SMTP setup smoke
+checks passed without contacting providers or changing real credentials.
+
+Observed: queued, ready, stale, failed and expired drafts render correctly;
+closing and reopening pending work creates no duplicate request. Untrusted
+source markup displays as text. Preparation submits the displayed exact digest,
+keeps the dialog open on a context conflict, and opens the resulting action for
+separate review on success. Template/manual paths remain distinct; owner contact
+preservation and explicit run-consent reset also passed. No page errors or
+horizontal overflow occurred. Desktop/mobile screenshots were inspected and
+remain in ignored local output.
+
+The initial HTTP fixture origin did not expose `crypto.randomUUID`; changing
+only the intercepted fixture to HTTPS matched the secure-context behavior of
+the real loopback dashboard. The complete check then passed. This is UI behavior
+with synthetic responses, not model-quality, provider-delivery or reply-rate
+evidence.
+
+The subsequent API-shortlist interface check passed with synthetic task output:
+bounded input/default, disabled duplicate queueing, persisted task status,
+ranked source evidence, partial-failure counts, safe markup rendering and a
+current creator lookup before the separate AI draft review. The mobile capture
+was repeated after transient toast/focus overlays cleared; no product layout
+change was needed. No real YouTube request or model call was part of this UI test.
+
+## Experiment 31 — Bounded API creator shortlist (2026-10-22)
+
+Method: exercise the existing task/policy/audit route with seven disposable
+PostgreSQL scenario groups and a real two-creator research batch. Use only the
+official YouTube adapter for channel, sampled video and bounded recent-upload
+metadata; do not request a draft, contact grant or external message.
+
+Observed: all seven database groups passed, including concurrent idempotency,
+generic-task reservation refusal, frozen targeting and identity, contact-authority
+preservation, lease expiry during blocking row locks, one active campaign batch
+and the global thirty-creator rolling reservation cap. Cancelled reservations
+continued counting. No provider or model request was part of the database proof.
+
+The live task refreshed two creators with zero failures, retaining dated
+Minecraft publication evidence and declared Polish language. Both remained in
+**Needs review** because their contacts were not authorized. The task recorded
+zero model requests, contact authorizations and messages sent. This proves the
+bounded research route and its review boundary; it does not measure exhaustive
+discovery, subscriber authenticity, audience location, reply rate or sales.
+
+## Experiment 32 — Gmail read-only empty-label canary (2026-10-22)
+
+Method: complete the local Desktop OAuth helper's exact mailbox and label
+checks, load the ignored settings into the existing worker, and queue the
+campaign's governed `marketing.gmail_sync` task through the control API.
+
+Observed: the initial runtime attempt refreshed its token and verified the
+profile and label, then encountered an empty HTTP 204 message-list response.
+The client now accepts that empty page only for the exact fixed-host message
+collection GET; other empty identity/token/label/message responses remain
+errors. A repeated audited sync succeeded with zero fetched, inserted and
+pending records, no more pages and `mailbox_modified=false`.
+
+This establishes configured runtime OAuth and empty-label reading. No message
+was sent or reply ingested; actual labeled-reply matching, replay protection,
+interest review, external SMTP authentication, delivery and inbox receipt still
+need their own canaries. The Testing-mode OAuth expiry limit still applies.
+
+## Experiment 33 — Final creator-copy quality and integration checks (2026-10-22)
+
+Method: run governed creator-specific draft requests through the configured
+hosted/local route, inspect the returned copy against its evidence, then run
+the coherent container lint/unit/full integration gates and harmless agent
+health checks after the final repairs.
+
+Observed: hosted rate limiting led to real local Qwen responses. Operator
+review rejected unsupported claims and an answer repeating a content-bearing
+prompt example. The example was removed and a regression guard added. The
+final creator request failed closed on the evidence contract. No usable live
+AI pitch or creator send is claimed; the per-creator rolling cap was retained.
+
+All 669 unit/contract tests, lint and the complete verifier passed, including
+seven shortlist, nine draft, nineteen creator-automation and twelve career
+PostgreSQL groups alongside foundation/workflow/scheduler/planner/action/recovery
+checks. Compose validation, whitespace checks, `doctor.ps1 -Agent` and the
+general agent route smoke passed. That smoke returned `ROUTE_OK` through
+`free/default` using Mistral; it is separate from creator-copy quality.
+
+Result: the research, review and failure boundaries are verified. AI-copy
+quality remains experimental; external SMTP and an owned-inbox delivery/reply
+canary remain unverified. No reply-rate, collaboration or earnings result was
+measured.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

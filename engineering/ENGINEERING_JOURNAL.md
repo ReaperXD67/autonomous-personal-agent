@@ -2426,3 +2426,120 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   (582 tests and all integration groups), desktop/mobile browser checks and
   synthetic Mailpit introduction/handoff/suppression proof after the last patch;
   all passed. External-provider and performance limitations above still apply.
+
+## 2026-10-20 — Reviewed creator AI drafts and secure Gmail onboarding
+
+- Added `marketing.creator_draft` to the existing research worker and
+  policy/task/audit/outbox path. Migration 023 retains immutable input snapshots,
+  sanitized public context, source/model, exact copy, expiry and digest.
+  Preparation is bounded separately from sending and requires current recorded
+  Minecraft evidence plus a reviewed business contact.
+- The model proposes only an opening, optional content idea and operator-facing
+  rationale. The server composes sender, subject, commercial proposal, product
+  link and required footer. Public metadata and reviewed aggregate feedback
+  inform the prompt; recipient addresses, raw descriptions and raw inbox text
+  are excluded. Existing free-only/privacy/accounting policy and configured
+  local fallback remain in force. Invalid output does not become a template.
+- AI drafts retain individual exact-message approval and are excluded from
+  delegated template runs and template-performance comparisons. Context, digest,
+  lease, cancellation and expiry checks fence stale model writes and preparation.
+  The dashboard exposes queued/ready/stale/failed states, complete copy, source
+  links, model identity, rationale and feedback context; manual and template
+  choices remain distinct.
+- Added a native PowerShell Gmail OAuth helper with loopback PKCE/state,
+  exact read-only scope, expected mailbox/label validation and atomic ignored
+  configuration merging. SMTP and OAuth use a shared writer lock; conflicting
+  shared career credentials stop setup. No host project dependency was installed.
+- Networkless Chromium checks passed at 1440×1080 and 375×812 with synthetic
+  data, covering draft state transitions, expiry, escaped source text,
+  exact-digest preparation, server conflicts, separate manual/template paths,
+  owner-contact preservation and run-consent reset. No page errors or horizontal
+  overflow occurred. The test origin was corrected to HTTPS to expose
+  `crypto.randomUUID` as the actual trusted loopback dashboard does.
+- Container lint and 621 unit/contract tests passed. The complete verifier
+  passed, including nine new creator-draft PostgreSQL groups covering
+  idempotency, concurrent exact preparation, digest tampering, delegated-authority
+  refusal, stale research/campaign context, cancellation and lease/expiry changes
+  during blocking locks. Native Gmail OAuth and SMTP setup checks passed.
+  Compose configuration and whitespace checks passed.
+- `doctor.ps1 -Agent` and the harmless `agent-smoke.ps1` route check passed.
+  The latter returned `ROUTE_OK` through `free/default` using
+  `Mistral-Small-3.2-24B-Instruct-2506`. Cached/unloaded Qwen is not a fresh local
+  response, and this general route check does not prove creator-specific model
+  copy. Creator-model, real Gmail and external SMTP canaries remain separate;
+  account creation alone does not establish delivery or reply monitoring.
+- Extended the campaign UI with bounded API shortlist research: one-to-ten
+  saved creators, durable queue/status, ranked dated evidence, contact gaps and
+  a current-dossier review/draft action. Networkless desktop/mobile tests passed
+  the new queue, selection, escaped evidence and failure states alongside the
+  existing AI checks. The normal research path uses the official API without
+  per-channel browser visits or model requests. Backend batch validation is
+  recorded only after its separate checks complete.
+- Live creator-model testing reached a local response after hosted rate limiting,
+  but operator review rejected unsupported video/product claims. Added fixed
+  validation codes and at most one local regeneration using original evidence
+  and a sanitized correction hint; rejected output is never reused in prompts.
+  Each attempt retains its own inference reservation and context/lease checks.
+  Subsequent lint and 626 unit/contract tests, plus nine draft PostgreSQL groups,
+  passed; successful generation is still separate from a reviewed usable pitch.
+
+## 2026-10-22 — API creator shortlist and provider readiness checks
+
+- Completed `marketing.creator_pilot` in the existing policy/task/audit/outbox
+  path. PostgreSQL serializes the global thirty-creator rolling reservation
+  allowance and one active batch per campaign. Server-selected identities,
+  targeting snapshots, a nonce and a creation-audit payload hash prevent generic
+  tasks from acquiring research authority. Cancelled and failed work remains
+  counted; one execution attempt bounds ambiguous repeats.
+- The existing YouTube adapter checks channel metadata, the saved matching
+  sample and at most three recent public uploads through fixed endpoints. It
+  retains publication dates, declared language and current public contact
+  evidence without changing contact authorization. Dated Minecraft activity,
+  campaign targeting, known subscriber range and exact reviewed contact evidence
+  determine the inspectable selected/review/excluded result. No model request,
+  message, draft or contact grant is created by research.
+- Seven new disposable PostgreSQL scenario groups passed, covering concurrent
+  idempotency, generic-task refusal, frozen targeting/identity, unchanged contact
+  authority, expiry during row-lock waits, one active batch and retained budget
+  reservations. The final coherent container lint and 669 unit/contract tests
+  passed after the Gmail and model-prompt repairs.
+- A real audited two-creator batch refreshed both records without failure and
+  returned dated Minecraft uploads and declared Polish language. Both records
+  correctly remained in contact review because no contact had been authorized.
+  The task made zero model requests, contact authorizations or sends. This is a
+  bounded metadata sample, not complete YouTube coverage or collaboration proof.
+- The local Desktop OAuth helper completed real expected-mailbox and label
+  checks and saved ignored read-only settings. The worker's first inbox canary
+  then isolated an empty HTTP 204 message-list response after token, profile and
+  label checks had succeeded. Account setup is verified; labeled-reply ingestion
+  and external SMTP delivery remain separate provider checks.
+- Clarified the Gmail SMTP prompt to request Google's generated sixteen-character
+  app password, explain hidden input and Enter/Ctrl+C, remove grouping whitespace
+  and retry invalid lengths without writing settings. Native SMTP setup
+  regression passed its invalid-input/no-write/no-echo and valid-retry scenarios;
+  format acceptance is not provider authentication or delivery proof.
+- Narrowed Gmail's empty-response handling to an empty HTTP 204 on the exact
+  read-only message collection GET; token, profile, labels, individual messages
+  and malformed HTTP 200 responses still fail. Requested `resultSizeEstimate`
+  with partial message-list fields and added fixed protocol diagnostics that
+  reveal no response text, credentials, mailbox content or request URLs.
+- A subsequent governed live `marketing.gmail_sync` task succeeded through
+  OAuth, mailbox identity, configured label and empty message-list reading:
+  fetched zero, inserted zero, pending zero, no more pages and no mailbox
+  modification. This verifies a runtime read of the empty label, not real
+  reply matching, duplicate ingestion, interest confirmation or SMTP sending.
+- Live model attempts reached the configured local Qwen model after hosted
+  rate limiting. Operator review rejected unsupported claims and a response
+  copied from the prompt's example. Removed the content-bearing example and
+  added regression coverage; the final creator canary failed closed on its
+  evidence contract. Usable creator-specific AI copy remains unverified.
+  No additional calls bypassed the three-draft per-creator rolling limit.
+- Final Compose configuration, all 669 tests with lint, the complete verifier,
+  `doctor.ps1 -Agent`, `agent-smoke.ps1` and whitespace checks passed. The
+  verifier includes seven shortlist, nine AI-draft, nineteen creator-automation
+  and twelve career-autonomy PostgreSQL groups plus the existing foundation,
+  workflow, scheduler, planner, action and recovery checks. The harmless general
+  route canary returned `ROUTE_OK` through `free/default` using Mistral; it does
+  not establish creator-copy quality. SMTP remained unconfigured and zero
+  creator emails were sent. An owned-inbox delivery/reply canary and a durable
+  Google publishing/verification plan remain necessary for unattended use.

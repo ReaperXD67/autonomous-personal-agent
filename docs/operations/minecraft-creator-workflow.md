@@ -36,7 +36,7 @@ handoff email; Hermes does not log into Discord or send Discord DMs.
 | Discover | Official YouTube searches find a bounded sample of channels and videos. Scheduled discovery is optional. Country and language can remain unrestricted. |
 | Research | Source excerpts, activity, subscriber evidence, fit, content ideas, and public business-contact candidates are retained. Missing evidence stays visible. |
 | Qualify | The operator checks the source and authorizes the exact business contact. Discovery cannot authorize recipients. |
-| Introduce | Prepare one exact email for individual approval, or authorize a finite run for already-reviewed contacts. Revenue-share wording uses the campaign's explicit terms. |
+| Introduce | Choose a campaign template, an AI personalized draft, or your own copy for exact approval. Finite runs use generated template introductions for already-reviewed contacts; AI drafts retain individual review. Revenue-share wording uses the campaign's explicit terms. |
 | Read replies | Optional Gmail adapter reads metadata/excerpts from one custom label. Sender and subject matching suggest the creator; classification is conservative evidence. |
 | Review | Positive interest and uncertain replies require confirmation against the original message. Explicit opt-outs suppress further contact. Questions need a reviewed answer. |
 | Handoff | After confirmed interest, prepare one owner-contact email. A run can separately authorize this handoff automatically. SMTP acceptance marks the conversation handed off. |
@@ -52,7 +52,9 @@ handoff email; Hermes does not log into Discord or send Discord DMs.
    subscriber counts still cannot satisfy automatic-send eligibility.
 4. Choose **Find Minecraft creators**. Inspect the research dossier and published
    contact source before using **Review contact**.
-5. Prepare and inspect an introduction, or choose **Authorize outreach run**.
+5. Choose **Prepare introduction** and inspect a campaign template, request an
+   **AI personalized draft**, or write your own copy. Alternatively choose
+   **Authorize outreach run** for bounded template introductions.
    The run requires explicit confirmation of its campaign, cap, expiry, and
    optional handoff authority. Saving a campaign never starts a send run.
 6. Review replies in **Your next decisions**. Confirm interest with evidence,
@@ -64,12 +66,103 @@ and an authorized unsuppressed email. Missing or stale evidence blocks the send.
 Research is deterministic and spends no model tokens; it is not an assertion
 that every relevant creator has been found or that a partnership will succeed.
 
+## Refresh a shortlist without model calls
+
+Discovery already uses the official YouTube Data API; it does not require
+opening channels one by one in a browser. After discovery, expand a campaign's
+**Research a creator shortlist**, choose a batch size of one to ten, and select
+**Research shortlist**. The default is five. The worker refreshes a bounded
+selection from the campaign's saved pool and checks up to three recent uploads
+per creator, then ranks fit and shows source evidence, publication dates,
+contact-review needs and gaps.
+
+This step uses no model tokens, authorizes no contact and sends no email. The
+global refresh allowance is thirty creators per rolling day. An upload's
+publication date remains separate from the time research ran; declared country
+does not establish content language or viewer location. A partial/provider
+failure remains visible instead of looking like complete coverage.
+
+The server selects uncontacted Minecraft candidates from the saved campaign,
+preferring existing public-contact evidence before relevance. The shortlist
+requires a dated Minecraft publication within the campaign's age limit, capped
+at ninety days, an observed subscriber count inside its range, current explicit
+business-contact evidence and eligible declared targeting. **Selected** also
+requires the exact current contact to have been authorized; **Needs review**
+keeps that decision with the operator. These labels are research priorities,
+not permission to send. One active batch per campaign and the global rolling
+reservation limit also apply to failed or cancelled work.
+
+The result persists as a normal audited task. Use **Refresh research status** or
+return later. **Review creator evidence** opens the current contact dossier,
+including for a creator outside the loaded shortlist page. **Draft introduction**
+opens the separate AI review workflow for a selected, already-authorized contact;
+it does not generate or send automatically. Browser spot checks remain useful
+when source ownership or product claims are unclear, but they are not the
+normal discovery or batch-research mechanism.
+
+API clients can queue the same bounded job with
+`POST /v1/marketing/campaigns/{id}/pilot-research`, an actor, UUID idempotency key
+and `limit` of one to ten. `GET` on that route returns the latest task; normal
+task endpoints provide durable status and audit history. This is a research
+capability, not an unrestricted Hermes tool connection.
+
+## A model-written introduction for each creator
+
+This drafting mode is experimental. Local lifecycle and interface tests pass,
+and the configured local model has returned real responses, but live review has
+not established usable creator-specific copy. Failed validation stops the draft;
+use the separately reviewed manual or template path when appropriate.
+
+Within **Prepare introduction**, select **AI personalized draft · review required**
+and choose **Generate personalized draft**. Drafting runs asynchronously through
+the existing task and research-worker path. You can close the dialog and return;
+the latest saved draft and its status are loaded when you select AI again.
+Drafting requires a reviewed authorized contact, observed Minecraft topic
+evidence, a valid sampled video, and research no older than seven days. The
+drafting budget is at most three requests per creator and thirty globally per
+rolling day; these are separate from send limits.
+
+The model receives the campaign's product summary, the creator's sampled video
+title, public video URL, observed topics and subscriber count, and campaign-scoped
+reviewed aggregate feedback. Recipient addresses, raw descriptions and raw
+inbox text are excluded. It proposes an opening
+and a content idea, explains the approach and how the observed reach influenced
+the format, and cites recorded evidence. Reach is not a payment formula or a
+promise of views. The first version writes English copy; translated pitches are
+not implemented.
+
+The review shows the actual model and source, complete message, evidence links,
+quality notes, and feedback context. Inspect those sources and confirm that the
+idea matches what the website can actually offer. The existing free-only hosted
+model route and local fallback are used; neither route has authority to contact
+the creator. Invalid local output can trigger one bounded regeneration from the
+same evidence and a fixed validation hint; rejected text is neither retained nor
+fed back into the prompt. Each attempt reserves inference separately and rechecks
+the task's lease, cancellation and context. Transport failures are not retried
+by this repair step. If no attempt passes, the draft stays visibly failed.
+Choosing a template is a separate, explicitly labeled option.
+
+**Prepare exact AI email** binds the saved draft digest to the ordinary email
+approval packet. It does not send the email or approve its own output. Changed
+campaign/contact/research context or a draft older than 24 hours requires a fresh
+draft. The final
+packet retains required commercial wording and the contact-source, privacy and
+opt-out footer. Sending follows the same exact approval, pacing, duplicate and
+suppression checks as other creator emails.
+
+AI copy is an individually reviewed workflow. Authorizing a creator run does not
+authorize arbitrary model-generated messages; those runs keep the bounded
+template path. Better relevance can reduce avoidable objections, but acceptance
+depends on the creator, offer and timing. No response or collaboration rate is
+guaranteed.
+
 ## Automatic-run boundaries
 
 - Default: three introductions per rolling 24 hours, valid for 24 hours.
   Maximum: ten introductions per rolling day and seven days of authority.
-- Only generated first approaches and explicitly enabled owner handoffs qualify.
-  Questions and custom messages retain individual exact-action approval.
+- Only template first approaches and explicitly enabled owner handoffs qualify.
+  AI introductions, questions and custom messages retain individual exact-action
+  approval.
 - PostgreSQL records the run, exact action reservation, digest, recipient,
   approval, and outcome. Duplicate recipient/creator stages cannot be scheduled
   again across campaigns. Failed or uncertain automated reservations remain counted.
@@ -117,9 +210,12 @@ payout accounting are not implemented.
 
 ## Optional Gmail reply monitoring
 
-SMTP sending and Gmail reading are separate integrations. Configure existing
-`GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, and `GMAIL_REFRESH_TOKEN` locally with
-exactly `https://www.googleapis.com/auth/gmail.readonly`, then set:
+SMTP sending and Gmail reading are separate integrations. Follow the
+[Gmail setup guide](gmail-setup.md) to connect the owner's Desktop OAuth client
+using `./scripts/gmail-oauth.ps1`. It requests exactly
+`https://www.googleapis.com/auth/gmail.readonly`, verifies the mailbox and
+label, then atomically saves the credentials in ignored local configuration.
+The resulting reader configuration includes:
 
 ```dotenv
 CREATOR_GMAIL_ENABLED=true
@@ -160,7 +256,11 @@ docker compose config --quiet
 git diff --check
 ```
 
-The complete verifier includes a disposable PostgreSQL creator-automation proof.
+The complete verifier includes disposable PostgreSQL creator-automation,
+AI-draft and API-shortlist proofs, plus network-free native OAuth and SMTP-setup
+regression checks.
+The draft proof uses synthetic model output, so it does not establish that a
+configured external or local model is responding.
 The paid-handoff smoke uses synthetic contacts and Mailpit: introduction,
 confirmed interest, owner email/Discord handoff, terminal duplicate refusal,
 and opt-out suppression. Test containers receive no saved SMTP credentials.
@@ -168,4 +268,5 @@ These tests do not establish external SMTP inbox placement, Gmail OAuth readines
 YouTube coverage, attribution accuracy, revenue, or commercial agreement.
 
 For provider setup and delivery limits, see [creator outreach operations](creator-outreach.md).
-For the authority boundary, see [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
+For the authority boundaries, see [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md)
+and [ADR-0026](../decisions/ADR-0026-reviewed-creator-ai-drafts.md).

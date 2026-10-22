@@ -18,6 +18,7 @@ const state = {
   prospectLoadNotice: "",
   creatorCoverage: null,
   creatorAutomation: {},
+  creatorPilot: {},
   marketingResults: [],
   workflows: [],
   plans: [],
@@ -30,7 +31,11 @@ const state = {
 let prospectRequestVersion = 0;
 let coverageRequestVersion = 0;
 let creatorAutomationVersion = 0;
+let creatorPilotVersion = 0;
 const creatorRunBusy = new Set();
+const creatorPilotBusy = new Set();
+const creatorPilotRequestKeys = new Map();
+const creatorPilotLimits = new Map();
 let loadingMoreProspects = false;
 const exportingCampaigns = new Set();
 
@@ -195,7 +200,9 @@ function disconnect(showMessage = true) {
   state.prospectLoadNotice = "";
   state.creatorCoverage = null;
   state.creatorAutomation = {};
+  state.creatorPilot = {};
   creatorAutomationVersion += 1;
+  creatorPilotVersion += 1;
   prospectRequestVersion += 1;
   coverageRequestVersion += 1;
   state.marketingResults = [];
@@ -206,6 +213,8 @@ function disconnect(showMessage = true) {
   state.readiness = null;
   state.communications = null;
   selectedPlanId = null;
+  resetCreatorDraftReview();
+  $("#marketing-reply-dialog").close();
   $("#workflow-dialog").close();
   setConnection(false);
   renderAll();
@@ -289,6 +298,7 @@ async function loadData({ quiet = false } = {}) {
     renderAll();
     loadCreatorCoverage();
     loadCreatorAutomation();
+    loadCreatorPilots();
     return true;
   } catch (error) {
     setConnection(false, "Connection failed");
@@ -1575,6 +1585,125 @@ function creatorHandoffLabel(campaign) {
   return [campaign.handoff_email, campaign.handoff_discord ? `Discord: ${campaign.handoff_discord}` : ""].filter(Boolean).join(" · ") || "No owner contact configured";
 }
 
+async function loadCreatorPilots(campaignId = null) {
+  if (!isConnected()) return;
+  const version = ++creatorPilotVersion;
+  const campaigns = state.campaigns.filter((campaign) => !campaignId || campaign.id === campaignId);
+  const results = await Promise.all(campaigns.map(async (campaign) => {
+    try { return [campaign.id, { task: await api(`/v1/marketing/campaigns/${encodeURIComponent(campaign.id)}/pilot-research`) }]; }
+    catch (error) { return [campaign.id, { error: error.message }]; }
+  }));
+  if (version !== creatorPilotVersion || !isConnected()) return;
+  Object.assign(state.creatorPilot, Object.fromEntries(results));
+  renderCampaigns();
+}
+
+function creatorPilotPanel(campaign) {
+  const panel = node("details", "creator-pilot");
+  panel.dataset.campaignId = campaign.id;
+  panel.append(node("summary", "", "Research a creator shortlist"));
+  panel.append(node("p", "fine-print", "Refresh saved creators through the YouTube API and rank the evidence. No model tokens, contact authorization or emails are used by this step."));
+  const data = state.creatorPilot[campaign.id];
+  const task = data?.task;
+  const pending = task && ["queued", "running", "retry_scheduled", "pending_approval"].includes(task.status);
+  const controls = node("div", "creator-pilot-controls");
+  const label = node("label", "", "Creators to research");
+  const limit = node("input");
+  Object.assign(limit, { type: "number", min: "1", max: "10", step: "1", value: String(creatorPilotLimits.get(campaign.id) || 5), required: true });
+  limit.name = "creator_pilot_limit";
+  limit.disabled = Boolean(pending) || creatorPilotBusy.has(campaign.id);
+  limit.addEventListener("input", () => creatorPilotLimits.set(campaign.id, limit.value));
+  label.append(limit);
+  const start = button(pending ? "Research in progress…" : "Research shortlist", "button", "research-creator-pilot", campaign.id);
+  start.disabled = !data || Boolean(pending) || creatorPilotBusy.has(campaign.id);
+  const refresh = button("Refresh research status", "text-button", "refresh-creator-pilot", campaign.id);
+  refresh.disabled = creatorPilotBusy.has(campaign.id);
+  controls.append(label, start, refresh);
+  panel.append(controls, node("p", "fine-print", "At most ten saved creators and three recent uploads each. Start with Find Minecraft creators if the campaign has no research yet."));
+  const status = node("div", "creator-pilot-status");
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  if (data?.error) status.append(node("p", "notice", `Could not load research: ${data.error}`));
+  else if (!data) status.append(node("p", "fine-print", "Loading saved research status…"));
+  else if (!task) status.append(node("p", "fine-print", "No shortlist research has run for this campaign yet."));
+  else {
+    const title = pending ? task.status === "running" ? "Researching public channel evidence…" : "Shortlist research queued"
+      : task.status === "succeeded" ? "Shortlist ready for review" : "Research did not complete";
+    status.append(node("strong", "", title), node("p", "fine-print", `Updated ${formatDate(task.updated_at || task.created_at)}. Drafting and sending remain separate decisions.`));
+    if (!pending && task.status !== "succeeded") status.append(node("p", "fine-print", `Inspect the task before trying again.${task.error_code ? ` Reason: ${titleCase(task.error_code)}.` : ""}`));
+    status.append(button("Inspect research task", "text-button", "view-audit", task.id));
+  }
+  panel.append(status);
+  const report = task?.output;
+  if (Array.isArray(report?.ranked)) {
+    panel.append(node("p", "fine-print", `${report.researched || 0} researched · ${report.selected_count || 0} selected · ${report.requires_contact_review_count || 0} need contact review · ${report.failed || 0} research failures`));
+    const list = node("ol", "creator-pilot-results");
+    for (const result of report.ranked) {
+      const row = node("li", "creator-pilot-result");
+      row.append(node("strong", "", result.display_name || "Recorded creator"));
+      row.append(node("p", "fine-print", `${titleCase(result.status)} · score ${result.score ?? "unknown"} · ${result.subscriber_count == null ? "subscriber count unknown" : `${Number(result.subscriber_count).toLocaleString()} recorded subscribers`}`));
+      for (const reason of result.reasons || []) row.append(node("p", "fine-print", reason));
+      if (result.last_published_at) row.append(researchLink(`Published activity: ${researchDate(result.last_published_at)}`, result.latest_activity_url));
+      if (result.last_minecraft_published_at) row.append(node("p", "fine-print", `Observed Minecraft publication: ${researchDate(result.last_minecraft_published_at)}`));
+      if (result.observed_language) {
+        const source = { defaultAudioLanguage: "declared audio language", defaultLanguage: "declared video language" }[result.language_source] || "public video metadata";
+        row.append(node("p", "fine-print", `Published language: ${result.observed_language} · ${source}`));
+      }
+      for (const gap of result.gaps || []) row.append(node("p", "notice", gap));
+      row.append(node("p", "fine-print", `${result.public_business_contact_count || 0} public business-contact candidates · ${result.contact_authorized ? "contact already reviewed" : "contact review required"}`));
+      for (const evidence of result.contact_evidence || []) {
+        if (evidence.excerpt) row.append(node("blockquote", "source-excerpt", evidence.excerpt));
+        if (evidence.source_url) row.append(researchLink("Public contact source", evidence.source_url));
+      }
+      const next = button(result.status === "selected" && result.contact_authorized ? "Draft introduction" : "Review creator evidence", "text-button", "review-pilot-prospect", result.prospect_id);
+      next.dataset.campaignId = campaign.id;
+      next.dataset.prepareDraft = String(result.status === "selected" && result.contact_authorized);
+      row.append(next);
+      list.append(row);
+    }
+    panel.append(list);
+    if (report.caveat) panel.append(node("p", "fine-print", report.caveat));
+  }
+  return panel;
+}
+
+async function researchCreatorPilot(campaignId) {
+  if (creatorPilotBusy.has(campaignId)) return;
+  const panel = $$(".creator-pilot").find((item) => item.dataset.campaignId === campaignId);
+  const input = $('input[name="creator_pilot_limit"]', panel);
+  if (!input.reportValidity()) return;
+  const limit = Number(input.value);
+  if (!creatorPilotRequestKeys.has(campaignId)) creatorPilotRequestKeys.set(campaignId, crypto.randomUUID());
+  creatorPilotBusy.add(campaignId);
+  renderCampaigns();
+  try {
+    const task = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/pilot-research`, {
+      method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", idempotency_key: creatorPilotRequestKeys.get(campaignId), limit }),
+    });
+    creatorPilotRequestKeys.delete(campaignId);
+    if (!isConnected() || !state.campaigns.some((campaign) => campaign.id === campaignId)) return;
+    state.creatorPilot[campaignId] = { task };
+    toast("API research queued. Review the ranked sources when it completes.");
+  } catch (error) {
+    if (isConnected()) state.creatorPilot[campaignId] = { ...state.creatorPilot[campaignId], error: error.message };
+  }
+  finally { creatorPilotBusy.delete(campaignId); renderCampaigns(); }
+}
+
+async function reviewPilotProspect(prospectId, campaignId, prepareDraft) {
+  try {
+    const prospect = await api(`/v1/marketing/prospects/${encodeURIComponent(prospectId)}`);
+    if (!isConnected() || !state.campaigns.some((campaign) => campaign.id === campaignId)) return;
+    if (prospect.campaign_id !== campaignId) throw new Error("The creator no longer belongs to this campaign. Refresh research.");
+    if (prepareDraft && prospect.contact_authorized_at && !prospect.suppressed_at) {
+      openMarketingReply(prospect, "initial");
+      $("#marketing-reply-form").elements.draft_method.value = "ai";
+      updateMarketingDraftMode();
+      loadCreatorDraftReview();
+    } else openProspectDialog(prospect);
+  } catch (error) { toast(error.message, true); }
+}
+
 async function loadCreatorAutomation() {
   if (!isConnected()) return;
   const version = ++creatorAutomationVersion;
@@ -1817,17 +1946,20 @@ function campaignCard(campaign) {
     button("Export full campaign CSV", "text-button", "export-campaign", campaign.id),
   );
   card.append(actions, node("p", "fine-print", `${campaign.active ? "Discovery scheduled" : "Discovery paused"} · last: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
+  if (campaign.outreach_mode === "paid") card.append(creatorPilotPanel(campaign));
   return card;
 }
 
 function renderCampaigns() {
   const list = $("#campaign-list");
+  const pilotOpen = new Set($$(".creator-pilot[open]", list).map((panel) => panel.dataset.campaignId));
   list.replaceChildren();
   if (!state.campaigns.length) {
     list.append(empty("Start your first paid creator campaign", "Add a truthful product brief and your email or Discord. Then research Minecraft creators and review their public business contacts.", true));
     return;
   }
   state.campaigns.forEach((campaign) => list.append(campaignCard(campaign)));
+  $$(".creator-pilot", list).forEach((panel) => { panel.open = pilotOpen.has(panel.dataset.campaignId); });
 }
 
 async function showPromotionKit(campaignId) {
@@ -2850,21 +2982,222 @@ async function planMarketingEmail(id, stage, subject = null, body = null) {
 
 function openMarketingReply(prospect, stage = "question_reply") {
   if (!prospect) return;
+  resetCreatorDraftReview();
   const form = $("#marketing-reply-form");
   form.reset();
+  clearFormError(form);
   const initial = stage === "initial";
+  const campaign = state.campaigns.find((item) => item.id === prospect.campaign_id);
   form.elements.prospect_id.value = prospect.id;
   form.elements.stage.value = stage;
   form.elements.subject.value = initial ? "" : `Re: ${prospect.display_name} × KarixMC`;
-  form.elements.subject.required = !initial;
-  form.elements.body.required = !initial;
+  form.elements.draft_method.value = initial ? "template" : "manual";
+  $('option[value="ai"]', form.elements.draft_method).disabled = campaign?.outreach_mode !== "paid";
   $("#marketing-message-title").textContent = initial ? `Introduce your campaign to ${prospect.display_name}` : "Answer the creator's question";
-  $("#marketing-message-guidance").textContent = initial ? "Use the campaign introduction, or write a specific subject and body below. Keep claims and offers factual. You will review the complete packet before approving any send." : "Answer only what you know. The exact message will wait for approval.";
-  $("#marketing-message-fields").open = !initial;
-  $("#marketing-message-fields summary").hidden = !initial;
-  $("#marketing-message-custom-help").hidden = !initial;
-  $('button[type="submit"]', form).textContent = initial ? "Prepare introduction for review" : "Prepare exact answer";
+  $("#marketing-message-guidance").textContent = initial ? "Choose a template, request an AI draft, or write your own. Each route prepares one exact email for review before sending. Creator interest is never guaranteed." : "Answer only what you know. The exact message will wait for approval.";
+  updateMarketingDraftMode();
   $("#marketing-reply-dialog").showModal();
+}
+
+let creatorDraftRecord = null;
+let creatorDraftVersion = 0;
+let creatorDraftTimer = null;
+let creatorDraftLoading = false;
+let creatorDraftError = "";
+let creatorDraftLoaded = false;
+const creatorDraftRequestKeys = new Map();
+
+function resetCreatorDraftReview() {
+  creatorDraftVersion += 1;
+  clearTimeout(creatorDraftTimer);
+  creatorDraftTimer = null;
+  creatorDraftRecord = null;
+  creatorDraftLoading = false;
+  creatorDraftError = "";
+  creatorDraftLoaded = false;
+}
+
+function creatorDraftIsCurrent(version, prospectId) {
+  return version === creatorDraftVersion && $("#marketing-reply-dialog").open
+    && $("#marketing-reply-form").elements.prospect_id.value === prospectId && isConnected();
+}
+
+function creatorDraftCanPrepare() {
+  return creatorDraftRecord?.status === "ready" && Boolean(creatorDraftRecord.draft_digest)
+    && Date.parse(creatorDraftRecord.expires_at) > Date.now() && !creatorDraftLoading && !creatorDraftError;
+}
+
+function updateMarketingDraftMode() {
+  const form = $("#marketing-reply-form");
+  const initial = form.elements.stage.value === "initial";
+  const method = initial ? form.elements.draft_method.value : "manual";
+  const manual = method === "manual";
+  $("#marketing-draft-method-field").hidden = !initial;
+  $("#creator-ai-draft").hidden = method !== "ai";
+  $("#marketing-message-fields").hidden = !manual;
+  $("#marketing-message-fields").open = manual;
+  $("#marketing-message-fields summary").hidden = true;
+  $("#marketing-message-custom-help").hidden = !initial;
+  form.elements.subject.required = manual;
+  form.elements.body.required = manual;
+  const submit = $('button[type="submit"]', form);
+  if (form.dataset.busy !== "true") {
+    submit.textContent = !initial ? "Prepare exact answer" : method === "ai" ? "Prepare exact AI email" : manual ? "Prepare my introduction" : "Prepare campaign template";
+    submit.disabled = method === "ai" && !creatorDraftCanPrepare();
+  }
+  if (method === "ai") renderCreatorDraftReview();
+}
+
+function renderCreatorDraftReview() {
+  const status = $("#creator-ai-status");
+  const review = $("#creator-ai-review");
+  const draft = creatorDraftRecord;
+  status.replaceChildren();
+  review.replaceChildren();
+  const pending = draft?.status === "queued";
+  const expired = draft?.status === "ready" && !(Date.parse(draft.expires_at) > Date.now());
+  const headline = creatorDraftError ? "Draft could not be loaded"
+    : creatorDraftLoading ? "Checking the draft…"
+    : !draft ? "No AI draft yet"
+    : draft.status === "prepared" ? "Exact email prepared"
+    : expired || draft.status === "stale" ? "Draft needs refreshing"
+    : draft.status === "ready" ? "Ready for your review"
+    : pending ? draft.task_status === "running" ? "Writing and checking the introduction…" : "Draft queued"
+    : "Draft did not pass";
+  status.append(node("strong", "", headline));
+  const explanation = creatorDraftError || (!draft ? "Generate an introduction from the recorded evidence. Nothing is sent by drafting."
+    : draft.status === "prepared" ? "This draft is already linked to an exact email. Open that message to inspect its approval and delivery status."
+    : expired || draft.status === "stale" ? "The draft expired or its campaign/contact context changed. Generate a fresh draft before preparing an email."
+    : draft.status === "ready" ? "Read the complete copy and check the sources below. Preparing creates an approval packet; it does not send."
+    : pending ? "You can close this dialog and return later. Progress is saved; the draft cannot send an email."
+    : `No email was prepared. ${draft.error_code ? `Reason: ${titleCase(draft.error_code)}. ` : ""}Review the research and model setup, then try again or choose the campaign template.`);
+  status.append(node("p", "fine-print", explanation));
+  const generate = $("#creator-ai-generate");
+  generate.disabled = creatorDraftLoading || Boolean(pending);
+  generate.textContent = creatorDraftLoading ? "Please wait…" : pending ? "Draft in progress…" : draft ? "Generate a fresh draft" : "Generate personalized draft";
+  $("#creator-ai-refresh").disabled = creatorDraftLoading;
+  if (!draft) return;
+  if (draft.source || draft.selected_model) review.append(node("p", "fine-print", `Written by ${draft.selected_model || "model not recorded"} · ${titleCase(draft.source || "source unavailable")} · ${researchDate(draft.created_at)}`));
+  if (draft.subject && draft.body) {
+    const copy = node("section", "creator-ai-copy");
+    copy.setAttribute("aria-label", "Exact AI draft");
+    copy.append(node("strong", "", draft.subject), node("p", "", draft.body));
+    review.append(copy);
+  }
+  if (draft.learning_summary) {
+    const learning = draft.learning_summary;
+    review.append(node("h3", "", "How reviewed feedback shaped this draft"),
+      node("p", "", learning.reason || "No reviewed pattern is available yet."),
+      node("p", "fine-print", `${Number(learning.samples?.reviewed_creators || 0)} distinct creators with reviewed outcomes.`));
+    if (learning.caveat) review.append(node("p", "fine-print", learning.caveat));
+  }
+  if (draft.model_copy?.rationale || draft.model_copy?.reach_strategy) {
+    review.append(node("h3", "", "Why this approach"));
+    if (draft.model_copy.rationale) review.append(node("p", "", draft.model_copy.rationale));
+    const reachGuidance = {
+      small_pilot: "Observed subscriber count suggests a focused pilot. It does not predict views or determine compensation.",
+      format_choice: "Offer room for the creator to choose a suitable format. Subscriber count does not predict views or determine compensation.",
+      unknown_reach: "Subscriber evidence is unavailable. The draft must not assume reach or commercial value.",
+    };
+    if (draft.model_copy.reach_strategy) review.append(node("p", "fine-print", reachGuidance[draft.model_copy.reach_strategy] || titleCase(draft.model_copy.reach_strategy)));
+  }
+  if (Array.isArray(draft.quality_notes) && draft.quality_notes.length) {
+    review.append(node("h3", "", "Checks and review notes"));
+    const notes = node("ul", "reason-list");
+    draft.quality_notes.forEach((note) => notes.append(node("li", "", note)));
+    review.append(notes);
+  }
+  if (Array.isArray(draft.evidence) && draft.evidence.length) {
+    review.append(node("h3", "", "Sources behind the introduction"));
+    const sources = node("ul", "creator-ai-sources");
+    draft.evidence.forEach((source) => {
+      const item = node("li");
+      item.append(researchLink(source.title || source.id || "Open source", source.url));
+      sources.append(item);
+    });
+    review.append(sources);
+  }
+  if (draft.status === "ready" && !expired) review.append(node("p", "fine-print", `Review valid until ${researchDate(draft.expires_at)}. Creator, contact and campaign evidence are checked again when preparing.`));
+  if (draft.action_id) review.append(button("Review prepared email", "button", "review-creator-draft-action", draft.action_id));
+}
+
+function scheduleCreatorDraftRefresh() {
+  clearTimeout(creatorDraftTimer);
+  if ($("#marketing-reply-dialog").open && $("#marketing-reply-form").elements.draft_method.value === "ai"
+      && creatorDraftRecord?.status === "queued" && !creatorDraftError) {
+    creatorDraftTimer = setTimeout(() => loadCreatorDraftReview(), 5000);
+  }
+}
+
+async function loadCreatorDraftReview() {
+  if (creatorDraftLoading || !$("#marketing-reply-dialog").open) return;
+  const prospectId = $("#marketing-reply-form").elements.prospect_id.value;
+  const version = creatorDraftVersion;
+  creatorDraftLoading = true;
+  creatorDraftError = "";
+  updateMarketingDraftMode();
+  try {
+    const drafts = await api(`/v1/marketing/prospects/${encodeURIComponent(prospectId)}/drafts`);
+    if (!creatorDraftIsCurrent(version, prospectId)) return;
+    creatorDraftRecord = drafts[0] || null;
+    creatorDraftLoaded = true;
+  } catch (error) {
+    if (creatorDraftIsCurrent(version, prospectId)) creatorDraftError = error.message;
+  } finally {
+    if (creatorDraftIsCurrent(version, prospectId)) {
+      creatorDraftLoading = false;
+      updateMarketingDraftMode();
+      scheduleCreatorDraftRefresh();
+    }
+  }
+}
+
+async function generateCreatorDraft() {
+  if (creatorDraftLoading) return;
+  const form = $("#marketing-reply-form");
+  if (!$("#marketing-reply-dialog").open || form.elements.stage.value !== "initial" || form.elements.draft_method.value !== "ai") return;
+  const prospectId = form.elements.prospect_id.value;
+  const version = creatorDraftVersion;
+  clearTimeout(creatorDraftTimer);
+  creatorDraftLoading = true;
+  creatorDraftError = "";
+  if (!creatorDraftRequestKeys.has(prospectId)) creatorDraftRequestKeys.set(prospectId, crypto.randomUUID());
+  updateMarketingDraftMode();
+  try {
+    const draft = await api(`/v1/marketing/prospects/${encodeURIComponent(prospectId)}/drafts`, {
+      method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", idempotency_key: creatorDraftRequestKeys.get(prospectId) }),
+    });
+    creatorDraftRequestKeys.delete(prospectId);
+    if (!creatorDraftIsCurrent(version, prospectId)) return;
+    creatorDraftRecord = draft;
+    creatorDraftLoaded = true;
+    toast("AI draft queued. Review the result here before preparing an email.");
+  } catch (error) {
+    if (creatorDraftIsCurrent(version, prospectId)) creatorDraftError = error.message;
+  } finally {
+    if (creatorDraftIsCurrent(version, prospectId)) {
+      creatorDraftLoading = false;
+      updateMarketingDraftMode();
+      scheduleCreatorDraftRefresh();
+    }
+  }
+}
+
+async function prepareCreatorDraft() {
+  if (!creatorDraftCanPrepare()) throw new Error("Load a current, successfully checked AI draft before preparing it.");
+  const draft = creatorDraftRecord;
+  const version = creatorDraftVersion;
+  const action = await api(`/v1/marketing/drafts/${encodeURIComponent(draft.id)}/prepare`, {
+    method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", draft_digest: draft.draft_digest, approval_window_minutes: 1440 }),
+  });
+  const stillReviewing = creatorDraftIsCurrent(version, draft.prospect_id);
+  if (stillReviewing) $("#marketing-reply-dialog").close();
+  toast("Exact AI email prepared for approval. Nothing has been sent.");
+  await loadData({ quiet: true });
+  if (stillReviewing) {
+    switchView("approvals");
+    if (action.id) await showActionReview(action.id);
+  }
 }
 
 function openMarketingOutcome(prospect) {
@@ -3164,6 +3497,9 @@ document.addEventListener("click", async (event) => {
   if (action === "new-campaign") return openCampaignDialog();
   if (action === "edit-campaign") return openCampaignDialog(state.campaigns.find((item) => item.id === id));
   if (action === "scan-campaign") return scanCampaign(id);
+  if (action === "research-creator-pilot") return researchCreatorPilot(id);
+  if (action === "refresh-creator-pilot") return loadCreatorPilots(id);
+  if (action === "review-pilot-prospect") return reviewPilotProspect(id, target.dataset.campaignId, target.dataset.prepareDraft === "true");
   if (action === "promotion-kit") return showPromotionKit(id);
   if (action === "new-prospect") return openProspectDialog();
   if (action === "edit-prospect") return openProspectDialog(state.prospects.find((item) => item.id === id));
@@ -3182,6 +3518,9 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "plan-marketing-initial") return openMarketingReply(state.prospects.find((item) => item.id === id), "initial");
+  if (action === "generate-creator-draft") return generateCreatorDraft();
+  if (action === "refresh-creator-draft") return loadCreatorDraftReview();
+  if (action === "review-creator-draft-action") { $("#marketing-reply-dialog").close(); return showActionReview(id); }
   if (action === "plan-marketing-paid") return planMarketingEmail(id, "paid_offer");
   if (action === "plan-marketing-handoff") return planMarketingEmail(id, "handoff");
   if (action === "start-creator-run") return openCreatorRun(id);
@@ -3261,16 +3600,31 @@ $("#marketing-outcome-form").addEventListener("submit", (event) => guardedSubmit
 $("#marketing-reply-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
+  const initial = form.elements.stage.value === "initial";
+  if (initial && form.elements.draft_method.value === "ai") return prepareCreatorDraft();
+  if (initial && form.elements.draft_method.value === "template") return planMarketingEmail(form.elements.prospect_id.value, "initial");
   const subject = form.elements.subject.value.trim();
   const body = form.elements.body.value.trim();
-  if (Boolean(subject) !== Boolean(body)) {
+  if (!subject || !body) {
     $("#marketing-message-fields").open = true;
-    showFormError(form, new Error("Fill both the subject and body, or leave both blank to use the campaign introduction."));
+    showFormError(form, new Error("Fill both the subject and body, or select the campaign template for an introduction."));
     (subject ? form.elements.body : form.elements.subject).focus();
     return;
   }
   await planMarketingEmail(form.elements.prospect_id.value, form.elements.stage.value, subject || null, body || null);
-}));
+}).finally(updateMarketingDraftMode));
+$("#marketing-reply-form").elements.draft_method.addEventListener("change", () => {
+  clearFormError($("#marketing-reply-form"));
+  clearTimeout(creatorDraftTimer);
+  updateMarketingDraftMode();
+  if ($("#marketing-reply-form").elements.draft_method.value === "ai") {
+    if (!creatorDraftLoaded || creatorDraftError) loadCreatorDraftReview();
+    else scheduleCreatorDraftRefresh();
+  }
+});
+$("#marketing-reply-dialog").addEventListener("close", () => {
+  if (!$("#marketing-reply-dialog").open) resetCreatorDraftReview();
+});
 $("#application-answer-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {
   event.preventDefault();
   const form = event.currentTarget;

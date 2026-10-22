@@ -98,6 +98,8 @@ def validate_creator_automation(connection: Any, action: dict[str, Any]) -> str 
     scope = action["private_context"].get("creator_automation")
     if scope is None:
         return None
+    if isinstance(marketing, dict) and marketing.get("variant") == "ai_reviewed_initial":
+        return "AI introductions require individual exact approval, outside creator run authority"
     if not isinstance(scope, dict) or not scope.get("run_id"):
         return "Creator automation scope is invalid"
     reservation = connection.execute(

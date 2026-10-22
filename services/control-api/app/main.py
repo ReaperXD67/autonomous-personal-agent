@@ -48,7 +48,11 @@ from app.career_tracking_store import CareerTrackingStore
 from app.communication_routes import router as communication_router
 from app.creator_automation_routes import router as creator_automation_router
 from app.creator_automation_store import CreatorAutomationStore
+from app.creator_draft_routes import router as creator_draft_router
+from app.creator_draft_store import CreatorDraftStore
 from app.creator_export import creator_coverage, creator_csv
+from app.creator_pilot_routes import router as creator_pilot_router
+from app.creator_pilot_store import CreatorPilotStore
 from app.logging_config import configure_logging
 from app.marketing import build_promotion_kit
 from app.marketing_models import (
@@ -101,6 +105,10 @@ async def lifespan(application: FastAPI):
     application.state.career_tracking = CareerTrackingStore(settings.database_url)
     application.state.actions = ActionStore(settings.database_url)
     application.state.marketing = MarketingStore(settings.database_url)
+    application.state.creator_pilot = CreatorPilotStore(settings.database_url)
+    application.state.creator_drafts = CreatorDraftStore(
+        settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
+    )
     application.state.creator_automation = CreatorAutomationStore(
         settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
     )
@@ -129,6 +137,8 @@ app.include_router(communication_router)
 app.include_router(career_autopilot_router)
 app.include_router(career_tracking_router)
 app.include_router(creator_automation_router)
+app.include_router(creator_draft_router)
+app.include_router(creator_pilot_router)
 
 
 def _correlation_id(value: str | None) -> UUID:

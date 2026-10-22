@@ -399,6 +399,8 @@ class MarketingEmailPlanCreate(BaseModel):
     body: str | None = Field(default=None, max_length=20000)
     actor: str = Field(min_length=1, max_length=120)
     approval_window_minutes: int = Field(default=1440, ge=5, le=1440)
+    ai_draft_id: UUID | None = None
+    ai_draft_digest: str | None = Field(default=None, pattern=r"^[a-f0-9]{64}$")
 
     @field_validator("subject")
     @classmethod
@@ -418,6 +420,10 @@ class MarketingEmailPlanCreate(BaseModel):
 
     @model_validator(mode="after")
     def validate_manual_reply(self) -> MarketingEmailPlanCreate:
+        if bool(self.ai_draft_id) != bool(self.ai_draft_digest):
+            raise ValueError("AI draft preparation requires its exact reviewed digest")
+        if self.ai_draft_id and (self.stage != "initial" or self.subject or self.body):
+            raise ValueError("AI drafts are immutable first introductions; generate a new draft")
         if self.stage == "question_reply" and not (self.subject and self.body):
             raise ValueError("Question replies require a manually reviewed subject and body")
         if self.stage == "initial" and bool(self.subject) != bool(self.body):

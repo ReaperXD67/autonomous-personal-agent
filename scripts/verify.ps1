@@ -7,11 +7,13 @@ try {
     }
     docker compose config --quiet
     if ($LASTEXITCODE -ne 0) { throw 'Compose validation failed' }
+    & (Join-Path $PSScriptRoot 'gmail-oauth-smoke.ps1')
     $refreshActionWorker = @(docker compose ps --services --status running) -contains 'action-worker'
     if ($LASTEXITCODE -ne 0) { throw 'Running service inspection failed' }
     docker compose build control-api dispatcher worker job-worker action-worker test
     if ($LASTEXITCODE -ne 0) { throw 'Image build failed' }
     & (Join-Path $PSScriptRoot 'test.ps1') -SkipBuild
+    & (Join-Path $PSScriptRoot 'smtp-setup-smoke.ps1')
     docker compose up -d
     if ($LASTEXITCODE -ne 0) { throw 'Stack startup failed' }
     # Compose omits profiled services from a default up, even when already running.
@@ -28,6 +30,8 @@ try {
     & (Join-Path $PSScriptRoot 'scheduler-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-research-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-automation-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'creator-draft-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'creator-pilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-autopilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'planning-smoke.ps1')
     & (Join-Path $PSScriptRoot 'action-delivery-smoke.ps1')

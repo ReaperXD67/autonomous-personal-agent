@@ -35,6 +35,26 @@
 .creator-run-consent { margin: 24px 0 12px; }
 .checkbox-row { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
 .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 4px; accent-color: var(--lime); }
+.creator-ai-draft { margin-top: 20px; padding-top: 4px; border-top: 1px solid var(--line); }
+.creator-ai-draft .card-actions { margin: 14px 0 20px; }
+.creator-ai-draft h3 { margin: 24px 0 10px; font-size: 1rem; }
+.creator-ai-draft h4 { margin: 20px 0 8px; font-size: .92rem; }
+.creator-ai-draft p, .creator-ai-draft li { overflow-wrap: anywhere; }
+.creator-ai-copy { padding: 18px 0; margin: 16px 0; border-block: 1px solid var(--line); }
+.creator-ai-copy p { color: var(--ink); white-space: pre-wrap; line-height: 1.7; }
+.creator-ai-copy > strong { display: block; overflow-wrap: anywhere; }
+.creator-ai-sources { padding-inline-start: 20px; line-height: 1.7; }
+.creator-ai-sources a { overflow-wrap: anywhere; }
+.creator-pilot { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.creator-pilot > summary { cursor: pointer; color: var(--ink); }
+.creator-pilot > p, .creator-pilot-status { margin-top: 12px; }
+.creator-pilot-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 16px 0; }
+.creator-pilot-controls label { max-width: 180px; flex: 1 1 140px; margin: 0; }
+.creator-pilot-controls input { margin-top: 7px; }
+.creator-pilot-results { list-style: decimal; padding-inline-start: 20px; margin: 18px 0; }
+.creator-pilot-result { padding: 16px 0; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.creator-pilot-result > p, .creator-pilot-result > a, .creator-pilot-result > button { display: block; margin-top: 8px; }
+.creator-pilot-result .notice { padding: 10px 12px; }
 @media (max-width: 1050px) { .creator-journey { grid-template-columns: repeat(2, minmax(0, 1fr)); } .creator-work-queue { grid-template-columns: 1fr; gap: 16px; } }
 @media (max-width: 600px) { .creator-journey { gap: 20px 14px; padding: 18px 0; } .creator-journey strong { font-size: .83rem; } .creator-journey span { font-size: .78rem; } .creator-decision-row { flex-wrap: wrap; } }
 

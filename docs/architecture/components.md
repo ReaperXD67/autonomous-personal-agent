@@ -80,6 +80,24 @@ refresh never mutates recipient authorization. Reuse avoids a
 new service while lifecycle and network privileges are identical; the API key
 is not passed to other application services.
 
+For `marketing.creator_draft`, the same worker sends only bounded public creator
+metadata, product summary and reviewed feedback aggregates through the existing
+strict-free hosted route or internal Ollama fallback. The model supplies an
+opening and optional content idea, never a recipient, commercial terms or
+authorization. PostgreSQL stores immutable draft provenance; lease and context
+checks fence completion, and exact-digest preparation creates a separately
+reviewed email action. Failed model output is visible without a template
+substitution. One bounded local regeneration can use a fixed validation hint,
+never the rejected text, with a new reservation and context/lease check. No SMTP
+credentials enter this worker.
+
+`marketing.creator_pilot` refreshes a small batch from saved campaign prospects
+using the official YouTube API and up to three recent uploads per channel. It
+spends no model tokens and returns deterministic rankings with dated evidence,
+review needs and explicit gaps. The existing task/audit path and shared rolling
+refresh budget bound the job. It cannot authorize contacts, draft messages or
+send; its shortlist feeds those separate reviewed workflows.
+
 ### Action worker
 
 Consumes a separate external-action queue. Playwright runs in a release/digest-
