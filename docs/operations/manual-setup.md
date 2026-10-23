@@ -62,12 +62,38 @@ Data API v3 enabled and a restricted API key in ignored `YOUTUBE_API_KEY`.
 External delivery also requires the SMTP setup below. Neither account, key, nor
 provider terms are created automatically.
 
-On this workstation, the readiness check on 2026-09-05 found a non-placeholder
-YouTube key in ignored `.env`; final validation loaded it into a healthy
-`job-worker`, but no real SMTP transport is configured. Presence/loading is not
-live discovery proof. The key must still be exercised by one deliberate
-campaign scan and checked for the intended provider-side API restriction
-without exposing it.
+Official YouTube research has passed live requests on this workstation,
+including a two-creator API shortlist on 2026-10-22. That batch refreshed dated
+Minecraft activity and kept unauthorized contacts in review; research grants
+no permission to send. Creator Gmail OAuth, expected-mailbox identity, the
+configured label and an empty-label runtime read also passed. Actual reply
+matching/replay still requires its separate proof below. A healthy container or
+saved credential alone is not provider proof.
+
+On 2026-10-23, the configured external SMTP transport passed an audited
+STARTTLS/authentication/NOOP check after the action services loaded its saved
+settings. The check sent no mail. The exact owned-inbox test remains separate
+from authentication: its individually approved message subsequently received
+durable SMTP acceptance, and its received Inbox copy matched the receipt's
+Message-ID, body and test reference. This is one Gmail self-mail proof, not
+creator inbox placement or real incoming-reply matching.
+
+Fresh HTTPS requests and a browser check could not reach the product site from
+this workstation while DNS resolved. The owner confirmed availability from
+their connection initially, then confirmed the site was unreachable. These
+observations do not establish a global outage. Two reviewed Polish messages
+received individual exact approval through task decisions, then both tasks
+were cancelled before their paced send times. Zero creator emails were sent;
+broader campaign automation remains paused with no general send grant. Resume
+only after product-site availability and fresh exact review.
+AI copy remains
+experimental and still needs editing; these pilot packets do not establish
+unedited AI quality. Google's Testing-mode read-only OAuth expiry remains a
+separate operating limit, described in the [Gmail guide](gmail-setup.md#expiry-and-recovery).
+
+A governed read-only Gmail sync read the labeled owned self-test and correctly
+inserted no creator reply. It changed no mailbox state. Actual incoming creator
+reply matching/replay and interest review remain separate unverified checks.
 
 After creating those user-owned credentials, the remaining local activation is
 guided and secret-safe:
@@ -89,10 +115,13 @@ separately so failures never require re-entering an already validated credential
 
 After adding the key, recreate the core stack, open **Creator campaigns**, and
 run one scan. Channel/video results prove discovery; container health alone does
-not. The API does not return creator emails. Add only a reviewed public business
-contact, source URL, and basis note, then approve each exact email separately.
-Reply reading/classification, compensation, contracts/disclosures, point grants,
-and placement-result entry remain manual. See
+not. The API has no dedicated business-email field. Hermes extracts unreviewed
+business-contact candidates only from explicit public description context.
+Review the exact address, source and basis before authorizing a contact and
+approving an email. The optional label-scoped Gmail reader provides excerpts
+and conservative suggestions; positive interest and uncertain matches remain
+reviewed. Compensation, contracts/disclosures, point grants and placement-result
+entry remain owner-managed. See
 [creator outreach operations](creator-outreach.md).
 
 ## Real email transport
@@ -104,7 +133,8 @@ The current implementation supports authenticated SMTP with verified TLS:
 1. In your mail provider, enable DKIM for the exact sending domain. At your DNS
    host, publish the provider's SPF and DKIM records, then add DMARC in monitoring
    mode. Confirm the visible From domain aligns with SPF or DKIM. Hermes cannot
-   make these account/DNS changes for you.
+   make these account/DNS changes for you. These DNS steps apply to domains you
+   control; a provider-owned mailbox domain is operated by that provider.
 2. Run `./scripts/promotion.ps1 -ConfigureSMTP` for local prompts and a hidden
    credential entry. Alternatively put `MAIL_TRANSPORT=smtp`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM`,
    `SMTP_USERNAME`, `SMTP_PASSWORD`, and `SMTP_TLS_MODE=starttls` (or `ssl`) in
@@ -118,11 +148,15 @@ The current implementation supports authenticated SMTP with verified TLS:
 6. Review and approve one authorized message to an inbox you own. Inspect the
    received message's SPF, DKIM, and DMARC authentication results. SMTP acceptance
    is separate from inbox delivery and neither guarantees future placement.
+   Follow the [owned-inbox proof](creator-outreach.md#prove-an-owned-inbox-launch)
+   to match the actual Inbox copy, retain normal pacing and test reply replay
+   in a separate test campaign.
 7. Only then approve a relevant creator message. Monitor the From/reply inbox,
    record every bounce or objection, and stop if recipients report spam.
 
-Gmail and Microsoft also expose OAuth send APIs, but OAuth consent and token
-storage are not implemented here. Do not weaken account security by automating
+OAuth-based sending is not implemented here. The
+[Gmail OAuth helper](gmail-setup.md) connects read-only replies and cannot send.
+Do not weaken account security by automating
 interactive login or storing a personal browser profile in the action worker.
 
 ## First private VPS
@@ -169,13 +203,14 @@ management, signed releases, and an incident-response runbook.
 |---|---|---|
 | Job/creator discovery, freshness, matching, scoring, preflight | Deterministic code | Zero tokens and reproducible decisions |
 | General Hermes planning/chat | OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen | Ordered availability fallback; general OpenRouter calls are outside the career ledger |
-| Highest-score/freshest career drafts | Direct strict OpenRouter `:free` chain when enabled | Live price and returned-cost attestation plus a PostgreSQL daily cap |
+| Highest-score/freshest career drafts and individually selected creator drafts | Direct strict OpenRouter `:free` chain when enabled | Live price and returned-cost attestation plus a PostgreSQL daily cap |
 | Any hosted quota/outage/privacy failure | Internal `qwen3:8b` | No provider quota and résumé stays local |
 
 Do not separately connect the same OpenRouter account inside OmniRoute unless
 you intentionally accept a third consumer of its account-wide quota. The
-explicit Hermes fallback and career adapter already share that account, while
-only career calls participate in the PostgreSQL reservation counter. The
+explicit Hermes fallback and research-worker adapter already share that account,
+while governed career/creator calls participate in the PostgreSQL reservation
+counter. The
 “1.53B free tokens” shown in OmniRoute material is a theoretical sum across many
 separately enrolled provider tiers, not a credit grant from OmniRoute. The last
 observed workstation catalog had 40 concrete OVHfree routes and no OpenRouter

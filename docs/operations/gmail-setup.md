@@ -85,6 +85,18 @@ review decision. Positive interest still requires confirmation against the
 original reply. Repeat the sync to confirm the same message is not imported
 twice.
 
+Use a separate, clearly named test campaign and owned test conversation for this
+proof, rather than counting a test reply as creator interest or learning
+feedback. Retain the subject and verify the campaign/conversation match. The separate
+[SMTP launch checks](creator-outreach.md#prove-an-owned-inbox-launch) distinguish
+provider acceptance from actual inbox receipt; a Sent-folder copy is not inbox
+delivery evidence.
+
+Send the test reply from a different owned mailbox than the monitored sender.
+The adapter ignores the monitored mailbox's own sender address and messages
+marked Sent, Draft, Spam or Trash. Keep that filter intact; same-account
+self-mail does not prove incoming creator-reply ingestion.
+
 A successful helper run proves account identity and label access. It does not
 prove reply ingestion, successful SMTP delivery, inbox placement, or permission
 to begin a creator run. Complete those separate checks in the

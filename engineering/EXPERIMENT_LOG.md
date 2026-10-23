@@ -847,6 +847,48 @@ general `agent-smoke.ps1` route canary passed. Its `ROUTE_OK` result through
 A previously rejected saved draft read stale with no linked action. No creator
 email was approved, prepared or sent; SMTP credentials remained unsaved.
 
+## Experiment 35 — External SMTP launch proof (2026-10-23)
+
+Method: load owner-saved SMTP configuration into the existing action services,
+queue the governed no-send connection check, then prepare and individually
+approve one exact message to an inbox owned by the operator.
+
+Observed: the audited external SMTP check succeeded with STARTTLS and
+authenticated status true, exercising NOOP without sending mail. The exact test
+message was approved, received its normal paced/jittered slot and completed
+with durable external SMTP acceptance. The actual received Gmail Inbox copy
+carried the configured creator label and matched the receipt Message-ID, body
+and test reference. Its received headers reported a three-second delivery
+interval. No secret, raw header or recipient data is included in this record.
+
+This was one same-mailbox self-test. It verifies owned-inbox delivery, not
+delivery to other providers or creators. The adapter intentionally ignores its
+own sender and Sent messages, so it does not establish real incoming creator
+reply matching/replay, interest classification or handoff. Pacing, exact review
+and normal receipt handling were retained.
+
+Fresh HTTPS requests and a browser check could not reach the configured product
+site from this workstation while DNS resolved. Two reviewed Polish exact packets
+were individually approved through task decisions, then both paced tasks were
+cancelled before their due times when the owner confirmed the site was
+unreachable. Read-back confirmed terminal cancellation, with zero creator
+sends. Broader campaign automation stays paused with no general send grant.
+The workstation timeout does not establish a global outage; the owned-inbox
+SMTP result is separate from creator delivery.
+
+A subsequent governed read-only Gmail sync fetched the labeled self-test and
+returned zero inserted/pending replies, no further pages, no suppression and
+`mailbox_modified=false`. This verifies the live reader's self-mail exclusion;
+it does not establish actual creator-reply matching, replay or interest review.
+
+Final container lint and all 676 unit/contract tests passed, as did the complete
+native OAuth/SMTP, PostgreSQL and recovery verifier, Compose configuration and
+whitespace checks. The running control/action services retained real SMTP,
+authentication and pacing afterward; the latest audited connection check was
+successful. No inference code or model-quality claim changed. Real incoming
+creator-reply matching/replay, handoff and Testing-mode OAuth longevity remain
+separate limits.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
