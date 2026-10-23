@@ -7,6 +7,38 @@ Choose public employer boards under Sources. Remotive is optional, delayed by
 24 hours, and retains its original listing links. Greenhouse update timestamps
 do not establish when a job was posted.
 
+### Import an employer board from a job link
+
+In **Edit mission → Search sources**, paste an Ashby, Greenhouse, Lever US or
+Lever EU board/job URL into **Employer board or job URL**, then choose **Add
+board from URL**. Review the resulting source field and save the mission. The
+resolver recognizes the URL locally, discards tracking parameters and performs
+no network request or inference. A later scan reads the entire configured
+employer board through its public API; importing a job link does not select,
+verify or apply to that particular vacancy. The provider-specific fields also
+accept matching URLs directly. US and EU Lever boards are separate sources.
+
+For LinkedIn, YC or a company careers page, follow the employer's application
+link and copy its supported ATS URL. Direct platform/account automation and
+arbitrary website scraping remain unavailable. Unsupported links produce setup
+guidance rather than silently connecting an account.
+
+### Job-risk and freshness checks
+
+Each opportunity displays current, explainable checks for applicant payments,
+credential or sensitive-data requests, unsafe destinations and mismatched ATS
+board identities. Strong signals stop automatic preparation before inference;
+the same checks run again at final automatic submission. Inspect flagged jobs
+and independently verify the original employer. A **No strong flags** result
+leaves authenticity unverified and cannot prove that a vacancy is open. Consumer
+email contacts, sparse descriptions and unconfirmed publication dates remain
+visible evidence. Updated, observed and future dates never establish freshness.
+
+These are deterministic heuristics, not a fraud detector with measured accuracy.
+Discovery, ranking, source import, checks and reply classification make no model
+calls. Application drafting uses the configured model and still consumes model
+tokens and compute, even on free routes or local hardware.
+
 Open **Play** on the mission. **Prepare** generates drafts and form inspections
 for review. **Apply** additionally authorizes submissions within the displayed
 scope. Defaults are 72 hours, score 75, three applications per rolling 24 hours,
@@ -39,10 +71,19 @@ be configured; Mailpit is a local test sink. SMTP acceptance records a submitted
 application but does not prove inbox delivery. Existing sender pacing still applies.
 
 The run shows preparation failures and missing answers. The application tracker
-records submission, acknowledgement, recruiter reply, interview, rejection,
+records submission, acknowledgement, recruiter reply, shortlist, interview, rejection,
 offer, withdrawal and review-needed history. Manual outcomes and Gmail signals
 retain their source and confidence. Outcome suggestions are descriptive; they
 do not claim why a rejection happened or silently widen the authorized scope.
+
+**Your next decisions** in the opportunity inbox prioritizes offers, interviews,
+shortlists and uncertain mailbox matches as the dashboard refreshes. Counts
+cover the loaded history and selected mission, not an unbounded mailbox. A
+shortlist is an employer-reply outcome, separate from manually shortlisting a
+job you want to apply to. Conditional, negated and contradictory messages remain
+conservative evidence; a subject alone cannot confirm a contradicted outcome.
+Review the original reply before relying on a signal. The agent neither accepts
+interviews nor sends replies from inbox content, and does not invent times.
 
 ## Gmail read-only connection
 
@@ -77,7 +118,25 @@ and applications submitted in the past 180 days, even when applying is paused.
 Set `GMAIL_ENABLED=false` and recreate the services to stop scheduled and manual reads.
 The local stack must remain running; laptop sleep pauses work.
 
+An OAuth connection for creator outreach does not automatically enable careers.
+The career label must exist and the authenticated mailbox must match the saved
+application identity. Configure that mailbox deliberately; do not change the
+candidate identity merely to make an existing connection pass. Shared credential
+changes also need to preserve any enabled creator mailbox's identity.
+
 Official references: [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [offline OAuth](https://developers.google.com/identity/protocols/oauth2/web-server#offline),
 [message metadata](https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages/get),
 [Remotive API](https://github.com/remotive-com/remote-jobs-api).
+
+## Local validation
+
+`./scripts/test.ps1` runs containerized lint and unit/contract tests.
+`./scripts/career-autopilot-smoke.ps1` exercises durable run, risk, receipt,
+shortlist and reply-monitoring guards in a disposable PostgreSQL database.
+`./scripts/career-ui-smoke.ps1` runs the actual dashboard assets with synthetic
+data and no browser network access, checking outcome priority, escaped text,
+risk filters, source-import errors and mobile overflow. Screenshots stay under
+ignored `output/playwright/career/`. The full `./scripts/verify.ps1` includes both
+career checks. These fixtures do not prove real external ATS compatibility or
+incoming Gmail reply accuracy.

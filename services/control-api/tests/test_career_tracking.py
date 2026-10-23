@@ -67,7 +67,20 @@ def normalize(raw):
     ("We received your application", "acknowledgement"),
     ("We are not moving forward with your application", "rejected"),
     ("We are pleased to offer you this role", "offer"),
+    ("Your resume has been shortlisted", "shortlisted"),
+    ("Your application was short-listed", "shortlisted"),
+    ("You've been shortlisted for the next stage", "shortlisted"),
+    ("You have been selected for the next round", "shortlisted"),
+    ("We are moving forward with your application", "shortlisted"),
     ("We invite you to an interview", "interview"),
+    ("We would like to invite you to an interview", "interview"),
+    ("We would like to inform you that your resume has been shortlisted", "shortlisted"),
+    ("You are invited for an interview", "interview"),
+    ("You have been selected for an interview", "interview"),
+    ("Your interview has been confirmed", "interview"),
+    ("Your application has not been shortlisted", "rejected"),
+    ("We aren't moving forward with your application", "rejected"),
+    ("We decided to move forward with other candidates", "rejected"),
     ("Your application has been withdrawn", "withdrawn"),
     ("Please share your availability to discuss your application", "recruiter_reply"),
     ("Jobs you may like", "needs_review"),
@@ -84,6 +97,79 @@ def test_classification_requires_explicit_evidence(text, expected):
 def test_acknowledgement_does_not_hide_a_decision():
     result = classify_message(message(snippet="Thank you for applying. We are not moving forward."))
     assert result["suggested_status"] == "rejected"
+
+
+@pytest.mark.parametrize("snippet", [
+    "If your resume has been shortlisted, we will contact you.",
+    "Your application has been shortlisted if you pass the assessment.",
+    "We may invite you to an interview after reviewing applications.",
+    "We would be pleased to offer you this role after completing all checks.",
+    "You have never been shortlisted by our team.",
+    "We cannot schedule your interview yet.",
+    "We won't schedule an interview until the assessment is complete.",
+    "Your resume has been shortlisted? Check your status online.",
+    "If we are not moving forward, we will let you know.",
+    "If your application was rejected, please apply again next year.",
+])
+def test_conditional_negated_or_questioned_decisions_require_review(snippet):
+    result = classify_message(message(snippet=snippet))
+    assert result["suggested_status"] == "needs_review"
+    assert result["needs_review"] and result["confidence"] == "low"
+    assert result["meeting_at"] is None
+
+
+def test_repeated_signal_and_progression_do_not_create_false_conflicts():
+    result = classify_message(message(
+        subject="Your application has been shortlisted",
+        snippet="Your resume has been shortlisted. We invite you to an interview.",
+    ))
+    assert result["suggested_status"] == "interview"
+    assert result["meeting_at"] is None and result["needs_review"]
+    result = classify_message(message(
+        subject="Your application has been shortlisted",
+        snippet="Your resume has been shortlisted.",
+    ))
+    assert result["suggested_status"] == "shortlisted" and not result["needs_review"]
+
+
+def test_shortlisting_is_separate_from_an_offer_or_a_conflicting_rejection():
+    result = classify_message(message(snippet="Your application has been shortlisted."))
+    assert result["suggested_status"] == "shortlisted"
+    assert result["suggested_status"] != "offer"
+    result = classify_message(message(
+        subject="Your application has been shortlisted",
+        snippet="We are not moving forward with your application.",
+    ))
+    assert result["suggested_status"] == "needs_review"
+
+
+@pytest.mark.parametrize(("subject", "snippet"), [
+    ("Interview invitation", "If your interview is scheduled for 2026-10-25T10:00Z, "
+                             "please verify it online."),
+    ("Your job offer letter", "We have not issued your job offer letter yet."),
+    ("Your job offer letter", "Your job offer letter has not been issued."),
+    ("Your application has been shortlisted", "If your application has been shortlisted, "
+                                               "you will receive a call."),
+])
+def test_explicit_subject_does_not_override_uncertain_or_negated_body(subject, snippet):
+    result = classify_message(message(subject=subject, snippet=snippet))
+    assert result["suggested_status"] == "needs_review" and result["needs_review"]
+    assert result["meeting_at"] is None
+
+
+def test_prior_sentence_negation_does_not_erase_an_explicit_later_decision():
+    result = classify_message(message(snippet="No further documents are needed. "
+                                             "Your resume has been shortlisted."))
+    assert result["suggested_status"] == "shortlisted"
+
+
+def test_shortlisted_can_be_manually_confirmed_without_inventing_meeting_time():
+    event = CareerEventCreate(status="shortlisted", note="Confirmed in original email",
+                              actor="operator")
+    assert event.status == "shortlisted" and event.meeting_at is None
+    with pytest.raises(ValidationError):
+        CareerEventCreate(status="shortlisted", note="Confirmed in original email",
+                          actor="operator", meeting_at=NOW)
 
 
 @pytest.mark.parametrize("snippet", [
@@ -155,6 +241,8 @@ def test_thread_binding_requires_known_application_and_same_sender_domain():
         message(sender="other@evil.test"), [application()], [binding],
     )[0] is None
     assert correlate_message(message(), [], [binding])[0] is None
+    assert correlate_message(message(received_at=NOW - timedelta(days=20)),
+                             [application()], [binding])[0] is None
 
 
 def test_exact_reference_cannot_authorize_unrelated_sender():
@@ -338,6 +426,7 @@ def test_worker_limits_gets_persists_remainder_and_returns_only_counts(monkeypat
     assert saved.kwargs["lease_id"] == task["lease_id"]
     assert "@" not in str(result) and "secret" not in str(result)
     assert result["mailbox_modified"] is False
+    assert result["model_calls"] == 0
 
 
 def test_existing_messages_skip_network_and_pending_cursor_resumes(monkeypatch):

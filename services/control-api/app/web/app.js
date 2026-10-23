@@ -848,7 +848,7 @@ function missionCard(profile, compact = false) {
     }
     card.append(checks);
     const sources = profile.source_config || {};
-    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : "")].filter(Boolean);
+    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever", "lever_eu"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : "")].filter(Boolean);
     card.append(node("p", "fine-print", `Configured discovery: ${sourceNames.join(" · ") || "No source configured"}`));
     const actions = node("div", "mission-actions");
     actions.append(button("Scan now", "button compact", "scan-profile", profile.id), button("Edit mission", "text-button", "edit-profile", profile.id), button("View applications", "text-button", "career-applications", profile.id));
@@ -932,6 +932,7 @@ function opportunityCard(opportunity) {
   const reasons = node("ul", "reason-list");
   opportunity.score_reasons.slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
   card.append(reasons);
+  card.append(careerQualityEvidence(opportunity, true));
   if (opportunity.source === "remotive") card.append(researchLink("View the original Remotive listing", opportunity.source_url));
   const actions = node("div", "card-actions");
   actions.append(button("Inspect", "button compact", "view-opportunity", opportunity.id));
@@ -947,7 +948,9 @@ function filteredOpportunities() {
   const status = $("#opportunity-status-filter").value;
   const search = $("#opportunity-search").value.trim().toLocaleLowerCase();
   const age = Number($("#opportunity-age-filter").value);
+  const quality = $("#opportunity-quality-filter").value;
   return state.opportunities.filter((item) => (!profile || item.profile_id === profile) && (!status || item.status === status)
+    && (!quality || item.quality?.disposition === quality)
     && (!search || `${item.title} ${item.company} ${item.source}`.toLocaleLowerCase().includes(search))
     && (!age || (item.published_at_basis === "published" && Date.now() - Date.parse(item.published_at) <= age * 3600000)));
 }
@@ -965,6 +968,52 @@ function renderOpportunities() {
   if (!filtered.length) full.append(empty("No opportunities in this view", "Change the filters or run a fresh scan.", true));
   else filtered.forEach((item) => full.append(opportunityCard(item)));
   renderCareerTracking();
+  renderCareerAttention();
+}
+
+function careerQualityEvidence(opportunity, compact = false) {
+  const quality = opportunity.quality;
+  const root = node(compact ? "details" : "section", "career-quality");
+  if (!quality) { root.append(node("p", "fine-print", "Job-risk checks unavailable. Inspect the original listing.")); return root; }
+  root.classList.toggle("review-required", quality.disposition === "review_required");
+  root.append(node(compact ? "summary" : "h3", "", quality.disposition === "review_required" ? "Job-risk signals · review required" : "No strong job-risk flags found"));
+  const list = node("ul");
+  (quality.signals || []).forEach((signal) => list.append(node("li", "", signal.message)));
+  if (list.childElementCount) root.append(list);
+  root.append(node("p", "fine-print", quality.limitations || "Automated checks cannot prove an employer or listing is genuine."));
+  return root;
+}
+
+function renderCareerAttention() {
+  const root = $("#career-attention-list");
+  root.replaceChildren();
+  const profileId = $("#opportunity-profile-filter").value;
+  const tracking = state.careerTracking;
+  if (!tracking || tracking.error) { root.append(node("p", "fine-print", "Refresh to load application decisions and reply evidence.")); return; }
+  const applications = (tracking.applications || []).filter((item) => !profileId || item.profile_id === profileId);
+  const priorities = { offer: 0, interview: 1, shortlisted: 2 };
+  const decisions = applications.filter((item) => item.status in priorities || item.needs_review)
+    .sort((a, b) => (priorities[a.status] ?? 3) - (priorities[b.status] ?? 3) || Date.parse(b.updated_at) - Date.parse(a.updated_at));
+  decisions.slice(0, 6).forEach((application) => {
+    const row = node("article", "career-attention-item");
+    const copy = node("div");
+    copy.append(node("strong", "", `${titleCase(application.status)} · ${application.company} · ${application.title}`));
+    copy.append(node("p", "fine-print", application.needs_review ? "Mailbox signal needs review against the original reply." : application.status === "interview" ? "Check the confirmed time and prepare for the interview." : "Review the recorded outcome and decide your next step."));
+    row.append(copy, button("Review outcome", "button compact", "career-event", application.opportunity_id));
+    root.append(row);
+  });
+  const signals = (tracking.review_candidates || []).map((signal, index) => ({ signal, index })).filter(({ signal }) => !profileId || signal.profile_id === profileId);
+  signals.slice(0, Math.max(0, 8 - decisions.length)).forEach(({ signal, index }) => {
+    const row = node("article", "career-attention-item");
+    const copy = node("div");
+    copy.append(node("strong", "", signal.subject || "Unmatched application reply"), node("p", "fine-print", `Suggested ${titleCase(signal.suggested_status)} · application match needs review.`));
+    row.append(copy, button("Match reply", "button compact", "review-career-mail", String(index)));
+    root.append(row);
+  });
+  const total = decisions.length + signals.length;
+  $("#career-attention-count").textContent = `${total} decision${total === 1 ? "" : "s"} in loaded application history`;
+  if (!total) root.append(node("p", "fine-print", "No shortlist, interview, offer, or uncertain reply needs attention in this view."));
+  if (total > root.childElementCount) root.append(node("p", "fine-print", "More evidence is available in the application tracker below."));
 }
 
 function renderProfileFilter() {
@@ -990,7 +1039,7 @@ function renderCareerTracking() {
   const profileId = $("#opportunity-profile-filter").value;
   const applications = (tracking.applications || []).filter((item) => !profileId || item.profile_id === profileId);
   const signals = (tracking.review_candidates || []).map((signal, index) => ({ signal, index })).filter(({ signal }) => !profileId || signal.profile_id === profileId);
-  const counts = [["Tracked", applications.length], ["Replies", applications.filter((item) => item.status === "recruiter_reply").length], ["Interviews", applications.filter((item) => item.status === "interview").length], ["Offers", applications.filter((item) => item.status === "offer").length], ["Needs review", signals.length + applications.filter((item) => item.needs_review).length]];
+  const counts = [["Tracked", applications.length], ["Replies", applications.filter((item) => item.status === "recruiter_reply").length], ["Shortlisted", applications.filter((item) => item.status === "shortlisted").length], ["Interviews", applications.filter((item) => item.status === "interview").length], ["Offers", applications.filter((item) => item.status === "offer").length], ["Needs review", signals.length + applications.filter((item) => item.needs_review).length]];
   counts.forEach(([label, count]) => summary.append(node("span", "chip", `${label}: ${count}`)));
   if (!applications.length) list.append(empty("No tracked applications in this view", "Applications appear here after submission or a reviewed manual update. Select a mission to focus its history."));
   applications.forEach((application) => {
@@ -2705,6 +2754,9 @@ function openProfileDialog(profile = null) {
   if (!isConnected()) return $("#connect-dialog").showModal();
   const form = $("#profile-form");
   form.reset();
+  careerSourceRequest += 1;
+  $("#career-source-resolve").disabled = false;
+  $("#career-source-result").textContent = "";
   form.elements.profile_id.value = profile?.id || "";
   $("#profile-dialog-title").textContent = profile ? "Edit career mission" : "Create a job-hunt mission";
   $("#resume-help").textContent = profile?.resume_present ? `A ${profile.resume_characters.toLocaleString()} character résumé is stored. Leave blank to keep it.` : "Paste plain text. Stored privately; never sent to job sources.";
@@ -2719,6 +2771,7 @@ function openProfileDialog(profile = null) {
     form.elements.ashby_boards.value = (profile.source_config.ashby_boards || []).join(", ");
     form.elements.greenhouse_boards.value = (profile.source_config.greenhouse_boards || []).join(", ");
     form.elements.lever_boards.value = (profile.source_config.lever_boards || []).join(", ");
+    form.elements.lever_eu_boards.value = (profile.source_config.lever_eu_boards || []).join(", ");
     for (const name of ["first_name", "last_name", "email", "phone", "identity_location", "linkedin_url", "github_url", "portfolio_url"]) {
       const identityName = name === "identity_location" ? "location" : name;
       form.elements[name].value = profile.application_identity?.[identityName] || "";
@@ -2726,6 +2779,31 @@ function openProfileDialog(profile = null) {
     $$("input[name='employment_types']", form).forEach((input) => { input.checked = profile.employment_types.includes(input.value); });
   }
   $("#profile-dialog").showModal();
+}
+
+let careerSourceRequest = 0;
+async function resolveCareerSource() {
+  const form = $("#profile-form");
+  const input = form.elements.career_source_url;
+  const result = $("#career-source-result");
+  const submit = $("#career-source-resolve");
+  const url = input.value.trim();
+  if (!url) { result.textContent = "Paste an employer's Ashby, Greenhouse, or Lever URL first."; input.focus(); return; }
+  const request = ++careerSourceRequest;
+  const profileId = form.elements.profile_id.value;
+  submit.disabled = true;
+  result.textContent = "Checking the board URL…";
+  try {
+    const source = await api("/v1/career/sources/resolve", { method: "POST", body: JSON.stringify({ url }) });
+    if (request !== careerSourceRequest || !$("#profile-dialog").open || form.elements.profile_id.value !== profileId || input.value.trim() !== url) return;
+    const allowedKeys = new Set(["ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards"]);
+    if (!allowedKeys.has(source.source_config_key)) throw new Error("The resolved source is not supported by this form.");
+    const field = form.elements[source.source_config_key];
+    field.value = [...new Set([...csv(field.value), source.board])].join(", ");
+    result.textContent = `${titleCase(source.provider)} board added to this form. ${source.notice} Save the mission to enable discovery.`;
+  } catch (error) {
+    if (request === careerSourceRequest && $("#profile-dialog").open) result.textContent = error.message;
+  } finally { if (request === careerSourceRequest) submit.disabled = false; }
 }
 
 async function saveProfile(event) {
@@ -2756,7 +2834,7 @@ async function saveProfile(event) {
     max_age_hours: Number(form.elements.max_age_hours.value),
     min_score: Number(form.elements.min_score.value),
     schedule_minutes: Number(form.elements.schedule_minutes.value),
-    source_config: { arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value) },
+    source_config: { arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value), lever_eu_boards: csv(form.elements.lever_eu_boards.value) },
     application_identity: applicationIdentity,
     resume_text: form.elements.resume_text.value || (id ? null : ""),
     auto_prepare: form.elements.auto_prepare.checked,
@@ -3359,6 +3437,7 @@ function showOpportunity(id) {
   const reasons = node("ul", "reason-list");
   opportunity.score_reasons.forEach((reason) => reasons.append(node("li", "", reason)));
   root.append(reasons, node("div", "detail-description", opportunity.description || "No description supplied by source."));
+  root.append(careerQualityEvidence(opportunity));
   if (opportunity.latest_draft) {
     const draft = opportunity.latest_draft;
     const box = node("section", "draft-box");
@@ -3471,6 +3550,7 @@ document.addEventListener("click", async (event) => {
     return;
   }
   if (action === "new-profile") return openProfileDialog();
+  if (action === "resolve-career-source") return resolveCareerSource();
   if (action === "edit-profile") return openProfileDialog(state.profiles.find((item) => item.id === id));
   if (action === "toggle-profile") return toggleProfile(id);
   if (action === "play-career") return openCareerPlay(id);
@@ -3681,6 +3761,7 @@ $("#opportunity-profile-filter").addEventListener("change", renderOpportunities)
 $("#opportunity-status-filter").addEventListener("change", renderOpportunities);
 $("#opportunity-search").addEventListener("input", renderOpportunities);
 $("#opportunity-age-filter").addEventListener("change", renderOpportunities);
+$("#opportunity-quality-filter").addEventListener("change", renderOpportunities);
 $("#marketing-campaign-filter").addEventListener("change", () => { renderProspects(); loadCreatorCoverage(); });
 $("#marketing-status-filter").addEventListener("change", renderProspects);
 $("#marketing-contact-filter").addEventListener("change", renderProspects);

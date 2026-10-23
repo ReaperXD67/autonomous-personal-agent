@@ -163,6 +163,16 @@ rows prevent duplicate issuance by concurrent scheduler workers.
 
 ## Quality attributes
 
+Career projections now compute job-risk and publication signals without
+inference. The autopilot refuses strong signals before preparation and rechecks
+them before its existing final receipt. A pure authenticated source resolver
+normalizes reviewed ATS URLs without fetching them; regional Lever discovery
+uses separate US/EU public endpoints and source identities. Career Gmail adds a
+persisted shortlist outcome and conservative assertion/time checks. The private
+dashboard prioritizes recorded outcomes and uncertain matches from loaded data.
+No new service, model route or sending authority is introduced. See
+[ADR-0027](../decisions/ADR-0027-zero-model-career-intelligence.md).
+
 The action worker also handles the fixed-config, medium-risk, single-attempt
 `communications.smtp_check` diagnostic through the existing task/outbox path.
 It sends no email and returns only transport/TLS/authentication evidence.

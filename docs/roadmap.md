@@ -86,6 +86,9 @@
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources
+- [x] Zero-model job-risk signals, current publication provenance and strong-flag fences before automatic preparation and final submission
+- [x] Reviewed ATS board/job URL intake without fetch/inference, plus separate Lever EU discovery
+- [x] Explicit shortlist reply outcome, conservative asserted/conditional/negated signals and a priority decision queue
 - [x] Optional Remotive public feed with attribution and 24-hour-delay disclosure; explicit published/updated/unknown date provenance, all-required-keyword matching, and remote-location constraints
 - [x] Local résumé evidence and cover-letter drafting
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter

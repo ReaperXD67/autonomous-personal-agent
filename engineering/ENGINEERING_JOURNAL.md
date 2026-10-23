@@ -2659,3 +2659,60 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   Testing-mode token expiry remains an operating limit. The owned-inbox proof
   does not remove those limitations. The two creator tasks are terminally
   cancelled; their earlier approvals provide no continuing sending authority.
+
+
+## 2026-10-23 — Career intelligence, board intake and bounded launch
+
+- Added zero-model job-risk projections for applicant payment, credential and
+  sensitive-data requests, unsafe URLs and mismatched provider/board/region/job
+  identities. Strong flags stop automatic preparation before inference and are
+  rechecked before the final receipt. Signals never certify authenticity.
+- Added authenticated, fetch-free supported ATS URL recognition and source-field
+  normalization, including Greenhouse embeds. Lever EU discovery now uses its
+  own reviewed official endpoint and collision-safe source identity. Source
+  recognition imports a whole employer board and grants no application authority.
+- Added persisted shortlist outcomes (migration 024), deterministic reply
+  assertion/negation/conditional/contradiction checks, explicit zoned meeting-time
+  guards and rejection of messages predating an application. Existing reply
+  monitoring after Pause/expiry remains covered by the PostgreSQL proof.
+- Added a dashboard decision queue for offers, interviews, shortlists and
+  uncertain matches, job-risk evidence/filtering and employer-URL import.
+  The networkless browser proof exercises actual assets, mobile overflow,
+  escaped untrusted text, priority order and import success/error behavior.
+- Cross-review found and corrected unrelated no/not text hiding risky requests,
+  canonical-versus-embedded Greenhouse identity, region/posting mismatches and
+  positive email subjects overriding uncertain bodies or conditional dates.
+- Initial full verification exposed a synthetic duplicate fixture using a
+  nonnumeric Greenhouse posting ID. Updated only the fixture to a numeric shared
+  ID; production URL validation stayed strict. The complete subsequent verifier
+  passed: lint and 791 unit/contract tests, native OAuth/SMTP setup regressions,
+  lifecycle/workflow/recovery probes and all disposable PostgreSQL groups,
+  including 13 career groups and the new networkless dashboard proof. Compose
+  configuration and whitespace checks passed. Doctor -Agent and agent-smoke
+  also passed; the harmless general route canary returned through free/default
+  using Mistral. This is liveness evidence, not a drafting-quality benchmark.
+- A running-API canary resolved a regional Lever URL with fetch_performed=false
+  and model_calls=0. The current private opportunity list was empty, so its
+  quality projection is verified by fixtures, not a live listing observation.
+- The owner explicitly selected the application email and requested immediate
+  applications. Updated that private identity through the authenticated API and
+  started a finite Apply scope: three applications per rolling day, score 75,
+  published within 72 hours, reviewed ATS hosts, 24-hour expiry and no email
+  sending. Source expansion paused and replaced grants through the same API;
+  shared durable budgets were retained. The first scans read 158 and 284
+  listings with zero matching opportunities. One oversized/invalid Ashby board
+  response failed bounded parsing; that board was removed rather than weakening
+  the response limit. A broader internship-focused scan was then started.
+- Configuration now covers 19 employer boards plus the two public feeds. Board
+  relevance came from official employer ATS pages; search crawl times were
+  never treated as publication proof. No submitted application is claimed from
+  those initial scans. The finite run continues while the local stack is up.
+- Read-only OAuth identity/label metadata checks found that the connected
+  creator mailbox differs from the owner's selected application address and
+  has no career label. Career Gmail monitoring stays disabled pending correct
+  sign-in/label setup; shared creator credentials were not overwritten. SMTP
+  application email remains outside the new grant as the owner requested.
+- Updated README, career operations, architecture, security, roadmap, ADR index
+  and system evolution. No dependency, service, model route, broad browser
+  authority or unbounded founder/HR messaging capability was introduced.
+  Real ATS submission proof and incoming career-reply proof remain pending.

@@ -6,11 +6,11 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 TrackingStatus = Literal[
-    "submitted", "acknowledgement", "recruiter_reply", "interview", "rejected",
+    "submitted", "acknowledgement", "recruiter_reply", "shortlisted", "interview", "rejected",
     "offer", "withdrawn", "needs_review",
 ]
 TRACKING_STATUSES = (
-    "submitted", "acknowledgement", "recruiter_reply", "interview", "rejected",
+    "submitted", "acknowledgement", "recruiter_reply", "shortlisted", "interview", "rejected",
     "offer", "withdrawn", "needs_review",
 )
 

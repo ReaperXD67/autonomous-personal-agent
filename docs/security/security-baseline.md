@@ -141,6 +141,15 @@ future liveness. Fixture results never imply real SMTP or universal ATS success.
 
 ## Unsafe configurations
 
+Career job-risk signals are recomputed from current listing facts; a caller's
+assessment cannot grant trust. Strong flags fence automatic preparation and
+final submission. Heuristics do not certify an employer and manual exact-action
+review remains separate. ATS source URL recognition is a local parser with exact
+reviewed origins/paths, no redirects or network access. Recognizing a board grants
+no browser account or contact authority. Read-only career replies remain
+untrusted evidence; shortlist/interview/offer suggestions and dashboard priority
+cannot send messages, accept invitations or expand a run. See ADR-0027.
+
 SMTP connection diagnostics accept an empty execution payload and cannot choose
 another host, sender, TLS mode, or credential. They derive medium risk and one
 attempt from server policy. The private status API projects only allowlisted

@@ -1,5 +1,26 @@
 # System evolution
 
+## 2026-10-23 — Deterministic career triage and source intake
+
+ADR-0027 extends the existing career path with pure employer-board URL
+recognition, separate official Lever EU discovery, current job-risk projections
+and pre-preparation/final-receipt fences for strong signals. Caller-supplied
+quality is never authorization. Strict provider, board, region and posting
+identities preserve canonical/embedded Greenhouse compatibility while rejecting
+changed destinations. No result certifies a genuine employer or vacancy.
+
+Migration 024 expands persisted application-event and Gmail-message outcomes
+with `shortlisted`. Metadata classification handles negation, conditions,
+contradictory subjects/bodies and pre-application message dates; meeting times
+require an asserted, explicitly zoned timestamp. Existing 180-day monitoring
+after Pause/expiry is retained. A dashboard queue prioritizes offer, interview,
+shortlist and uncertain-match decisions using loaded records without inference.
+
+All additions remain in PostgreSQL, the current policy/task/audit/outbox path
+and existing workers. No dependency, model route, service, account automation,
+SMTP permission or general web access is added. Model tokens and compute remain
+necessary for writing; the zero-call guarantee covers deterministic stages only.
+
 ## v0.1 — Secure foundation (2026-08-11)
 
 The project began with a containerized control API, policy gate, PostgreSQL,

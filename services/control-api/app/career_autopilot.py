@@ -8,6 +8,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.application_browser import canonical_hash
 from app.career import score_opportunity
+from app.career_quality import quality_blocker
 
 PROFILE_SCOPE_FIELDS = (
     "candidate_name",
@@ -96,6 +97,9 @@ def eligibility_reason(
         return "Profile changed; press Play again to authorize the new preferences"
     if opportunity.get("status") in {"dismissed", "applied"}:
         return "Opportunity is dismissed or already applied"
+    blocker = quality_blocker(opportunity, now=now)
+    if blocker:
+        return blocker
     if opportunity.get("published_at_basis") != "published":
         return "A verified posting date is required"
     posted = opportunity.get("published_at")

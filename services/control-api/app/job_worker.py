@@ -242,6 +242,14 @@ def execute_career_task(
                 sources_succeeded += 1
             except Exception as exc:
                 source_errors.append(f"lever/{board}: {type(exc).__name__}")
+        for board in source_config.get("lever_eu_boards", []):
+            _check_interrupted(interrupt)
+            sources_attempted += 1
+            try:
+                fetched.extend(fetch_lever(board, region="eu"))
+                sources_succeeded += 1
+            except Exception as exc:
+                source_errors.append(f"lever-eu/{board}: {type(exc).__name__}")
 
         if sources_attempted == 0:
             raise ValueError("Career profile has no enabled job sources")

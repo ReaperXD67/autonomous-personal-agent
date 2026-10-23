@@ -8,37 +8,37 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Status: local alpha](https://img.shields.io/badge/status-local_alpha-16a085.svg)](#implemented-now)
 
-**Find Minecraft creators. Prepare a paid collaboration. Bring interested people back to you.**
+**Find relevant jobs and internships. Prepare truthful applications. Track the replies that matter.**
 
-Hermes is a self-hosted personal-agent workspace with a focused creator outreach
-workflow: research Minecraft YouTubers, explain why they fit, prepare relevant
-paid-promotion emails, track replies, and hand interested creators to your email
-or Discord. You handle the conversation, agreement, and payment from there.
-Revenue-share campaigns discuss a percentage and an earning window in weeks;
-neither compensation nor income is invented. Ask for a model-written introduction
-grounded in public video titles and observed subscriber metadata, inspect its
-sources and approach, then prepare the exact email for approval. Reviewed
-objections inform future drafts and appear in a **What creators are teaching
-us** report.
+Hermes is a private, self-hosted agent workspace for career missions and creator
+outreach. Save your résumé, identity, target roles, locations and employer boards.
+The career worker discovers and ranks opportunities, explains job-risk signals,
+prepares application material, and can submit supported applications within an
+explicit, expiring Play scope. Read-only Gmail tracking brings shortlist,
+interview and offer signals into a **Your next decisions** queue with source
+evidence and review of uncertain matches.
 
-The same control plane also supports career missions and durable workflows.
-PostgreSQL owns the work, approvals, budgets, and audit trail; containers execute
-bounded tasks and every outgoing message has an exact, inspectable packet.
+Discovery, matching, URL import, job-risk checks and reply classification make
+**zero model calls**. Models handle application writing through configured free
+hosted routes or local Qwen; generation still consumes tokens and compute.
+The existing Minecraft creator workflow researches public channels, prepares
+paid-collaboration proposals, tracks replies and hands confirmed interest to you.
+PostgreSQL owns task state, budgets, approvals and audit; isolated workers execute
+bounded actions.
 
 ```mermaid
 flowchart LR
-    A["Discover Minecraft channels"] --> B["Review public business contacts"]
-    B --> C["Paid offer with source evidence"]
-    C --> D["Track and review replies"]
-    D -->|"Interested"| E["Send your email / Discord"]
-    E --> F["You take over · Hermes stops"]
-    D -->|"No / opt-out"| G["Suppress further outreach"]
-    D -->|"Reviewed feedback"| H["Explain objections · improve future drafts"]
-    H --> C
+    A["Public employer boards / job feeds"] --> B["Freshness, fit and job-risk checks"]
+    B --> C["Résumé-grounded draft and form inspection"]
+    C --> D["Exact action within reviewed Play scope"]
+    D --> E["Durable submission and reply tracker"]
+    E --> F["Shortlist / interview / offer decisions"]
+    B -->|"Risk signals or unknown answers"| G["Review required"]
 ```
 
-**Start here:** [Minecraft creator workflow](docs/operations/minecraft-creator-workflow.md)
+**Start here:** [Career Play and Gmail](docs/operations/career-autopilot.md)
 · [Local proof](#quick-start-windows--docker-desktop)
+· [Minecraft creator workflow](docs/operations/minecraft-creator-workflow.md)
 · [Architecture](docs/architecture/overview.md)
 · [Roadmap](docs/roadmap.md)
 
@@ -93,10 +93,12 @@ understand what happened and take over at the right moment.
 | Durable workflows | Implemented | Dependency-aware plans, parallel ready steps, explicit result checks, deadlines, restart recovery, cancellation, and dashboard recipes; at most 32 steps and 4 concurrent tasks |
 | Reviewed goal planner | Implemented | A model proposes at most 8 server-defined actions using your explicitly selected context. Review the immutable steps before adoption; execution enters the existing task/policy/audit path. A clearly labeled local demo needs no model |
 | Feature readiness | Implemented | Per-feature prerequisites, next actions, and timestamped local test evidence; authenticated operator reports are stored in PostgreSQL and expire as readiness proof after 24 hours |
-| Career scout | Public adapters implemented; live coverage varies | Arbeitnow, optional Remotive, and configured Ashby, Greenhouse, and Lever boards; all required keywords, location constraints, and explicit publication-date provenance. Remotive's public feed is delayed 24 hours |
+| Career scout | Public adapters implemented; live coverage varies | Arbeitnow, optional Remotive, and configured Ashby, Greenhouse, Lever US and EU boards; all required keywords, location constraints, and explicit publication-date provenance. Remotive's public feed is delayed 24 hours |
+| Job-risk assessment | Implemented; heuristic | Zero-model fee, credential, sensitive-data and destination checks; suspicious listings stop automatic preparation and are checked again before submission. No result proves a genuine employer or vacancy |
+| Employer-board URL import | Implemented | Paste supported Ashby, Greenhouse or Lever US/EU board/job links, including Greenhouse embeds. Recognition makes no network/model request; save the mission and scan the whole board |
 | Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
 | Career Play/Pause | Implemented; external application proof pending | Choose preparation or authorize a bounded automatic run: fresh published listings, minimum fit, selected ATS hosts, rolling application cap, separate preparation allowance, expiry, profile binding, and duplicate prevention. Prepared actions stay linked to progress; optional job-published hiring email shares submission limits |
-| Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/interview/outcome timelines, explicit review of uncertain matches, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
+| Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Live SMTP and owned-inbox receipt verified | One approved Gmail self-test passed authenticated STARTTLS, durable acceptance and a matching Inbox Message-ID. This does not prove creator inbox placement. Shared pacing remains 15-minute global/30-minute same-domain gaps, 3/hour, 12/day and jitter |
 | Creator research and outreach | Research verified; creator sends held | Two reviewed exact pilot messages were cancelled before their paced send times after owner-confirmed site unavailability. Zero creator emails were sent; broader campaign automation remains paused |
@@ -194,8 +196,9 @@ Use **Application tracker** for submissions, reviewed replies, interviews, and
 outcomes. The Gmail adapter reads only its configured career label and keeps
 uncertain matches for review. It is prepared but needs local OAuth configuration
 and a real canary before it can be called operational. LinkedIn, Y Combinator,
-and Discord account automation is not connected; use a discovered employer's
-supported ATS board instead of assuming those accounts are being monitored.
+and Discord account automation is not connected. Follow the employer application
+link and paste its supported ATS URL into **Job sources → Add board from URL**;
+this imports that employer board, without logging into those platforms.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
 
