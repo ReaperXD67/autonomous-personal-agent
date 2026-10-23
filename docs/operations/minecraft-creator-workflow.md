@@ -231,6 +231,13 @@ receive it. The adapter does not create filters or labels. Restart the control
 API and research worker to load configuration. Credentials belong only in ignored
 local configuration and are passed only to the research worker.
 
+With creator Gmail enabled, the scheduler can queue read-only syncs for campaigns
+with successfully sent marketing outreach in the previous 180 days, no more often
+than once every five minutes. A sending grant is not required for that monitoring;
+expired grants are not renewed. A generic SMTP self-test is not a marketing
+outreach record and does not activate this rule. This is implemented scheduling
+behavior; actual reply ingestion still needs its own live proof.
+
 Choose **Check creator replies** and inspect the result. A configured flag is
 not operational proof. Complete a real labeled-reply canary with an inbox you own
 before relying on monitoring. The adapter validates mailbox identity, uses bounded
@@ -250,6 +257,12 @@ excluded from direct opt-out detection. This remains conservative excerpt parsin
 inspect the full message when context is incomplete.
 
 ## Test before real outreach
+
+Complete the [owned-inbox launch proof](creator-outreach.md#prove-an-owned-inbox-launch)
+after configuring real SMTP. Saved settings, authenticated NOOP, durable message
+acceptance, actual inbox receipt and labeled-reply replay are separate results.
+The owned test shares the normal external-send pacing and never counts as a
+creator lead or feedback sample.
 
 ```powershell
 docker compose config --quiet

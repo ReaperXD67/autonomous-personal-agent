@@ -327,6 +327,43 @@ confirm inbox arrival. Mailpit acceptance is local test evidence. External SMTP
 acceptance means the provider accepted responsibility for the message, and
 does not establish inbox placement, reading, or a reply.
 
+### Prove an owned-inbox launch
+
+Keep each result separate when moving from configuration to real outreach:
+
+| Check | Evidence | Does not prove |
+|---|---|---|
+| Settings loaded | The configured transport is loaded by the running services | Authentication or sending |
+| SMTP connection | The audited check completes TLS, configured authentication and NOOP | Message acceptance or inbox placement |
+| Exact test message | One individually approved message to an inbox you own has a durable accepted receipt | Inbox arrival or a reply |
+| Inbox receipt | The received message is in the intended inbox and matches the receipt's Message-ID | Delivery to other providers or future recipients |
+| Labeled reply | The owned test reply matches its campaign/conversation; a second sync inserts no duplicate | Creator interest or a production-ready OAuth grant |
+
+Use the normal action and approval path for the owned test. Wait for its
+reserved send time and inspect its durable receipt before preparing a second
+copy. A Sent-folder item alone is not inbox evidence; when sender and test
+recipient are the same mailbox, confirm the actual **Inbox** copy explicitly.
+Record the received authentication results when available, without publishing
+message headers, addresses or provider identifiers.
+
+The test uses the same rolling caps and global/domain spacing as creator mail.
+Follow the displayed reserved time; a queued or paced action has not yet been
+accepted by SMTP. Do not switch transports or create replacement messages to
+avoid the reservation. If acceptance is ambiguous, inspect the provider and
+receipt before any retry.
+
+For the reply proof, use a separate, clearly named test campaign and an owned
+test conversation, retain its subject, and apply the configured creator label.
+Verify the matched sender, campaign, excerpt and review decision, then sync
+again to check replay behavior. Confirm intent against the original reply before any
+handoff. A self-test is a setup canary, not a real creator lead or learning
+outcome. See the [Gmail guide](gmail-setup.md#verify-before-relying-on-monitoring).
+
+The reply must originate from a different owned mailbox than the monitored
+sender. The reader deliberately ignores the monitored mailbox's own messages
+and messages marked Sent, Draft, Spam or Trash. A same-account self-send can
+prove its Inbox receipt, but cannot establish incoming creator-reply matching.
+
 ## Known gaps
 
 - inbound Gmail metadata reading is implemented but needs user-owned read-only

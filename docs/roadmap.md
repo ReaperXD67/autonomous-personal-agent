@@ -60,9 +60,12 @@
 - [x] Policy-bound AI creator introductions with recorded video evidence, reviewed feedback, immutable copy and exact-digest individual review
 - [x] Native local Gmail OAuth onboarding with PKCE, expected mailbox/label checks, and atomic secret-safe setup
 - [x] Real creator-mailbox OAuth, identity, configured-label and empty-label runtime read canary
+- [x] Live external SMTP STARTTLS/authentication/NOOP canary through the audited action worker
+- [x] Individually approved external SMTP self-test with durable acceptance and matching actual Inbox receipt
 - [x] API-only bounded creator shortlist refresh with deterministic ranking, dated upload evidence and explicit review gaps
 - [ ] Verify creator-specific copy quality from a real configured model response
-- [ ] Verify actual labeled creator-reply matching/replay and external SMTP with owned-account canaries
+- [ ] Resume the reviewed creator pilot after product-site availability and fresh exact review; record actual creator SMTP acceptance
+- [ ] Verify actual labeled creator-reply matching/replay and owner handoff with live canaries
 - [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
 
 - [ ] Telegram control with pairing and allowlist
@@ -79,7 +82,7 @@
 - [x] Paid-first Minecraft creator partnerships, optional revenue-share percentage/window proposals, owner email/Discord handoff, and terminal conversation state
 - [x] Finite creator sending grants for reviewed contacts, exact-action reservations, Pause/expiry, campaign/contact snapshot checks, and cross-campaign duplicate/suppression guards
 - [x] Dedicated read-only creator Gmail label adapter, conservative reply suggestions, operator review, durable cursors, and monitoring after send authority expires
-- [ ] Real creator Gmail reply and external SMTP canaries; attribution/revenue import, agreements, negotiation, and payments remain outside the agent
+- [ ] Real creator Gmail reply/replay and owner-handoff canaries; attribution/revenue import, agreements, negotiation, and payments remain outside the agent
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources

@@ -2602,3 +2602,60 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   configured-secret values and credential/private-key patterns found no
   matches. SMTP credentials remained unsaved; no creator email was approved,
   prepared or sent during this milestone.
+
+## 2026-10-23 — External SMTP launch proof
+
+- Reloaded the existing action services with owner-saved ignored SMTP settings.
+  The governed `communications.smtp_check` task succeeded against the configured
+  external transport with STARTTLS and authenticated status true. The check
+  exercised NOOP and sent no message; no credentials or provider response bodies
+  were published.
+- Prepared and individually approved one exact message to an owned inbox.
+  The existing pacing/jitter reserved its execution time and the task completed
+  with durable external SMTP acceptance. A received Gmail Inbox copy carried
+  the configured creator label and matched the exact receipt Message-ID, body
+  and test reference. Received headers reported delivery after three seconds.
+  Private headers and screenshots remain in ignored local output.
+- This was a same-mailbox self-test. It proves that one authorized message
+  reached the owned Inbox; it does not prove creator inbox placement, real
+  incoming-reply matching, positive interest or handoff. The adapter deliberately
+  ignores its own sender and Sent messages; that boundary was not weakened.
+- Fresh HTTPS requests for the configured product home/privacy pages timed
+  out, and a browser check could not reach the home page from this workstation.
+  DNS resolved, so this is a scoped availability observation, not a claim of a
+  global outage or missing domain.
+- Two reviewed Polish exact packets were individually approved through the
+  existing audited task-decision path. When the owner subsequently confirmed
+  the site was unreachable, both paced tasks were cancelled through the audited
+  cancellation endpoint before their due times. Read-back confirmed terminal
+  cancellation. Zero creator emails were sent; broader campaign automation
+  remains paused and no general send grant was enabled. Reviewed copy remains
+  private for later review. Recipient data, packet IDs, complete copy and
+  source-account details are not published.
+- A governed read-only Gmail sync fetched the labeled self-test and returned
+  inserted zero, pending zero, no further pages, no suppression and
+  `mailbox_modified=false`. Correctly ignoring that self-mail is a live reader
+  check, not proof of real creator-reply matching, replay or interest review.
+- A read-only code audit confirmed that enabled Gmail monitoring can schedule
+  campaigns with accepted marketing outreach in the preceding 180 days, at a
+  minimum five-minute interval, independently of expired sending grants. The
+  generic self-test does not create a marketing lead or trigger that rule.
+  This implementation review is separate from a live incoming-reply canary.
+- Updated the launch guide to distinguish loaded configuration, SMTP auth,
+  durable message acceptance, actual Inbox/Message-ID evidence and labeled-reply
+  replay. It retains ordinary send limits for owned tests and recommends a
+  separate test campaign for reply proof, keeping tests out of real lead and
+  learning records.
+- Refreshed stale setup claims about live YouTube research, public-description
+  contact candidates, the read-only Gmail helper and governed creator inference.
+  No capability, policy, database boundary, provider route or service changed.
+- Final lint and all 676 unit/contract tests passed, followed by the complete
+  verifier's native OAuth/SMTP, PostgreSQL and recovery groups, Compose
+  configuration and whitespace checks. After verification, control/action
+  services retained the configured real SMTP transport, authentication and
+  pacing; the latest audited connection check remained successful.
+- Unedited AI copy remains experimental, actual incoming creator-reply
+  matching/replay and handoff remain unverified, and the read-only OAuth app's
+  Testing-mode token expiry remains an operating limit. The owned-inbox proof
+  does not remove those limitations. The two creator tasks are terminally
+  cancelled; their earlier approvals provide no continuing sending authority.
