@@ -23,6 +23,7 @@ SOURCE_HOSTS = {
     "api.ashbyhq.com",
     "boards-api.greenhouse.io",
     "api.lever.co",
+    "api.eu.lever.co",
     "remotive.com",
 }
 
@@ -235,9 +236,13 @@ def fetch_greenhouse(board: str) -> list[dict[str, Any]]:
     return normalized
 
 
-def fetch_lever(board: str) -> list[dict[str, Any]]:
+def fetch_lever(board: str, *, region: str = "global") -> list[dict[str, Any]]:
+    if region not in {"global", "eu"}:
+        raise ValueError("Lever region must be global or eu")
+    api_host = "api.eu.lever.co" if region == "eu" else "api.lever.co"
+    jobs_host = "jobs.eu.lever.co" if region == "eu" else "jobs.lever.co"
     slug = quote(board, safe="")
-    payload = _read_json(f"https://api.lever.co/v0/postings/{slug}?mode=json")
+    payload = _read_json(f"https://{api_host}/v0/postings/{slug}?mode=json")
     jobs = payload if isinstance(payload, list) else []
     company = board.replace("-", " ").replace("_", " ").title()
     normalized: list[dict[str, Any]] = []
@@ -252,8 +257,8 @@ def fetch_lever(board: str) -> list[dict[str, Any]]:
         apply_url = str(job.get("applyUrl") or source_url)
         if (
             published_at is None
-            or not source_url.startswith("https://jobs.lever.co/")
-            or not apply_url.startswith("https://jobs.lever.co/")
+            or not source_url.startswith(f"https://{jobs_host}/{board}/")
+            or not apply_url.startswith(f"https://{jobs_host}/{board}/")
         ):
             continue
         categories = job.get("categories") or {}
@@ -262,7 +267,8 @@ def fetch_lever(board: str) -> list[dict[str, Any]]:
         normalized.append(
             {
                 "source": "lever",
-                "source_key": str(job.get("id") or _stable_key(board, source_url)),
+                "source_key": ("eu:" if region == "eu" else "")
+                + str(job.get("id") or _stable_key(board, source_url)),
                 "company": company[:240],
                 "title": str(job.get("text") or "Untitled role")[:300],
                 "location": location[:300],

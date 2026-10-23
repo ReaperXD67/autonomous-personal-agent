@@ -4,6 +4,13 @@ The command center is a website served by the control API. It works on the
 current Windows machine now and can use the same UI on a VPS later. It is not a
 desktop-only executable and does not depend on a hosted SaaS frontend.
 
+Career missions now accept supported employer-board/job URLs, including Lever
+EU, and explain job-risk signals before automatic preparation. The opportunity
+inbox prioritizes recorded shortlists, interviews, offers and uncertain replies
+in **Your next decisions**. These stages make no model calls; application writing
+still uses configured inference. See [Career Play and Gmail](career-autopilot.md)
+for source import, readiness, scope and verification limits.
+
 The **Workflows** view coordinates dependent tasks with explicit result checks,
 parallel limits, deadlines, and cancellation. Use its safe demo or the
 application draft → form inspection recipe; see the

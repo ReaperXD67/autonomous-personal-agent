@@ -1,15 +1,13 @@
 from __future__ import annotations
 
-import re
 from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from app.action_models import ApplicationIdentity
-
-SOURCE_SLUG = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$")
+from app.career_sources import normalize_source_boards
 
 
 def _clean_values(values: list[str], *, limit: int = 40) -> list[str]:
@@ -34,16 +32,12 @@ class CareerSourceConfig(BaseModel):
     ashby_boards: list[str] = Field(default_factory=list)
     greenhouse_boards: list[str] = Field(default_factory=list)
     lever_boards: list[str] = Field(default_factory=list)
+    lever_eu_boards: list[str] = Field(default_factory=list)
 
-    @field_validator("ashby_boards", "greenhouse_boards", "lever_boards")
+    @field_validator("ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards")
     @classmethod
-    def validate_board_slugs(cls, values: list[str]) -> list[str]:
-        cleaned = _clean_values(values, limit=30)
-        if any(not SOURCE_SLUG.fullmatch(value) for value in cleaned):
-            raise ValueError(
-                "Board names may contain only letters, numbers, underscores, and hyphens"
-            )
-        return cleaned
+    def validate_board_slugs(cls, values: list[str], info: ValidationInfo) -> list[str]:
+        return normalize_source_boards(values, config_key=str(info.field_name))
 
     @model_validator(mode="after")
     def require_source(self) -> CareerSourceConfig:
@@ -53,6 +47,7 @@ class CareerSourceConfig(BaseModel):
             and not self.ashby_boards
             and not self.greenhouse_boards
             and not self.lever_boards
+            and not self.lever_eu_boards
         ):
             raise ValueError("At least one reviewed career source must be enabled")
         return self
@@ -198,6 +193,7 @@ class OpportunityView(BaseModel):
     latest_draft: dict[str, Any] | None = None
     latest_preflight: dict[str, Any] | None = None
     latest_action: dict[str, Any] | None = None
+    quality: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

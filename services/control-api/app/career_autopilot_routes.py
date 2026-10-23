@@ -92,7 +92,9 @@ def overview(request: Request, profile_id: UUID | None = None) -> dict[str, Any]
         sources = bool(
             config.get("arbeitnow")
             or config.get("remotive")
-            or any(config.get(key) for key in ("ashby_boards", "lever_boards", "greenhouse_boards"))
+            or any(config.get(key) for key in (
+                "ashby_boards", "lever_boards", "lever_eu_boards", "greenhouse_boards",
+            ))
         )
         resume = profile["resume_present"]
         readiness.append(

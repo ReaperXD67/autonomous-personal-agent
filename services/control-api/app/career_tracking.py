@@ -275,6 +275,9 @@ def correlate_message(
         if binding["gmail_thread_id"] == message["gmail_thread_id"]:
             if (str(binding["opportunity_id"]) in known
                     and binding["sender_domain"] == domain):
+                applied_at = known[str(binding["opportunity_id"])].get("applied_at")
+                if applied_at is None or message["received_at"] < applied_at - timedelta(days=1):
+                    return None, "Recorded thread predates this application; review required"
                 return binding["opportunity_id"], "Exact recorded Gmail thread and sender domain"
             return None, "Recorded thread has a different sender or application; review required"
     matches = []
@@ -298,49 +301,104 @@ def correlate_message(
                   "No unique application and sender match; review required")
 
 
+def _asserted_signal(text: str, match: re.Match[str]) -> bool:
+    """A mention or a conditional promise is not evidence of a recruiting decision."""
+    prefix = text[max(0, match.start() - 120):match.start()]
+    # Restrict the guard to this clause so a previous, completed negative sentence
+    # does not erase a later explicit decision. Subject and snippet are separate.
+    prefix = re.split(r"[.!?;]", prefix)[-1]
+    prefix = re.sub(r"\bwould like to (?:inform you that|let you know(?: that)?)\s*$",
+                    "", prefix, flags=re.I)
+    if re.match(r"(?:invite you|schedule )", match.group(), re.I):
+        prefix = re.sub(r"\bwould like to\s*$", "", prefix, flags=re.I)
+    uncertain = r"\b(?:not|never|no|cannot|can't|won't|isn't|wasn't|aren't|weren't|" \
+                r"don't|doesn't|didn't|wouldn't|haven't|hasn't|" \
+                r"if|unless|whether|may|might|could|would|should|hope|plan|intend|" \
+                r"once|when|possibly|potentially|cancel\w*)\b"
+    suffix = text[match.end():min(len(text), match.end() + 100)]
+    clause_end = re.search(r"[.!?;]", suffix)
+    clause_suffix = suffix[:clause_end.start()] if clause_end else suffix
+    return (re.search(uncertain, prefix, re.I) is None
+            and not re.search(
+                r"\b(?:if|unless|once|when|draft|example|sample|"
+                r"not (?:yet )?(?:been )?(?:issued|ready|confirmed|scheduled)|cancel\w*)\b",
+                clause_suffix, re.I,
+            )
+            and (clause_end is None or clause_end.group() != "?"))
+
+
 def classify_message(message: dict[str, Any]) -> dict[str, Any]:
+    """Suggest evidence-backed states without a model call or inbox-driven actions."""
     text = bounded_text(message.get("subject", "") + ". " + message.get("snippet", ""), 1100)
+    # Normalize typographic apostrophes for negation without changing stored mail.
+    text = text.replace("\u2019", "'")
+    text = re.sub(r"\byou've\b", "you have", text, flags=re.I)
+    text = re.sub(r"\byou're\b", "you are", text, flags=re.I)
     rules = {
         "rejected": r"\b(?:not (?:be )?(?:moving|proceeding) forward|"
                     r"application (?:was |has been )?"
                     r"(?:unsuccessful|rejected)|decided (?:not to proceed|to pursue other)|"
-                    r"unable to offer you (?:the |a )?(?:role|position|job))\b",
+                    r"unable to offer you (?:the |a )?(?:role|position|job)|"
+                    r"(?:you|your (?:application|resume|r\u00e9sum\u00e9)) "
+                    r"(?:have |has |were |was )?not (?:been )?(?:selected|shortlisted)|"
+                    r"(?:will not|won't) be (?:moving|proceeding) forward|"
+                    r"aren't (?:moving|proceeding) forward|"
+                    r"decided to (?:move forward with|pursue) other candidates)\b",
         "offer": r"\b(?:offer of employment|(?:pleased|delighted) to offer you "
                  r"(?:the |a |this )?(?:role|position|job)|pleased to extend (?:an? )?offer|"
                  r"your (?:formal |job )?offer letter)\b",
-        "interview": r"\b(?:interview invitation|invite you (?:to|for) (?:an? )?interview|"
+        "shortlisted": r"\b(?:(?:you|your (?:application|resume|r\u00e9sum\u00e9|"
+                       r"profile|candidacy)) "
+                       r"(?:have |has |were |was |are |is )?(?:been )?short[ -]?listed|"
+                       r"(?:you|your (?:application|resume|r\u00e9sum\u00e9|profile)) "
+                       r"(?:have |has |were |was |are |is )?(?:been )?selected for "
+                       r"(?:the |an? )?(?:next (?:round|stage)|interview)|"
+                       r"(?:moving|proceeding) forward with your application)\b",
+        "interview": r"\b(?:interview invitation|invitation to (?:an? )?interview|"
+                     r"invite you (?:to|for) (?:an? )?interview|"
+                     r"you (?:are |have been )invited (?:to|for) (?:an? )?interview|"
+                     r"you (?:have been |are )selected for (?:an? )?interview|"
                      r"schedule (?:an? |your )?interview|interview (?:is |has been )?scheduled|"
-                     r"interview confirmation)\b",
+                     r"interview (?:is |has been )confirmed|interview confirmation)\b",
         "acknowledgement": r"\b(?:received your application|application (?:has been |was )?"
                            r"received|thank you for applying|thanks for applying)\b",
         "withdrawn": r"\b(?:application (?:has been |was )?withdrawn|"
                      r"confirmed your withdrawal)\b",
     }
-    matched = [(status, re.search(pattern, text, re.IGNORECASE))
-               for status, pattern in rules.items()]
-    matched = [(status, match) for status, match in matched if match]
+    matched = [(status, match) for status, pattern in rules.items()
+               for match in re.finditer(pattern, text, re.IGNORECASE)]
+    asserted = [(status, match) for status, match in matched if _asserted_signal(text, match)]
     # Acknowledgements often accompany decisions; conflicting decisions need review.
-    decisive = [(status, match) for status, match in matched if status != "acknowledgement"]
-    selected = decisive or matched
-    review = len(selected) != 1
-    status, match = selected[0] if len(selected) == 1 else ("needs_review", None)
-    if match and re.search(r"\b(?:not|never|no|cancel\w*)\b", text[max(0, match.start()-35):
-                                                                         match.start()], re.I):
-        status, review = "needs_review", True
+    decisive = [(status, match) for status, match in asserted if status != "acknowledgement"]
+    statuses = {status for status, _ in decisive}
+    if len(statuses) > 1 and statuses <= {"shortlisted", "interview", "offer"}:
+        # One message can explicitly progress from a shortlist to an invitation.
+        latest = next(status for status in ("offer", "interview", "shortlisted")
+                      if status in statuses)
+        decisive = [(status, match) for status, match in decisive if status == latest]
+        statuses = {latest}
+    uncertain_decision = any(status != "acknowledgement" and not _asserted_signal(text, match)
+                             for status, match in matched)
+    conflicting_mention = any(status in statuses and not _asserted_signal(text, match)
+                              for status, match in matched)
+    selected = decisive or ([] if uncertain_decision else asserted)
+    review = len({status for status, _ in selected}) != 1 or conflicting_mention
+    status, match = selected[0] if selected and not review else ("needs_review", None)
     if not selected and re.search(r"\b(?:availability|discuss your application|"
-                                  r"tell us more|recruiter|hiring team)\b", text, re.I):
+                                  r"tell us more|recruiter|hiring team)\b", text, re.I) \
+            and not matched:
         status, review = "recruiter_reply", False
     meeting_at = None
     if status == "interview":
         date_pattern = r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:Z|[+-]\d{2}:\d{2})\b"
         dates = re.findall(r"\b" + date_pattern, text)
         confirmed = re.search(
-            r"\b(?:interview (?:is |has been )?scheduled (?:for |on |at )?|"
+            r"\b(?:interview (?:is |has been )?(?:scheduled|confirmed) (?:for |on |at )?|"
             r"interview (?:time|date|confirmation)\s*[:\-]?\s*)(" + date_pattern + ")",
             text, re.I,
         )
         uncertain = re.search(r"\b(?:cancel\w*|reschedul\w*|tentative|not confirmed)\b", text, re.I)
-        if len(dates) == 1 and confirmed and not uncertain:
+        if len(dates) == 1 and confirmed and _asserted_signal(text, confirmed) and not uncertain:
             with suppress(ValueError):
                 meeting_at = datetime.fromisoformat(dates[0].replace("Z", "+00:00"))
         review = meeting_at is None
@@ -412,4 +470,4 @@ def execute_gmail_sync(task: dict[str, Any], store: Any, settings: Any,
     )
     return {"handler": "career.gmail_sync", "profile_id": str(profile_id), "fetched": fetched,
             **result, "pending": len(pending), "more_pages": bool(cursor),
-            "mailbox_modified": False}
+            "mailbox_modified": False, "model_calls": 0}

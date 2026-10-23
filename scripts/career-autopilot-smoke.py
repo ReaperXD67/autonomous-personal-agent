@@ -18,7 +18,7 @@ from app.action_store import SideEffectGuardError
 from app.career_autopilot_models import CareerPlay
 from app.career_autopilot_store import CareerAutopilotStore
 from app.career_models import CareerProfileCreate
-from app.career_tracking import GmailSyncError, correlate_message
+from app.career_tracking import GmailSyncError, classify_message, correlate_message
 from app.career_tracking_models import CareerEventCreate
 from app.career_tracking_store import CareerTrackingStore
 from app.models import ApprovalDecision, TaskCreate
@@ -31,7 +31,7 @@ def check(value, message):
         raise AssertionError(message)
 
 
-def create_run(store, *, count=1, cap=3, email=False, duplicate=False, mode="apply"):
+def create_run(store, *, count=1, cap=3, email=False, duplicate=False, mode="apply", unsafe=False):
     profile = store.create_profile(CareerProfileCreate(
         name="Synthetic autonomy proof", candidate_name="Synthetic Applicant",
         desired_titles=["Python Engineer"], skills=["Python"],
@@ -43,10 +43,12 @@ def create_run(store, *, count=1, cap=3, email=False, duplicate=False, mode="app
     opportunities = []
     with store.connect() as connection:
         for index in range(count):
-            suffix = "shared" if duplicate else str(index)
+            suffix = "100000" if duplicate else str(index)
             url = (f"https://careers.example.test/roles/{suffix}" if email else
                    f"https://boards.greenhouse.io/synthetic/jobs/{suffix}")
             description = "Python engineering role; build reliable Python services."
+            if unsafe:
+                description += " To apply, pay an application fee to the recruiter."
             if email:
                 description += " Apply by sending your CV to hiring@example.test."
             opportunity = connection.execute(
@@ -293,8 +295,37 @@ def exercise(dsn):
     check(items_for(store, run)[0]["state"] == "needs_review", "Stale preflight was not flagged")
     groups.append("Browser/email draft provenance and hash guards; stale browser preflight refusal")
     groups.append("Gmail persistence/replay/cursor fencing, manual correction and cancellation")
+    groups.extend(exercise_job_quality(store))
     groups.extend(exercise_preparation_progress(store))
     return groups
+
+
+def exercise_job_quality(store):
+    profile, run, opportunities = create_run(store, unsafe=True)
+    check(not items_for(store, run), "Unsafe listing consumed preparation or inference allowance")
+    check(not actions_for(store, run), "Unsafe listing gained delegated send authority")
+    detail = store.get_opportunity(opportunities[0]["id"])
+    listing = store.list_opportunities(profile_id=profile["id"], opportunity_status=None, limit=10)
+    check(detail["quality"]["disposition"] == "review_required"
+          and listing[0]["quality"]["authenticity"] == "unverified",
+          "Listing/detail quality projections omitted server-computed evidence")
+    _, _, opportunity, _, task, fingerprint = authorized_fixture(store)
+    with store.connect() as connection:
+        connection.execute("UPDATE job_opportunities SET description = %s WHERE id = %s",
+                           ("Python role. Share your password with the recruiter.",
+                            opportunity["id"]))
+        connection.commit()
+    try:
+        store.begin_side_effect(task["id"], fingerprint, task["lease_id"])
+    except SideEffectGuardError as exc:
+        check("safety review required" in str(exc), "Final boundary did not recompute safety")
+    else:
+        raise AssertionError("Changed unsafe listing passed the final submission boundary")
+    with store.connect() as connection:
+        receipt = connection.execute("SELECT task_id FROM side_effect_receipts WHERE task_id = %s",
+                                     (task["id"],)).fetchone()
+    check(receipt is None, "Safety refusal left an executable receipt")
+    return ["Job safety gates before inference and at final receipt; current quality projections"]
 
 
 def exercise_preparation_progress(store):
@@ -450,12 +481,21 @@ def exercise_tracking(store, profile, opportunity):
         pass
     else:
         raise AssertionError("Stale Gmail cursor accepted")
+    shortlist = dict(message, gmail_message_id="a126", received_at=datetime.now(UTC),
+                     snippet="Your resume has been shortlisted.")
+    shortlist.update(classify_message(shortlist))
+    fresh = store.gmail_sync_context(profile["id"], mailbox_key, "Hermes/Careers")
+    store.save_gmail_sync(profile["id"], fresh, [shortlist], page_token=None,
+                         pending_message_ids=[], task_id=task["id"], lease_id=task["lease_id"])
+    tracked = store.tracking(profile_id=profile["id"])
+    check(tracked["summary"]["shortlisted"] == 1,
+          "Explicit shortlist did not persist as a separate application state")
     store.record_application_event(opportunity["id"], CareerEventCreate(
         status="interview", note="Synthetic verified interview time", actor="autopilot-smoke",
         gmail_message_id="a123", meeting_at=datetime.now(UTC) + timedelta(days=7)))
     tracked = store.tracking(profile_id=profile["id"])
     check(tracked["applications"][0]["status_source"] == "manual", "Manual correction lost")
-    check(len(tracked["applications"][0]["events"]) == 3, "Original Gmail history lost")
+    check(len(tracked["applications"][0]["events"]) == 4, "Original Gmail history lost")
     fresh = store.gmail_sync_context(profile["id"], mailbox_key, "Hermes/Careers")
     with store.connect() as connection:
         connection.execute("UPDATE agent_tasks SET cancellation_requested_at=now() WHERE id=%s",
@@ -468,6 +508,20 @@ def exercise_tracking(store, profile, opportunity):
         pass
     else:
         raise AssertionError("Cancelled Gmail lease accepted")
+    with store.connect() as connection:
+        connection.execute("UPDATE career_autopilot_runs SET state='paused' WHERE profile_id=%s",
+                           (profile["id"],))
+        connection.execute("UPDATE agent_tasks SET status='cancelled', lease_id=NULL, "
+                           "lease_expires_at=NULL, created_at=now()-interval '16 minutes' "
+                           "WHERE id=%s", (task["id"],))
+        connection.commit()
+    CareerAutopilotStore(store._dsn).schedule_mail_sync()
+    with store.connect() as connection:
+        scheduled = connection.execute(
+            "SELECT 1 FROM agent_tasks WHERE kind='career.gmail_sync' AND status='queued' "
+            "AND payload->>'profile_id'=%s", (str(profile["id"]),),
+        ).fetchone()
+    check(scheduled, "Reply monitoring stopped when application authority was paused")
 
 
 def main():

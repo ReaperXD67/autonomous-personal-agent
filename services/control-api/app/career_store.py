@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from psycopg.types.json import Jsonb
 
 from app.career_models import CareerProfileCreate, CareerProfileUpdate, OpportunityStateUpdate
+from app.career_quality import assess_opportunity, quality_blocker
 from app.models import TaskCreate
 from app.policy import RiskLevel
 from app.store import Database
@@ -298,6 +299,7 @@ class CareerStore(Database):
                     if (
                         profile["auto_prepare"]
                         and opportunity["score"] >= profile["auto_prepare_min_score"]
+                        and quality_blocker(opportunity) is None
                         and len(auto_prepare_ids) < profile["max_auto_prepare_per_scan"]
                     ):
                         auto_prepare_ids.append(saved["id"])
@@ -322,7 +324,7 @@ class CareerStore(Database):
         limit: int,
     ) -> list[dict[str, Any]]:
         with self.connect() as connection:
-            return connection.execute(
+            rows = connection.execute(
                 """
                 SELECT o.*, d.content AS latest_draft,
                        row_to_json(pf.*) AS latest_preflight,
@@ -359,6 +361,7 @@ class CareerStore(Database):
                 """,
                 (profile_id, profile_id, opportunity_status, opportunity_status, limit),
             ).fetchall()
+        return [{**row, "quality": assess_opportunity(row)} for row in rows]
 
     def get_opportunity(self, opportunity_id: UUID) -> dict[str, Any]:
         with self.connect() as connection:
@@ -396,7 +399,7 @@ class CareerStore(Database):
             ).fetchone()
         if row is None:
             raise OpportunityNotFoundError(str(opportunity_id))
-        return row
+        return {**row, "quality": assess_opportunity(row)}
 
     def update_opportunity_state(
         self, opportunity_id: UUID, request: OpportunityStateUpdate
@@ -440,6 +443,7 @@ class CareerStore(Database):
         result["latest_draft"] = None
         result["latest_preflight"] = None
         result["latest_action"] = None
+        result["quality"] = assess_opportunity(row)
         return result
 
     def get_draft_context(self, opportunity_id: UUID, profile_id: UUID) -> dict[str, Any]:

@@ -38,6 +38,7 @@ from app.career_models import (
     OpportunityStateUpdate,
     OpportunityView,
 )
+from app.career_source_routes import router as career_source_router
 from app.career_store import (
     CareerProfileNotFoundError,
     CareerStore,
@@ -136,6 +137,7 @@ app.include_router(readiness_router)
 app.include_router(communication_router)
 app.include_router(career_autopilot_router)
 app.include_router(career_tracking_router)
+app.include_router(career_source_router)
 app.include_router(creator_automation_router)
 app.include_router(creator_draft_router)
 app.include_router(creator_pilot_router)

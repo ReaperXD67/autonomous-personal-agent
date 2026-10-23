@@ -698,3 +698,20 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 5px; bor
 .creator-feedback-fields .checkbox-row { margin: 10px 0; }
 .creator-learning-item { display: block; margin: 10px 0; }
 .creator-learning-item p { margin: 6px 0; }
+.career-attention { margin: 0 0 26px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; }
+.career-attention h3 { margin: 0; font-size: 17px; }
+.career-attention .section-bar { margin-bottom: 12px; }
+.career-attention-item { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 0; border-top: 1px solid var(--line); }
+.career-attention-item > div { min-width: 0; overflow-wrap: anywhere; }
+.career-attention-item strong { font-size: 14px; }
+.career-attention-item p { margin-bottom: 0; }
+.career-attention-item .button { flex: none; }
+.career-quality { margin: 12px 0; padding: 12px; border-left: 3px solid var(--cyan); background: var(--panel); font-size: 13px; line-height: 1.6; }
+.career-quality.review-required { border-left-color: var(--amber); }
+.career-quality h3 { margin: 0; font-size: 14px; }
+.career-quality ul { padding-left: 20px; }
+.career-source-import { margin: 12px 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+@media (max-width: 620px) {
+  .career-attention { padding: 16px; }
+  .career-attention-item { align-items: flex-start; flex-direction: column; gap: 10px; }
+}
