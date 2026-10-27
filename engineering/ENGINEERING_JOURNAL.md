@@ -2796,8 +2796,30 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   succeeded with one fetched, zero inserted/pending and no mailbox modification;
   this remains self-mail exclusion evidence, not a real creator reply.
   The first local action-image Trivy attempt timed out after five minutes with
-  no valid report, so no local zero-finding result is claimed. Required clean-CI
-  image scans remain the final release gates.
+  no valid report. A later Trivy 0.74.0 control-image scan using the exact CI
+  flags passed with zero fixable high/critical findings; clean CI also passed
+  that control scan.
+- The subsequent action-image scan found fixable HIGH CVE-2026-112940 in system
+  filelock 3.32.5. Metadata traced orphan python-discovery 1.6.0 and filelock to
+  the already removed virtualenv; neither belongs to project locks/imports or
+  the isolated application environment. The action image's existing global-tool
+  cleanup now removes both before pip self-removal. An isolated rebuild removed
+  the two packages, reported no broken system requirements and retained all 11
+  locked application dependencies. No upgrade, dependency, ignore or image-digest
+  change was made. The actual rebuilt image passed 44 repository/delivery tests,
+  networkless SMTP diagnostic/override/stale-lease guards with zero delivery
+  calls, and desktop/mobile creator-review UI checks. System/application
+  interpreters confirmed all four removed provisioning modules absent, no
+  filelock consumers, and Playwright 1.63.0/application dependencies intact.
+  Final lint/all 910 tests and the complete verifier passed after this cleanup,
+  including all native/PostgreSQL/workflow/scheduler/creator/career/UI/delivery/
+  recovery groups. Trivy 0.74.0 returned zero fixable high/critical findings for
+  the isolated action review image using exact CI flags. Its RootFS layers and
+  runtime configuration matched the Compose image except added Compose labels;
+  the distinct OCI identities are not described as the same image. Identity
+  proof stays in ignored local output. The final Compose action runtime passed
+  an audited real SMTP STARTTLS/authentication/NOOP check with no mail sent.
+  Required clean-CI image scans remain release gates.
 - Updated README, operations, architecture/security, roadmap, research provenance,
   ADR-0028 and system evolution. Real incoming creator-reply matching/replay and
   handoff, usable unedited AI copy and long-term OAuth operation remain unverified.

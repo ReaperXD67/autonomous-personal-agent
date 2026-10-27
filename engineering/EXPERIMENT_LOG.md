@@ -934,8 +934,28 @@ The rebuilt research worker reported OpenSSL 3.0.22 with hostname checking
 enabled. An automatic governed Gmail task created after that runtime rebuild
 succeeded with one fetched, zero inserted/pending and no mailbox modification.
 The first local action-image Trivy attempt reached its five-minute timeout
-without a valid report; no local zero-finding result is claimed. Required clean-CI
-image scans remain the final release gates.
+without a valid report. A later Trivy 0.74.0 control-image scan with exact CI
+flags passed with zero fixable high/critical findings; clean CI passed that scan.
+
+The valid action-image scan then found fixable HIGH CVE-2026-112940 in system
+filelock 3.32.5. Installed metadata traced filelock and orphan python-discovery
+1.6.0 to removed virtualenv, with neither in project locks/imports or the isolated
+application environment. The isolated action rebuild removed both before pip
+self-removal, reported no broken system requirements and preserved all 11 locked
+application dependencies. No upgrade, dependency, ignore or base digest changed.
+The rebuilt image passed 44 existing repository/delivery tests, networkless SMTP
+diagnostic/override/stale-lease guards with zero delivery calls and desktop/mobile
+creator UI proof. System/application interpreter checks found all four removed
+provisioning modules absent and no filelock consumers, with Playwright 1.63.0 and
+the 11 application dependencies intact. Final lint/all 910 tests and the complete
+verifier passed after the cleanup across all native, PostgreSQL, lifecycle, UI,
+delivery and recovery groups. Trivy 0.74.0 scanned the isolated action review
+image with exact CI flags and returned zero fixable high/critical findings.
+Identity comparison showed matching RootFS layers/runtime configuration with
+the Compose action image except for added Compose labels, not matching OCI
+identities. The final Compose action runtime passed a governed real SMTP
+STARTTLS/authentication/NOOP check with no email. Required CI image scans remain
+release gates.
 
 The networkless creator-review UI proof passed at desktop/mobile sizes using
 the existing isolated action image. It checked malicious finding text escaping,
