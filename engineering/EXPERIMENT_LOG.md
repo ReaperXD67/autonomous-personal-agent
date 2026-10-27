@@ -973,6 +973,42 @@ and Testing-mode longevity were unchanged. Actual incoming-reply
 matching/replay and handoff remain unverified. No new model call was used to
 evaluate these changes.
 
+## Experiment 37 — Expanded reviewed creator queue (2026-10-27)
+
+Method: use the existing campaign, official API research, public business-contact
+review and individual exact-message approval for additional manual Polish
+introductions. Commercial terms, Poland targeting and all sending controls stay
+unchanged; no runtime or implementation change is part of this experiment.
+
+Observed at 2026-10-27 15:50:12 UTC (21:20:12 IST): ten additional unique contacts
+and manual messages passed review and individual exact approval in batches of
+four and six. Including the original two-message pilot, twelve invitations had
+three durable SMTP acceptances and nine queued actions, with zero failed or
+awaiting approval in that scope. Only one of the expanded ten was accepted at
+this checkpoint; queued actions are not sent emails. There was no general send
+grant, automatic contact qualification or automatic handoff.
+
+Ordinary spacing, rolling caps, jitter and 24-hour expiry were retained. The
+remaining reservations ran from October 27 16:16:47 UTC (21:46:47 IST) through
+18:56:10 UTC (October 28 00:26:10 IST). These are reserved release times, not
+guaranteed executions or inbox arrival.
+
+The bounded ten-creator refresh completed with nine researched and one failed;
+seven required contact review and three were excluded, including the failure.
+The separate three-query discovery scan, configured for up to 225 raw results,
+completed 53 creator dossiers: 20 new and 33 updated, with 17 public contact
+candidates and zero automatic contact authorizations. Coverage moved from 342
+prospects/71 with public business contacts to 362/75; neither candidate count
+establishes sending authority.
+
+Fresh home/privacy checks returned HTTP 200. The monitored Gmail read completed
+at 15:49:59 UTC with zero pending reply-review records at the checkpoint. SMTP
+acceptance, later bounces, original-message review and confirmed interest remain
+separate measures. The operational-handoff run passed container lint and all 910
+tests, followed by the complete native, lifecycle, PostgreSQL, UI, delivery and
+queue-recovery verifier. No new model-quality or response-rate benchmark is
+claimed.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote
