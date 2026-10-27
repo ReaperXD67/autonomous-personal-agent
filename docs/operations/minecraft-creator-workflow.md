@@ -145,6 +145,20 @@ the task's lease, cancellation and context. Transport failures are not retried
 by this repair step. If no attempt passes, the draft stays visibly failed.
 Choosing a template is a separate, explicitly labeled option.
 
+The draft review shows computed editorial findings and the complete-email word
+count before preparation. Older responses without a report display an explicit
+unavailable fallback. The authenticated draft API returns the full `quality_report`
+on existing draft reads. It flags observable wording markers, English copy against a requested
+non-English campaign language, feedback claims with zero reviewed creators,
+missing source/next-step markers, and rendered emails over 250 words. The rendered
+count includes terms/footer; the model count covers the hook and content idea.
+Quoted title numbers are evidence, not invented commercial terms. Findings are
+displayed as plain escaped text, alongside the existing quality notes.
+There is no overall score or confidence estimate. The report does not rewrite
+copy, change its digest, persist a review, block preparation or grant authority.
+Naturalness, translation, truthful relevance and semantic accuracy still require
+review. See the [research decision](../research/creator-outreach-intelligence-2026-10.md).
+
 **Prepare exact AI email** binds the saved draft digest to the ordinary email
 approval packet. It does not send the email or approve its own output. Changed
 campaign/contact/research context or a draft older than 24 hours requires a fresh
@@ -186,6 +200,14 @@ supported by the message. Eight tags cover generic pitches, unclear offers,
 revenue-share confusion, fixed-fee preferences, content mismatch, attribution,
 length and next steps. Gmail can suggest tags; none is selected or learned
 automatically. Silence is not an explanation for rejection.
+
+English and Polish hints recognize common objections, including revenue-share
+percentage/window questions and fixed-fee preferences. A bounded normalized
+view strips recognizable quoted/forwarded history and our opt-out instructions;
+the stored original excerpt is unchanged. Negated or conditional interest and
+quoted phrases remain review cases. Normalization is a heuristic, not a full
+translation or proof of intent. Always review the original reply before
+confirming interest or applying feedback tags.
 
 The campaign's **What creators are teaching us** report counts distinct creators,
 shows each objection and its recommended change, and explains future draft
@@ -256,6 +278,11 @@ Recognizable quoted/forwarded history and the outgoing opt-out instruction are
 excluded from direct opt-out detection. This remains conservative excerpt parsing;
 inspect the full message when context is incomplete.
 
+An invalid or expired OAuth refresh grant means reading is unavailable even when
+settings are present. Complete the [explicit renewal flow](gmail-setup.md#expiry-and-recovery),
+reload the reader and pass a new governed sync. SMTP can remain authenticated
+independently; a successful send does not prove reply monitoring.
+
 ## Test before real outreach
 
 Complete the [owned-inbox launch proof](creator-outreach.md#prove-an-owned-inbox-launch)
@@ -274,7 +301,9 @@ git diff --check
 
 The complete verifier includes disposable PostgreSQL creator-automation,
 AI-draft and API-shortlist proofs, plus network-free native OAuth and SMTP-setup
-regression checks.
+regression checks. Its networkless creator-review browser proof checks the actual
+desktop/mobile UI, escaping, missing-report fallback and unchanged exact-action
+preparation behavior.
 The draft proof uses synthetic model output, so it does not establish that a
 configured external or local model is responding.
 The paid-handoff smoke uses synthetic contacts and Mailpit: introduction,

@@ -132,6 +132,57 @@ def test_feedback_suggestions_are_explicit_and_reviewable(text, tag):
 
 
 @pytest.mark.parametrize(
+    ("text", "tag"),
+    [
+        ("Ten mail jest zbyt ogólny", "too_generic"),
+        ("Brakuje mi personalizacji; to kopiuj-wklej", "too_generic"),
+        ("Co dokładnie oferujecie?", "unclear_offer"),
+        ("Nie rozumiem waszej oferty", "unclear_offer"),
+        ("Jaki procent proponujecie?", "unclear_revenue_share"),
+        ("Ile tygodni trwa rozliczenie?", "unclear_revenue_share"),
+        ("Wolę stałą stawkę", "prefers_fixed_fee"),
+        ("Preferuję stałe wynagrodzenie", "prefers_fixed_fee"),
+        ("Pracuję tylko za stałą stawkę", "prefers_fixed_fee"),
+        ("To nie pasuje do mojego kanału", "weak_content_fit"),
+        ("Jak będziecie mierzyć wyniki?", "unclear_attribution"),
+        ("Jak rozliczacie przychód?", "unclear_attribution"),
+        ("Ta wiadomość jest za długa", "too_long"),
+        ("Za duzo tekstu", "too_long"),
+        ("Co mam zrobić dalej?", "unclear_next_step"),
+        ("Z kim mam się skontaktować?", "unclear_next_step"),
+    ],
+)
+def test_polish_feedback_suggestions_preserve_reviewed_tag_vocabulary(text, tag):
+    assert tag in suggested_feedback_tags(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Ten mail nie jest za długi.",
+        "Nie preferuję stałego wynagrodzenia.",
+        "Nie wolę stałej stawki.",
+        "To nigdy nie jest zbyt ogólne.",
+        "Dzięki! W dniu 27 października Damian napisał: Ten mail jest za długi.",
+        "Thanks! On Tuesday Operator wrote: I prefer a fixed fee.",
+        "OK. ----- Wiadomość oryginalna ----- Jaki procent proponujecie?",
+    ],
+)
+def test_negated_or_quoted_polish_feedback_cannot_create_new_objections(text):
+    assert suggested_feedback_tags(text) == []
+
+
+def test_polish_feedback_hints_are_not_learning_authority():
+    tags = suggested_feedback_tags("Wolę stałą stawkę. Ten mail jest za długi.")
+    assert set(tags) == {"prefers_fixed_fee", "too_long"}
+    result = creator_learning_insights([
+        feedback(str(i), *tags, source="gmail", needs_review=True) for i in range(20)
+    ], [])
+    assert result["samples"]["reviewed_creators"] == 0
+    assert result["recommended_variant"] is None
+
+
+@pytest.mark.parametrize(
     "text",
     [
         "The email is not too long",

@@ -1,5 +1,23 @@
 # System evolution
 
+## 2026-10-27 — Observable creator review and explicit mailbox renewal
+
+Creator draft reads compute editorial warnings from the existing stored public
+context and rendered copy. There is no score, new inference call, database write
+or approval effect. The immutable draft/action digest and final send boundary
+are unchanged. English/Polish reply and feedback hints share a bounded authored
+text projection; stored mailbox evidence is retained, and reviewed outcomes
+remain the only learning input. These additions use the existing workers and
+introduce no dependency or external skill runtime.
+
+[ADR-0028](../docs/decisions/ADR-0028-explicit-creator-oauth-renewal.md) adds an
+explicit operator-only path past a confirmed invalid old refresh grant for the
+recorded creator mailbox and same Desktop client, only with career monitoring
+disabled. New consent still passes the established scope, identity, label,
+callback and atomic-save checks. Other refresh failures stop setup. This changes
+local renewal handling, not account/scope selection or runtime read authority.
+Actual renewed consent and a new runtime read remain separate live proofs.
+
 ## 2026-10-23 — Deterministic career triage and source intake
 
 ADR-0027 extends the existing career path with pure employer-board URL

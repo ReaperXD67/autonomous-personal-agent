@@ -35,8 +35,32 @@ function Invoke-RestMethod {
     if ($MaximumRedirection -ne 0 -or $TimeoutSec -ne 20) { throw 'Unsafe request options.' }
     if ($requestMode -eq 'error') { throw 'DUMMY_SECRET_RESPONSE' }
     if ($Uri -eq 'https://oauth2.googleapis.com/token' -and $Method -eq 'Post') {
-        if ($ContentType -ne 'application/x-www-form-urlencoded' -or $Body -notmatch 'grant_type=refresh_token') {
+        if ($ContentType -ne 'application/x-www-form-urlencoded' -or
+            $Body -notmatch 'grant_type=(refresh_token|authorization_code)') {
             throw 'Unexpected token request.'
+        }
+        if ($requestMode -in @('invalid-grant', 'invalid-client', 'invalid-grant-server-error',
+            'invalid-grant-unauthorized', 'malformed-token-error', 'oversized-token-error',
+            'array-token-error', 'nonstring-token-error')) {
+            $status = switch ($requestMode) {
+                'invalid-grant-server-error' { [Net.HttpStatusCode]::InternalServerError }
+                'invalid-grant-unauthorized' { [Net.HttpStatusCode]::Unauthorized }
+                default { [Net.HttpStatusCode]::BadRequest }
+            }
+            $response = [Net.Http.HttpResponseMessage]::new($status)
+            $exception = [Microsoft.PowerShell.Commands.HttpResponseException]::new('DUMMY_SECRET_RESPONSE', $response)
+            $record = [Management.Automation.ErrorRecord]::new(
+                $exception, 'SyntheticGoogleFailure', [Management.Automation.ErrorCategory]::InvalidOperation, $null)
+            $details = switch ($requestMode) {
+                'invalid-client' { '{"error":"invalid_client","error_description":"DUMMY_SECRET_RESPONSE"}' }
+                'malformed-token-error' { 'DUMMY_SECRET_RESPONSE is not JSON' }
+                'array-token-error' { '[{"error":"invalid_grant","error_description":"DUMMY_SECRET_RESPONSE"}]' }
+                'nonstring-token-error' { '{"error":["invalid_grant"],"error_description":"DUMMY_SECRET_RESPONSE"}' }
+                'oversized-token-error' { '{"error":"invalid_grant","error_description":"' + ('DUMMY_SECRET_RESPONSE' * 110) + '"}' }
+                default { '{"error":"invalid_grant","error_description":"DUMMY_SECRET_RESPONSE"}' }
+            }
+            $record.ErrorDetails = [Management.Automation.ErrorDetails]::new($details)
+            $PSCmdlet.ThrowTerminatingError($record)
         }
         return @{ access_token = 'synthetic-access' }
     }
@@ -175,6 +199,60 @@ try {
     Assert-Rejected { Get-GmailIdentity 'synthetic-access' }
     Assert-Rejected { Assert-GmailCreatorLabel 'synthetic-access' 'Hermes/Creators' }
 
+    # Expired Testing grants cannot verify their former mailbox online. An
+    # explicit renewal can continue only from recorded same-account provenance,
+    # the same Desktop client, disabled career reading and exact invalid_grant.
+    # The live entrypoint still validates the newly consented account/scope/label.
+    $renewable = $shared.Clone()
+    $renewable.CREATOR_GMAIL_MAILBOX = 'owner@example.test'
+    $renewable.CREATOR_GMAIL_ENABLED = 'true'
+    $renewable.GMAIL_CREATOR_LABEL = 'Hermes/Creators'
+    $renewable.GMAIL_ENABLED = 'false'
+    $requestMode = 'invalid-grant'
+    Assert-Rejected { Assert-GmailExistingIdentity $renewable 'owner@example.test' -DesktopClient $client }
+    Assert-GmailExistingIdentity $renewable 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox
+    try { Invoke-GmailToken @{ grant_type = 'authorization_code' } | Out-Null; throw 'Expected code exchange failure.' }
+    catch {
+        if ($_.Exception.Data['HermesGmailFailure'] -or [string]$_ -match 'DUMMY_SECRET_RESPONSE') {
+            throw 'Code exchange errors must not acquire renewal authority or leak provider content.'
+        }
+        if ([string]$_ -notmatch 'Google token request failed') { throw 'Expected sanitized code exchange failure.' }
+    }
+    foreach ($change in @(
+        @{ CREATOR_GMAIL_MAILBOX = 'other@example.test' },
+        @{ CREATOR_GMAIL_MAILBOX = '' },
+        @{ CREATOR_GMAIL_ENABLED = 'false' },
+        @{ GMAIL_CREATOR_LABEL = '' },
+        @{ GMAIL_ENABLED = 'true' },
+        @{ GMAIL_ENABLED = '1' },
+        @{ GMAIL_ENABLED = 'unknown' },
+        @{ GMAIL_REFRESH_TOKEN = '' },
+        @{ GMAIL_CLIENT_SECRET = '' }
+    )) {
+        $conflict = $renewable.Clone()
+        foreach ($key in $change.Keys) { $conflict[$key] = $change[$key] }
+        $before = $requestCount
+        Assert-Rejected { Assert-GmailExistingIdentity $conflict 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox }
+        if ($requestCount -ne $before) { throw 'Invalid renewal provenance reached Google.' }
+    }
+    foreach ($wrongClient in @(
+        @{ client_id = 'other.apps.googleusercontent.com'; client_secret = 'synthetic-secret' },
+        @{ client_id = 'synthetic.apps.googleusercontent.com'; client_secret = 'different-secret' },
+        @{}
+    )) {
+        Assert-Rejected { Assert-GmailExistingIdentity $renewable 'owner@example.test' -DesktopClient $wrongClient -ReauthorizeExistingMailbox }
+    }
+    Assert-Rejected { Assert-GmailExistingIdentity @{} 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox }
+    foreach ($failureMode in @('error', 'invalid-client', 'invalid-grant-server-error',
+        'invalid-grant-unauthorized', 'malformed-token-error', 'oversized-token-error',
+        'array-token-error', 'nonstring-token-error', 'other-account')) {
+        $requestMode = $failureMode
+        Assert-Rejected { Assert-GmailExistingIdentity $renewable 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox }
+    }
+    # Renewal intent must not weaken verification when the old grant still works.
+    $requestMode = 'ok'
+    Assert-GmailExistingIdentity $renewable 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox
+
     # Exercise the actual bounded callback server over loopback with a dummy
     # authorization code. No Google request or live entrypoint is invoked.
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -224,4 +302,4 @@ finally {
         Remove-Item -LiteralPath $resolved -Recurse -Force
     }
 }
-Write-Host 'Gmail OAuth smoke passed: PKCE, nonce/state, callback bounds, scope, identity/conflicts, label, redacted failures, atomic merge, concurrent writers, and real loopback response. No live account or environment accessed.'
+Write-Host 'Gmail OAuth smoke passed: PKCE, nonce/state, callback bounds, scope, identity/conflicts, explicit same-mailbox renewal, label, redacted failures, atomic merge, concurrent writers, and real loopback response. No live account or environment accessed.'

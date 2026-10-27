@@ -31,3 +31,4 @@ history.
 - [ADR-0025](ADR-0025-creator-partnership-handoff.md): bounded creator partnerships, revenue-share proposals, reviewed replies, and owner handoff
 - [ADR-0026](ADR-0026-reviewed-creator-ai-drafts.md): policy-bound creator copy with immutable evidence and individual exact review
 - [ADR-0027](ADR-0027-zero-model-career-intelligence.md): deterministic job-risk and reply triage, reviewed board URL import and regional Lever discovery
+- [ADR-0028](ADR-0028-explicit-creator-oauth-renewal.md): explicit same-mailbox renewal after a confirmed invalid creator refresh grant

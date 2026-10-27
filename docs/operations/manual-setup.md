@@ -62,38 +62,33 @@ Data API v3 enabled and a restricted API key in ignored `YOUTUBE_API_KEY`.
 External delivery also requires the SMTP setup below. Neither account, key, nor
 provider terms are created automatically.
 
-Official YouTube research has passed live requests on this workstation,
-including a two-creator API shortlist on 2026-10-22. That batch refreshed dated
-Minecraft activity and kept unauthorized contacts in review; research grants
-no permission to send. Creator Gmail OAuth, expected-mailbox identity, the
-configured label and an empty-label runtime read also passed. Actual reply
-matching/replay still requires its separate proof below. A healthy container or
-saved credential alone is not provider proof.
+Official YouTube research has passed live requests on this workstation. Two
+existing creators were refreshed through the API on 2026-10-27, with current
+public business-contact evidence checked separately from research ranking.
+Research grants no permission to send.
 
-On 2026-10-23, the configured external SMTP transport passed an audited
-STARTTLS/authentication/NOOP check after the action services loaded its saved
-settings. The check sent no mail. The exact owned-inbox test remains separate
-from authentication: its individually approved message subsequently received
-durable SMTP acceptance, and its received Inbox copy matched the receipt's
-Message-ID, body and test reference. This is one Gmail self-mail proof, not
-creator inbox placement or real incoming-reply matching.
+External SMTP passed authenticated STARTTLS/NOOP and a separately approved
+owned-inbox test whose actual Inbox Message-ID matched the durable receipt.
+After the product home/privacy pages returned HTTP 200 on 2026-10-27, two fresh
+manual Polish introductions were individually reviewed and approved. Both have
+durable real SMTP acceptance after ordinary pacing; neither remains queued.
+Broader campaign automation remains paused with no general send grant. SMTP
+acceptance does not establish creator inbox placement, reading or interest.
 
-Fresh HTTPS requests and a browser check could not reach the product site from
-this workstation while DNS resolved. The owner confirmed availability from
-their connection initially, then confirmed the site was unreachable. These
-observations do not establish a global outage. Two reviewed Polish messages
-received individual exact approval through task decisions, then both tasks
-were cancelled before their paced send times. Zero creator emails were sent;
-broader campaign automation remains paused with no general send grant. Resume
-only after product-site availability and fresh exact review.
-AI copy remains
-experimental and still needs editing; these pilot packets do not establish
-unedited AI quality. Google's Testing-mode read-only OAuth expiry remains a
-separate operating limit, described in the [Gmail guide](gmail-setup.md#expiry-and-recovery).
+Gmail identity, label access and self-mail exclusion were previously verified,
+but the previous Testing grant returned `invalid_grant`. Explicit same-mailbox
+renewal has now completed with the same client; expected account/label checks
+passed and credentials were saved atomically. A fresh governed runtime sync
+succeeded, read the labeled self-test and correctly inserted no reply or mailbox
+change. This verifies reader recovery and self-mail exclusion, not an actual
+creator reply. Testing-mode longevity remains unchanged. See the
+[Gmail recovery guide](gmail-setup.md#expiry-and-recovery). Actual incoming
+creator-reply matching/replay and handoff still require their own live proof.
 
-A governed read-only Gmail sync read the labeled owned self-test and correctly
-inserted no creator reply. It changed no mailbox state. Actual incoming creator
-reply matching/replay and interest review remain separate unverified checks.
+AI copy remains experimental and requires editing/review. The new computed
+editorial report explains observable warnings but cannot verify semantics or
+predict replies. The manually written pilot is not evidence of unedited AI
+quality. A healthy container or saved credential alone is not provider proof.
 
 After creating those user-owned credentials, the remaining local activation is
 guided and secret-safe:

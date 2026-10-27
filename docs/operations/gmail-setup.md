@@ -70,6 +70,10 @@ setup stops and preserves them. It never silently switches a career inbox or
 enables career monitoring. A separate second Gmail credential set is not
 implemented.
 
+The only renewal exception is the explicit same-mailbox flow below, after Google
+has identified the old refresh grant as invalid. Other verification failures
+still stop setup.
+
 ## Verify before relying on monitoring
 
 After a successful setup, reload the services that use the settings:
@@ -112,6 +116,26 @@ local consent when reauthorization is needed. The helper does not change Cloud
 publishing status or bypass Google verification. See
 [Google's refresh-token rules](https://developers.google.com/identity/protocols/oauth2#expiration).
 
+For a previously configured creator mailbox whose refresh request returns
+Google's exact HTTP 400 `invalid_grant`, rerun the same Desktop client and
+recorded mailbox explicitly:
+
+```powershell
+./scripts/gmail-oauth.ps1 `
+  -ClientJsonPath 'C:\Users\YourName\Downloads\client_secret_your_client.json' `
+  -Mailbox 'your-sender@gmail.com' `
+  -ReauthorizeExistingMailbox
+```
+
+This option requires all three existing OAuth fields, enabled creator monitoring,
+the recorded creator mailbox and label, the same client ID/secret, and disabled
+career monitoring. It does not authorize changing accounts or clients. An outage,
+wrong client, malformed response or authorization-code failure is not an expiry
+exception. New consent still passes PKCE/state, exact read-only scope, mailbox,
+label and atomic-save checks. Until consent finishes, the old settings remain
+unchanged. Reload the reader services and run a governed reply sync before
+claiming recovery. See [ADR-0028](../decisions/ADR-0028-explicit-creator-oauth-renewal.md).
+
 If consent is declined, times out, selects another account, grants extra scope,
 or the label is missing, existing configuration stays intact. Google may already
 have recorded a consent grant before a later local check fails; inspect or revoke
@@ -125,6 +149,6 @@ For local regression checks without accessing Gmail or the real environment:
 ```
 
 This exercises PKCE, callback state/host limits, exact scope, account conflicts,
-label checks, sanitized errors, atomic configuration merging, concurrent writers,
+guarded invalid-grant renewal, label checks, sanitized errors, atomic configuration merging, concurrent writers,
 and a real synthetic loopback callback. Live-provider verification is a separate
 milestone.

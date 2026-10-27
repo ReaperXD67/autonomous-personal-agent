@@ -8,6 +8,12 @@ cannot change commercial terms, scope, limits, approvals, or prepared packets.
 The same reviewed aggregates can inform a constrained model-written introduction.
 The model supplies an opening and optional content idea; deterministic code fixes
 the commercial envelope. Model copy requires individual exact-message review.
+Draft reads also compute an editorial report from the stored public context and
+rendered copy. It has no persistence, score, model invocation or authorization
+effect; metadata-only grounding and natural language still require review.
+English/Polish reply hints normalize a bounded authored-text view without
+changing stored evidence. Only reviewed tags enter learning; direct opt-outs
+retain the existing durable suppression boundary.
 
 ## Goals
 

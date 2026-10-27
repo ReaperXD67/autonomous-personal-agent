@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)][string]$ClientJsonPath,
     [Parameter(Mandatory)][string]$Mailbox,
-    [ValidateRange(60, 900)][int]$TimeoutSeconds = 600
+    [ValidateRange(60, 900)][int]$TimeoutSeconds = 600,
+    [switch]$ReauthorizeExistingMailbox
 )
 
 # Operator-only credential onboarding. This cannot send mail, grant a creator
@@ -137,7 +138,30 @@ function Invoke-GmailToken {
             -ContentType 'application/x-www-form-urlencoded' -Body (ConvertTo-GmailForm $Fields) `
             -TimeoutSec 20 -MaximumRedirection 0 -ErrorAction Stop
     }
-    catch { throw 'Google token request failed. No credentials were saved; provider response was withheld.' }
+    catch {
+        # Only the refresh endpoint's exact invalid_grant response identifies
+        # an unusable old grant. Do not treat outages, bad clients, malformed
+        # responses or failed authorization-code exchanges as renewal authority.
+        $invalidRefreshGrant = $false
+        if ($Fields.grant_type -ceq 'refresh_token') {
+            try {
+                $details = ([string]$_.ErrorDetails.Message).Trim()
+                if ([int]$_.Exception.Response.StatusCode -eq 400 -and
+                    $details.Length -le 2048 -and $details.StartsWith('{') -and $details.EndsWith('}')) {
+                    $failure = $details | ConvertFrom-Json -ErrorAction Stop
+                    $invalidRefreshGrant = $failure.error -is [string] -and $failure.error -ceq 'invalid_grant'
+                }
+            }
+            catch { $invalidRefreshGrant = $false }
+        }
+        if ($invalidRefreshGrant) {
+            $sanitized = [InvalidOperationException]::new(
+                'The existing Gmail refresh grant is no longer valid. No credentials were saved; explicit same-mailbox reauthorization is required.')
+            $sanitized.Data['HermesGmailFailure'] = 'invalid_refresh_grant'
+            throw $sanitized
+        }
+        throw 'Google token request failed. No credentials were saved; provider response was withheld.'
+    }
 }
 
 function Get-GmailIdentity {
@@ -152,18 +176,47 @@ function Get-GmailIdentity {
 }
 
 function Assert-GmailExistingIdentity {
-    param([Collections.IDictionary]$Values, [string]$ExpectedMailbox)
+    param(
+        [Collections.IDictionary]$Values,
+        [string]$ExpectedMailbox,
+        [Collections.IDictionary]$DesktopClient,
+        [switch]$ReauthorizeExistingMailbox
+    )
     $configured = @('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN' |
         Where-Object { $Values[$_] })
-    if ($configured.Count -eq 0) { return }
+    if ($configured.Count -eq 0 -and -not $ReauthorizeExistingMailbox) { return }
     if ($configured.Count -ne 3) {
         throw 'Existing shared Gmail credentials are incomplete. Resolve them locally before replacing them.'
     }
+    if ($ReauthorizeExistingMailbox -and (
+        -not $Values.CREATOR_GMAIL_MAILBOX -or
+        ([string]$Values.CREATOR_GMAIL_MAILBOX).Trim().ToLowerInvariant() -cne $ExpectedMailbox -or
+        [string]$Values.CREATOR_GMAIL_ENABLED -ine 'true' -or
+        -not $Values.GMAIL_CREATOR_LABEL -or
+        [string]$Values.GMAIL_ENABLED -notin @('', 'false', '0') -or
+        -not $DesktopClient -or
+        [string]$DesktopClient.client_id -cne [string]$Values.GMAIL_CLIENT_ID -or
+        [string]$DesktopClient.client_secret -cne [string]$Values.GMAIL_CLIENT_SECRET
+    )) {
+        throw 'Same-mailbox renewal requires the recorded creator identity, enabled creator monitoring, the same Desktop client, and disabled career monitoring. No settings were changed.'
+    }
     $existing = $null
     try {
-        $existing = Invoke-GmailToken @{
-            client_id = $Values.GMAIL_CLIENT_ID; client_secret = $Values.GMAIL_CLIENT_SECRET
-            refresh_token = $Values.GMAIL_REFRESH_TOKEN; grant_type = 'refresh_token'
+        try {
+            $existing = Invoke-GmailToken @{
+                client_id = $Values.GMAIL_CLIENT_ID; client_secret = $Values.GMAIL_CLIENT_SECRET
+                refresh_token = $Values.GMAIL_REFRESH_TOKEN; grant_type = 'refresh_token'
+            }
+        }
+        catch {
+            if ($ReauthorizeExistingMailbox -and
+                $_.Exception.Data['HermesGmailFailure'] -ceq 'invalid_refresh_grant') {
+                # The new grant is still checked for exact account, scope and
+                # label before the guarded atomic configuration save below.
+                Write-Host 'The previous grant is invalid; renewing only the recorded creator mailbox with the same Desktop client.'
+                return
+            }
+            throw
         }
         if ((Get-GmailIdentity ([string]$existing.access_token)) -cne $ExpectedMailbox) {
             throw 'Existing Gmail credentials belong to another mailbox. Shared career credentials were preserved.'
@@ -283,7 +336,8 @@ $baseline = ConvertFrom-GmailEnvironment ([IO.File]::ReadAllText($envPath))
 if ($baseline.CREATOR_GMAIL_MAILBOX -and $baseline.CREATOR_GMAIL_MAILBOX.ToLowerInvariant() -cne $Mailbox) {
     throw 'Creator monitoring already names another mailbox. Resolve the account change explicitly before setup.'
 }
-Assert-GmailExistingIdentity $baseline $Mailbox
+Assert-GmailExistingIdentity $baseline $Mailbox -DesktopClient $client `
+    -ReauthorizeExistingMailbox:$ReauthorizeExistingMailbox
 $label = if ($baseline.GMAIL_CREATOR_LABEL) { $baseline.GMAIL_CREATOR_LABEL } else { 'Hermes/Creators' }
 $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
 $token = $null

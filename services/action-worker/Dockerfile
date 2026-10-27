@@ -15,8 +15,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 COPY --from=uv_source /usr/local/bin/uv /usr/local/bin/uv
 COPY services/action-worker/pyproject.toml services/action-worker/uv.lock ./
+# Remove unused system provisioning tools and the orphaned virtualenv dependency pair.
 RUN uv sync --frozen --no-dev --no-install-project && \
-    /usr/bin/python3 -m pip uninstall --yes --break-system-packages virtualenv pip && \
+    /usr/bin/python3 -m pip uninstall --yes --break-system-packages virtualenv python-discovery filelock && \
+    /usr/bin/python3 -m pip check && \
+    /usr/bin/python3 -m pip uninstall --yes --break-system-packages pip && \
     rm -rf /tmp/uv-cache /root/.cache && \
     chown -R pwuser:pwuser /app
 COPY --chown=pwuser:pwuser services/control-api/app ./app

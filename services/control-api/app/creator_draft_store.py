@@ -17,6 +17,7 @@ from app.creator_draft_content import (
     parse_model_copy,
 )
 from app.creator_draft_models import CreatorDraftCreate
+from app.creator_draft_quality import creator_draft_quality_report
 from app.creator_learning import creator_learning_insights
 from app.marketing import contact_is_suppressed
 from app.marketing_store import (
@@ -122,6 +123,7 @@ class CreatorDraftStore(MarketingStore):
             **row, "task_status": task["status"],
             "evidence": row["model_context"]["evidence"],
             "learning_summary": row["model_context"]["learning_summary"],
+            "quality_report": creator_draft_quality_report(row),
         }
         if task["status"] in {"failed", "cancelled", "rejected", "dead_lettered"}:
             result.update(status="failed", error_code=row["error_code"] or "DRAFT_TASK_INTERRUPTED")

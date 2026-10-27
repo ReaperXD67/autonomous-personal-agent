@@ -889,6 +889,90 @@ successful. No inference code or model-quality claim changed. Real incoming
 creator-reply matching/replay, handoff and Testing-mode OAuth longevity remain
 separate limits.
 
+## Experiment 36 — Creator launch and deterministic editorial/reply checks (2026-10-27)
+
+Method: recheck the product pages, refresh two existing creator dossiers through
+the official API, review current contact provenance and approve two fresh manual
+Polish exact-message packets with the ordinary pacing and final receipt guards.
+
+Observed: home/privacy returned HTTP 200. Both contacts matched their authorized
+current sources and had no suppression. Both creator actions completed with
+durable real SMTP acceptance; zero sends remain queued. No broader campaign
+grant was started, and the campaign remains paused. These are delivery-path
+observations, not creator inbox/response or unedited AI-copy quality evidence.
+
+A separate five-creator shortlist returned partial completion: four researched,
+one failed, zero selected and four requiring contact review. Saved evidence for
+the failed request was not promoted. The task reported zero model requests,
+messages sent and contact authorizations. No extra creator send is claimed.
+
+Synthetic no-egress evaluation covered title numbers, viewing/content claims,
+generic openings, language mismatch, zero-reviewed-feedback rationale, citation,
+next step and length observations, missing optional copy, private-data exclusion
+and unchanged digests/read-only behavior. Lint and all 88 combined draft/quality
+tests passed. A running-API read of an existing stale draft also exposed the
+language-mismatch observation with human review required and no sending authority;
+it made no model call, write or preparation. The separate English/Polish reply/learning suite passed 154 cases
+covering normalization, quotes, negation, conditional interest, objections and
+reviewed-only learning. These are contract checks, not measured response rates.
+The pre-image-hardening coherent gate passed lint/all 910 tests and the complete verifier:
+native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-
+automation, nine draft, seven shortlist and 13 career PostgreSQL groups, both
+networkless UI proofs, planner, delivery guards and queue recovery. Compose
+configuration and whitespace checks passed. No inference behavior changed.
+
+The clean pull-request CI subsequently stopped at the runtime-image scan on
+CVE-2026-84782 in Debian `libssl3`/`openssl` at `3.0.20-1~deb12u2`. The fixed
+signed-repository candidate was `3.0.22-1~deb12u2`. An isolated exact-base install
+upgraded only those two existing packages, added/removed none, passed
+`apt-get check`, and Python `ssl` reported OpenSSL 3.0.22. Adding those exact
+pins to the existing shared PCRE2/Perl patch produced four existing-package
+upgrades with no additions/removals. No base digest, dependency or vulnerability
+ignore changed. Post-patch lint/all 910 tests and the complete verifier passed
+again across the native, PostgreSQL, UI, lifecycle, delivery and recovery groups.
+The rebuilt research worker reported OpenSSL 3.0.22 with hostname checking
+enabled. An automatic governed Gmail task created after that runtime rebuild
+succeeded with one fetched, zero inserted/pending and no mailbox modification.
+The first local action-image Trivy attempt reached its five-minute timeout
+without a valid report. A later Trivy 0.74.0 control-image scan with exact CI
+flags passed with zero fixable high/critical findings; clean CI passed that scan.
+
+The valid action-image scan then found fixable HIGH CVE-2026-112940 in system
+filelock 3.32.5. Installed metadata traced filelock and orphan python-discovery
+1.6.0 to removed virtualenv, with neither in project locks/imports or the isolated
+application environment. The isolated action rebuild removed both before pip
+self-removal, reported no broken system requirements and preserved all 11 locked
+application dependencies. No upgrade, dependency, ignore or base digest changed.
+The rebuilt image passed 44 existing repository/delivery tests, networkless SMTP
+diagnostic/override/stale-lease guards with zero delivery calls and desktop/mobile
+creator UI proof. System/application interpreter checks found all four removed
+provisioning modules absent and no filelock consumers, with Playwright 1.63.0 and
+the 11 application dependencies intact. Final lint/all 910 tests and the complete
+verifier passed after the cleanup across all native, PostgreSQL, lifecycle, UI,
+delivery and recovery groups. Trivy 0.74.0 scanned the isolated action review
+image with exact CI flags and returned zero fixable high/critical findings.
+Identity comparison showed matching RootFS layers/runtime configuration with
+the Compose action image except for added Compose labels, not matching OCI
+identities. The final Compose action runtime passed a governed real SMTP
+STARTTLS/authentication/NOOP check with no email. Required CI image scans remain
+release gates.
+
+The networkless creator-review UI proof passed at desktop/mobile sizes using
+the existing isolated action image. It checked malicious finding text escaping,
+an absent-report fallback, unchanged copy and exact-digest preparation/conflicts,
+and no overflow or console errors. Screenshots remain in ignored local output.
+
+A governed Gmail sync failed HTTP 400, and the local helper confirmed the old
+refresh grant's `invalid_grant`. Native OAuth smoke passed the explicit renewal
+exception and refusal cases without provider access. Same-client read-only
+renewal subsequently completed, verified the expected mailbox/label and saved
+credentials atomically. The fresh governed sync succeeded with one fetched,
+zero inserted/pending, no more pages, no suppression and `mailbox_modified=false`.
+This is reader recovery/self-mail exclusion evidence; Google publishing status
+and Testing-mode longevity were unchanged. Actual incoming-reply
+matching/replay and handoff remain unverified. No new model call was used to
+evaluate these changes.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

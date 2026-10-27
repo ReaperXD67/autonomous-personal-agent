@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import html
 import re
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.application_browser import canonical_hash
-from app.career_tracking import bounded_text
 from app.creator_intelligence import assess_creator_geography
+from app.creator_reply_text import asserted_interest, authored_reply_text
 from app.marketing import campaign_outreach_hash
 
 
@@ -152,43 +151,32 @@ def validate_creator_automation(connection: Any, action: dict[str, Any]) -> str 
 
 
 def _authored_reply_text(snippet: Any) -> str:
-    """Discard recognizable quoted history, including flattened Gmail snippets."""
-    text = html.unescape(bounded_text(snippet, 600)).casefold().replace("’", "'")
-    text = text.replace("‘", "'").replace("“", '"').replace("”", '"')
-    quoted_tail = re.search(
-        r"(?:\bon\s+[^\n]{1,220}?\bwrote\s*:|"
-        r"-{2,}\s*(?:original|forwarded) message\s*-{2,}|"
-        r"\bbegin forwarded message\s*:|(?:^|\s)>\s|"
-        r"\bfrom:\s*[^\n]{1,150}?\bsent:\s*)",
-        text,
-    )
-    if quoted_tail:
-        text = text[: quoted_tail.start()]
-    # Our footer may survive without quotation markers when Gmail flattens history.
-    text = re.sub(
-        r"if you do not want another message,\s*reply\s*['\"]?do not contact['\"]?"
-        r"(?:\s+and we will suppress this address immediately\.?)?",
-        "",
-        text,
-    )
-    return text.strip()
+    return authored_reply_text(snippet)
 
 
 def _direct_opt_out(text: str) -> bool:
     # Mere mentions of opt-out instructions are evidence for review, not an objection.
-    for clause in re.split(r"[.!?;]|\b(?:but|and|so)\b", text):
+    for clause in re.split(r"[.!?;]|\b(?:but|and|so|ale|oraz|wiec)\b", text):
         if re.search(
             r"\b(?:not|never|don't|do not)\s+(?:saying|say|asking|ask|mean|meaning|"
             r"requesting|request|want to)\b|"
-            r"\b(?:reply|say|says|said|wrote|write|type|instruction|instructions)\b",
+            r"\b(?:reply|say|says|said|wrote|write|type|instruction|instructions|"
+            r"odpisz|odpisac|instrukcj\w*|napisal\w*|napisano|cytuj\w*)\b|"
+            r"\bnie (?:mowie|twierdze|sugeruje|prosze)\b|"
+            r"\bnie chce (?:mowic|powiedziec|prosic|sie wypisac)\b",
             clause,
         ):
             continue
         if re.search(
-            r"(?:^|,)\s*['\"]?\s*(?:please\s+|kindly\s+)?(?:"
+            r"(?:^|,)\s*['\"]?\s*(?:please\s+|kindly\s+|prosze\s+|niestety\s+)?(?:"
             r"unsubscribe\b|remove me\b|do not contact\b|don't contact\b|"
             r"stop emailing\b|stop contacting\b|no more emails\b|"
-            r"(?:(?:i'm|i am|we're|we are)\s+)?not interested\b)",
+            r"(?:(?:i'm|i am|we're|we are)\s+)?not interested\b|"
+            r"nie (?:pisz(?:cie)?|pisac|kontaktuj(?:cie)?|kontaktowac sie|"
+            r"wysylaj(?:cie)?|wysylac)\b|"
+            r"przestan(?:cie)? (?:pisac|wysylac)\b|(?:usun|wypisz)(?:cie)? mnie\b|"
+            r"nie chce (?:kolejnych|wiecej) (?:wiadomosci|maili|emaili)\b|"
+            r"nie (?:jestem|jestesmy) zainteresowan(?:y|a|i|e)\b)",
             clause,
         ):
             return True
@@ -201,13 +189,20 @@ def classify_creator_reply(message: dict[str, Any]) -> str:
     text = _authored_reply_text(message.get("snippet", ""))
     if _direct_opt_out(text):
         return "do_not_contact"
-    if re.search(
+    if any(asserted_interest(text, match) for match in re.finditer(
         r"\b(?:interested|sounds good|let.s discuss|send (?:me |us )?"
-        r"(?:the )?(?:details|rates)|happy to collaborate)\b",
+        r"(?:the )?(?:details|rates)|happy to collaborate|"
+        r"(?:jestem|jestesmy) zainteresowan(?:y|a|i|e)|"
+        r"brzmi (?:dobrze|ciekawie)|porozmawiajmy|"
+        r"(?:wyslij|przeslij|podeslij)(?:cie)? (?:mi |nam )?szczegoly|"
+        r"chetnie (?:podejme|nawiaze|podejmiemy|nawiazemy) wspolprace)\b",
         text,
-    ):
+    )):
         return "interested"
-    if "?" in text or re.search(r"\b(?:what is|how much|budget|rates|pricing)\b", text):
+    if "?" in text or re.search(
+        r"\b(?:what is|how much|budget|rates|pricing|jaki procent|ile tygodni|"
+        r"jak (?:dziala|rozliczacie)|budzet|stawki|wynagrodzenie)\b", text,
+    ):
         return "question"
     return "needs_review"
 
@@ -216,7 +211,7 @@ def correlate_creator_reply(
     message: dict[str, Any], sent: list[dict[str, Any]]
 ) -> tuple[Any | None, str]:
     def subject(value: str) -> str:
-        return re.sub(r"^(?:(?:re|fw|fwd):\s*)+", "", value.strip(), flags=re.I).casefold()
+        return re.sub(r"^(?:(?:re|fw|fwd|odp|pd):\s*)+", "", value.strip(), flags=re.I).casefold()
 
     matches = {
         str(row["prospect_id"]): row["prospect_id"]

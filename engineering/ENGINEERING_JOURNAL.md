@@ -2716,3 +2716,110 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   and system evolution. No dependency, service, model route, broad browser
   authority or unbounded founder/HR messaging capability was introduced.
   Real ATS submission proof and incoming career-reply proof remain pending.
+
+## 2026-10-27 — Creator launch, editorial observations and EN/PL reply hints
+
+- Rechecked the configured product home and privacy pages: both returned HTTP
+  200. Reviewed copy preserved the site's distinction between demonstrative
+  worlds and real server testing rather than promising verified server quality.
+- Refreshed two existing creators through the official YouTube API and checked
+  that current business-contact source/address evidence matched the previously
+  authorized contacts, with no suppression. Research made no model call and
+  granted no new contact authority.
+- A separate bounded five-creator API shortlist completed partially: four were
+  researched and one failed. It selected zero and reported four contacts needing
+  review. The failed creator's saved record was not promoted. This batch reported
+  zero model requests, messages sent and contact authorizations; it did not
+  expand the individually reviewed two-message pilot.
+- Prepared and individually approved two fresh manual Polish introduction
+  packets through the existing exact-action API. Both completed with durable
+  real SMTP acceptance under ordinary pacing; zero creator sends remain queued.
+  The earlier cancelled packets were not reused. Broader campaign automation
+  remains paused and no general send grant was enabled. Acceptance is not
+  evidence of inbox placement, interest or collaboration. Recipient data,
+  complete messages, packet IDs and source-account details remain private.
+- Added a computed creator-draft editorial report with fixed wording markers,
+  rendered/suggestion word counts, source/next-step observations, requested
+  non-English language mismatch and feedback claims despite zero reviewed
+  samples. It has no semantic confidence score, model call, persistence or
+  approval effect. Original data/digests and preparation rules are unchanged.
+- A running-API read of an existing stale model draft exposed the computed
+  language-mismatch warning with human review required and sending authority
+  false. This probe made no model call, write or preparation and does not
+  establish usable new AI copy.
+- Exposed the report's findings and complete-email word count in the existing
+  draft review before preparation, with an explicit older-response fallback.
+  A networkless desktop/mobile browser proof passed malicious-text escaping,
+  missing-report handling, unchanged copy/exact-digest preparation/conflicts,
+  overflow and console checks. Screenshots remain in ignored local output.
+- Added English/Polish creator reply and objection hints using a shared bounded
+  authored-text normalization. Recognizable quote/forward history and our own
+  opt-out instructions are excluded without changing stored evidence. Negated,
+  conditional and interrogative interest stay reviewed; direct objections keep
+  durable suppression. Feedback suggestions never select their own learning tags.
+- Compared primary Promptfoo, DSPy and Instructor sources and public repository
+  license/activity metadata. Adopted an explainable offline-evaluation pattern
+  in the existing test container, with no external code, skill pack, package or
+  service installed. A pinned research note records choices and deferred work.
+- A governed Gmail read failed with HTTP 400; the native helper confirmed the
+  old refresh grant's exact `invalid_grant`. Added an explicit same-mailbox
+  renewal path with unchanged client, recorded creator identity, disabled career
+  monitoring and all new-consent/save guards retained. Native no-provider tests
+  passed. After an initially inaccessible browser consent page, same-client
+  read-only renewal completed with expected mailbox/label verification and an
+  atomic credential save. After control/research services reloaded the new
+  settings, a governed Gmail sync succeeded: one fetched, zero inserted/pending,
+  no more pages, no suppression and `mailbox_modified=false`. It confirms
+  reader recovery and self-mail exclusion, not actual incoming-reply handling.
+  Google publishing status and Testing-mode longevity were not changed.
+- Narrow isolated checks passed: lint and 88 combined draft/quality tests,
+  154 creator reply/learning tests, and the native OAuth smoke. The
+  pre-image-hardening gate passed lint/all 910 tests and the complete verifier:
+  native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-automation,
+  nine draft, seven shortlist and 13 career PostgreSQL groups, both career and
+  creator networkless UI proofs, planner, delivery guards and queue recovery.
+  Compose configuration and whitespace checks passed. No model inference code
+  changed and no new model-quality benchmark is claimed.
+- Clean pull-request CI passed its tests/full verifier but stopped at the
+  runtime-image security gate: Debian `libssl3` and `openssl` at
+  `3.0.20-1~deb12u2` were affected by CVE-2026-84782. Debian's tracker and signed
+  APT metadata identify `3.0.22-1~deb12u2` as fixed. An isolated exact-base install
+  upgraded only those two packages, added/removed none, passed `apt-get check`
+  and reported OpenSSL 3.0.22 through Python `ssl`. Shared-base exact pins were
+  added alongside the existing PCRE2/Perl updates; the combined installation
+  upgraded four existing packages with no additions/removals. No image digest,
+  Python dependency, vulnerability ignore or broad distribution upgrade changed.
+  The post-patch gate again passed lint/all 910 tests and the complete verifier
+  across the native, PostgreSQL, UI, lifecycle, delivery and recovery groups.
+  The rebuilt research worker reported OpenSSL 3.0.22 with hostname checking
+  enabled. An automatic governed Gmail task created after that patched runtime
+  succeeded with one fetched, zero inserted/pending and no mailbox modification;
+  this remains self-mail exclusion evidence, not a real creator reply.
+  The first local action-image Trivy attempt timed out after five minutes with
+  no valid report. A later Trivy 0.74.0 control-image scan using the exact CI
+  flags passed with zero fixable high/critical findings; clean CI also passed
+  that control scan.
+- The subsequent action-image scan found fixable HIGH CVE-2026-112940 in system
+  filelock 3.32.5. Metadata traced orphan python-discovery 1.6.0 and filelock to
+  the already removed virtualenv; neither belongs to project locks/imports or
+  the isolated application environment. The action image's existing global-tool
+  cleanup now removes both before pip self-removal. An isolated rebuild removed
+  the two packages, reported no broken system requirements and retained all 11
+  locked application dependencies. No upgrade, dependency, ignore or image-digest
+  change was made. The actual rebuilt image passed 44 repository/delivery tests,
+  networkless SMTP diagnostic/override/stale-lease guards with zero delivery
+  calls, and desktop/mobile creator-review UI checks. System/application
+  interpreters confirmed all four removed provisioning modules absent, no
+  filelock consumers, and Playwright 1.63.0/application dependencies intact.
+  Final lint/all 910 tests and the complete verifier passed after this cleanup,
+  including all native/PostgreSQL/workflow/scheduler/creator/career/UI/delivery/
+  recovery groups. Trivy 0.74.0 returned zero fixable high/critical findings for
+  the isolated action review image using exact CI flags. Its RootFS layers and
+  runtime configuration matched the Compose image except added Compose labels;
+  the distinct OCI identities are not described as the same image. Identity
+  proof stays in ignored local output. The final Compose action runtime passed
+  an audited real SMTP STARTTLS/authentication/NOOP check with no mail sent.
+  Required clean-CI image scans remain release gates.
+- Updated README, operations, architecture/security, roadmap, research provenance,
+  ADR-0028 and system evolution. Real incoming creator-reply matching/replay and
+  handoff, usable unedited AI copy and long-term OAuth operation remain unverified.
