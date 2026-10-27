@@ -1,6 +1,6 @@
 # Dependency risk register
 
-Last reviewed: 2026-09-26
+Last reviewed: 2026-10-27
 
 ## Retired Playwright bundled-tool exceptions
 
@@ -104,6 +104,29 @@ The separate action-runtime scan identified CVE-2026-84782 in `libssl3t64` and
 from signed Ubuntu repositories while retaining the pinned Playwright image.
 An isolated install on that exact base upgraded two packages, added/removed
 none and required no dependent-package updates. No vulnerability ignores are used.
+
+## October 2026 Debian OpenSSL update
+
+A clean pull-request runtime-image scan identified
+[CVE-2026-84782](https://security-tracker.debian.org/tracker/CVE-2026-84782)
+in Bookworm's `libssl3` and `openssl` at `3.0.20-1~deb12u2`. Debian marks
+`3.0.22-1~deb12u2` fixed. This is a separate distribution package from the
+already-patched Ubuntu action image described above.
+
+Signed repository metadata on the exact pinned Python base supplied the fixed
+version. An isolated installation upgraded only those two existing packages,
+added/removed none, passed `apt-get check`, and Python's `ssl` reported OpenSSL
+`3.0.22`. The shared Python base now pins both packages at that exact Debian
+version alongside the existing PCRE2/Perl fixes. The combined base installation
+upgraded four existing packages and added/removed none. The Python image digest,
+application dependencies and empty vulnerability-ignore policy are unchanged;
+there is no broad distribution upgrade.
+
+Post-patch lint/all 910 tests and the complete verifier passed. The rebuilt
+research worker reported OpenSSL 3.0.22 with hostname checking enabled, and a
+governed read-only Gmail task created after that runtime rebuild succeeded.
+Required clean-CI repository and runtime/action-image scans remain final release
+gates; package-install and functional tests do not establish a clean scan.
 
 ## Review rule
 

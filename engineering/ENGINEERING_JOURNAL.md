@@ -2773,13 +2773,31 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   reader recovery and self-mail exclusion, not actual incoming-reply handling.
   Google publishing status and Testing-mode longevity were not changed.
 - Narrow isolated checks passed: lint and 88 combined draft/quality tests,
-  154 creator reply/learning tests, and the native OAuth smoke. The final
-  coherent gate passed lint/all 910 tests and the complete verifier: native
-  OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-automation,
+  154 creator reply/learning tests, and the native OAuth smoke. The
+  pre-image-hardening gate passed lint/all 910 tests and the complete verifier:
+  native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-automation,
   nine draft, seven shortlist and 13 career PostgreSQL groups, both career and
   creator networkless UI proofs, planner, delivery guards and queue recovery.
   Compose configuration and whitespace checks passed. No model inference code
   changed and no new model-quality benchmark is claimed.
+- Clean pull-request CI passed its tests/full verifier but stopped at the
+  runtime-image security gate: Debian `libssl3` and `openssl` at
+  `3.0.20-1~deb12u2` were affected by CVE-2026-84782. Debian's tracker and signed
+  APT metadata identify `3.0.22-1~deb12u2` as fixed. An isolated exact-base install
+  upgraded only those two packages, added/removed none, passed `apt-get check`
+  and reported OpenSSL 3.0.22 through Python `ssl`. Shared-base exact pins were
+  added alongside the existing PCRE2/Perl updates; the combined installation
+  upgraded four existing packages with no additions/removals. No image digest,
+  Python dependency, vulnerability ignore or broad distribution upgrade changed.
+  The post-patch gate again passed lint/all 910 tests and the complete verifier
+  across the native, PostgreSQL, UI, lifecycle, delivery and recovery groups.
+  The rebuilt research worker reported OpenSSL 3.0.22 with hostname checking
+  enabled. An automatic governed Gmail task created after that patched runtime
+  succeeded with one fetched, zero inserted/pending and no mailbox modification;
+  this remains self-mail exclusion evidence, not a real creator reply.
+  The first local action-image Trivy attempt timed out after five minutes with
+  no valid report, so no local zero-finding result is claimed. Required clean-CI
+  image scans remain the final release gates.
 - Updated README, operations, architecture/security, roadmap, research provenance,
   ADR-0028 and system evolution. Real incoming creator-reply matching/replay and
   handoff, usable unedited AI copy and long-term OAuth operation remain unverified.

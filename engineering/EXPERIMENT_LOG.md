@@ -915,11 +915,27 @@ language-mismatch observation with human review required and no sending authorit
 it made no model call, write or preparation. The separate English/Polish reply/learning suite passed 154 cases
 covering normalization, quotes, negation, conditional interest, objections and
 reviewed-only learning. These are contract checks, not measured response rates.
-The final coherent gate passed lint/all 910 tests and the complete verifier:
+The pre-image-hardening coherent gate passed lint/all 910 tests and the complete verifier:
 native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-
 automation, nine draft, seven shortlist and 13 career PostgreSQL groups, both
 networkless UI proofs, planner, delivery guards and queue recovery. Compose
 configuration and whitespace checks passed. No inference behavior changed.
+
+The clean pull-request CI subsequently stopped at the runtime-image scan on
+CVE-2026-84782 in Debian `libssl3`/`openssl` at `3.0.20-1~deb12u2`. The fixed
+signed-repository candidate was `3.0.22-1~deb12u2`. An isolated exact-base install
+upgraded only those two existing packages, added/removed none, passed
+`apt-get check`, and Python `ssl` reported OpenSSL 3.0.22. Adding those exact
+pins to the existing shared PCRE2/Perl patch produced four existing-package
+upgrades with no additions/removals. No base digest, dependency or vulnerability
+ignore changed. Post-patch lint/all 910 tests and the complete verifier passed
+again across the native, PostgreSQL, UI, lifecycle, delivery and recovery groups.
+The rebuilt research worker reported OpenSSL 3.0.22 with hostname checking
+enabled. An automatic governed Gmail task created after that runtime rebuild
+succeeded with one fetched, zero inserted/pending and no mailbox modification.
+The first local action-image Trivy attempt reached its five-minute timeout
+without a valid report; no local zero-finding result is claimed. Required clean-CI
+image scans remain the final release gates.
 
 The networkless creator-review UI proof passed at desktop/mobile sizes using
 the existing isolated action image. It checked malicious finding text escaping,
