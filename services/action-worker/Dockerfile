@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
 
-FROM mcr.microsoft.com/playwright/python:v1.63.0-noble@sha256:72bd171a9ffc2b4b59532aaa6210e21014d07093120dc25528870c0b840da1f0 AS runtime
+FROM mcr.microsoft.com/playwright/python:v1.64.1-noble@sha256:330d401ae23c905896a0c26c66c36fc971b621519e7b11b435a8328d7bf6e031 AS runtime
 # Ubuntu USN-8847-1: targeted OpenSSL fix, retaining the reviewed Playwright digest.
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends --only-upgrade \
