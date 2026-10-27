@@ -2823,3 +2823,45 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - Updated README, operations, architecture/security, roadmap, research provenance,
   ADR-0028 and system evolution. Real incoming creator-reply matching/replay and
   handoff, usable unedited AI copy and long-term OAuth operation remain unverified.
+
+## 2026-10-27 — Expanded individually reviewed creator outreach
+
+- Expanded the existing campaign through its governed API without code, service,
+  commercial-term or Poland-targeting changes. Before the fresh scan, the saved
+  pool contained 342 prospects with public business-contact coverage reported
+  for 71; those counts do not establish contact authorization or readiness to send.
+- Reviewed ten additional creators' current business-contact evidence and
+  prepared ten distinct manual Polish messages in batches of four and six.
+  Each exact source/address and current research context was checked, and all
+  ten packets received individual approval through the policy/audit path.
+  No general sending grant, automatic contact qualification or automatic
+  handoff was enabled.
+- At the durable checkpoint on 2026-10-27 15:50:12 UTC (21:20:12 IST), the
+  original two-message pilot plus the expansion totalled twelve invitations:
+  three SMTP-accepted and nine queued, with zero failed and zero awaiting
+  approval among those twelve actions. One expanded invitation had completed;
+  the original pilot accounted for the other two accepted messages.
+- Preserved the existing 15-minute global and 30-minute same-domain spacing,
+  rolling three-per-hour/twelve-per-day caps, jitter up to 180 seconds and
+  24-hour exact-packet expiry. A reserved slot is not SMTP acceptance, and SMTP
+  acceptance is not proof of inbox arrival, reading or interest.
+- The first remaining reserved slot was 16:16:47 UTC (21:46:47 IST). The last
+  was 18:56:10 UTC on October 27 (00:26:10 IST on October 28). These are reserved
+  release times, conditional on the running worker and final guards, not delivery
+  promises.
+- The ten-creator refresh completed with nine researched and one failed; seven
+  needed contact review and three were excluded, including the failed refresh.
+  The separate three-query discovery scan used up to 25 results per page and
+  three pages per query (225 raw-result ceiling). It completed research for 53
+  creators, adding 20 and updating 33, and reported 17 public contact candidates
+  with zero contact authorizations from research. Final campaign coverage was
+  362 prospects and 75 prospects with public business-contact coverage.
+- Home/privacy pages again returned HTTP 200. The monitored Gmail read completed
+  at 15:49:59 UTC with zero pending reply-review records at the checkpoint. That
+  does not prove inbox placement or interested responses to the newly queued
+  messages; later bounces and creator replies remain distinct outcomes.
+- Updated the README to describe the verified pilot plus reviewed paced expansion
+  instead of a stale empty-queue claim. Recipient details, exact copy and private
+  task IDs stay in ignored local evidence. The operational-handoff run passed
+  container lint and all 910 tests, followed by the complete verifier across
+  native setup, lifecycle, PostgreSQL, UI, delivery and queue-recovery proofs.
