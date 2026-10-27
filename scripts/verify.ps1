@@ -34,6 +34,7 @@ try {
     & (Join-Path $PSScriptRoot 'creator-pilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-autopilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-ui-smoke.ps1') -SkipBuild
+    & (Join-Path $PSScriptRoot 'creator-ui-smoke.ps1') -SkipBuild
     & (Join-Path $PSScriptRoot 'planning-smoke.ps1')
     & (Join-Path $PSScriptRoot 'action-delivery-smoke.ps1')
     Get-Content -Raw (Join-Path $PSScriptRoot 'queue-recovery-smoke.py') |

@@ -249,12 +249,46 @@ def main():
         assert page.get_by_text("Written by synthetic-model", exact=False).is_visible()
         assert page.locator("#creator-ai-review img").count() == 0
         assert page.get_by_role("link", name="<img src=x> Survival series", exact=True).get_attribute("rel") == "noopener noreferrer"
+        editing = page.get_by_role("region", name="Draft editing notes", exact=True)
+        assert editing.get_by_text("Editing checks are unavailable for this saved draft.", exact=False).is_visible()
+        # Quality observations stay readable text, never HTML, approval or an
+        # instruction to alter the immutable copy. Old API responses remain usable.
+        original_body = draft["body"]
+        original_digest = draft["draft_digest"]
+        rendered_words = len(original_body.split())
+        draft["quality_report"] = {
+            "available": True, "rendered_word_count": rendered_words,
+            "findings": [
+                {"code": "CAMPAIGN_LANGUAGE_MISMATCH", "severity": "warning",
+                 "message": "Review the English copy for this Polish-language campaign."},
+                {"code": "SYNTHETIC_UNTRUSTED", "severity": "warning",
+                 "message": '<img src=x onerror="window.syntheticQualityInjection=true"> Review this wording.'},
+            ],
+            "human_review_required": True, "sending_authority": False,
+        }
+        page.get_by_role("button", name="Refresh draft status", exact=True).click()
+        editing.get_by_text(f"{rendered_words} words in the complete email, including terms and footer.", exact=True).wait_for()
+        assert editing.get_by_text("Review the English copy for this Polish-language campaign.", exact=True).is_visible()
+        assert editing.get_by_text('<img src=x onerror="window.syntheticQualityInjection=true"> Review this wording.', exact=True).is_visible()
+        assert editing.locator("img,script").count() == 0
+        assert page.evaluate("window.syntheticQualityInjection === undefined")
+        assert "exact message still needs your review" in editing.inner_text()
+        assert "CAMPAIGN_LANGUAGE_MISMATCH" not in editing.inner_text()
+        assert page.get_by_role("button", name="Prepare exact AI email", exact=True).is_enabled()
+        assert draft["body"] == original_body and draft["draft_digest"] == original_digest
+        assert page.locator("#creator-ai-review .creator-ai-copy p").inner_text() == original_body
         page.screenshot(path="/proof/creator-ai-draft-desktop.png")
         page.set_viewport_size({"width": 375, "height": 812})
         assert page.locator("#marketing-reply-dialog").evaluate(
             "element => element.scrollWidth <= element.clientWidth"
         ), "AI draft dialog overflow"
+        editing.scroll_into_view_if_needed()
         page.screenshot(path="/proof/creator-ai-draft-mobile.png")
+        draft["quality_report"].update(findings=[], rendered_word_count=None)
+        page.get_by_role("button", name="Refresh draft status", exact=True).click()
+        editing.get_by_text("These checks found no wording flags.", exact=False).wait_for()
+        assert "likely interest" in editing.inner_text()
+        assert "words in the complete email" not in editing.inner_text()
         draft["status"] = "stale"
         page.get_by_role("button", name="Refresh draft status", exact=True).click()
         page.get_by_text("Draft needs refreshing", exact=True).wait_for()
@@ -288,6 +322,7 @@ def main():
         browser.close()
     print("Creator UI passed: desktop/mobile, revenue-share defaults, owner preservation, run consent reset, "
           "API shortlist queue/ranking/review/failure and escaped evidence, "
+          "visible draft editing notes/word count, escaped findings and legacy fallback, "
           "AI queued/ready/stale/failed states, escaped sources, exact-digest preparation, server conflict "
           "and separate template/manual paths; no console errors or overflow, all data synthetic, no network")
 

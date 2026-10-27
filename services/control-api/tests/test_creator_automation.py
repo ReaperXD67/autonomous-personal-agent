@@ -189,6 +189,130 @@ def test_positive_classification_is_only_a_suggestion_from_snippet():
     assert classify_creator_reply({"snippet": "What is the earning period?"}) == "question"
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Nie jestem zainteresowany.",
+        "Niestety nie jestem zainteresowana.",
+        "Nie jesteśmy zainteresowani.",
+        "Proszę nie pisać więcej.",
+        "Proszę nie kontaktuj się ze mną.",
+        "Nie wysyłajcie mi więcej maili.",
+        "Usuń mnie z listy.",
+        "Wypiszcie mnie.",
+        "Nie chcę kolejnych wiadomości.",
+        "Brzmi dobrze, ale proszę nie pisz do mnie więcej.",
+        "Dzięki, nie jestem zainteresowany.",
+        "Prosze nie pisac wiecej.",
+    ],
+)
+def test_explicit_polish_opt_outs_take_priority(text):
+    assert classify_creator_reply({"snippet": text}) == "do_not_contact"
+
+
+@pytest.mark.parametrize(
+    "history",
+    [
+        "W dniu 27 października 2026 Damian napisał: Proszę nie pisać więcej.",
+        "Dnia 27 października Damian napisała: Nie jestem zainteresowana.",
+        "Użytkownik Damian napisał: Do not contact.",
+        "----- Wiadomość oryginalna ----- Nie jestem zainteresowany.",
+        "----- Przekazana wiadomość ----- Please unsubscribe.",
+        "Od: Damian Wysłano: wtorek Please unsubscribe.",
+        "Od: Damian\nWysłano: wtorek\nPlease unsubscribe.",
+        "Jeśli nie chcesz takich wiadomości, odpisz „do not contact”.",
+    ],
+)
+def test_polish_quote_headers_and_flattened_footer_cannot_become_opt_outs(history):
+    message = {"snippet": f"Jestem zainteresowany! {history}"}
+    original = message.copy()
+    assert classify_creator_reply(message) == "interested"
+    assert message == original
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "I might be interested if the owner agrees a fixed fee.",
+        "I'm not sure I am interested.",
+        "I don't think it sounds good.",
+        "If interested, you said to send details.",
+        "Interested? I have not decided.",
+        "I am interested only if there is a fixed fee.",
+        "I am interested, but I'm not sure.",
+        "Interested, but I haven't decided yet.",
+        "Sounds good, however not for this channel.",
+        "Byłbym zainteresowany, jeśli uzgodnimy stałą stawkę.",
+        "Nie wiem, czy jestem zainteresowany.",
+        "Jestem zainteresowana, jeśli ustalimy warunki.",
+        "Jestem zainteresowany, ale tylko za stałą stawkę.",
+        "Jestem zainteresowany, ale nie jestem pewien.",
+        "Brzmi dobrze, jednak jeszcze nie zdecydowałem.",
+        "Czy jesteście zainteresowani?",
+        "Napisałeś, że jesteśmy zainteresowani.",
+    ],
+)
+def test_negated_conditional_or_questioned_interest_is_not_a_positive_hint(text):
+    assert classify_creator_reply({"snippet": text}) != "interested"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Jestem zainteresowany.",
+        "Jesteśmy zainteresowane.",
+        "Brzmi ciekawie!",
+        "Porozmawiajmy.",
+        "Prześlij mi szczegóły.",
+        "Chętnie nawiążę współpracę.",
+        "Nie miałem czasu odpisać. Jestem zainteresowany.",
+        "I was not sure before, but I am interested.",
+    ],
+)
+def test_asserted_english_and_polish_interest_remains_a_reviewable_hint(text):
+    assert classify_creator_reply({"snippet": text}) == "interested"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Jaki procent proponujecie?",
+        "Ile tygodni trwa rozliczenie",
+        "Jak rozliczacie zarobki",
+        "Jaki jest budżet",
+    ],
+)
+def test_polish_commercial_questions_remain_questions(text):
+    assert classify_creator_reply({"snippet": text}) == "question"
+
+
+@pytest.mark.parametrize("text", ["Interested, but how much?", "Jestem zainteresowany, ale ile?"])
+def test_interest_with_a_commercial_question_remains_a_question(text):
+    assert classify_creator_reply({"snippet": text}) == "question"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Nie mówię, że nie jestem zainteresowany.",
+        "Nie mówię, nie pisz.",
+        "Nie proszę, żebyście usunęli mnie z listy.",
+        "W instrukcji napisano: odpisz 'do not contact'.",
+        "Napisałeś, żeby odpowiedzieć 'do not contact'.",
+        "Napisaliście, nie pisz do mnie.",
+        "Nie chcę się wypisać.",
+    ],
+)
+def test_polish_mentions_and_negated_opt_outs_require_review(text):
+    assert classify_creator_reply({"snippet": text}) != "do_not_contact"
+
+
+def test_polish_actual_opt_out_before_quoted_positive_signal_stays_terminal():
+    assert classify_creator_reply({
+        "snippet": "Proszę nie pisać. W dniu 27 października Damian napisał: Brzmi dobrze!"
+    }) == "do_not_contact"
+
+
 def test_reply_match_requires_exact_address_subject_and_time():
     prospect_id = uuid4()
     sent = [
@@ -212,6 +336,23 @@ def test_reply_match_requires_exact_address_subject_and_time():
     ):
         assert correlate_creator_reply({**reply, **changes}, sent)[0] is None
     assert correlate_creator_reply(reply, sent + [{**sent[0], "prospect_id": uuid4()}])[0] is None
+
+
+@pytest.mark.parametrize("prefix", ["Odp: ", "PD: ", "Odp: Re: PD: ", "re: ODP: "])
+def test_polish_reply_prefixes_preserve_exact_creator_correlation(prefix):
+    prospect_id = uuid4()
+    sent = [{
+        "prospect_id": prospect_id, "recipient": "creator@example.test",
+        "subject": "Pomysł na współpracę", "sent_at": NOW,
+    }]
+    reply = {
+        "sender": "creator@example.test", "subject": prefix + "Pomysł na współpracę",
+        "received_at": NOW + timedelta(minutes=1),
+    }
+    assert correlate_creator_reply(reply, sent)[0] == prospect_id
+    assert correlate_creator_reply({**reply, "sender": "other@example.test"}, sent)[0] is None
+    assert correlate_creator_reply({**reply, "received_at": NOW - timedelta(seconds=1)}, sent)[0] \
+        is None
 
 
 def test_unreviewed_mail_blocks_even_individually_approved_marketing_actions():

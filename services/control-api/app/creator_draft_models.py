@@ -40,6 +40,25 @@ class CreatorModelCopy(BaseModel):
         return " ".join(value.split())
 
 
+class CreatorDraftQualityFinding(BaseModel):
+    code: str
+    severity: Literal["warning", "info"]
+    message: str
+
+
+class CreatorDraftQualityReport(BaseModel):
+    version: Literal["creator-draft-review-v1"]
+    available: bool
+    generated_language: Literal["en"]
+    campaign_language: str | None
+    rendered_word_count: int | None
+    model_word_count: int | None
+    findings: list[CreatorDraftQualityFinding]
+    review_limitations: list[str]
+    human_review_required: Literal[True]
+    sending_authority: Literal[False]
+
+
 class CreatorDraftView(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: UUID
@@ -58,6 +77,7 @@ class CreatorDraftView(BaseModel):
     evidence: list[dict[str, Any]]
     learning_summary: dict[str, Any]
     quality_notes: list[str]
+    quality_report: CreatorDraftQualityReport
     created_at: datetime
     expires_at: datetime
     action_id: UUID | None

@@ -1,6 +1,6 @@
 # Creator outreach security review
 
-Review date: 2026-10-20
+Review date: 2026-10-27
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
@@ -108,6 +108,8 @@ a review of a configured mail provider's terms.
 - Residual risk: lexical/schema validation cannot prove truth, contextual
   relevance or product availability. The operator must inspect the sources and
   complete copy. The model sees only sampled metadata, not the actual video.
+  The computed editorial report adds observable wording/count warnings, not a
+  semantic confidence score or approval. It cannot modify stored copy/digests.
 
 ### CO-010 — Gmail setup could connect the wrong account or disclose credentials
 
@@ -118,6 +120,11 @@ a review of a configured mail provider's terms.
   the expected mailbox and creator label before an atomic ignored-config write.
   A shared lock coordinates SMTP/OAuth writers; conflicting existing career
   credentials stop setup. Tokens and provider responses are not printed.
+  Explicit renewal can proceed after an exact HTTP 400 `invalid_grant` refresh
+  response only for the recorded enabled creator mailbox, same Desktop client,
+  complete existing settings and disabled career monitoring. New consent must
+  still pass all scope/identity/label/save checks; outages and wrong clients do
+  not qualify. See [ADR-0028](../decisions/ADR-0028-explicit-creator-oauth-renewal.md).
 - Residual risk: Google grants mailbox-wide read access even though runtime
   reads use one label. Local configuration still contains secrets, Google may
   revoke grants, and Testing-mode token expiry requires reauthorization.
@@ -139,8 +146,11 @@ a review of a configured mail provider's terms.
 ## Production blockers and operating limits
 
 - A label-scoped read-only Gmail adapter and conservative reply suggestions are
-  implemented; live account setup and a labeled-reply canary are separate proof.
-  Positive interest and uncertain matches still require review.
+  implemented. English/Polish hints exclude recognizable quote/forward history
+  and distinguish direct objections from instructional mentions; negation,
+  conditional interest and uncertain matches still require original-message
+  review. Same-mailbox renewal and a fresh governed runtime read passed; a real
+  incoming-reply matching/replay canary remains separate live proof.
 - Business-contact discovery is limited to unreviewed candidates in official
   public descriptions; no gated About email extraction or general website crawl
   is present. Fit scores and research ideas are deterministic; optional AI

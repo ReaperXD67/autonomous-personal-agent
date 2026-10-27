@@ -889,6 +889,54 @@ successful. No inference code or model-quality claim changed. Real incoming
 creator-reply matching/replay, handoff and Testing-mode OAuth longevity remain
 separate limits.
 
+## Experiment 36 — Creator launch and deterministic editorial/reply checks (2026-10-27)
+
+Method: recheck the product pages, refresh two existing creator dossiers through
+the official API, review current contact provenance and approve two fresh manual
+Polish exact-message packets with the ordinary pacing and final receipt guards.
+
+Observed: home/privacy returned HTTP 200. Both contacts matched their authorized
+current sources and had no suppression. Both creator actions completed with
+durable real SMTP acceptance; zero sends remain queued. No broader campaign
+grant was started, and the campaign remains paused. These are delivery-path
+observations, not creator inbox/response or unedited AI-copy quality evidence.
+
+A separate five-creator shortlist returned partial completion: four researched,
+one failed, zero selected and four requiring contact review. Saved evidence for
+the failed request was not promoted. The task reported zero model requests,
+messages sent and contact authorizations. No extra creator send is claimed.
+
+Synthetic no-egress evaluation covered title numbers, viewing/content claims,
+generic openings, language mismatch, zero-reviewed-feedback rationale, citation,
+next step and length observations, missing optional copy, private-data exclusion
+and unchanged digests/read-only behavior. Lint and all 88 combined draft/quality
+tests passed. A running-API read of an existing stale draft also exposed the
+language-mismatch observation with human review required and no sending authority;
+it made no model call, write or preparation. The separate English/Polish reply/learning suite passed 154 cases
+covering normalization, quotes, negation, conditional interest, objections and
+reviewed-only learning. These are contract checks, not measured response rates.
+The final coherent gate passed lint/all 910 tests and the complete verifier:
+native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-
+automation, nine draft, seven shortlist and 13 career PostgreSQL groups, both
+networkless UI proofs, planner, delivery guards and queue recovery. Compose
+configuration and whitespace checks passed. No inference behavior changed.
+
+The networkless creator-review UI proof passed at desktop/mobile sizes using
+the existing isolated action image. It checked malicious finding text escaping,
+an absent-report fallback, unchanged copy and exact-digest preparation/conflicts,
+and no overflow or console errors. Screenshots remain in ignored local output.
+
+A governed Gmail sync failed HTTP 400, and the local helper confirmed the old
+refresh grant's `invalid_grant`. Native OAuth smoke passed the explicit renewal
+exception and refusal cases without provider access. Same-client read-only
+renewal subsequently completed, verified the expected mailbox/label and saved
+credentials atomically. The fresh governed sync succeeded with one fetched,
+zero inserted/pending, no more pages, no suppression and `mailbox_modified=false`.
+This is reader recovery/self-mail exclusion evidence; Google publishing status
+and Testing-mode longevity were unchanged. Actual incoming-reply
+matching/replay and handoff remain unverified. No new model call was used to
+evaluate these changes.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

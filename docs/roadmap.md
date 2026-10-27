@@ -63,8 +63,13 @@
 - [x] Live external SMTP STARTTLS/authentication/NOOP canary through the audited action worker
 - [x] Individually approved external SMTP self-test with durable acceptance and matching actual Inbox receipt
 - [x] API-only bounded creator shortlist refresh with deterministic ranking, dated upload evidence and explicit review gaps
+- [x] Read-only creator draft editorial report with observable markers, explicit review limits and synthetic no-egress evaluation cases
+- [x] English/Polish creator reply and objection hints with quoted-history, negation and conditional safeguards
+- [x] Explicit same-mailbox creator OAuth renewal for confirmed invalid refresh grants, preserving account/client/scope checks
 - [ ] Verify creator-specific copy quality from a real configured model response
-- [ ] Resume the reviewed creator pilot after product-site availability and fresh exact review; record actual creator SMTP acceptance
+- [x] Complete the reviewed two-message creator pilot after product-site availability and fresh exact review; record both real SMTP acceptances
+- [x] Renew the recorded creator OAuth connection and verify a fresh governed labeled read
+- [ ] Establish the appropriate Google publishing/verification or reconsent operation for continued reply monitoring
 - [ ] Verify actual labeled creator-reply matching/replay and owner handoff with live canaries
 - [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
 

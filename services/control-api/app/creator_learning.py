@@ -6,6 +6,8 @@ import re
 from typing import Any
 from uuid import UUID
 
+from app.creator_reply_text import authored_reply_text
+
 FEEDBACK_TAGS = (
     "too_generic",
     "unclear_offer",
@@ -51,23 +53,36 @@ def suggested_feedback_tags(text: str) -> list[str]:
     """Untrusted inbound text can suggest labels, but cannot update learning by itself."""
     if not isinstance(text, str):
         return []
-    text = " ".join(text[:4000].casefold().replace("’", "'").split())
+    text = authored_reply_text(text, limit=4000)
     patterns = {
-        "too_generic": r"\b(?:too generic|generic (?:pitch|email)|copy[- ]paste[dt]?|impersonal)\b",
+        "too_generic": r"\b(?:too generic|generic (?:pitch|email)|copy[- ]paste[dt]?|impersonal|"
+        r"(?:zbyt|za) ogoln[yae]|kopiuj[- ]wklej|bez personalizacji)\b",
         "unclear_offer": r"\b(?:unclear offer|what (?:exactly )?(?:are you offering|is the offer)|"
-        r"don't understand (?:the |your )?offer)\b",
+        r"don't understand (?:the |your )?offer|niejasna oferta|"
+        r"co (?:dokladnie )?oferujecie|nie rozumiem (?:tej |waszej )?oferty)\b",
         "unclear_revenue_share": r"\b(?:how (?:does|would) (?:the )?revenue shar\w* work|"
-        r"what (?:percentage|earning window)|unclear revenue shar\w*)\b",
+        r"what (?:percentage|earning window)|unclear revenue shar\w*|"
+        r"jaki procent|ile tygodni|jak dziala (?:podzial|udzial w) (?:zarobk\w*|zysk\w*))\b",
         "prefers_fixed_fee": r"\b(?:prefer (?:a )?fixed fee|fixed fee only|"
-        r"only (?:accept|do|work with) (?:a )?fixed fee)\b",
+        r"only (?:accept|do|work with) (?:a )?fixed fee|"
+        r"(?:wole|preferuje) stal[ae] (?:stawke|wynagrodzenie)|"
+        r"tylko (?:za )?stal[ae] (?:stawka|stawke|wynagrodzenie))\b",
         "weak_content_fit": r"\b(?:not (?:a )?(?:good )?fit for (?:my|our) (?:channel|audience)|"
-        r"(?:my|our) (?:channel|audience) (?:isn't|is not) about minecraft)\b",
+        r"(?:my|our) (?:channel|audience) (?:isn't|is not) about minecraft|"
+        r"nie pasuje do (?:mojego|naszego) (?:kanalu|widz\w*)|"
+        r"(?:moj|nasz) kanal nie jest o minecraft)\b",
         "unclear_attribution": r"\b(?:how (?:will|would|do) you (?:track|attribute)|"
         r"unclear attribution|how (?:are|is) (?:the )?"
-        r"(?:revenue|earnings|sales) (?:tracked|attributed))\b",
-        "too_long": r"\b(?:too long|too much text|shorten (?:the |your )?(?:email|pitch))\b",
+        r"(?:revenue|earnings|sales) (?:tracked|attributed)|"
+        r"jak (?:bedziecie )?(?:mierzyc|sledzic|przypisywac|rozliczac)|"
+        r"jak (?:mierzycie|sledzicie|przypisujecie|rozliczacie)|"
+        r"jak sprawdzimy (?:wyniki|zarobki|przychod))\b",
+        "too_long": r"\b(?:too long|too much text|shorten (?:the |your )?(?:email|pitch)|"
+        r"(?:za|zbyt) dlug[aiy]|za duzo tekstu|skroc(?:cie)? (?:mail|wiadomosc|oferte))\b",
         "unclear_next_step": r"\b(?:what (?:should|do) (?:i|we) do next|"
-        r"unclear next step|who (?:should|do) (?:i|we) contact)\b",
+        r"unclear next step|who (?:should|do) (?:i|we) contact|"
+        r"co (?:mam|mamy) (?:zrobic )?dalej|"
+        r"z kim (?:mam|mamy) sie skontaktowac|jaki (?:jest )?kolejny krok)\b",
     }
     suggestions = []
     for tag in FEEDBACK_TAGS:
@@ -75,9 +90,9 @@ def suggested_feedback_tags(text: str) -> list[str]:
             preceding = text[max(0, match.start() - 45) : match.start()]
             # "Not too long" and "I don't prefer a fixed fee" are not objections.
             # Intentional negation inside "not a fit" is part of its own reviewed hint.
-            clause = re.split(r"[.!?;,:]", preceding)[-1]
+            clause = re.split(r"[.!?;,:]|\b(?:but|ale|jednak)\b", preceding)[-1]
             if re.search(
-                r"\b(?:not|never|no|isn't|aren't|wasn't|don't|doesn't)"
+                r"\b(?:not|never|no|isn't|aren't|wasn't|don't|doesn't|nie|nigdy)"
                 r"(?:\s+[\w']+){0,4}\s*$",
                 clause,
             ):

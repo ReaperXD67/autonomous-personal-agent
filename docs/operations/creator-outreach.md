@@ -366,8 +366,18 @@ prove its Inbox receipt, but cannot establish incoming creator-reply matching.
 
 ## Known gaps
 
-- inbound Gmail metadata reading is implemented but needs user-owned read-only
-  OAuth and a real canary; positive-interest classification remains reviewed;
+- AI draft reads and the review UI expose an editorial report, not semantic certification
+  or an automatic sending decision. Its measured markers and limitations are
+  explained in the [creator workflow](minecraft-creator-workflow.md#a-model-written-introduction-for-each-creator).
+- English/Polish reply and objection hints are conservative excerpt heuristics.
+  Quotes, partial replies and conditional intent still require original-message
+  review; fixed-fee requests never change the offer automatically.
+- A saved Gmail credential can expire. Successful SMTP delivery is separate
+  from reply reading; complete [same-mailbox renewal](gmail-setup.md#expiry-and-recovery)
+  and a new sync after an invalid refresh grant.
+
+- incoming creator-reply matching/replay still needs a real canary after valid
+  user-owned read-only OAuth is connected; positive interest remains reviewed;
 - UTM performance is entered manually until KarixMC exposes a scoped analytics
   import/webhook;
 - discovery covers official YouTube metadata; Twitch, TikTok, Discord,

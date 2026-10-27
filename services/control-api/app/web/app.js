@@ -3126,6 +3126,34 @@ function updateMarketingDraftMode() {
   if (method === "ai") renderCreatorDraftReview();
 }
 
+function creatorDraftEditingNotes(draft) {
+  const notes = node("section");
+  notes.setAttribute("aria-label", "Draft editing notes");
+  notes.append(node("h3", "", "Before preparing this email"));
+  const report = draft.quality_report;
+  if (!report || typeof report !== "object" || Array.isArray(report)) {
+    notes.append(node("p", "fine-print", "Editing checks are unavailable for this saved draft. Read the full email and its sources before preparing it."));
+    return notes;
+  }
+  if (Number.isSafeInteger(report.rendered_word_count) && report.rendered_word_count >= 0) {
+    notes.append(node("p", "fine-print", `${report.rendered_word_count} words in the complete email, including terms and footer.`));
+  }
+  const findings = Array.isArray(report.findings)
+    ? report.findings.filter((finding) => finding && typeof finding.message === "string" && finding.message.trim()).slice(0, 20)
+    : [];
+  if (findings.length) {
+    const list = node("ul", "reason-list");
+    findings.forEach((finding) => list.append(node("li", "", finding.message)));
+    notes.append(list);
+  } else {
+    notes.append(node("p", "", report.available === true
+      ? "These checks found no wording flags. They do not establish accuracy or likely interest."
+      : "The complete draft is not available for editing checks yet."));
+  }
+  notes.append(node("p", "fine-print", "Check accuracy, language, creator fit and commercial terms yourself. These notes do not approve the email; the exact message still needs your review."));
+  return notes;
+}
+
 function renderCreatorDraftReview() {
   const status = $("#creator-ai-status");
   const review = $("#creator-ai-review");
@@ -3160,7 +3188,7 @@ function renderCreatorDraftReview() {
     const copy = node("section", "creator-ai-copy");
     copy.setAttribute("aria-label", "Exact AI draft");
     copy.append(node("strong", "", draft.subject), node("p", "", draft.body));
-    review.append(copy);
+    review.append(copy, creatorDraftEditingNotes(draft));
   }
   if (draft.learning_summary) {
     const learning = draft.learning_summary;

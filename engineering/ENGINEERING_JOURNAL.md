@@ -2716,3 +2716,70 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   and system evolution. No dependency, service, model route, broad browser
   authority or unbounded founder/HR messaging capability was introduced.
   Real ATS submission proof and incoming career-reply proof remain pending.
+
+## 2026-10-27 — Creator launch, editorial observations and EN/PL reply hints
+
+- Rechecked the configured product home and privacy pages: both returned HTTP
+  200. Reviewed copy preserved the site's distinction between demonstrative
+  worlds and real server testing rather than promising verified server quality.
+- Refreshed two existing creators through the official YouTube API and checked
+  that current business-contact source/address evidence matched the previously
+  authorized contacts, with no suppression. Research made no model call and
+  granted no new contact authority.
+- A separate bounded five-creator API shortlist completed partially: four were
+  researched and one failed. It selected zero and reported four contacts needing
+  review. The failed creator's saved record was not promoted. This batch reported
+  zero model requests, messages sent and contact authorizations; it did not
+  expand the individually reviewed two-message pilot.
+- Prepared and individually approved two fresh manual Polish introduction
+  packets through the existing exact-action API. Both completed with durable
+  real SMTP acceptance under ordinary pacing; zero creator sends remain queued.
+  The earlier cancelled packets were not reused. Broader campaign automation
+  remains paused and no general send grant was enabled. Acceptance is not
+  evidence of inbox placement, interest or collaboration. Recipient data,
+  complete messages, packet IDs and source-account details remain private.
+- Added a computed creator-draft editorial report with fixed wording markers,
+  rendered/suggestion word counts, source/next-step observations, requested
+  non-English language mismatch and feedback claims despite zero reviewed
+  samples. It has no semantic confidence score, model call, persistence or
+  approval effect. Original data/digests and preparation rules are unchanged.
+- A running-API read of an existing stale model draft exposed the computed
+  language-mismatch warning with human review required and sending authority
+  false. This probe made no model call, write or preparation and does not
+  establish usable new AI copy.
+- Exposed the report's findings and complete-email word count in the existing
+  draft review before preparation, with an explicit older-response fallback.
+  A networkless desktop/mobile browser proof passed malicious-text escaping,
+  missing-report handling, unchanged copy/exact-digest preparation/conflicts,
+  overflow and console checks. Screenshots remain in ignored local output.
+- Added English/Polish creator reply and objection hints using a shared bounded
+  authored-text normalization. Recognizable quote/forward history and our own
+  opt-out instructions are excluded without changing stored evidence. Negated,
+  conditional and interrogative interest stay reviewed; direct objections keep
+  durable suppression. Feedback suggestions never select their own learning tags.
+- Compared primary Promptfoo, DSPy and Instructor sources and public repository
+  license/activity metadata. Adopted an explainable offline-evaluation pattern
+  in the existing test container, with no external code, skill pack, package or
+  service installed. A pinned research note records choices and deferred work.
+- A governed Gmail read failed with HTTP 400; the native helper confirmed the
+  old refresh grant's exact `invalid_grant`. Added an explicit same-mailbox
+  renewal path with unchanged client, recorded creator identity, disabled career
+  monitoring and all new-consent/save guards retained. Native no-provider tests
+  passed. After an initially inaccessible browser consent page, same-client
+  read-only renewal completed with expected mailbox/label verification and an
+  atomic credential save. After control/research services reloaded the new
+  settings, a governed Gmail sync succeeded: one fetched, zero inserted/pending,
+  no more pages, no suppression and `mailbox_modified=false`. It confirms
+  reader recovery and self-mail exclusion, not actual incoming-reply handling.
+  Google publishing status and Testing-mode longevity were not changed.
+- Narrow isolated checks passed: lint and 88 combined draft/quality tests,
+  154 creator reply/learning tests, and the native OAuth smoke. The final
+  coherent gate passed lint/all 910 tests and the complete verifier: native
+  OAuth/SMTP setup, lifecycle/workflow/scheduler/research, 19 creator-automation,
+  nine draft, seven shortlist and 13 career PostgreSQL groups, both career and
+  creator networkless UI proofs, planner, delivery guards and queue recovery.
+  Compose configuration and whitespace checks passed. No model inference code
+  changed and no new model-quality benchmark is claimed.
+- Updated README, operations, architecture/security, roadmap, research provenance,
+  ADR-0028 and system evolution. Real incoming creator-reply matching/replay and
+  handoff, usable unedited AI copy and long-term OAuth operation remain unverified.
