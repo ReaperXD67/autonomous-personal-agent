@@ -12,7 +12,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
-from app.creator_pilot import DAILY_CREATORS, KIND
+from app.application_browser import canonical_hash
+from app.creator_pilot import DAILY_CREATORS, KIND, campaign_snapshot
 from app.creator_pilot_store import CreatorPilotCreate, CreatorPilotStore
 from app.marketing_models import MarketingCampaignCreate, MarketingProspectCreate
 from app.marketing_store import MarketingOutreachError
@@ -124,7 +125,7 @@ def exercise(dsn):
             InvalidTaskStateError, "valid execution lease")
     groups.append("Generic caller tasks and cancelled work cannot reuse a research reservation")
 
-    changed_campaign, changed_prospects = fixture(store)
+    changed_campaign, _changed_prospects = fixture(store)
     changed = claim(store, create(store, changed_campaign))
     with store.connect() as connection:
         connection.execute("UPDATE marketing_campaigns SET max_video_age_days=30 WHERE id=%s",
@@ -201,11 +202,125 @@ def exercise(dsn):
     check(sum(item is not None for item in raced) == 1, "Concurrent batches duplicated research")
     groups.append("Different simultaneous requests cannot start overlapping campaign batches")
 
+    rotation_campaign, rotation_prospects = fixture(store, 3)
+    preferred_ids = [row["id"] for row in rotation_prospects[:2]]
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE marketing_prospects SET relevance_score=100,"
+            "intelligence=intelligence || %s WHERE id=ANY(%s)",
+            (Jsonb({"contact_candidates": [{"email": "fixture@example.test"}]}), preferred_ids),
+        )
+    first_batch = create(store, rotation_campaign, 2)
+    check(set(first_batch["payload"]["prospect_ids"]) == set(map(str, preferred_ids)),
+          "Initial research did not preserve contact/relevance priority")
+    cancel(store, first_batch)
+    unseen_batch = create(store, rotation_campaign)
+    check(unseen_batch["payload"]["prospect_ids"] == [str(rotation_prospects[2]["id"])],
+          "A cancelled reservation starved a never-attempted creator")
+    failed = claim(store, unseen_batch)
+    store.fail_task(failed["id"], failed["lease_id"], "SYNTHETIC_PROVIDER", "Fixture only")
+    oldest_batch = create(store, rotation_campaign)
+    oldest_id = min(map(str, preferred_ids))
+    check(oldest_batch["payload"]["prospect_ids"] == [oldest_id],
+          "Repeat research did not prefer the oldest server-issued reservation")
+    cancel(store, oldest_batch)
+    next_oldest = create(store, rotation_campaign)
+    check(next_oldest["payload"]["prospect_ids"] == [
+        next(str(identity) for identity in preferred_ids if str(identity) != oldest_id),
+    ], "A repeated creator starved the other oldest reservation")
+    cancel(store, next_oldest)
+    groups.append("Sequential batches rotate unseen then oldest attempts after cancellation/failure")
+
+    for change in ("audit_hash", "campaign", "profile", "expired"):
+        history_campaign, history_prospects = fixture(store, 2)
+        favored = history_prospects[0]
+        with store.connect() as connection:
+            connection.execute("UPDATE marketing_prospects SET relevance_score=100 WHERE id=%s",
+                               (favored["id"],))
+        recorded = create(store, history_campaign)
+        check(recorded["payload"]["prospect_ids"] == [str(favored["id"])],
+              "History fixture did not reserve the preferred creator")
+        cancel(store, recorded)
+        with store.connect() as connection:
+            if change == "audit_hash":
+                connection.execute(
+                    "UPDATE audit_events SET input_metadata=jsonb_set(input_metadata,"
+                    "'{payload_hash}',%s) WHERE task_id=%s AND action='creator.pilot.created'",
+                    (Jsonb("0" * 64), recorded["id"]),
+                )
+            elif change == "campaign":
+                connection.execute("UPDATE marketing_campaigns SET max_video_age_days=30 "
+                                   "WHERE id=%s", (history_campaign["id"],))
+            elif change == "profile":
+                connection.execute("UPDATE marketing_prospects SET profile_url=%s WHERE id=%s",
+                                   ("https://www.youtube.com/channel/UC" + "x" * 22,
+                                    favored["id"]))
+            else:
+                connection.execute("UPDATE audit_events SET occurred_at=now()-interval '25 hours' "
+                                   "WHERE task_id=%s AND action='creator.pilot.created'",
+                                   (recorded["id"],))
+        following = create(store, history_campaign)
+        check(following["payload"]["prospect_ids"] == [str(favored["id"])],
+              f"Invalid {change} history changed current creator priority")
+        cancel(store, following)
+    groups.append("Wrong audit hashes and changed campaign/profile or expired history cannot rank")
+
+    generic_campaign, generic_prospects = fixture(store, 2)
+    favored = generic_prospects[0]
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET relevance_score=100 WHERE id=%s",
+                           (favored["id"],))
+    generic_payload = {
+        "campaign_id": str(generic_campaign["id"]), "requested_limit": 1,
+        "reservation_id": str(uuid4()),
+        "campaign_hash": canonical_hash(campaign_snapshot(generic_campaign)),
+        "prospect_ids": [str(favored["id"])],
+        "profile_urls": {str(favored["id"]): favored["profile_url"]},
+    }
+    generic = store.create_task(TaskCreate(
+        title="Synthetic unissued research history", kind=KIND,
+        payload=generic_payload, requested_by="creator-pilot-smoke",
+    ))
+    cancel(store, generic)
+    legitimate = create(store, generic_campaign)
+    check(legitimate["payload"]["prospect_ids"] == [str(favored["id"])],
+          "A generic task without a server-issued reservation influenced rank")
+    cancel(store, legitimate)
+    groups.append("Generic caller payloads without issued audit evidence do not consume fairness")
+
+    large_campaign, large_prospects = fixture(store, 2)
+    favored, beyond_prefix = large_prospects
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET relevance_score=100 WHERE id=%s",
+                           (favored["id"],))
+        connection.execute(
+            "INSERT INTO marketing_prospects "
+            "(campaign_id,platform,external_id,display_name,profile_url,relevance_score,intelligence) "
+            "SELECT %s,'youtube','UC'||substr(md5(%s||n::text),1,22),"
+            "'Synthetic unrelated '||n::text,"
+            "'https://www.youtube.com/channel/UC'||substr(md5(%s||n::text),1,22),100,%s "
+            "FROM generate_series(1,499) AS n",
+            (large_campaign["id"], str(large_campaign["id"]), str(large_campaign["id"]),
+             Jsonb({"topics": ["Travel"]})),
+        )
+        check(connection.execute("SELECT count(*) AS n FROM marketing_prospects WHERE "
+                                 "campaign_id=%s", (large_campaign["id"],)).fetchone()["n"] == 501,
+              "Large selection fixture did not exceed the bounded candidate prefix")
+    first_large = create(store, large_campaign)
+    check(first_large["payload"]["prospect_ids"] == [str(favored["id"])],
+          "Large fixture did not initially preserve relevance")
+    cancel(store, first_large)
+    next_large = create(store, large_campaign)
+    check(next_large["payload"]["prospect_ids"] == [str(beyond_prefix["id"])],
+          "Bounded selection starved the eligible creator beyond the old 500-row prefix")
+    cancel(store, next_large)
+    groups.append("A 501-creator pool advances past the former high-relevance candidate prefix")
+
     budget_campaign, _ = fixture(store, 10)
     with store.connect() as connection:
         used = connection.execute(
             "SELECT sum((input_metadata->>'batch_size')::int) AS n FROM audit_events "
-            "WHERE action='creator.pilot.created'",
+            "WHERE action='creator.pilot.created' AND occurred_at>now()-interval '24 hours'",
         ).fetchone()["n"]
     remaining = DAILY_CREATORS - used
     while remaining:

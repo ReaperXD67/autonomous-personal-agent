@@ -22,7 +22,11 @@ from app.creator_draft_store import (
     CreatorDraftStore,
     lock_draft_for_prepare,
 )
-from app.marketing_models import MarketingCampaignCreate, MarketingEmailPlanCreate, MarketingProspectCreate
+from app.marketing_models import (
+    MarketingCampaignCreate,
+    MarketingEmailPlanCreate,
+    MarketingProspectCreate,
+)
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate
 from app.store import InvalidTaskStateError
 from psycopg import sql
@@ -44,15 +48,20 @@ def blocked(call, error, fragment):
         raise AssertionError(f"Expected refusal: {fragment}")
 
 
-def fixture(store):
+def fixture(store, *, polish=False):
     campaign = store.create_campaign(MarketingCampaignCreate(
         name="Synthetic AI copy", product_name="FixtureCraft",
         product_url="https://example.test/", privacy_url="https://example.test/privacy",
-        product_summary="A synthetic Minecraft server discovery website for validation.",
+        product_summary=("katalog serwerów Minecraft do samodzielnego sprawdzenia" if polish else
+                         "A synthetic Minecraft server discovery website for validation."),
         target_audience="Minecraft players", viewer_offer="Explore servers",
         creator_offer="Explore an optional pilot", paid_offer_enabled=True,
-        paid_offer_details="A server tour with individually discussed terms", outreach_mode="paid",
+        paid_offer_details=("Opcjonalny test serwera w wybranym przez Ciebie formacie" if polish else
+                            "A server tour with individually discussed terms"), outreach_mode="paid",
         compensation_model="revenue_share", handoff_discord="karixai", sender_name="Synthetic",
+        language_mode="prefer" if polish else "any", target_language="pl" if polish else None,
+        revenue_share_percent=23 if polish else None, revenue_share_weeks=3 if polish else None,
+        revenue_share_basis="przychód przypisany uzgodnionej promocji" if polish else None,
         discovery_queries=["Minecraft"], requested_by="creator-draft-smoke",
     ))
     channel = "UC" + uuid4().hex[:22]
@@ -150,6 +159,63 @@ def exercise(dsn):
     check(actions[0]["status"] == "pending_approval", "AI copy escaped exact review")
     check(actions[0]["public_context"]["body"] == saved["body"], "Prepared body changed")
     groups.append("Finished copy preserves source and digest; concurrent prepare is exact and unapproved")
+
+    polish_campaign, polish_prospect = fixture(store, polish=True)
+    polish_row = create(store, polish_prospect)
+    polish_task = claim(store, polish_row)
+    polish_owned = store.get_draft_for_execution(
+        polish_row["id"], polish_task["id"], polish_task["lease_id"],
+    )
+    check(polish_owned["model_context"]["output_language"] == "pl",
+          "Polish generation language was not stored before model execution")
+    polish_copy = parse_model_copy(json.dumps({
+        "hook": "Temat odkrywania serwerów Minecraft z Twojego tytułu sugeruje "
+                "możliwy punkt wyjścia do niezależnej próby.",
+        "content_idea": "Mógłbyś wybrać serwer z katalogu, samodzielnie sprawdzić dołączenie "
+                        "i przed ewentualnym materiałem opisać własne doświadczenia.",
+        "rationale": "The observed server topic supports a small independent trial.",
+        "evidence_ids": ["sample_video"], "reach_strategy": "small_pilot",
+    }, ensure_ascii=False), polish_owned["model_context"])
+    store.save_draft(
+        draft_id=polish_row["id"], task_id=polish_task["id"], lease_id=polish_task["lease_id"],
+        copy=polish_copy, source="ollama", selected_model="synthetic-polish-response",
+    )
+    store.complete_task(polish_task["id"], polish_task["lease_id"], {"fixture": True})
+    with store.connect() as connection:
+        polish_before = connection.execute(
+            "SELECT model_context,draft_digest,subject,body FROM creator_email_drafts WHERE id=%s",
+            (polish_row["id"],),
+        ).fetchone()
+    polish_view = store.get_draft(polish_row["id"])
+    CreatorDraftView.model_validate(polish_view)
+    check(polish_view["status"] == "ready" and polish_view["body"].startswith("Cześć "),
+          "Completed Polish draft was not rendered in Polish")
+    check("udział w zarobkach" in polish_view["subject"], "Polish subject was not deterministic")
+    for required in (polish_campaign["product_summary"], polish_campaign["paid_offer_details"],
+                     polish_campaign["revenue_share_basis"], "23%", "3 tygodnie", "Przed publikacją",
+                     "przychód czy zysk", "raportowanie i terminy wypłat",
+                     polish_campaign["privacy_url"], "do not contact"):
+        check(required in polish_view["body"], "Polish rendered envelope lost a required value")
+    check(polish_view["quality_report"]["generated_language"] == "pl"
+          and not polish_view["quality_report"]["sending_authority"],
+          "Polish editorial projection changed language or sending authority")
+    check(polish_copy.rationale not in polish_view["body"], "Operator rationale entered email")
+    with store.connect() as connection:
+        polish_after = connection.execute(
+            "SELECT model_context,draft_digest,subject,body FROM creator_email_drafts WHERE id=%s",
+            (polish_row["id"],),
+        ).fetchone()
+    check(polish_before == polish_after, "Draft GET changed the frozen language, digest or copy")
+    polish_action = prepare(store, polish_view)
+    check(polish_action["status"] == "pending_approval"
+          and store.get_task(polish_action["task_id"])["status"] == "pending_approval",
+          "Polish copy bypassed exact-message approval")
+    check(polish_action["public_context"]["body"] == polish_view["body"]
+          and polish_action["public_context"]["subject"] == polish_view["subject"],
+          "Polish exact preparation changed the complete rendered message")
+    check(store.get_draft(polish_row["id"])["draft_digest"] == polish_before["draft_digest"],
+          "Polish exact preparation changed the reviewed digest")
+    groups.append("Polish frozen language, deterministic terms, read-only projection and exact review")
 
     _, prospect2 = fixture(store)
     row2 = ready(store, create(store, prospect2))

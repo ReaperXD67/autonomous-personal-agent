@@ -36,6 +36,40 @@ class CreatorPilotStore(MarketingStore):
             (task["id"], canonical_hash(task["payload"])),
         ).fetchone() is not None
 
+    @staticmethod
+    def _recent_reservations(connection, campaign_id, campaign_hash):
+        rows = connection.execute(
+            "SELECT t.payload,a.input_metadata->>'payload_hash' AS payload_hash, "
+            "a.occurred_at FROM agent_tasks t JOIN audit_events a ON a.task_id=t.id "
+            "WHERE t.kind=%s AND t.payload->>'campaign_id'=%s "
+            "AND a.action='creator.pilot.created' "
+            "AND a.occurred_at > now()-interval '24 hours'",
+            (KIND, str(campaign_id)),
+        ).fetchall()
+        # Each real reservation consumes at least one of the shared thirty daily
+        # slots. Generic caller tasks and mutated payloads cannot influence rank.
+        attempts = {}
+        for row in rows:
+            payload = row["payload"]
+            if (not isinstance(payload, dict)
+                    or row["payload_hash"] != canonical_hash(payload)
+                    or payload.get("campaign_hash") != campaign_hash):
+                continue
+            identities, profiles = payload.get("prospect_ids"), payload.get("profile_urls")
+            if (not isinstance(identities, list) or not 1 <= len(identities) <= MAX_CREATORS
+                    or not isinstance(profiles, dict)):
+                continue
+            for identity in identities:
+                profile = profiles.get(identity) if isinstance(identity, str) else None
+                if not isinstance(profile, str):
+                    continue
+                key = identity, profile
+                attempts[key] = max(row["occurred_at"], attempts.get(key, row["occurred_at"]))
+        return [
+            {"prospect_id": identity, "profile_url": profile, "attempted_at": date.isoformat()}
+            for (identity, profile), date in attempts.items()
+        ]
+
     def create_pilot(self, campaign_id, request):
         with self.connect() as connection:
             connection.execute("SELECT pg_advisory_xact_lock(hashtext('creator-pilot-budget'))")
@@ -64,14 +98,25 @@ class CreatorPilotStore(MarketingStore):
                 raise MarketingOutreachError(
                     "This campaign already has an active pilot research task"
                 )
+            campaign_hash = canonical_hash(campaign_snapshot(campaign))
+            reservations = self._recent_reservations(connection, campaign_id, campaign_hash)
             rows = connection.execute(
-                "SELECT p.* FROM marketing_prospects p WHERE campaign_id=%s "
+                "SELECT p.*,h.attempted_at AS _last_pilot_at FROM marketing_prospects p "
+                "LEFT JOIN jsonb_to_recordset(%s::jsonb) AS h "
+                "(prospect_id text,profile_url text,attempted_at timestamptz) "
+                "ON h.prospect_id=p.id::text AND h.profile_url=p.profile_url "
+                "WHERE campaign_id=%s "
                 "AND platform='youtube' AND status IN ('discovered','qualified') "
-                "AND suppressed_at IS NULL "
+                "AND suppressed_at IS NULL AND p.intelligence @> %s "
+                "AND NOT EXISTS (SELECT 1 FROM creator_contact_suppressions s "
+                "WHERE s.email=lower(p.contact_email)) "
                 "AND NOT EXISTS (SELECT 1 FROM marketing_outreach_messages m "
                 "WHERE m.prospect_id=p.id) "
-                "ORDER BY relevance_score DESC, last_seen_at DESC, id LIMIT 500",
-                (campaign_id,),
+                "ORDER BY h.attempted_at ASC NULLS FIRST, "
+                "CASE WHEN jsonb_typeof(p.intelligence->'contact_candidates')='array' "
+                "THEN jsonb_array_length(p.intelligence->'contact_candidates')>0 "
+                "ELSE false END DESC, p.relevance_score DESC,p.id LIMIT 500",
+                (Jsonb(reservations), campaign_id, Jsonb({"topics": ["Minecraft"]})),
             ).fetchall()
             # Existing intelligence narrows the pool; fresh API metadata determines final rank.
             candidates = [
@@ -80,6 +125,8 @@ class CreatorPilotStore(MarketingStore):
                 and not contact_is_suppressed(connection, row.get("contact_email"))
             ]
             candidates.sort(key=lambda row: (
+                row["_last_pilot_at"] is not None,
+                row["_last_pilot_at"].timestamp() if row["_last_pilot_at"] else 0,
                 -int(bool((row.get("intelligence") or {}).get("contact_candidates"))),
                 -row["relevance_score"], str(row["id"]),
             ))
@@ -100,7 +147,7 @@ class CreatorPilotStore(MarketingStore):
             payload = {
                 "campaign_id": str(campaign_id), "requested_limit": request.limit,
                 "reservation_id": str(uuid4()),
-                "campaign_hash": canonical_hash(campaign_snapshot(campaign)),
+                "campaign_hash": campaign_hash,
                 "prospect_ids": [str(row["id"]) for row in candidates],
                 "profile_urls": {str(row["id"]): row["profile_url"] for row in candidates},
             }

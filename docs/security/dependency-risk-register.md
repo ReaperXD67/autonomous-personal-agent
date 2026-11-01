@@ -1,6 +1,6 @@
 # Dependency risk register
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-01
 
 ## Retired Playwright bundled-tool exceptions
 
@@ -159,6 +159,30 @@ except for Compose's added labels; this is filesystem-equivalence evidence,
 not a claim that both OCI image identities are identical. The final Compose
 runtime also passed an audited real SMTP STARTTLS/authentication/NOOP check
 without sending mail. Required clean-CI image scans remain release gates.
+
+## November 2026 Ubuntu Brotli update
+
+The November 1 clean action-image scan identified fixable HIGH
+[CVE-2026-111497](https://ubuntu.com/security/CVE-2026-111497) in
+`libbrotli1=1.1.0-2build2`. Ubuntu's
+[USN-8956-1](https://ubuntu.com/security/notices/USN-8956-1) identifies
+`1.1.0-2ubuntu0.1` as the Noble fix. Fresh signed APT metadata on the exact
+pinned Playwright base supplied that version from Noble updates/security.
+
+The action Dockerfile adds only this existing package's exact-version upgrade
+to the current targeted OpenSSL installation. The Playwright release/digest,
+application dependencies, provisioning-tool cleanup and empty vulnerability
+ignore list are unchanged; no broad distribution upgrade is used.
+
+An isolated Brotli-only install on that exact amd64 base upgraded one package,
+added/removed none, passed APT's dependency check and loaded the Brotli decoder
+shared library. The combined OpenSSL/Brotli install upgraded the expected three
+existing packages with no additions/removals. The bare Microsoft base does not
+include the Python Playwright distribution, which is installed later in the
+locked application environment; an attempted base-only Python import did not
+establish application compatibility. The final rebuilt runtime passed lint/all
+955 tests and the full native, PostgreSQL, browser UI, delivery and recovery
+verifier. The unfiltered clean-CI image scan remains a required release gate.
 
 ## Review rule
 

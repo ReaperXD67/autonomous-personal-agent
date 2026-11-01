@@ -1,0 +1,6 @@
+interface:
+  display_name: "Research and Adapt Repositories"
+  short_description: "Find and adapt maintained upstream patterns"
+  default_prompt: "Use $repo-research-and-adapt to compare relevant upstream projects and implement a verified improvement in this project."
+policy:
+  allow_implicit_invocation: true

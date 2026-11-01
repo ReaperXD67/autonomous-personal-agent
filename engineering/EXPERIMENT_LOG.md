@@ -1009,6 +1009,114 @@ tests, followed by the complete native, lifecycle, PostgreSQL, UI, delivery and
 queue-recovery verifier. No new model-quality or response-rate benchmark is
 claimed.
 
+## Experiment 38 — Bilingual drafting and research progress (2026-11-01)
+
+Method: extend the existing constrained draft context with an English/Polish
+generation contract and use hash-linked, current-target/profile reservation
+history for successive shortlist selection. Preserve exact review, commercial
+wording, the standard English contact/privacy/opt-out footer, research limits
+and sending guards. Evaluate these small original adaptations in the existing
+containers; the upstream comparison does not establish improved reply rates.
+
+The operational baseline after restoring Docker confirmed twelve of twelve
+previous invitations with durable SMTP acceptance, zero queued and zero failed
+in that scope. A governed labeled read completed on November 1 at 17:07 UTC
+(22:37 IST) with zero pending reply reviews. This confirms recorded sending and
+current label reading; it does not measure inbox placement or confirmed interest.
+
+Docker startup was recovered by preserving stale runtime IPC parent folders
+and creating fresh endpoints, without resetting Docker volumes or WSL user data.
+The restored engine reported 29.5.3. Container lint and all 940 tests passed,
+followed by the complete native, lifecycle, PostgreSQL, UI, planner, delivery and
+recovery verifier. Its ten draft PostgreSQL groups include Polish rendering;
+eleven shortlist groups include current issued history and a 501-candidate
+fixture. The official skill manifest validator passed in a read-only no-network
+container. These synthetic proofs establish their tested contracts, not real
+creator-copy quality or improved response rates.
+
+Fresh product home/privacy checks returned HTTP 200. A further governed Gmail
+sync fetched one message, inserted zero, left zero pending, had no further pages
+and made no mailbox modification. This continues owned self-mail exclusion
+evidence, without establishing an actual creator reply. Agent doctor checks and
+the agent smoke passed; a real 32-token `ROUTE_OK` canary used `free/default` and
+reported `Mistral-Small-3.2-24B-Instruct-2506`. That route canary did not exercise
+local Qwen; a later actual Polish draft completed through Ollama `qwen3:8b`.
+Operator review withheld preparation and sending approval after finding an
+unsupported product security claim despite an empty finding list. Real Polish
+generation is therefore verified, while usable unedited copy and any response-rate benefit
+remain unverified. No creator-feedback outcome was invented from this review.
+
+The owner-requested local daily SMTP bound was set to twenty-four through the
+shared atomic configuration writer. The repository default remains twelve;
+local three/hour, global/domain gaps and jitter were retained. After a controlled
+reload, runtime status confirmed twenty-four/day, three/hour, 900-second global
+and 1,800-second same-domain spacing with 180-second jitter. This is capacity
+selection, with no measured claim that twenty-four messages were sent or that a
+larger batch increases response rate.
+
+Fresh governed discovery completed 66 dossiers, adding 25 and updating 41, with
+fourteen public business-contact candidates and zero automatic authorizations.
+A bounded ten-creator shortlist task was issued; issuance is not a completed
+refresh or send. Source inspection and a healthy container alone do not
+establish model quality or interested creators.
+
+Further Polish discovery completed forty dossiers, adding twelve and updating
+twenty-eight, with ten public contact candidates. The initial unrestricted-country
+English campaign discovery added 123 prospects and found twenty-two public contact
+candidates. Its next scan researched 147, adding 102 and updating 45, with
+twenty-nine public contact candidates. The workspace held 650 prospect records
+across campaigns. Twenty-four launch recipients were selected from
+twenty-five qualified candidates; the original canary was excluded. The English
+selection retained declared English or unknown language and a 250,000-subscriber
+maximum, with existing Polish country targeting still strict. Twenty-four
+contacts then received individual API authorization and twenty-four draft tasks
+were requested, sixteen English and eight Polish. Two temporary replicas of the
+existing research worker used distinct hostname leases and the same durable
+budgets. All twenty-four model tasks finished: nineteen returned copy and five
+failed with `CREATOR_DRAFT_MODEL_UNAVAILABLE`; all nineteen successful results
+reported local Ollama `qwen3:8b`. Exact source/product review retained
+one AI draft and used twenty-three explicit manual replacements; unsupported
+feature, verification and video-content claims were rejected. These operator
+decisions are not creator feedback or evidence of model self-learning. Each of
+the twenty-four distinct invitations then received individual exact approval,
+and the ordinary single research worker was restored.
+
+The published instruction-only skill was installed through the official helper
+from commit `8dd39bf768ce47aa68c5ec9927002ab9e619a3dd`, and both installed files'
+SHA-256 hashes matched their source. Its availability does not grant runtime
+execution or sending authority.
+
+The subsequent narrow copy/quality suite passed 133 tests, including fifteen
+added regressions for the actor-specific English/Polish platform-security
+refusal, bounded correction and historical-copy/editorial-digest behavior. The
+actual old bad draft was subsequently stale with the marker, its body/digest
+unchanged, and its live preparation request returned HTTP 409 with no outgoing
+packet. This is refusal evidence, not a creator-feedback observation.
+
+Initial pull-request CI passed functional and control-image checks but failed
+the isolated action-image security gate for `libbrotli1` CVE-2026-111497. The
+exact Ubuntu `1.1.0-2ubuntu0.1` update upgraded one package in isolation, with
+zero additions/removals, a successful dependency check and decoder-library load.
+The combined OpenSSL/Brotli installation upgraded three expected packages and
+added/removed none. The rebuilt runtime passed lint/all 955 tests and the full
+native, PostgreSQL, UI, planner, delivery and recovery verifier. Agent doctor
+and a repeated real Mistral `ROUTE_OK` smoke passed. Clean pull-request CI at
+`fc13af6` subsequently passed the functional, repository and both rebuilt-image
+scan/SBOM gates, without new vulnerability ignores.
+
+Both campaigns completed governed Gmail reads at 17:58 UTC (23:28 IST), with
+zero pending reply reviews. At 18:00:55.394895 UTC (23:30:55 IST) on November 1,
+the first new invitation's action and task succeeded on attempt one, with an
+SMTP Message-ID and no last error. The measured launch checkpoint is one new
+SMTP acceptance and twenty-three paced actions queued, separate from the twelve
+previous acceptances. Automatic monitoring subsequently completed English and
+Polish reads at 18:01:20 and 18:03:24 UTC, both with zero pending replies and no
+active sending run. This establishes the recent-conversation scheduler path,
+without actual creator-response evidence. The final reserved release is November 2 at 04:44:57 UTC
+(10:14:57 IST), conditional on the running worker, final guards and 24-hour packet
+expiry. Confirmed creator interest and owner handoffs remain zero. SMTP acceptance
+does not prove inbox placement; no reply-rate or revenue improvement was measured.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

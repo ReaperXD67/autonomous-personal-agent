@@ -2865,3 +2865,135 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   task IDs stay in ignored local evidence. The operational-handoff run passed
   container lint and all 910 tests, followed by the complete verifier across
   native setup, lifecycle, PostgreSQL, UI, delivery and queue-recovery proofs.
+
+## 2026-11-01 — Sourced reuse, bilingual drafts and fair shortlist batches
+
+- Compared eight related campaign, inbox and agent repositories using canonical
+  metadata, inspected commits, licenses and implementation/docs. Selected small
+  original adaptations of explicit message-language selection and durable batch
+  progress; no third-party framework, marketing app or executable skill pack was
+  installed. The source-linked research note records adoption and deferral reasons.
+- Added a reusable instruction-only repository-research skill with implicit
+  discovery metadata. A user-level preference was saved locally for substantial
+  work across projects. This is authoring guidance; existing execution,
+  dependency, publication and messaging authorization still apply. The official
+  installer then installed the user's skill from published commit
+  `8dd39bf768ce47aa68c5ec9927002ab9e619a3dd`
+  into the user skill directory; both files' SHA-256 hashes matched that pinned
+  source. The installed skill is available to subsequent turns and projects.
+- Added a frozen English/Polish `output_language` contract to the existing model
+  context. Preferred/strict targeting selects the supported base language;
+  unrestricted and legacy contexts remain English. Unsupported explicit
+  languages are refused before inference. Polish prompting, optional-idea and
+  claim guards, server framing and report markers extend the existing path.
+  Product/offer wording remains reviewed verbatim text, operator rationale stays
+  English, and the standard English contact/privacy/opt-out footer is preserved.
+- Shortlist issuance now uses genuine creation audits from the preceding 24
+  hours, matched to canonical task payload, current targeting snapshot and exact
+  profile URL. Unattempted creators precede oldest attempts, with contact and
+  relevance tie-breakers before the 500-candidate cap. Failed/cancelled attempts
+  retain their existing budget. The implementation introduces no migration,
+  service, dependency or sending grant; contact authorization and the repository
+  default pacing policy are unchanged.
+- For the larger launch requested by the owner, local ignored configuration
+  selected `OUTBOUND_EMAIL_DAILY_LIMIT=24` through the shared atomic writer.
+  Repository defaults remain twelve/day, with three/hour, 900-second global and
+  1,800-second same-domain spacing plus jitter retained locally. This selects
+  capacity; it does not establish that twenty-four messages were prepared or
+  accepted, qualify contacts or enable a general sending grant.
+- Docker Desktop initially crashed on inaccessible stale Inference and Secrets
+  Engine runtime endpoints. With Docker stopped, the exact IPC parent folders
+  were preserved under sibling names and fresh endpoints were created on
+  restart. The local engine returned as 29.5.3. Persistent Docker/WSL data,
+  volumes and the running Ubuntu distribution were not reset or deleted.
+- The November 1 baseline confirmed all twelve previous creator invitations had
+  durable SMTP acceptance, with zero queued or failed in that scope. A governed
+  labeled Gmail read completed at 17:07 UTC (22:37 IST) with zero pending reply
+  reviews. Acceptance does not establish inbox placement or creator interest;
+  no live creator-reply/handoff proof or response-rate benchmark is claimed.
+- Container lint and all 940 tests passed, followed by the complete verifier:
+  native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, nineteen creator
+  automation groups, ten draft groups including Polish, eleven shortlist groups
+  including fair selection beyond 500 candidates, thirteen career groups, both
+  networkless UIs, planner, delivery guards and queue recovery. The official
+  skill validator passed in a read-only, network-isolated container; its manifest
+  check does not prove research decisions.
+- Fresh product home/privacy checks returned HTTP 200. A further governed Gmail
+  read fetched one message with zero inserted or pending, no further pages and
+  no mailbox modification; this retains the owned self-mail exclusion evidence,
+  not proof of a creator reply.
+- Agent doctor checks and the agent smoke both passed. The harmless real gateway
+  canary returned `ROUTE_OK` in 32 tokens through `free/default`, reporting
+  `Mistral-Small-3.2-24B-Instruct-2506`. This is route evidence, not a creator-copy
+  benchmark; cached/unloaded local Qwen did not produce a new response in this run.
+- After a controlled service reload, communications status confirmed the local
+  daily limit of twenty-four, three/hour, 900-second global spacing,
+  1,800-second same-domain spacing and 180-second jitter. Fresh governed discovery
+  completed 66 dossiers: 25 new, 41 updated and fourteen public business-contact
+  candidates, with zero automatic contact authorizations. A ten-creator shortlist
+  task was issued; its completion and any sends remain separate results.
+- Added ADR-0029 and synchronized README, operations, architecture, security,
+  roadmap and system evolution.
+- A real Polish draft completed through local Ollama `qwen3:8b`. Operator
+  review withheld preparation and send approval because its opening attributed
+  unsupported server security verification to the product, despite an empty
+  editorial finding list. This verifies real Polish generation, not usable unedited copy. It was
+  an operator/model evaluation, not a creator reply; no creator-feedback tag or
+  outcome was inferred. A narrow English/Polish platform-security claim refusal
+  and editorial marker were added with a bounded correction hint. The narrow
+  copy/quality suite passed 133 tests, including fifteen added regressions and
+  historical-copy/digest preservation. A live read of the original bad draft
+  now reported stale with the security-claim marker while preserving its body
+  and digest; an actual preparation request returned HTTP 409 and created no
+  outgoing packet.
+- Initial pull-request CI passed its functional and control-image checks but
+  stopped at the isolated action-image scan on CVE-2026-111497 in `libbrotli1`.
+  The action image now pins Ubuntu's exact `1.1.0-2ubuntu0.1` fix. An isolated
+  Brotli install upgraded one existing package, added/removed none, passed APT's
+  dependency check and loaded the decoder library. The combined OpenSSL/Brotli
+  installation upgraded the expected three packages without additions/removals.
+  Post-fix lint/all 955 tests and the complete native, PostgreSQL, UI, planner,
+  delivery and recovery verifier passed against the rebuilt runtime. Agent
+  doctor and the real Mistral `ROUTE_OK` smoke passed again. Pull-request CI at
+  `fc13af6` then passed the 955-test functional gate, repository checks and both
+  rebuilt-image scan/SBOM gates. No vulnerability ignore was added.
+- Additional Polish discovery completed forty dossiers: twelve new, twenty-eight
+  updated and ten public contact candidates. A separate English campaign uses
+  unrestricted country targeting, preferred English and a 250,000-subscriber
+  maximum; its initial discovery added 123 prospects and found twenty-two public
+  contact candidates. The next English scan researched 147, adding 102 and
+  updating 45, with twenty-nine public contact candidates. The workspace held
+  650 prospect records across campaigns at this checkpoint.
+- The launch selected twenty-four from twenty-five qualified
+  candidates, retaining one reviewed public business source per selected
+  recipient. The original canary was excluded from this launch selection.
+  English selection retained declared English or unknown language and the
+  250,000-subscriber maximum; existing Polish country targeting remained strict.
+  All twenty-four selected contacts were individually authorized through the
+  API, then twenty-four Hermes drafting tasks were requested: sixteen English
+  and eight Polish. Two replicas of the existing research worker temporarily
+  drained that queue with distinct hostname-based leases and shared PostgreSQL
+  budgets; no additional model route or sending authority was introduced.
+  All tasks finished: nineteen returned copy and five failed with
+  `CREATOR_DRAFT_MODEL_UNAVAILABLE`; all nineteen successful results reported
+  local Ollama `qwen3:8b`. Source/product review retained one exact
+  AI draft and replaced twenty-three with explicitly reviewed manual copy.
+  Unsupported feature, verification and video-content claims were rejected by
+  operator review, without inventing creator feedback or model self-learning.
+  All twenty-four distinct packets received individual exact approval through
+  the control plane. The ordinary single research worker was then restored.
+- Both campaigns completed governed read-only Gmail checks at 17:58 UTC
+  (23:28 IST), with zero pending reply reviews. The first new invitation's task
+  and action succeeded at 18:00:55.394895 UTC (23:30:55 IST), on attempt one with
+  an SMTP Message-ID and no last error. At this checkpoint one new invitation
+  was SMTP-accepted and twenty-three remained queued, separate from the earlier
+  twelve accepted invitations. Automatic reply-monitoring reads then completed
+  at 18:01:20 UTC for English and 18:03:24 UTC for Polish, both with zero pending
+  replies and no active campaign sending run. This verifies the existing
+  recent-conversation scheduler path, not an actual creator response.
+  The final reserved release is November 2 at
+  04:44:57 UTC (10:14:57 IST), conditional on the running worker, final guards
+  and each packet's 24-hour expiry. Confirmed creator interest and owner handoffs
+  remained zero. No inbox-placement, reply-rate or revenue guarantee is claimed;
+  real incoming-reply proof and Google Testing-mode token longevity remain
+  operating limits. Recipient details and exact copy remain private local evidence.

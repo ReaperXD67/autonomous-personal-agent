@@ -82,8 +82,17 @@ publication date remains separate from the time research ran; declared country
 does not establish content language or viewer location. A partial/provider
 failure remains visible instead of looking like complete coverage.
 
-The server selects uncontacted Minecraft candidates from the saved campaign,
-preferring existing public-contact evidence before relevance. The shortlist
+The server selects uncontacted Minecraft candidates from the saved campaign.
+Within the preceding 24 hours, it prefers creators without a genuine issued
+research reservation, then those attempted least recently; public-contact
+evidence and relevance break ties. This ordering and eligibility filtering
+apply before the 500-candidate cap, so successive batches within that window
+advance beyond the same high-relevance prefix. History must match its canonical
+task-payload audit, current targeting snapshot and exact profile URL. Changed,
+unissued or expired history cannot change current priority. Cancelled or failed
+reservations still count as attempts and consume the existing budget.
+
+The shortlist
 requires a dated Minecraft publication within the campaign's age limit, capped
 at ninety days, an observed subscriber count inside its range, current explicit
 business-contact evidence and eligible declared targeting. **Selected** also
@@ -109,9 +118,11 @@ capability, not an unrestricted Hermes tool connection.
 ## A model-written introduction for each creator
 
 This drafting mode is experimental. Local lifecycle and interface tests pass,
-and the configured local model has returned real responses, but live review has
-not established usable creator-specific copy. Failed validation stops the draft;
-use the separately reviewed manual or template path when appropriate.
+and the configured local model has returned a real Polish draft.
+Live review still found unsupported product-capability wording in a Polish
+canary, so generation and a report without findings do not establish usable
+unedited copy. Failed validation stops the draft; use the separately reviewed
+manual or template path when appropriate.
 
 Within **Prepare introduction**, select **AI personalized draft · review required**
 and choose **Generate personalized draft**. Drafting runs asynchronously through
@@ -128,8 +139,20 @@ reviewed aggregate feedback. Recipient addresses, raw descriptions and raw
 inbox text are excluded. It proposes an opening
 and a content idea, explains the approach and how the observed reach influenced
 the format, and cites recorded evidence. Reach is not a payment formula or a
-promise of views. The first version writes English copy; translated pitches are
-not implemented.
+promise of views. English and Polish are supported output contracts. Preferred
+or strict targeting selects the base of the campaign's `target_language`, such
+as `pl` or `pl-pl`; unrestricted language selection defaults to English.
+Unsupported explicit languages stop before inference. The selected
+`output_language` is frozen in the stored model context, and legacy drafts
+without that field remain English. The model writes its opening and idea in
+the selected language; its operator-only rationale and JSON keys stay English.
+
+For a Polish email, first supply an operator-reviewed Polish product summary,
+paid-offer description and optional revenue basis. The server inserts those
+fields verbatim and does not translate commercial claims or terms. It supplies
+Polish framing and next steps, while deliberately retaining the existing
+English contact-source, privacy and opt-out footer. Inspect the complete
+mixed-language envelope before individual exact-message approval.
 
 The review shows the actual model and source, complete message, evidence links,
 quality notes, and feedback context. Inspect those sources and confirm that the
@@ -148,16 +171,23 @@ Choosing a template is a separate, explicitly labeled option.
 The draft review shows computed editorial findings and the complete-email word
 count before preparation. Older responses without a report display an explicit
 unavailable fallback. The authenticated draft API returns the full `quality_report`
-on existing draft reads. It flags observable wording markers, English copy against a requested
-non-English campaign language, feedback claims with zero reviewed creators,
+on existing draft reads. It flags observable English/Polish wording markers, a
+stored output-language contract that differs from the campaign request,
+platform security-verification claims, feedback claims with zero reviewed creators,
 missing source/next-step markers, and rendered emails over 250 words. The rendered
 count includes terms/footer; the model count covers the hook and content idea.
 Quoted title numbers are evidence, not invented commercial terms. Findings are
 displayed as plain escaped text, alongside the existing quality notes.
 There is no overall score or confidence estimate. The report does not rewrite
 copy, change its digest, persist a review, block preparation or grant authority.
-Naturalness, translation, truthful relevance and semantic accuracy still require
-review. See the [research decision](../research/creator-outreach-intelligence-2026-10.md).
+The language marker records the generation contract rather than detecting or
+certifying the text's actual language. Naturalness, translation, truthful
+relevance and semantic accuracy still require review. A directory listing alone
+does not establish a capability to verify server safety; narrow wording guards
+cannot catch every unsupported claim. Inspect the original copy even when its
+editorial report has no findings. See the
+[editorial evaluation decision](../research/creator-outreach-intelligence-2026-10.md)
+and [current upstream comparison](../research/creator-outreach-systems-2026-11.md).
 
 **Prepare exact AI email** binds the saved draft digest to the ordinary email
 approval packet. It does not send the email or approve its own output. Changed
@@ -192,6 +222,16 @@ guaranteed.
 - A changed brief or owner contact requires a new run and newly prepared exact
   packets. Legacy pending creator packets must be prepared again to acquire the
   new campaign/contact snapshot checks.
+
+The shared SMTP daily capacity is configured by
+`OUTBOUND_EMAIL_DAILY_LIMIT` in ignored local configuration; its repository
+default is twelve. The supported value must be at least the configured hourly
+limit and at most fifty. This is a shared capacity bound for all SMTP messages,
+including handoffs and career mail; it does not qualify contacts, approve copy
+or raise a creator run's separate ten-initials-per-day maximum. After an
+authorized configuration change, reload the affected services and inspect
+`GET /v1/communications/status` plus the exact packets' reserved release times.
+Approved work still has to fit within its expiry and pass the final send guards.
 
 ## Learning from real replies
 
@@ -282,6 +322,36 @@ An invalid or expired OAuth refresh grant means reading is unavailable even when
 settings are present. Complete the [explicit renewal flow](gmail-setup.md#expiry-and-recovery),
 reload the reader and pass a new governed sync. SMTP can remain authenticated
 independently; a successful send does not prove reply monitoring.
+
+## Verified reviewed launch
+
+At the November 1, 2026 launch checkpoint, twenty-four distinct invitations had
+individual contact authorization and exact-message approval: sixteen English and
+eight Polish. Of twenty-four model tasks, nineteen returned copy and five failed
+with `CREATOR_DRAFT_MODEL_UNAVAILABLE`; all nineteen successful results reported
+local Ollama `qwen3:8b`. Source and product review retained one
+exact AI draft and used twenty-three explicitly reviewed manual replacements.
+Those replacements are operator decisions, not creator feedback or evidence that
+the model learned from replies.
+
+The first new invitation was durably SMTP-accepted at 18:00:55 UTC (23:30:55 IST)
+on November 1; twenty-three remained in the paced queue. The final reserved slot
+is November 2 at 04:44:57 UTC (10:14:57 IST). Keep the computer and Docker running
+for the existing action worker to execute eligible packets. Reservations remain
+conditional on final guards and each packet's 24-hour expiry; they are not
+delivery promises. The temporary second research worker was removed after
+drafting, and the ordinary single-worker configuration was restored.
+
+The local shared bound is twenty-four/day, with three/hour, 900-second global
+and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The repository
+default remains twelve/day. After the first new acceptance, automatic read-only
+Gmail monitoring completed at 18:01:20 UTC for English and 18:03:24 UTC for Polish
+(23:31:20 and 23:33:24 IST), both with zero pending reply reviews and no active
+sending run. The earlier twelve
+invitations have separate SMTP-acceptance proof; neither group has confirmed
+creator interest or an owner handoff at this checkpoint. Inbox placement and a
+real incoming-reply matching/replay canary remain separate proof, and Google's
+Testing-mode refresh-token longevity still requires attention.
 
 ## Test before real outreach
 

@@ -218,3 +218,75 @@ def test_existing_draft_read_adds_report_without_database_writes_or_digest_chang
     assert "model_context" not in view
     assert "input_snapshot" not in view
     assert "idempotency_key" not in view
+
+
+def test_polish_stored_language_and_reply_request_are_reported_without_english_mismatch(draft):
+    draft["model_context"]["output_language"] = "pl"
+    draft["input_snapshot"]["campaign"].update(target_language="pl", language_mode="prefer")
+    draft["body"] = draft["body"].replace("Would you like to discuss the test?",
+                                          "Czy chcesz omówić taki niezależny test?")
+    before = deepcopy(draft)
+    report = creator_draft_quality_report(draft)
+    assert report["generated_language"] == "pl"
+    assert "CAMPAIGN_LANGUAGE_MISMATCH" not in codes(report)
+    assert "NEXT_STEP_NOT_DETECTED" not in codes(report)
+    assert report["human_review_required"] and not report["sending_authority"]
+    assert draft == before
+    CreatorDraftQualityReport.model_validate(report)
+
+
+def test_polish_title_question_is_not_a_reply_request_and_markers_do_not_echo_text(draft):
+    draft["model_context"]["output_language"] = "pl"
+    draft["body"] = draft["body"].replace("Public video reference:", "Publiczny tytuł:")
+    draft["body"] = draft["body"].replace("Would you like to discuss the test?", "Dziękuję.")
+    assert "NEXT_STEP_NOT_DETECTED" in codes(creator_draft_quality_report(draft))
+    draft["model_copy"]["hook"] = "Obejrzałem Twój film i bardzo go polubiłem."
+    report = creator_draft_quality_report(draft)
+    assert "VIEWING_CLAIM_MARKER" in codes(report)
+    assert "Obejrzałem" not in json.dumps(report, ensure_ascii=False)
+
+
+def test_polish_citation_after_hook_cannot_supply_a_missing_next_step(draft):
+    draft["model_context"]["output_language"] = "pl"
+    reference = draft["model_context"]["evidence"][0]
+    draft["body"] = (
+        "Cześć,\n\nTemat z tytułu sugeruje możliwą niezależną próbę.\n"
+        f"Publiczny tytuł: „Czy chcesz odkryć nowy serwer?” ({reference['url']}).\n\n"
+        "Dziękuję."
+    )
+    assert "NEXT_STEP_NOT_DETECTED" in codes(creator_draft_quality_report(draft))
+
+
+def test_unknown_language_marker_is_safe_and_explicit_without_exposing_stored_value(draft):
+    draft["model_context"]["output_language"] = "PRIVATE_UNSUPPORTED_LANGUAGE"
+    report = creator_draft_quality_report(draft)
+    assert report["generated_language"] == "en"
+    assert "OUTPUT_LANGUAGE_UNRECOGNIZED" in codes(report)
+    assert "PRIVATE_" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("hook", [
+    "Mogłeś spotkać hakera w Minecraft, ale KarixMC pomaga sprawdzić bezpieczeństwo serwera.",
+    "KarixMC helps you check the security of a Minecraft server before you join.",
+])
+def test_security_feature_claim_gets_an_observable_finding_without_mutating_old_copy(draft, hook):
+    draft["model_context"]["product"] = {"product_name": "KarixMC"}
+    draft["model_copy"]["hook"] = hook
+    before = deepcopy(draft)
+    report = creator_draft_quality_report(draft)
+    assert "SECURITY_VERIFICATION_CLAIM_MARKER" in codes(report)
+    assert draft == before and not report["sending_authority"]
+    assert hook not in json.dumps(report, ensure_ascii=False)
+
+
+def test_hacker_title_and_creator_own_assessment_are_not_platform_security_claims(draft):
+    evidence = draft["model_context"]["evidence"][0]
+    draft["body"] = draft["body"].replace(
+        evidence["title"], "KarixMC verifies server security: a hacker challenge?",
+    )
+    evidence["title"] = "KarixMC verifies server security: a hacker challenge?"
+    draft["model_copy"]["content_idea"] = (
+        "You could use KarixMC to independently assess server safety and report your own findings."
+    )
+    draft["model_context"]["product"] = {"product_name": "KarixMC"}
+    assert "SECURITY_VERIFICATION_CLAIM_MARKER" not in codes(creator_draft_quality_report(draft))
