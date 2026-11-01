@@ -8,6 +8,7 @@ import pytest
 
 from app import action_worker, job_worker
 from app.action_store import ActionStore
+from app.career_draft_grounding import build_grounding_inventory
 from app.inference import InferenceResult, OpenRouterPlan
 from app.marketing_store import MarketingStore
 
@@ -85,10 +86,13 @@ def test_draft_saves_model_result_without_preparing_unplanned_workflow_action(
 ) -> None:
     profile_id, opportunity_id, task_id = uuid4(), uuid4(), uuid4()
     database = Mock(spec=MarketingStore)
-    context = {"resume_text": "Synthetic experience", "title": "Software Engineer"}
+    context = {"resume_text": "Synthetic Python experience", "title": "Software Engineer"}
     content = {
         "fit_summary": "Synthetic fit", "evidence": ["Python"], "honest_gaps": [],
-        "resume_keywords": ["Python"], "cover_letter": "Synthetic draft.",
+        "resume_keywords": ["Python"], "cover_letter": (
+            "I would welcome a discussion about the engineering role and the team's "
+            "requirements. My resume describes Python experience that I can discuss in detail."
+        ),
     }
     database.get_draft_context.return_value = context
     database.start_inference_invocation.return_value = uuid4()
@@ -128,7 +132,7 @@ def test_draft_switches_to_next_ranked_model_after_invalid_output(
 ) -> None:
     profile_id, opportunity_id, task_id = uuid4(), uuid4(), uuid4()
     database = Mock(spec=MarketingStore)
-    database.get_draft_context.return_value = {
+    context = {
         "candidate_name": "Synthetic Candidate",
         "company": "Synthetic Company",
         "title": "Software Engineer",
@@ -136,15 +140,19 @@ def test_draft_switches_to_next_ranked_model_after_invalid_output(
         "description": "Build Python services.",
         "resume_text": "Synthetic Python experience.",
     }
+    database.get_draft_context.return_value = context
     invocation_ids = [uuid4(), uuid4()]
     database.start_inference_invocation.side_effect = invocation_ids
     database.try_create_automatic_application_action.return_value = None
     valid = {
         "fit_summary": "Synthetic fit",
-        "evidence": ["Python"],
+        "evidence_ids": [build_grounding_inventory(context)["evidence"][0]["id"]],
         "honest_gaps": [],
-        "resume_keywords": ["Python"],
-        "cover_letter": "Synthetic draft.",
+        "resume_keyword_ids": [],
+        "cover_letter": (
+            "I would welcome a discussion about the engineering role and the team's "
+            "requirements. My resume describes Python experience that I can discuss in detail."
+        ),
     }
 
     class SmartClient:

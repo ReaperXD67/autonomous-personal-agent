@@ -17,6 +17,8 @@ from urllib.parse import urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID
 
+from app.settings import ConfigurationError, career_gmail_credentials
+
 READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
 GMAIL_ID = re.compile(r"[A-Za-z0-9_-]{1,128}\Z")
 MAX_LIST = 50
@@ -425,10 +427,13 @@ def execute_gmail_sync(task: dict[str, Any], store: Any, settings: Any,
     profile_id = UUID(str(task["payload"]["profile_id"]))
     profile = store.get_profile(profile_id)
     check_interrupted()
-    client = GmailReadClient(settings.gmail_client_id, settings.gmail_client_secret,
-                             settings.gmail_refresh_token)
-    mailbox = client.mailbox()
     expected_mailbox = (profile.get("application_identity") or {}).get("email", "").casefold()
+    try:
+        credentials = career_gmail_credentials(settings, expected_mailbox)
+    except ConfigurationError as exc:
+        raise GmailSyncError(str(exc)) from None
+    client = GmailReadClient(*credentials)
+    mailbox = client.mailbox()
     if mailbox != expected_mailbox:
         raise GmailSyncError("Gmail mailbox must match the career profile application email")
     label_name = settings.gmail_career_label

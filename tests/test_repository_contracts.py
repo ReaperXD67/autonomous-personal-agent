@@ -417,6 +417,21 @@ def test_repository_agent_guidance_enforces_engineering_records() -> None:
         assert required in guidance
 
 
+def test_career_contact_database_smoke_is_part_of_full_verification() -> None:
+    verify = (ROOT / "scripts/verify.ps1").read_text(encoding="utf-8")
+    launcher = (ROOT / "scripts/career-contact-smoke.ps1").read_text(encoding="utf-8")
+    probe = (ROOT / "scripts/career-contact-smoke.py").read_text(encoding="utf-8")
+    assert "'career-contact-smoke.ps1'" in verify
+    assert "config/postgres/init" in launcher
+    assert "docker compose exec -T control-api python -" in launcher
+    assert "career-contact-smoke.py" in launcher
+    assert "career_contact_probe_[0-9a-f]{32}" in probe
+    assert 'name != conninfo_to_dict(source).get("dbname")' in probe
+    assert 'sql.Identifier(name)' in probe
+    assert 'side_effect=AssertionError("HTTP forbidden")' in probe
+    assert 'side_effect=AssertionError("SMTP forbidden")' in probe
+
+
 def test_env_example_contains_placeholders_not_common_secret_prefixes() -> None:
     content = (ROOT / ".env.example").read_text(encoding="utf-8")
     assert "CHANGE_ME" in content

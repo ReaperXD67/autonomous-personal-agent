@@ -62,8 +62,9 @@ capability must enter this registry before its handler is reachable.
 - evidence-thresholded creator-copy adaptation limited to fixed draft variants;
   it cannot alter contacts, offers, budgets, capability risk, code, approvals,
   or sending authority;
-- résumé text excluded from queue/task/audit/public-source payloads and local
-  draft output constrained to a structured schema;
+- résumé text excluded from queue/task/audit/public-source payloads; draft evidence
+  and keyword output constrained to server-issued finite ID choices and exact
+  source-text resolution rather than model-authored quotations;
 - hosted résumé drafting disabled by default; its only eligible model IDs end in
   `:free`, carry zero catalog price, appear in the active ZDR endpoint inventory,
   and return zero usage cost; no-training/ZDR provider filters, an atomic daily
@@ -119,6 +120,17 @@ Generation-time quality metadata cannot authorize a packet by itself. Draft-row
 waits are followed by a new wall-clock/scope check before approval and at final
 submission. Prompt-view sanitization and narrow lexical claim checks are defense
 in depth; they do not prove semantic truth or provide a general injection defense.
+
+New career drafts bind excerpt/keyword IDs to the complete résumé hash, select only
+from a bounded private inventory, and resolve exact source substrings on the server.
+The final guard recomputes hash/ID/text consistency; malformed, stale or rewritten
+grounding requires review even if a stored quality verdict says it passed. Older
+snapshots retain their existing literal-evidence checks. Correctable output gets at
+most one extra model call during a generation attempt, separately reserved in the
+inference ledger. Hosted repair reuses the already selected free/privacy route and
+shared cap; failure preserves the blocked original and cannot authorize a substitute
+template or a paid route. No quote/keyword guarantee extends to semantic claims in
+free prose, eligibility or job authenticity.
 
 SmartRecruiters discovery uses a fixed public API host, validated company/job
 identities, refused redirects, bounded response and request counts, and explicit
@@ -261,3 +273,14 @@ learning. Adaptation selects fixed future-copy strategies and retains evidence,
 commercial terms and required footers. It cannot change a frozen packet or expand
 authority. Legacy opt-outs are backfilled into durable global address suppression;
 manual suppression and final delivery synchronize on the same recipient lock.
+
+Reviewed career contacts outside posting text require a primary-source
+attestation and exact published-address quote; the API does not authenticate the
+source or discover addresses. A review expires within 72 hours and binds one
+profile/job snapshot. New contact emails require a matching configured SMTP
+identity and individual exact-message approval. The final fence rechecks source,
+draft, profile, publication age, fit, revocation, expiry, global suppression and
+canonical job/address delivery history. Contact reviews cannot expand Play.
+The shared recipient lock also serializes creator Gmail opt-out commits with
+career/general SMTP receipt authorization. A send already past the final receipt
+boundary may complete. See [ADR-0032](../decisions/ADR-0032-grounded-career-drafts-and-isolated-mail.md).

@@ -29,6 +29,45 @@ class SideEffectGuardError(RuntimeError):
     pass
 
 
+def guard_email_suppression(connection: Any, action: dict[str, Any]) -> None:
+    """Honor recipient opt-outs and serialize career email delivery across paths."""
+    if action["action_type"] != "communications.email_send":
+        return
+    from app.marketing import contact_is_suppressed
+
+    recipient = str(action["private_context"].get("recipient") or "").strip().casefold()
+    connection.execute(
+        "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+        (f"creator-email:{recipient}",),
+    )
+    if contact_is_suppressed(connection, recipient):
+        raise SideEffectGuardError("Email recipient is durably suppressed")
+    if action.get("opportunity_id") is not None:
+        from app.career_autopilot import target_key
+
+        opportunity = connection.execute(
+            "SELECT profile_id, apply_url FROM job_opportunities WHERE id = %s",
+            (action["opportunity_id"],),
+        ).fetchone()
+        if opportunity is None:
+            raise SideEffectGuardError("Career email opportunity no longer exists")
+        prior = connection.execute(
+            "SELECT a.id, o.apply_url FROM external_actions a "
+            "JOIN job_opportunities o ON o.id = a.opportunity_id "
+            "WHERE o.profile_id = %s AND a.action_type = 'communications.email_send' "
+            "AND a.id <> %s AND lower(a.private_context->>'recipient') = %s "
+            "AND a.status IN ('executing', 'succeeded', 'ambiguous') LIMIT 2001",
+            (opportunity["profile_id"], action["id"], recipient),
+        ).fetchall()
+        if len(prior) > 2000:
+            raise SideEffectGuardError("Career contact delivery history needs operator review")
+        target = target_key(opportunity["apply_url"])
+        if any(target_key(row["apply_url"]) == target for row in prior):
+            raise SideEffectGuardError(
+                "This job/contact email already has a delivery or uncertain outcome"
+            )
+
+
 class ActionStore(CareerStore):
     def save_preflight(
         self, *, opportunity_id: UUID, task_id: UUID, result: dict[str, Any]
@@ -482,6 +521,12 @@ class ActionStore(CareerStore):
                     raise SideEffectGuardError(
                         "External email is missing its durable send schedule"
                     )
+            # Marketing locks its prospect before the shared recipient lock;
+            # preserve that order so a concurrent opt-out cannot deadlock here.
+            guard_email_suppression(connection, row)
+            from app.career_contacts import guard_career_contact_action
+
+            guard_career_contact_action(connection, row)
             # Read wall-clock time after every potentially blocking row lock.
             boundary_time = connection.execute(
                 "SELECT clock_timestamp() AS boundary_time"
@@ -577,7 +622,9 @@ class ActionStore(CareerStore):
                 connection.execute(
                     "UPDATE job_opportunities SET status = 'applied', applied_at = now() "
                     "WHERE id = %s AND EXISTS (SELECT 1 FROM career_autopilot_actions "
-                    "WHERE action_id = %s)", (action["opportunity_id"], action["id"]),
+                    "WHERE action_id = %s UNION ALL SELECT 1 FROM career_contact_actions "
+                    "WHERE action_id = %s)",
+                    (action["opportunity_id"], action["id"], action["id"]),
                 )
                 schedule = connection.execute(
                     """

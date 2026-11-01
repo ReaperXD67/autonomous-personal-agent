@@ -31,14 +31,35 @@ dedicated Redis list and the career worker claims them. The caller supplies only
 profile/opportunity IDs. The worker loads résumé data from PostgreSQL only when
 drafting. Raw résumé text is absent from queue envelopes, task payloads, audit
 metadata, and public job-source requests. Hosted drafting is explicit opt-in:
-the worker reserves the daily call, sends résumé/job text only through the
-preverified free/privacy route, records route metadata, and falls back locally
-on any policy or availability failure. Candidate selection refreshes from the
+the worker reserves the daily call, sends bounded résumé choices and job text only
+through the preverified free/privacy route, records route metadata, and falls back
+locally when configured rather than weakening that policy. Candidate selection refreshes from the
 live catalog and active ZDR endpoint inventory, uses benchmark/capability order,
 and caps the wire request at one primary plus three fallbacks. If the served
 model returns empty or schema-invalid output, that attempt remains counted and
 audited, the route cools, and the next candidate gets a separately reserved
 request before local fallback.
+
+Draft preparation issues IDs bound to the full résumé snapshot and exact source
+substrings: at most 28 excerpts of 400 characters and 32 supported keyword choices
+from the first 16,000 résumé characters. Evidence choices omit candidate-name lines,
+recognized email/phone/URL spans and common headings. Models select at most six excerpt IDs and twelve
+keyword IDs; the server resolves the product's text fields and stores source-hash
+provenance. Neither model-authored quotations nor model-supplied quality reports
+become trusted evidence. Existing draft snapshots are not rewritten.
+
+The deterministic review checks source grounding, length, placeholders, narrow
+metric/tenure claims and posting integrity. Correctable findings allow one additional
+model call during that generation attempt, with its own PostgreSQL inference
+reservation and usage record. Hosted correction uses only the selected free route
+and its shared daily cap; it does not rerun provider fallback. Invalid selections
+remain review-required, and failed/non-improving correction retains the original
+draft rather than substituting a template. Source-integrity warnings alone do not
+trigger a correction. Before delegated approval and final receipt, current résumé
+text, issued IDs and rendered evidence are checked again under the existing action
+hash, scope, lease and post-lock expiry fences. These checks do not establish
+semantic truth, screening eligibility or writing quality.
+
 The worker sorts new matches by score and publication time before selecting the
 bounded auto-prepare set. Search, filtering, scoring, and form preflight remain
 deterministic and consume neither hosted pool.

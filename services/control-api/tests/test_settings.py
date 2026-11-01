@@ -1,6 +1,6 @@
 import pytest
 
-from app.settings import ConfigurationError, Settings
+from app.settings import ConfigurationError, Settings, career_gmail_credentials
 
 
 def make_settings(**overrides: object) -> Settings:
@@ -69,6 +69,85 @@ def test_rejects_unbounded_or_url_shaped_trusted_hosts() -> None:
 
 def test_accepts_complete_configuration() -> None:
     make_settings().validate()
+
+
+def test_career_gmail_override_preserves_shared_creator_credentials() -> None:
+    settings = make_settings(**{
+        "gmail_client_id": "creator-id", "gmail_client_secret": "creator-secret",
+        "gmail_refresh_token": "creator-refresh", "gmail_career_client_id": "career-id",
+        "gmail_career_client_secret": "career-secret",
+        "gmail_career_refresh_token": "career-refresh",
+        "gmail_career_mailbox": "career@example.test",
+    })
+    settings.validate()
+    assert career_gmail_credentials(settings, "CAREER@example.test") == (
+        "career-id", "career-secret", "career-refresh",
+    )
+    shared = (settings.gmail_client_id, settings.gmail_client_secret, settings.gmail_refresh_token)
+    assert shared == ("creator-id", "creator-secret", "creator-refresh")
+
+
+def test_career_gmail_retains_legacy_complete_grant() -> None:
+    settings = make_settings(**{
+        "gmail_client_id": "legacy-id", "gmail_client_secret": "legacy-secret",
+        "gmail_refresh_token": "legacy-refresh",
+    })
+    assert career_gmail_credentials(settings, "career@example.test") == (
+        "legacy-id", "legacy-secret", "legacy-refresh",
+    )
+
+
+@pytest.mark.parametrize("overrides", [
+    {"gmail_career_client_id": "career-id"},
+    {"gmail_career_client_secret": "career-secret"},
+    {"gmail_career_refresh_token": "career-refresh"},
+    {"gmail_career_client_id": "career-id", "gmail_career_client_secret": "career-secret"},
+])
+def test_partial_career_gmail_never_borrows_shared_credentials(overrides) -> None:
+    settings = make_settings(**{
+        "gmail_client_id": "creator-id", "gmail_client_secret": "creator-secret",
+        "gmail_refresh_token": "creator-refresh", **overrides,
+    })
+    with pytest.raises(ConfigurationError, match="configured together"):
+        settings.validate()
+
+
+def test_dedicated_career_gmail_requires_recorded_identity() -> None:
+    settings = make_settings(**{
+        "gmail_career_client_id": "career-id", "gmail_career_client_secret": "secret",
+        "gmail_career_refresh_token": "refresh",
+    })
+    with pytest.raises(ConfigurationError, match="requires GMAIL_CAREER_MAILBOX"):
+        settings.validate()
+
+
+@pytest.mark.parametrize("mailbox", [
+    "Career <career@example.test>", "career@example", "bad\n@example.test",
+])
+def test_career_gmail_requires_plain_recorded_mailbox(mailbox) -> None:
+    with pytest.raises(ConfigurationError, match="one plain email"):
+        make_settings(gmail_career_mailbox=mailbox).validate()
+
+
+def test_career_gmail_recorded_identity_must_match_selected_profile() -> None:
+    settings = make_settings(gmail_career_mailbox="career@example.test")
+    with pytest.raises(ConfigurationError, match="must match the career profile"):
+        career_gmail_credentials(settings, "different@example.test")
+
+
+def test_career_gmail_environment_is_separate_and_normalizes_identity(monkeypatch) -> None:
+    monkeypatch.setenv("CONTROL_API_TOKEN", "x" * 32)
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db/test")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost/0")
+    monkeypatch.setenv("GMAIL_CLIENT_ID", "creator-id")
+    monkeypatch.setenv("GMAIL_CAREER_CLIENT_ID", "career-id")
+    monkeypatch.setenv("GMAIL_CAREER_CLIENT_SECRET", "career-secret")
+    monkeypatch.setenv("GMAIL_CAREER_REFRESH_TOKEN", "career-refresh")
+    monkeypatch.setenv("GMAIL_CAREER_MAILBOX", " Career@Example.Test ")
+    settings = Settings.from_environment()
+    assert settings.gmail_client_id == "creator-id"
+    assert settings.gmail_career_mailbox == "career@example.test"
+    assert career_gmail_credentials(settings) == ("career-id", "career-secret", "career-refresh")
 
 
 def test_rejects_unbounded_browser_session_lifetime() -> None:

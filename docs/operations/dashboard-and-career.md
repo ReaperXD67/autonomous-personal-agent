@@ -61,9 +61,9 @@ overdue active missions are picked up after restart.
    Greenhouse, or Lever employer board slugs.
 7. Paste plain résumé text. It is stored in PostgreSQL, hidden from profile API
    responses, and omitted from task payloads/audit metadata. Drafting stays on
-   local Qwen unless you explicitly enable OpenRouter; hosted drafting sends the
-   résumé and selected job to the verified free model/provider under the
-   configured privacy policy.
+   local Qwen unless you explicitly enable OpenRouter; hosted drafting sends bounded
+   résumé excerpts, supported keyword choices and the selected job to the verified
+   free model/provider under the configured privacy policy.
 8. Complete the application identity. This supplies routine name/contact fields
    but never invents screening, legal, demographic, or consent answers.
 9. Save the mission and open **Play**. Choose preparation or a scoped automatic
@@ -73,12 +73,28 @@ overdue active missions are picked up after restart.
 
 Fresh matches appear under **Opportunities** with posting time, source link,
 score, and matching reasons. Shortlist or dismiss them. **Generate private
-draft** creates a truthful fit summary, résumé evidence, honest gaps, keywords,
-and cover-letter draft through the policy-compatible benchmark/capability-ranked
-free route with local Qwen continuity. Provider errors, empty output, and
-schema-invalid output move to the next ranked candidate under a separately
-counted reservation; exhausted hosted candidates move to Qwen. The **Settings**
-page shows which route actually ran. **Inspect form** opens only a reviewed
+draft** creates a fit summary, résumé evidence, honest gaps, keywords, and cover
+letter through the policy-compatible ranked free route with local Qwen continuity.
+The server issues content-bound IDs for exact résumé excerpts and supported literal
+keywords. The model chooses IDs; the server resolves their original text, so the
+model cannot rewrite a quotation or add an unsupported résumé keyword. Recognized
+email/phone/URL spans, candidate-name lines and common headings are excluded from
+evidence choices. Older saved drafts remain unchanged.
+
+Provider errors, empty output, and structurally invalid output move to the next
+ranked candidate under a separately counted reservation; exhausted hosted candidates
+move to Qwen when local fallback is enabled. A deterministic review checks grounding,
+cover-letter length, placeholders, unsupported metrics and tenure, and posting
+integrity. Correctable findings allow **one** additional model call with its own
+inference-ledger reservation. Hosted repair reuses the selected free route; it never
+fans out to paid models. Failed or quota-blocked repair preserves the original draft
+for review, without a substitute template. Source-integrity warnings alone do not
+spend a repair call. Grounding is checked again against the current résumé before
+automatic submission; these mechanical checks do not prove semantic truth or eligibility.
+Task output records `quality_repair_model_calls` and `quality_repair_status`; the
+deterministic review's `quality_model_calls` stays zero.
+
+The **Settings** page shows which route actually ran. **Inspect form** opens only a reviewed
 Greenhouse, Ashby, or Lever hosted form in the isolated worker. **Prepare exact
 submission** resolves routine fields and asks for every unknown required answer.
 It freezes the final host, form signature, values, résumé/draft hashes, and
@@ -171,7 +187,8 @@ privacy and free-tier terms.
   shared request quotas, availability, privacy endpoints, and terms can change.
   The system validates current price, active ZDR compatibility, returned model,
   and returned cost; it cannot promise third-party free capacity or output
-  quality. Invalid hosted output is rejected before it becomes a draft.
+  quality. Structurally invalid hosted output is rejected. Invalid grounding can be
+  retained as a blocked, inspectable draft and gets at most one corrective call.
 - Arbeitnow and public Ashby, Greenhouse, and Lever boards need no API key for
   discovery. Public hosted application forms do not guarantee automation
   compatibility or permission under every employer/site's terms.

@@ -3173,3 +3173,61 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   eight by excluded terms, seven by title and three below profile fit. These are
   scan counts, not unique opportunities across both scans. No career application
   has been submitted; the active finite run has no application reservation yet.
+
+## 2026-11-02 — Reliable career drafts, independent Gmail and reviewed hiring contacts
+
+- Replaced model-authored résumé quotes/keywords in new career drafts with
+  content-bound server-issued choices. Resolution preserves exact source text;
+  provenance is recomputed at quality and final action boundaries. Existing
+  immutable drafts remain unchanged. At most one correction is separately
+  reserved/accounted through the same model privacy, free-route and lease path.
+  Failed correction leaves the inspectable draft blocked. Deterministic checking
+  still makes zero model calls; free-text assertions require substantive review.
+- Added independent worker-only Career Gmail credentials and `-Purpose Career`
+  to the native PKCE helper. Exact account/scope/custom-label checks, all-or-none
+  tuple selection, safe legacy fallback, separate renewal and atomic writes
+  preserve the working Creator grant. A dedicated career label was created in
+  the owner's selected mailbox. The owner deferred Google consent; the waiting
+  helper was stopped and its temporary Desktop client copy removed. Career
+  monitoring remains disabled and unverified; no new OAuth grant was saved.
+- Added expiring, primary-source-attested public hiring/HR/founder contact
+  reviews and normal exact-message individual approvals. Migration 026 binds
+  contact/job/profile/action ledgers. Current fit/publication, sender identity,
+  source/draft/profile, expiry/revocation and canonical target duplicates are
+  checked again at delivery. This does not broaden Apply grants. This transport
+  has no résumé attachment and refuses claims that one is attached.
+- Extended common SMTP suppression to every email path and synchronized creator
+  Gmail opt-out writes with the recipient boundary. Independent review found and
+  corrected canonical duplicate-import and profile-linkage gaps. The maintained
+  disposable PostgreSQL contact proof covers real ledger/approval creation,
+  concurrent planning, revocation, cross-path opt-out serialization and migration
+  constraints without HTTP, SMTP, models or real accounts.
+- Reused the existing pinned research and finite-evidence pattern; no upstream
+  code, new dependency or service was added. Updated README, runbooks,
+  architecture/security/roadmap, SYSTEM_EVOLUTION and ADR-0032.
+- Added four primary-source-reviewed employer boards through authenticated
+  profile APIs, pausing the finite Apply run while changing its snapshot. The
+  governed scan checked 960 normalized records across 34 successful sources out
+  of 35. It retained one PhonePe SmartRecruiters match; 844 were outside72 hours,
+  97 failed location, eight excluded terms, seven titles and three fit. Discovery
+  used zero model calls. No extra suitable supported-ATS posting or qualified
+  dated hiring-email lead was verified; no application/email was submitted.
+- The first complete verifier passed 1,241 tests plus native, PostgreSQL and
+  actual-browser groups. Subsequent review added repair accounting/cancellation,
+  contact integrity and suppression regressions. A rebuilt final unit gate passed
+  1,251 tests; final full verification and live grounded draft proof follow below.
+- Preserved the separate original checkout's creator-continuation branch and
+  uncommitted work. This milestone remains isolated in its managed codex branch.
+- The rebuilt complete verifier then passed all 1,251 tests and native OAuth,
+  SMTP setup, lifecycle/recovery/workflow/scheduler, creator, career/contact,
+  planner, delivery and network-disabled browser groups. The early development
+  test attempt found one overlong SMTP guard line; it was corrected before the
+  final green runs. Compose validation and diff checks passed.
+- Applied migration 026 and refreshed only API, career and action workers from
+  the validated images, preserving the original dirty creator checkout and
+  existing provider configuration. Agent doctor passed; a real harmless gateway
+  canary returned ROUTE_OK through the Mistral free/default route. Re-enabled the
+  owner-authorized 24-hour ATS-only Apply scope with the saved three/day, fit75,
+  72-hour window and reviewed hosts; career email remains disabled because the
+  configured sender differs from the chosen career identity. Queued a new real
+  grounded draft, preserving the previous rejected draft.
