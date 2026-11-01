@@ -323,6 +323,36 @@ settings are present. Complete the [explicit renewal flow](gmail-setup.md#expiry
 reload the reader and pass a new governed sync. SMTP can remain authenticated
 independently; a successful send does not prove reply monitoring.
 
+## Verified reviewed launch
+
+At the November 1, 2026 launch checkpoint, twenty-four distinct invitations had
+individual contact authorization and exact-message approval: sixteen English and
+eight Polish. Of twenty-four model tasks, nineteen returned copy and five failed
+with `CREATOR_DRAFT_MODEL_UNAVAILABLE`; all nineteen successful results reported
+local Ollama `qwen3:8b`. Source and product review retained one
+exact AI draft and used twenty-three explicitly reviewed manual replacements.
+Those replacements are operator decisions, not creator feedback or evidence that
+the model learned from replies.
+
+The first new invitation was durably SMTP-accepted at 18:00:55 UTC (23:30:55 IST)
+on November 1; twenty-three remained in the paced queue. The final reserved slot
+is November 2 at 04:44:57 UTC (10:14:57 IST). Keep the computer and Docker running
+for the existing action worker to execute eligible packets. Reservations remain
+conditional on final guards and each packet's 24-hour expiry; they are not
+delivery promises. The temporary second research worker was removed after
+drafting, and the ordinary single-worker configuration was restored.
+
+The local shared bound is twenty-four/day, with three/hour, 900-second global
+and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The repository
+default remains twelve/day. After the first new acceptance, automatic read-only
+Gmail monitoring completed at 18:01:20 UTC for English and 18:03:24 UTC for Polish
+(23:31:20 and 23:33:24 IST), both with zero pending reply reviews and no active
+sending run. The earlier twelve
+invitations have separate SMTP-acceptance proof; neither group has confirmed
+creator interest or an owner handoff at this checkpoint. Inbox placement and a
+real incoming-reply matching/replay canary remain separate proof, and Google's
+Testing-mode refresh-token longevity still requires attention.
+
 ## Test before real outreach
 
 Complete the [owned-inbox launch proof](creator-outreach.md#prove-an-owned-inbox-launch)

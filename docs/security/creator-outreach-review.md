@@ -116,8 +116,13 @@ a review of a configured mail provider's terms.
   English/Polish actor-specific guard now refuses observable platform-security
   claims during generation validation, supplies a bounded correction hint and
   exposes an editorial finding when reading affected stored copy. Reporting
-  does not rewrite the original copy or digest. This operator finding is not a
-  creator reply or a learned creator objection.
+  does not rewrite the original copy or digest. A live read marked that original
+  draft stale, preserved its body/digest and exposed the security-claim marker;
+  preparation returned HTTP 409 without creating an outgoing packet. This
+  operator finding is not a creator reply or a learned creator objection.
+  The subsequent twenty-four-message launch retained one exact AI draft and
+  twenty-three explicit manual replacements, each separately approved after
+  review. Model completion was not treated as permission to send.
 - Residual risk: lexical/schema validation cannot prove truth, contextual
   relevance or product availability. The operator must inspect the sources and
   complete copy. The model sees only sampled metadata, not the actual video.

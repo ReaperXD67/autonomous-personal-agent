@@ -2954,8 +2954,9 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   installation upgraded the expected three packages without additions/removals.
   Post-fix lint/all 955 tests and the complete native, PostgreSQL, UI, planner,
   delivery and recovery verifier passed against the rebuilt runtime. Agent
-  doctor and the real Mistral `ROUTE_OK` smoke passed again. No vulnerability
-  ignore was added; the clean-CI action-image scan remains a release gate.
+  doctor and the real Mistral `ROUTE_OK` smoke passed again. Pull-request CI at
+  `fc13af6` then passed the 955-test functional gate, repository checks and both
+  rebuilt-image scan/SBOM gates. No vulnerability ignore was added.
 - Additional Polish discovery completed forty dossiers: twelve new, twenty-eight
   updated and ten public contact candidates. A separate English campaign uses
   unrestricted country targeting, preferred English and a 250,000-subscriber
@@ -2963,7 +2964,7 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   contact candidates. The next English scan researched 147, adding 102 and
   updating 45, with twenty-nine public contact candidates. The workspace held
   650 prospect records across campaigns at this checkpoint.
-- The planned launch selected up to twenty-four from twenty-five qualified
+- The launch selected twenty-four from twenty-five qualified
   candidates, retaining one reviewed public business source per selected
   recipient. The original canary was excluded from this launch selection.
   English selection retained declared English or unknown language and the
@@ -2973,7 +2974,26 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   and eight Polish. Two replicas of the existing research worker temporarily
   drained that queue with distinct hostname-based leases and shared PostgreSQL
   budgets; no additional model route or sending authority was introduced.
-  Draft-validation failures remained visible while generation continued. This
-  does not establish that all copy was ready or approved. Zero new outgoing
-  approvals or SMTP acceptances were recorded at this fix checkpoint, and
-  confirmed creator interest remained zero.
+  All tasks finished: nineteen returned copy and five failed with
+  `CREATOR_DRAFT_MODEL_UNAVAILABLE`; all nineteen successful results reported
+  local Ollama `qwen3:8b`. Source/product review retained one exact
+  AI draft and replaced twenty-three with explicitly reviewed manual copy.
+  Unsupported feature, verification and video-content claims were rejected by
+  operator review, without inventing creator feedback or model self-learning.
+  All twenty-four distinct packets received individual exact approval through
+  the control plane. The ordinary single research worker was then restored.
+- Both campaigns completed governed read-only Gmail checks at 17:58 UTC
+  (23:28 IST), with zero pending reply reviews. The first new invitation's task
+  and action succeeded at 18:00:55.394895 UTC (23:30:55 IST), on attempt one with
+  an SMTP Message-ID and no last error. At this checkpoint one new invitation
+  was SMTP-accepted and twenty-three remained queued, separate from the earlier
+  twelve accepted invitations. Automatic reply-monitoring reads then completed
+  at 18:01:20 UTC for English and 18:03:24 UTC for Polish, both with zero pending
+  replies and no active campaign sending run. This verifies the existing
+  recent-conversation scheduler path, not an actual creator response.
+  The final reserved release is November 2 at
+  04:44:57 UTC (10:14:57 IST), conditional on the running worker, final guards
+  and each packet's 24-hour expiry. Confirmed creator interest and owner handoffs
+  remained zero. No inbox-placement, reply-rate or revenue guarantee is claimed;
+  real incoming-reply proof and Google Testing-mode token longevity remain
+  operating limits. Recipient details and exact copy remain private local evidence.

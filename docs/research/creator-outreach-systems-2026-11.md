@@ -40,13 +40,16 @@ resume checkpoints. Its [campaign queries](https://github.com/knadh/listmonk/blo
 retain that progress in PostgreSQL. Mautic's [background imports](https://docs.mautic.org/en/7.1/contacts/import_contacts.html)
 likewise continue from the saved row rather than restarting each batch.
 
-The applicable pattern is durable progress, not listmonk's exact cursor or its
-sending semantics. Hermes can independently use its server-issued research
-reservation history to prefer never-attempted and then least-recently-attempted
-eligible creators. Failed/cancelled work must still consume its existing budget;
-idempotency, campaign locking, bounded selection, contact review and sending
-authority remain separate. This is selected for implementation, with concurrency
-and PostgreSQL proof required before reporting it as validated.
+Hermes now independently uses genuine server-issued reservation audits from
+the preceding 24 hours, matched to canonical payload hash, current targeting
+snapshot and exact profile URL. Eligible creators without a matching attempt
+precede the oldest attempts, before contact/relevance tie-breakers and the
+500-candidate cap. This is rolling progress rather than a lifetime cursor.
+Failed/cancelled work still consumes its existing budget; idempotency, campaign
+locking, contact review and sending authority remain separate. Eleven
+PostgreSQL shortlist proof groups passed, including selection from a
+501-candidate fixture. No listmonk code or sending semantics
+were imported.
 
 ### Bind drafting language to the reviewed snapshot
 
@@ -60,11 +63,15 @@ The marker records a generation contract, not certification that every line has
 been translated. Unsupported languages remain explicit rather than silently
 being described as translated.
 
-This is selected for Hermes's existing constrained drafting path, not a Mautic
-dependency or copied translation library. Existing immutable evidence/digests,
-individual approval and final send guards remain necessary. A passing schema or
-language check does not prove fluent copy or creator interest; a real reviewed
-model response remains a separate validation result.
+This is implemented in Hermes's existing constrained drafting path without a
+Mautic dependency or copied translation library. The selected language is frozen
+with the evidence; legacy contexts remain English. Ten PostgreSQL draft proof
+groups passed, including Polish rendering. A real local Polish response also
+completed, but operator review rejected its unsupported product-security claim
+before preparation or sending. Immutable evidence/digests, individual approval
+and final send guards remain necessary; passing schema/language checks do not
+prove fluent, truthful copy or creator interest. The journal and experiment log
+record the subsequent reviewed launch separately.
 
 ## Useful future work, with explicit prerequisites
 

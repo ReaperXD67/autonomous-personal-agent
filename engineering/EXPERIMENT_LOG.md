@@ -1065,16 +1065,21 @@ twenty-eight, with ten public contact candidates. The initial unrestricted-count
 English campaign discovery added 123 prospects and found twenty-two public contact
 candidates. Its next scan researched 147, adding 102 and updating 45, with
 twenty-nine public contact candidates. The workspace held 650 prospect records
-across campaigns. Up to twenty-four launch recipients were selected from
+across campaigns. Twenty-four launch recipients were selected from
 twenty-five qualified candidates; the original canary was excluded. The English
 selection retained declared English or unknown language and a 250,000-subscriber
 maximum, with existing Polish country targeting still strict. Twenty-four
 contacts then received individual API authorization and twenty-four draft tasks
 were requested, sixteen English and eight Polish. Two temporary replicas of the
 existing research worker used distinct hostname leases and the same durable
-budgets. Some validation failures remained visible while generation continued;
-this is not a claim that all copy was ready. No new outgoing invitation was
-approved or SMTP-accepted at this checkpoint, with confirmed interest still zero.
+budgets. All twenty-four model tasks finished: nineteen returned copy and five
+failed with `CREATOR_DRAFT_MODEL_UNAVAILABLE`; all nineteen successful results
+reported local Ollama `qwen3:8b`. Exact source/product review retained
+one AI draft and used twenty-three explicit manual replacements; unsupported
+feature, verification and video-content claims were rejected. These operator
+decisions are not creator feedback or evidence of model self-learning. Each of
+the twenty-four distinct invitations then received individual exact approval,
+and the ordinary single research worker was restored.
 
 The published instruction-only skill was installed through the official helper
 from commit `8dd39bf768ce47aa68c5ec9927002ab9e619a3dd`, and both installed files'
@@ -1095,8 +1100,22 @@ zero additions/removals, a successful dependency check and decoder-library load.
 The combined OpenSSL/Brotli installation upgraded three expected packages and
 added/removed none. The rebuilt runtime passed lint/all 955 tests and the full
 native, PostgreSQL, UI, planner, delivery and recovery verifier. Agent doctor
-and a repeated real Mistral `ROUTE_OK` smoke passed. The clean-CI action-image
-scan remains a release gate, without new vulnerability ignores.
+and a repeated real Mistral `ROUTE_OK` smoke passed. Clean pull-request CI at
+`fc13af6` subsequently passed the functional, repository and both rebuilt-image
+scan/SBOM gates, without new vulnerability ignores.
+
+Both campaigns completed governed Gmail reads at 17:58 UTC (23:28 IST), with
+zero pending reply reviews. At 18:00:55.394895 UTC (23:30:55 IST) on November 1,
+the first new invitation's action and task succeeded on attempt one, with an
+SMTP Message-ID and no last error. The measured launch checkpoint is one new
+SMTP acceptance and twenty-three paced actions queued, separate from the twelve
+previous acceptances. Automatic monitoring subsequently completed English and
+Polish reads at 18:01:20 and 18:03:24 UTC, both with zero pending replies and no
+active sending run. This establishes the recent-conversation scheduler path,
+without actual creator-response evidence. The final reserved release is November 2 at 04:44:57 UTC
+(10:14:57 IST), conditional on the running worker, final guards and 24-hour packet
+expiry. Confirmed creator interest and owner handoffs remain zero. SMTP acceptance
+does not prove inbox placement; no reply-rate or revenue improvement was measured.
 
 ## Planned experiments
 
