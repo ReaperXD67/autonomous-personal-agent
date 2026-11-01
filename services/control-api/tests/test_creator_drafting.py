@@ -715,3 +715,65 @@ def test_save_uses_frozen_generation_language_even_when_campaign_targets_polish(
     assert compose.call_args.kwargs["output_language"] == (marker or "en")
     body = connection.execute.call_args.args[1][4]
     assert body.startswith("Cześć" if marker == "pl" else "Hi ")
+
+
+@pytest.mark.parametrize("language,hook", [
+    ("pl", "Mogłeś spotkać hakera w Minecraft, ale KarixMC pomaga sprawdzić bezpieczeństwo "
+           "serwera przed dołączeniem. Sprawdź, jak działają oficjalne światy i czy nagrody "
+           "są dostępne przed rekomendacją."),
+    ("pl", "Mogłeś spotkać hakera w Minecraft, ale FixtureCraft pomaga sprawdzić bezpieczeństwo "
+           "serwera przed dołączeniem. Sprawdź, jak działają oficjalne światy i czy nagrody "
+           "są dostępne przed rekomendacją."),
+    ("pl", "FixtureCraft sprawdza, czy serwery Minecraft są bezpieczne przed dołączeniem."),
+    ("pl", "Ta platforma może zweryfikować bezpieczeństwo wybranego serwera Minecraft."),
+    ("en", "FixtureCraft helps you check server security before you join a Minecraft world."),
+    ("en", "The directory verifies that Minecraft servers are safe before recommending them."),
+    ("en", "Our platform provides a security assessment of listed Minecraft servers."),
+])
+def test_product_security_verification_cannot_be_inferred_from_hacking_titles(language, hook):
+    campaign, prospect = fixture()
+    campaign.update(target_language=language, language_mode="prefer")
+    campaign["product_name"] = "KarixMC" if "KarixMC" in hook else "FixtureCraft"
+    prospect["latest_content_title"] = "A hacker on a Minecraft server"
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    text = polish_response(hook=hook) if language == "pl" else response(hook=hook)
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(text, context)
+    assert rejected.value.code == "CREATOR_COPY_QUALITY"
+    assert "does not provide server security verification" in str(rejected.value)
+
+
+@pytest.mark.parametrize("language,idea", [
+    ("pl", "Mógłbyś samodzielnie ocenić bezpieczeństwo wybranego serwera Minecraft, "
+           "zanim zdecydujesz o własnej rekomendacji."),
+    ("en", "You could use FixtureCraft to independently assess server safety before "
+           "deciding whether to recommend your own findings."),
+    ("pl", "FixtureCraft nie sprawdza bezpieczeństwa serwera; możesz samodzielnie "
+           "ocenić wybrane miejsce przed ewentualną rekomendacją."),
+    ("en", "The directory does not verify server safety; you could independently "
+           "assess the selected server and report your findings."),
+])
+def test_independent_creator_assessment_and_explicit_platform_limits_remain_allowed(language, idea):
+    campaign, prospect = fixture()
+    campaign.update(target_language=language, language_mode="prefer")
+    prospect["latest_content_title"] = "FixtureCraft verifies server security: a hacker challenge?"
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    text = polish_response(content_idea=idea) if language == "pl" else response(content_idea=idea)
+    assert parse_model_copy(text, context).content_idea == idea
+
+
+def test_saved_unsupported_security_copy_conflicts_without_rewriting_its_snapshot():
+    campaign, prospect = fixture()
+    campaign.update(target_language="pl", language_mode="prefer")
+    row = {
+        "input_hash": canonical_hash(draft_input_snapshot(campaign, prospect)),
+        "model_context": model_context(campaign, prospect, creator_learning_insights([], [])),
+        "model_copy": json.loads(polish_response(
+            hook="FixtureCraft pomaga sprawdzić bezpieczeństwo serwera przed dołączeniem.",
+        )),
+        "draft_digest": "existing-reviewed-digest",
+    }
+    before = json.dumps(row, sort_keys=True)
+    with pytest.raises(CreatorDraftConflictError, match="current evidence checks"):
+        check_draft_context(row, campaign, prospect)
+    assert json.dumps(row, sort_keys=True) == before

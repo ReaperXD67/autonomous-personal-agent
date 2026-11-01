@@ -35,6 +35,29 @@ def normalized_polish(value: str) -> str:
                    if not unicodedata.combining(character))
 
 
+def security_verification_claim(value: str, product_name: str = "") -> bool:
+    """Observe a positive platform-capability claim, not a quoted title or creator test."""
+    actors = (
+        r"(?:(?:the|this|our)\s+)?(?:platform|directory|website|site|service|product)|we|"
+        r"(?:ta\s+)?platforma|(?:ten\s+)?katalog|(?:ta\s+)?strona|(?:nasz\s+)?serwis|my"
+    )
+    if product_name:
+        actors = re.escape(normalized_polish(product_name)) + "|" + actors
+    modifiers = (
+        r"can|could|may|might|will|does|also|already|automatically|now|is able to|"
+        r"moze|moglaby|moglby|potrafi|automatycznie|samodzielnie|juz|tez|rowniez"
+    )
+    verbs = (
+        r"checks?|verif(?:y|ies)|validates?|assesses?|ensures?|makes?\s+sure|"
+        r"provides?|offers?|helps?|sprawdz\w*|weryfik\w*|zweryfik\w*|"
+        r"ocen(?:ia|i|ic)|zapewni\w*|pomag\w*|oferuj\w*|dostarcz\w*|potwierdz\w*"
+    )
+    security = r"security|safety|secure|safe|bezpieczenstw\w*|bezpieczn\w*|zabezpiecz\w*"
+    pattern = (rf"\b(?:{actors})\b(?:\s+(?:{modifiers})){{0,3}}\s+(?:{verbs})\b"
+               rf"[^.!?;\n]{{0,180}}\b(?:{security})\b")
+    return re.search(pattern, normalized_polish(value)) is not None
+
+
 def polish_copy_error(hook: str, idea: str, rationale: str) -> str | None:
     """Catch observable Polish term/claim injection; this is not semantic validation."""
     suggestions = normalized_polish(hook + " " + idea)

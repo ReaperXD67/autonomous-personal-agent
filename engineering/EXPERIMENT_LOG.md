@@ -1039,9 +1039,12 @@ sync fetched one message, inserted zero, left zero pending, had no further pages
 and made no mailbox modification. This continues owned self-mail exclusion
 evidence, without establishing an actual creator reply. Agent doctor checks and
 the agent smoke passed; a real 32-token `ROUTE_OK` canary used `free/default` and
-reported `Mistral-Small-3.2-24B-Instruct-2506`. Cached/unloaded local Qwen was not
-verified with a new response. This proves the observed route, not Polish copy
-quality. A real Polish draft and any new batch results remain separate evidence.
+reported `Mistral-Small-3.2-24B-Instruct-2506`. That route canary did not exercise
+local Qwen; a later actual Polish draft completed through Ollama `qwen3:8b`.
+Operator review withheld preparation and sending approval after finding an
+unsupported product security claim despite an empty finding list. Real Polish
+generation is therefore verified, while usable unedited copy and any response-rate benefit
+remain unverified. No creator-feedback outcome was invented from this review.
 
 The owner-requested local daily SMTP bound was set to twenty-four through the
 shared atomic configuration writer. The repository default remains twelve;
@@ -1056,6 +1059,44 @@ fourteen public business-contact candidates and zero automatic authorizations.
 A bounded ten-creator shortlist task was issued; issuance is not a completed
 refresh or send. Source inspection and a healthy container alone do not
 establish model quality or interested creators.
+
+Further Polish discovery completed forty dossiers, adding twelve and updating
+twenty-eight, with ten public contact candidates. The initial unrestricted-country
+English campaign discovery added 123 prospects and found twenty-two public contact
+candidates. Its next scan researched 147, adding 102 and updating 45, with
+twenty-nine public contact candidates. The workspace held 650 prospect records
+across campaigns. Up to twenty-four launch recipients were selected from
+twenty-five qualified candidates; the original canary was excluded. The English
+selection retained declared English or unknown language and a 250,000-subscriber
+maximum, with existing Polish country targeting still strict. Twenty-four
+contacts then received individual API authorization and twenty-four draft tasks
+were requested, sixteen English and eight Polish. Two temporary replicas of the
+existing research worker used distinct hostname leases and the same durable
+budgets. Some validation failures remained visible while generation continued;
+this is not a claim that all copy was ready. No new outgoing invitation was
+approved or SMTP-accepted at this checkpoint, with confirmed interest still zero.
+
+The published instruction-only skill was installed through the official helper
+from commit `8dd39bf768ce47aa68c5ec9927002ab9e619a3dd`, and both installed files'
+SHA-256 hashes matched their source. Its availability does not grant runtime
+execution or sending authority.
+
+The subsequent narrow copy/quality suite passed 133 tests, including fifteen
+added regressions for the actor-specific English/Polish platform-security
+refusal, bounded correction and historical-copy/editorial-digest behavior. The
+actual old bad draft was subsequently stale with the marker, its body/digest
+unchanged, and its live preparation request returned HTTP 409 with no outgoing
+packet. This is refusal evidence, not a creator-feedback observation.
+
+Initial pull-request CI passed functional and control-image checks but failed
+the isolated action-image security gate for `libbrotli1` CVE-2026-111497. The
+exact Ubuntu `1.1.0-2ubuntu0.1` update upgraded one package in isolation, with
+zero additions/removals, a successful dependency check and decoder-library load.
+The combined OpenSSL/Brotli installation upgraded three expected packages and
+added/removed none. The rebuilt runtime passed lint/all 955 tests and the full
+native, PostgreSQL, UI, planner, delivery and recovery verifier. Agent doctor
+and a repeated real Mistral `ROUTE_OK` smoke passed. The clean-CI action-image
+scan remains a release gate, without new vulnerability ignores.
 
 ## Planned experiments
 

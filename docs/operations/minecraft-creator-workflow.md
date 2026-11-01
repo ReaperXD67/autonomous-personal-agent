@@ -118,9 +118,11 @@ capability, not an unrestricted Hermes tool connection.
 ## A model-written introduction for each creator
 
 This drafting mode is experimental. Local lifecycle and interface tests pass,
-and the configured local model has returned real responses, but live review has
-not established usable creator-specific copy. Failed validation stops the draft;
-use the separately reviewed manual or template path when appropriate.
+and the configured local model has returned a real Polish draft.
+Live review still found unsupported product-capability wording in a Polish
+canary, so generation and a report without findings do not establish usable
+unedited copy. Failed validation stops the draft; use the separately reviewed
+manual or template path when appropriate.
 
 Within **Prepare introduction**, select **AI personalized draft · review required**
 and choose **Generate personalized draft**. Drafting runs asynchronously through
@@ -171,7 +173,7 @@ count before preparation. Older responses without a report display an explicit
 unavailable fallback. The authenticated draft API returns the full `quality_report`
 on existing draft reads. It flags observable English/Polish wording markers, a
 stored output-language contract that differs from the campaign request,
-feedback claims with zero reviewed creators,
+platform security-verification claims, feedback claims with zero reviewed creators,
 missing source/next-step markers, and rendered emails over 250 words. The rendered
 count includes terms/footer; the model count covers the hook and content idea.
 Quoted title numbers are evidence, not invented commercial terms. Findings are
@@ -180,7 +182,10 @@ There is no overall score or confidence estimate. The report does not rewrite
 copy, change its digest, persist a review, block preparation or grant authority.
 The language marker records the generation contract rather than detecting or
 certifying the text's actual language. Naturalness, translation, truthful
-relevance and semantic accuracy still require review. See the
+relevance and semantic accuracy still require review. A directory listing alone
+does not establish a capability to verify server safety; narrow wording guards
+cannot catch every unsupported claim. Inspect the original copy even when its
+editorial report has no findings. See the
 [editorial evaluation decision](../research/creator-outreach-intelligence-2026-10.md)
 and [current upstream comparison](../research/creator-outreach-systems-2026-11.md).
 

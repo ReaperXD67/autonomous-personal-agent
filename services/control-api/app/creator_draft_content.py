@@ -16,6 +16,7 @@ from app.creator_draft_language import (
     context_draft_language,
     polish_copy_error,
     polish_optional_idea,
+    security_verification_claim,
 )
 from app.creator_draft_models import CreatorModelCopy
 from app.creator_intelligence import EMAIL, TOPIC_PATTERNS, plain_text, public_video_id
@@ -53,6 +54,7 @@ COPY_CORRECTIONS = {
     ),
     "CREATOR_COPY_QUALITY": (
         "Do not claim that the directory's servers are high-quality, verified, trusted or best. "
+        "The product does not provide server security verification or ensure server safety. "
         "Suggest the creator independently testing a listed server and reporting what they find."
     ),
     "CREATOR_COPY_RATIONALE": (
@@ -181,7 +183,8 @@ def drafting_messages(context):
             "Do not repeat the creator name or literal title; the server supplies its citation.\n"
             "content_idea: an optional filming idea in the selected language. Suggest "
             "independent testing of a documented product feature and reporting findings. "
-            "Do not claim the servers are high-quality or verified.\n"
+            "Do not claim the servers are high-quality or verified, or that the product "
+            "checks server security or ensures safety.\n"
             "hook + content_idea: at most 110 words, plain paragraphs. No numbers, dates, "
             "money, fees, earnings, percentages, duration, links, contacts, urgency, guarantees, "
             "flattery or claims of watching. Address the recipient directly. "
@@ -254,6 +257,9 @@ def parse_model_copy(content: str, context: dict[str, Any]) -> CreatorModelCopy:
     if re.search(
         r"\b(?:high[- ]quality|verified|trusted)[,\s]+"
         r"(?:[\w-]+[,\s]+){0,2}servers?\b", copy.content_idea + " " + copy.rationale, re.I,
+    ) or security_verification_claim(
+        " ".join((copy.hook, copy.content_idea, copy.rationale)),
+        context.get("product", {}).get("product_name", ""),
     ):
         raise CreatorCopyError("CREATOR_COPY_QUALITY")
     polish_error = (polish_copy_error(copy.hook, copy.content_idea, copy.rationale)

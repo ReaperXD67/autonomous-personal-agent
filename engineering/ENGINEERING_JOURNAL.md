@@ -2876,8 +2876,11 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - Added a reusable instruction-only repository-research skill with implicit
   discovery metadata. A user-level preference was saved locally for substantial
   work across projects. This is authoring guidance; existing execution,
-  dependency, publication and messaging authorization still apply. Installation
-  of the published skill remains a separate local delivery step.
+  dependency, publication and messaging authorization still apply. The official
+  installer then installed the user's skill from published commit
+  `8dd39bf768ce47aa68c5ec9927002ab9e619a3dd`
+  into the user skill directory; both files' SHA-256 hashes matched that pinned
+  source. The installed skill is available to subsequent turns and projects.
 - Added a frozen English/Polish `output_language` contract to the existing model
   context. Preferred/strict targeting selects the supported base language;
   unrestricted and legacy contexts remain English. Unsupported explicit
@@ -2930,5 +2933,47 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   candidates, with zero automatic contact authorizations. A ten-creator shortlist
   task was issued; its completion and any sends remain separate results.
 - Added ADR-0029 and synchronized README, operations, architecture, security,
-  roadmap and system evolution. Real bilingual model output and any new outreach
-  batch remain separate results to be recorded when completed.
+  roadmap and system evolution.
+- A real Polish draft completed through local Ollama `qwen3:8b`. Operator
+  review withheld preparation and send approval because its opening attributed
+  unsupported server security verification to the product, despite an empty
+  editorial finding list. This verifies real Polish generation, not usable unedited copy. It was
+  an operator/model evaluation, not a creator reply; no creator-feedback tag or
+  outcome was inferred. A narrow English/Polish platform-security claim refusal
+  and editorial marker were added with a bounded correction hint. The narrow
+  copy/quality suite passed 133 tests, including fifteen added regressions and
+  historical-copy/digest preservation. A live read of the original bad draft
+  now reported stale with the security-claim marker while preserving its body
+  and digest; an actual preparation request returned HTTP 409 and created no
+  outgoing packet.
+- Initial pull-request CI passed its functional and control-image checks but
+  stopped at the isolated action-image scan on CVE-2026-111497 in `libbrotli1`.
+  The action image now pins Ubuntu's exact `1.1.0-2ubuntu0.1` fix. An isolated
+  Brotli install upgraded one existing package, added/removed none, passed APT's
+  dependency check and loaded the decoder library. The combined OpenSSL/Brotli
+  installation upgraded the expected three packages without additions/removals.
+  Post-fix lint/all 955 tests and the complete native, PostgreSQL, UI, planner,
+  delivery and recovery verifier passed against the rebuilt runtime. Agent
+  doctor and the real Mistral `ROUTE_OK` smoke passed again. No vulnerability
+  ignore was added; the clean-CI action-image scan remains a release gate.
+- Additional Polish discovery completed forty dossiers: twelve new, twenty-eight
+  updated and ten public contact candidates. A separate English campaign uses
+  unrestricted country targeting, preferred English and a 250,000-subscriber
+  maximum; its initial discovery added 123 prospects and found twenty-two public
+  contact candidates. The next English scan researched 147, adding 102 and
+  updating 45, with twenty-nine public contact candidates. The workspace held
+  650 prospect records across campaigns at this checkpoint.
+- The planned launch selected up to twenty-four from twenty-five qualified
+  candidates, retaining one reviewed public business source per selected
+  recipient. The original canary was excluded from this launch selection.
+  English selection retained declared English or unknown language and the
+  250,000-subscriber maximum; existing Polish country targeting remained strict.
+  All twenty-four selected contacts were individually authorized through the
+  API, then twenty-four Hermes drafting tasks were requested: sixteen English
+  and eight Polish. Two replicas of the existing research worker temporarily
+  drained that queue with distinct hostname-based leases and shared PostgreSQL
+  budgets; no additional model route or sending authority was introduced.
+  Draft-validation failures remained visible while generation continued. This
+  does not establish that all copy was ready or approved. Zero new outgoing
+  approvals or SMTP acceptances were recorded at this fix checkpoint, and
+  confirmed creator interest remained zero.

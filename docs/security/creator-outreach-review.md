@@ -111,11 +111,20 @@ a review of a configured mail provider's terms.
   inserted verbatim; the standard English source/privacy/opt-out footer stays
   unchanged. Polish lexical checks extend observable term, viewing and audience
   claim guards without changing compensation or authorizing a send.
+  A real local Polish canary still attributed an unsupported security capability
+  to the platform and received no preparation or send approval. A narrow
+  English/Polish actor-specific guard now refuses observable platform-security
+  claims during generation validation, supplies a bounded correction hint and
+  exposes an editorial finding when reading affected stored copy. Reporting
+  does not rewrite the original copy or digest. This operator finding is not a
+  creator reply or a learned creator objection.
 - Residual risk: lexical/schema validation cannot prove truth, contextual
   relevance or product availability. The operator must inspect the sources and
   complete copy. The model sees only sampled metadata, not the actual video.
   The computed editorial report adds observable wording/count warnings, not a
   semantic confidence score or approval. It cannot modify stored copy/digests.
+  An empty finding list did not establish semantic accuracy in the observed
+  canary; unsupported claims outside the explicit markers still require review.
 
 ### CO-010 — Gmail setup could connect the wrong account or disclose credentials
 

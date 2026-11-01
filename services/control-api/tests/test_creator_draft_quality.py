@@ -263,3 +263,30 @@ def test_unknown_language_marker_is_safe_and_explicit_without_exposing_stored_va
     assert report["generated_language"] == "en"
     assert "OUTPUT_LANGUAGE_UNRECOGNIZED" in codes(report)
     assert "PRIVATE_" not in json.dumps(report)
+
+
+@pytest.mark.parametrize("hook", [
+    "Mogłeś spotkać hakera w Minecraft, ale KarixMC pomaga sprawdzić bezpieczeństwo serwera.",
+    "KarixMC helps you check the security of a Minecraft server before you join.",
+])
+def test_security_feature_claim_gets_an_observable_finding_without_mutating_old_copy(draft, hook):
+    draft["model_context"]["product"] = {"product_name": "KarixMC"}
+    draft["model_copy"]["hook"] = hook
+    before = deepcopy(draft)
+    report = creator_draft_quality_report(draft)
+    assert "SECURITY_VERIFICATION_CLAIM_MARKER" in codes(report)
+    assert draft == before and not report["sending_authority"]
+    assert hook not in json.dumps(report, ensure_ascii=False)
+
+
+def test_hacker_title_and_creator_own_assessment_are_not_platform_security_claims(draft):
+    evidence = draft["model_context"]["evidence"][0]
+    draft["body"] = draft["body"].replace(
+        evidence["title"], "KarixMC verifies server security: a hacker challenge?",
+    )
+    evidence["title"] = "KarixMC verifies server security: a hacker challenge?"
+    draft["model_copy"]["content_idea"] = (
+        "You could use KarixMC to independently assess server safety and report your own findings."
+    )
+    draft["model_context"]["product"] = {"product_name": "KarixMC"}
+    assert "SECURITY_VERIFICATION_CLAIM_MARKER" not in codes(creator_draft_quality_report(draft))

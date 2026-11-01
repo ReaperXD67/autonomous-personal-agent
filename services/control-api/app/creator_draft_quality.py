@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.creator_draft_language import SUPPORTED_DRAFT_LANGUAGES, normalized_polish
+from app.creator_draft_language import (
+    SUPPORTED_DRAFT_LANGUAGES,
+    normalized_polish,
+    security_verification_claim,
+)
 
 REPORT_VERSION = "creator-draft-review-v1"
 REVIEW_LIMITATIONS = (
@@ -84,6 +88,12 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
         # numbers, questions or wording that must not become a claim by Hermes.
         suggestions = " ".join((hook, idea))
         polish = normalized_polish(suggestions)
+        if security_verification_claim(
+            suggestions, _text(_object(context.get("product")).get("product_name")),
+        ):
+            note("SECURITY_VERIFICATION_CLAIM_MARKER", "The suggestions attribute security "
+                 "or safety verification to the platform. A directory listing does not "
+                 "establish this capability; inspect and remove unsupported claims.")
         if re.search(r"\b(?:i|we)(?:['’]ve| have)?\s+(?:watched|enjoyed|loved)\b|"
                      r"\bbeen following\b", suggestions, re.I) or re.search(
                          r"\b(?:obejrzal\w*|ogladal\w*|widziale\w*|sledze|uwielbiam)\b",
