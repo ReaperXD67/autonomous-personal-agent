@@ -25,6 +25,7 @@ class TaskCreate(BaseModel):
         "marketing.creator_discovery",
         "marketing.creator_pilot",
         "marketing.creator_draft",
+        "marketing.creator_draft_batch",
         "marketing.creator_automation",
         "marketing.gmail_sync",
         "communications.email_send",

@@ -68,10 +68,11 @@ understand what happened and take over at the right moment.
   dated contact observations, and explicit gaps instead of guessed addresses.
   Discovery and shortlist research use the official YouTube API. A small batch
   refreshes up to ten saved creators and ranks their evidence without model calls.
-- **A relevant first approach:** AI drafts connect recorded public metadata to
-  your real collaboration brief, show their sources and approach, and
-  use reviewed feedback. Templates and manual writing remain explicit choices;
-  rates and commercial terms remain yours to agree.
+- **A grounded first approach:** a model selects an offered content angle from
+  recorded title evidence; Hermes renders English/Polish copy, the exact source
+  and your reviewed brief. Queue up to five eligible drafts together, then
+  inspect each complete message before exact approval. Rates and commercial
+  terms remain yours to agree.
 - **A clear stopping point:** one owner handoff after confirmed interest, with
   email, Discord, or both. No automated negotiation or repeated reminders.
 - **Learning you can inspect:** reviewed objections, distinct-creator counts,
@@ -101,10 +102,11 @@ understand what happened and take over at the right moment.
 | Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
 | Email sender | Live SMTP and owned-inbox receipt verified | One approved Gmail self-test passed authenticated STARTTLS, durable acceptance and a matching Inbox Message-ID. This does not prove creator inbox placement. Default shared pacing is 15-minute global/30-minute same-domain gaps, 3/hour, 12/day and jitter; the daily limit is configurable |
-| Creator research and outreach | Reviewed English/Polish launch underway | November 1: 24 individually approved invitations (16 English, 8 Polish); one new SMTP acceptance and 23 paced actions queued. The previous 12 invitations also have SMTP acceptance. No confirmed creator interest or handoff yet; acceptance does not prove inbox placement |
+| Creator research and outreach | Reviewed English/Polish outreach continuing | 26 individually approved, paced invitations at the November 2 milestone. See the [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch) for acceptance/queue counts and remaining drafts. SMTP acceptance does not establish inbox placement or creator interest |
 | API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Current issued reservation history rotates research through unattempted then oldest-attempted creators before contact/relevance tie-breakers. Thirty refreshes per rolling day; no model calls, contact authorization or sends |
 | Minecraft paid-promotion workflow | Local workflow and owned-inbox delivery verified | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery. Actual creator reply/handoff proof remains pending |
-| AI creator introductions | Experimental English/Polish drafting | Real local Polish generation is verified. Language is frozen with the draft; legacy drafts stay English. The operator supplies reviewed product/offer wording, and the standard English source/privacy/opt-out footer is retained. Inspect the complete copy for factual fit before exact individual approval |
+| Grounded creator introductions | English/Polish live canary verified | Models select issued evidence/angle IDs; Hermes renders copy and rederives its provenance. Five real local Qwen drafts were usable unchanged after complete-copy review; this small sample is not an accuracy or reply-rate guarantee. Legacy digests and individual exact approval remain |
+| Creator draft preparation queue | Database and UI flow verified | Up to five eligible reviewed contacts per batch, three by default; durable reservations share the 30/day and 3/prospect preparation limits. Stable children, skips, cancellation and cross-campaign identity deduplication; a batch creates no email approval or sending authority |
 | Creator draft quality report | Implemented; review UI verified | Draft review shows computed editorial findings and complete-email word count; API exposes the full report. No score, model call or approval; semantic accuracy, language, fit and terms still need review |
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |

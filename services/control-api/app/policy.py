@@ -22,6 +22,7 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
     "marketing.creator_discovery": RiskLevel.LOW,
     "marketing.creator_pilot": RiskLevel.LOW,
     "marketing.creator_draft": RiskLevel.MEDIUM,
+    "marketing.creator_draft_batch": RiskLevel.MEDIUM,
     "marketing.creator_automation": RiskLevel.MEDIUM,
     "marketing.gmail_sync": RiskLevel.LOW,
     "communications.email_send": RiskLevel.HIGH,

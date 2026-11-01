@@ -31,6 +31,7 @@ from app.career_tracking import execute_gmail_sync
 from app.career_tracking_store import CareerTrackingStore
 from app.creator_automation_gmail import execute_creator_gmail_sync
 from app.creator_automation_store import CreatorAutomationStore
+from app.creator_draft_batch_store import CreatorDraftBatchStore
 from app.creator_draft_store import CreatorDraftStore
 from app.creator_drafting import execute_creator_draft_task
 from app.creator_pilot_runner import execute_creator_pilot
@@ -99,6 +100,11 @@ def execute_career_task(
         return execute_planning_task(
             task, PlanningStore(settings.database_url), settings,
             client=openrouter_client, interrupt=interrupt,
+        )
+
+    if task["kind"] == "marketing.creator_draft_batch":
+        return CreatorDraftBatchStore(settings.database_url).execute_batch(
+            task, interrupt=interrupt,
         )
 
     if task["kind"] == "marketing.creator_draft":

@@ -45,9 +45,9 @@
 .creator-ai-copy > strong { display: block; overflow-wrap: anywhere; }
 .creator-ai-sources { padding-inline-start: 20px; line-height: 1.7; }
 .creator-ai-sources a { overflow-wrap: anywhere; }
-.creator-pilot { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
-.creator-pilot > summary { cursor: pointer; color: var(--ink); }
-.creator-pilot > p, .creator-pilot-status { margin-top: 12px; }
+.creator-pilot, .creator-draft-batch { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.creator-pilot > summary, .creator-draft-batch > summary { cursor: pointer; color: var(--ink); }
+.creator-pilot > p, .creator-draft-batch > p, .creator-pilot-status { margin-top: 12px; }
 .creator-pilot-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin: 16px 0; }
 .creator-pilot-controls label { max-width: 180px; flex: 1 1 140px; margin: 0; }
 .creator-pilot-controls input { margin-top: 7px; }

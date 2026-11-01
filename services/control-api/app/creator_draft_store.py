@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hmac
-import json
 from uuid import UUID
 
 from psycopg import sql
@@ -13,8 +12,8 @@ from app.creator_draft_content import (
     draft_digest,
     draft_input_snapshot,
     evidence_error,
-    model_context,
-    parse_model_copy,
+    grounded_model_context,
+    validate_stored_copy,
 )
 from app.creator_draft_language import context_draft_language
 from app.creator_draft_models import CreatorDraftCreate
@@ -74,10 +73,7 @@ def check_draft_context(row, campaign, prospect):
         raise CreatorDraftConflictError(error)
     if row.get("model_copy") is not None:
         try:
-            parse_model_copy(
-                json.dumps(row["model_copy"]),
-                row["model_context"],
-            )
+            validate_stored_copy(row["model_copy"], row["model_context"])
         except ValueError:
             raise CreatorDraftConflictError(
                 "AI copy no longer meets current evidence checks; generate a fresh draft"
@@ -85,6 +81,66 @@ def check_draft_context(row, campaign, prospect):
 
 
 class CreatorDraftStore(MarketingStore):
+    @staticmethod
+    def _draft_budget_lock(connection):
+        connection.execute("SELECT pg_advisory_xact_lock(hashtext('creator-draft-budget'))")
+
+    @staticmethod
+    def _draft_reservations(connection):
+        """Count issued batch slots until materialization, including stopped batches."""
+        parents = connection.execute(
+            "SELECT t.payload,t.requested_by,a.input_metadata->>'payload_hash' AS payload_hash "
+            "FROM agent_tasks t JOIN audit_events a ON a.task_id=t.id "
+            "WHERE t.kind='marketing.creator_draft_batch' "
+            "AND a.action='creator.draft_batch.created' "
+            "AND a.occurred_at > now()-interval '24 hours'",
+        ).fetchall()
+        reservations = {}
+        for parent in parents:
+            payload = parent["payload"]
+            if (not isinstance(payload, dict)
+                    or parent["payload_hash"] != canonical_hash(payload)):
+                continue
+            items = payload.get("items")
+            if not isinstance(items, list) or not 1 <= len(items) <= 5:
+                continue
+            for item in items:
+                try:
+                    identity = UUID(item["prospect_id"])
+                    key = UUID(item["child_idempotency_key"])
+                except (KeyError, TypeError, ValueError, AttributeError):
+                    continue
+                reservations[key] = (identity, parent["requested_by"], item.get("input_hash"))
+        if not reservations:
+            return {}
+        rows = connection.execute(
+            "SELECT idempotency_key,prospect_id,requested_by,input_hash FROM creator_email_drafts "
+            "WHERE idempotency_key=ANY(%s)", (list(reservations),),
+        ).fetchall()
+        for row in rows:
+            if reservations.get(row["idempotency_key"]) == (
+                row["prospect_id"], row["requested_by"], row["input_hash"],
+            ):
+                reservations.pop(row["idempotency_key"])
+        return reservations
+
+    @classmethod
+    def _draft_budget_counts(cls, connection, prospect_id=None, *, reservation_key=None):
+        counts = connection.execute(
+            "SELECT count(*) AS total, count(*) FILTER (WHERE prospect_id=%s) AS creator "
+            "FROM creator_email_drafts WHERE created_at > now()-interval '24 hours'",
+            (prospect_id,),
+        ).fetchone()
+        reservations = cls._draft_reservations(connection)
+        if reservation_key is not None:
+            reservations.pop(reservation_key, None)
+        return {
+            "total": counts["total"] + len(reservations),
+            "creator": counts["creator"] + sum(
+                value[0] == prospect_id for value in reservations.values()
+            ),
+        }
+
     @staticmethod
     def _context(connection, prospect_id, *, lock=False):
         row = connection.execute(
@@ -158,52 +214,56 @@ class CreatorDraftStore(MarketingStore):
 
     def create_draft(self, prospect_id: UUID, request: CreatorDraftCreate):
         with self.connect() as connection:
-            # Serialize the shared inference preparation cap independently of send budgets.
-            connection.execute("SELECT pg_advisory_xact_lock(hashtext('creator-draft-budget'))")
-            existing = connection.execute(
-                "SELECT * FROM creator_email_drafts WHERE idempotency_key=%s",
-                (request.idempotency_key,),
-            ).fetchone()
-            if existing:
-                if (existing["prospect_id"] != prospect_id
-                        or existing["requested_by"] != request.actor):
-                    raise CreatorDraftConflictError("Idempotency key belongs to another request")
-                return self._view(connection, existing)
-            campaign, prospect = self._context(connection, prospect_id, lock=True)
-            self._eligible(connection, campaign, prospect)
-            counts = connection.execute(
-                "SELECT count(*) AS total, count(*) FILTER (WHERE prospect_id=%s) AS creator "
-                "FROM creator_email_drafts WHERE created_at > now()-interval '24 hours'",
-                (prospect_id,),
-            ).fetchone()
-            if counts["total"] >= 30 or counts["creator"] >= 3:
-                raise CreatorDraftConflictError(
-                    "AI preparation limit reached: three per creator and thirty per rolling day"
-                )
-            learning = creator_learning_insights(
-                self._feedback_in_connection(connection, campaign["id"]),
-                self._variant_metrics_in_connection(connection, campaign["id"], paid=True),
-            )
-            snapshot = draft_input_snapshot(campaign, prospect)
-            row = connection.execute(
-                "INSERT INTO creator_email_drafts "
-                "(campaign_id,prospect_id,requested_by,idempotency_key,input_snapshot,"
-                "input_hash,model_context) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING *",
-                (prospect["campaign_id"], prospect_id, request.actor, request.idempotency_key,
-                 Jsonb(snapshot), canonical_hash(snapshot),
-                 Jsonb(model_context(campaign, prospect, learning))),
-            ).fetchone()
-            task = self._create_task_record(connection, TaskCreate(
-                title="Draft a creator-specific introduction for review",
-                kind="marketing.creator_draft", payload={"draft_id": str(row["id"])},
-                risk_level=RiskLevel.MEDIUM, requested_by=request.actor,
-            ))
-            row = connection.execute(
-                "UPDATE creator_email_drafts SET task_id=%s WHERE id=%s RETURNING *",
-                (task["id"], row["id"]),
-            ).fetchone()
-            self._audit_draft(connection, row, "creator_draft.created", actor=request.actor)
+            self._draft_budget_lock(connection)
+            row = self._create_draft_in_connection(connection, prospect_id, request)
             return self._view(connection, row)
+
+    def _create_draft_in_connection(
+        self, connection, prospect_id, request, *, reservation_key=None,
+    ):
+        """Caller holds the shared draft-budget lock; batch callers share its transaction."""
+        existing = connection.execute(
+            "SELECT * FROM creator_email_drafts WHERE idempotency_key=%s",
+            (request.idempotency_key,),
+        ).fetchone()
+        if existing:
+            if (existing["prospect_id"] != prospect_id
+                    or existing["requested_by"] != request.actor):
+                raise CreatorDraftConflictError("Idempotency key belongs to another request")
+            return existing
+        campaign, prospect = self._context(connection, prospect_id, lock=True)
+        self._eligible(connection, campaign, prospect)
+        counts = self._draft_budget_counts(
+            connection, prospect_id, reservation_key=reservation_key,
+        )
+        if counts["total"] >= 30 or counts["creator"] >= 3:
+            raise CreatorDraftConflictError(
+                "AI preparation limit reached: three per creator and thirty per rolling day"
+            )
+        learning = creator_learning_insights(
+            self._feedback_in_connection(connection, campaign["id"]),
+            self._variant_metrics_in_connection(connection, campaign["id"], paid=True),
+        )
+        snapshot = draft_input_snapshot(campaign, prospect)
+        row = connection.execute(
+            "INSERT INTO creator_email_drafts "
+            "(campaign_id,prospect_id,requested_by,idempotency_key,input_snapshot,"
+            "input_hash,model_context) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+            (prospect["campaign_id"], prospect_id, request.actor, request.idempotency_key,
+             Jsonb(snapshot), canonical_hash(snapshot),
+             Jsonb(grounded_model_context(campaign, prospect, learning))),
+        ).fetchone()
+        task = self._create_task_record(connection, TaskCreate(
+            title="Draft a creator-specific introduction for review",
+            kind="marketing.creator_draft", payload={"draft_id": str(row["id"])},
+            risk_level=RiskLevel.MEDIUM, requested_by=request.actor,
+        ))
+        row = connection.execute(
+            "UPDATE creator_email_drafts SET task_id=%s WHERE id=%s RETURNING *",
+            (task["id"], row["id"]),
+        ).fetchone()
+        self._audit_draft(connection, row, "creator_draft.created", actor=request.actor)
+        return row
 
     def get_draft(self, draft_id):
         with self.connect() as connection:
@@ -266,18 +326,24 @@ class CreatorDraftStore(MarketingStore):
             )
             if row["status"] != "queued":
                 raise CreatorDraftConflictError("Draft is no longer waiting for model output")
-            copy = parse_model_copy(copy.model_dump_json(), row["model_context"])
+            copy = validate_stored_copy(copy.model_dump(), row["model_context"])
             language = context_draft_language(row["model_context"])
             subject, body = compose_ai_email(
                 campaign, prospect, copy, output_language=language,
             )
             notes = [
-                "Model wrote the hook and optional content idea; "
-                "the server supplied terms and footer.",
+                ("Model selected issued evidence and an allowed angle; the server rendered "
+                 "the grounded message, commercial terms and footer."
+                 if row["model_context"].get("drafting_contract") == "creator-grounded-plan-v2"
+                 else "Model wrote the hook and optional content idea; "
+                 "the server supplied terms and footer."),
                 "Public metadata only. No claim that Hermes watched the video "
                 "or verified audience reach.",
-                "Lexical/schema checks passed; human review must still verify "
-                "relevance and accuracy.",
+                ("Plan identifiers and source bindings passed deterministic checks; human "
+                 "review must still verify relevance and accuracy."
+                 if row["model_context"].get("drafting_contract") == "creator-grounded-plan-v2"
+                 else "Lexical/schema checks passed; human review must still verify "
+                 "relevance and accuracy."),
                 ("Polish" if language == "pl" else "English")
                 + " draft; the operator supplies the product brief and offer wording. "
                 "Exact approval is required; this draft grants no sending authority.",

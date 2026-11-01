@@ -22,6 +22,9 @@ def main():
     drafts = []
     requests = []
     pilot_requests = []
+    batch_requests = []
+    batch_latest = [None]
+    batch = {"task": {"id": "synthetic-batch", "status": "queued"}, "items": []}
     pilot_latest = [None]
     pilot_task = {
         "id": "synthetic-pilot-task", "kind": "marketing.creator_pilot",
@@ -54,6 +57,11 @@ def main():
                     pilot_requests.append(route.request.post_data_json)
                     pilot_latest[0] = pilot_task
                 route.fulfill(content_type="application/json", body=json.dumps(pilot_latest[0]))
+            elif path == "/v1/marketing/campaigns/synthetic-campaign/draft-batches":
+                if route.request.method == "POST":
+                    batch_requests.append(route.request.post_data_json)
+                    batch_latest[0] = batch
+                route.fulfill(content_type="application/json", body=json.dumps(batch_latest[0]))
             elif path == "/v1/marketing/prospects/synthetic-prospect":
                 route.fulfill(content_type="application/json", body=json.dumps({
                     "id": "synthetic-prospect", "campaign_id": "synthetic-campaign",
@@ -102,6 +110,7 @@ def main():
           state.creatorAutomation = {'synthetic-campaign':{run:null,pending_replies:[],
             readiness:{gmail_configured:false,smtp_configured:true}}};
           state.creatorPilot = {'synthetic-campaign':{task:null}};
+          state.creatorDraftBatches = {'synthetic-campaign':{task:null,items:[]}};
           state.marketingResults = [{campaign_id:'synthetic-campaign',metrics:{discovered:42,
             emails_sent:4,initial_sent:3,replies:2,positive_replies:1,handoffs_sent:1},variants:[],suggestions:[],
             learning:{samples:{tagged_creators:3},reason:'Three creators asked for clearer terms. Test a terms-first introduction.',
@@ -203,6 +212,32 @@ def main():
         page.screenshot(path="/proof/creator-run-mobile.png")
         page.locator("#creator-run-dialog button[aria-label=Close]").click()
         page.set_viewport_size({"width": 1440, "height": 1080})
+        page.get_by_text("Prepare personalized drafts in a batch", exact=True).click()
+        batch_limit = page.get_by_label("Drafts to prepare", exact=True)
+        assert batch_limit.input_value() == "3" and batch_limit.get_attribute("max") == "5"
+        batch_limit.fill("2")
+        page.get_by_role("button", name="Prepare draft batch", exact=True).click()
+        page.get_by_role("button", name="Preparing draft queue…", exact=True).wait_for()
+        assert len(batch_requests) == 1 and batch_requests[0]["limit"] == 2
+        assert batch_requests[0]["idempotency_key"]
+        assert page.get_by_role("button", name="Preparing draft queue…", exact=True).is_disabled()
+        assert batch_limit.input_value() == "2", "Draft batch setting was lost during refresh"
+        batch.update(task={"id": "synthetic-batch", "status": "succeeded"}, items=[{
+            "prospect_id": "synthetic-prospect", "draft_id": "synthetic-draft",
+            "status": "ready", "display_name": '<img src=x onerror="window.badBatch=true">',
+            "reason": "Recorded source and reviewed contact retained.",
+        }, {"prospect_id": "skipped-fixture", "status": "skipped", "reason": "Context changed"}])
+        page.get_by_role("button", name="Refresh draft queue", exact=True).click()
+        panel = page.locator(".creator-draft-batch")
+        panel.get_by_text("Context changed", exact=True).wait_for()
+        assert panel.get_by_role("button", name="Review prepared draft", exact=True).is_visible()
+        assert panel.locator("img,script").count() == 0 and not page.evaluate("Boolean(window.badBatch)")
+        assert not requests, "Draft batching created an individual email mutation"
+        page.set_viewport_size({"width": 375, "height": 812})
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth"), "Draft queue mobile overflow"
+        page.locator("#toast").wait_for(state="hidden")
+        panel.screenshot(path="/proof/creator-draft-batch-mobile.png")
+        page.set_viewport_size({"width": 1440, "height": 1080})
         page.evaluate("""() => {
           openMarketingReply({id:'synthetic-prospect', campaign_id:'synthetic-campaign',
             display_name:'A creator with Minecraft survival videos'}, 'initial');
@@ -247,6 +282,13 @@ def main():
         assert page.get_by_role("button", name="Prepare exact AI email", exact=True).is_enabled()
         assert page.get_by_text("3 distinct creators with reviewed outcomes.", exact=True).is_visible()
         assert page.get_by_text("Written by synthetic-model", exact=False).is_visible()
+        draft["model_copy"]["provenance"] = {"contract": "creator-grounded-plan-v2"}
+        draft["model_copy"]["plan"] = {"evidence_id": "sample_video", "angle_id": "server_comparison"}
+        page.get_by_role("button", name="Refresh draft status", exact=True).click()
+        page.get_by_text("How this email is grounded", exact=True).wait_for()
+        assert page.get_by_text("Content angle selected by synthetic-model", exact=False).is_visible()
+        assert page.get_by_text("Hermes wrote the wording", exact=False).is_visible()
+        assert page.get_by_role("button", name="Prepare exact AI email", exact=True).is_enabled()
         assert page.locator("#creator-ai-review img").count() == 0
         assert page.get_by_role("link", name="<img src=x> Survival series", exact=True).get_attribute("rel") == "noopener noreferrer"
         editing = page.get_by_role("region", name="Draft editing notes", exact=True)
@@ -322,7 +364,8 @@ def main():
         browser.close()
     print("Creator UI passed: desktop/mobile, revenue-share defaults, owner preservation, run consent reset, "
           "API shortlist queue/ranking/review/failure and escaped evidence, "
-          "visible draft editing notes/word count, escaped findings and legacy fallback, "
+          "draft-only batch queue and escaped provenance, visible editing notes/word count, "
+          "escaped findings and legacy fallback, "
           "AI queued/ready/stale/failed states, escaped sources, exact-digest preparation, server conflict "
           "and separate template/manual paths; no console errors or overflow, all data synthetic, no network")
 

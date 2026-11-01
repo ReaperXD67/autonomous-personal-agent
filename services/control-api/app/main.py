@@ -49,6 +49,8 @@ from app.career_tracking_store import CareerTrackingStore
 from app.communication_routes import router as communication_router
 from app.creator_automation_routes import router as creator_automation_router
 from app.creator_automation_store import CreatorAutomationStore
+from app.creator_draft_batch_routes import router as creator_draft_batch_router
+from app.creator_draft_batch_store import CreatorDraftBatchStore
 from app.creator_draft_routes import router as creator_draft_router
 from app.creator_draft_store import CreatorDraftStore
 from app.creator_export import creator_coverage, creator_csv
@@ -110,6 +112,7 @@ async def lifespan(application: FastAPI):
     application.state.creator_drafts = CreatorDraftStore(
         settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
     )
+    application.state.creator_draft_batches = CreatorDraftBatchStore(settings.database_url)
     application.state.creator_automation = CreatorAutomationStore(
         settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
     )
@@ -140,6 +143,7 @@ app.include_router(career_tracking_router)
 app.include_router(career_source_router)
 app.include_router(creator_automation_router)
 app.include_router(creator_draft_router)
+app.include_router(creator_draft_batch_router)
 app.include_router(creator_pilot_router)
 
 
