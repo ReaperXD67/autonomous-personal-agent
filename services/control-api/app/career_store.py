@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from psycopg.types.json import Jsonb
 
+from app.career import diagnose_opportunity
 from app.career_models import CareerProfileCreate, CareerProfileUpdate, OpportunityStateUpdate
 from app.career_quality import assess_opportunity, quality_blocker
 from app.models import TaskCreate
@@ -316,6 +317,15 @@ class CareerStore(Database):
             "auto_prepare_ids": auto_prepare_ids,
         }
 
+    @staticmethod
+    def _opportunity_projection(row: dict[str, Any]) -> dict[str, Any]:
+        result = dict(row)
+        preferences = result.pop("matching_preferences", None)
+        result["quality"] = assess_opportunity(result)
+        if isinstance(preferences, dict):
+            result["fit_report"] = diagnose_opportunity(result, preferences)
+        return result
+
     def list_opportunities(
         self,
         *,
@@ -328,8 +338,17 @@ class CareerStore(Database):
                 """
                 SELECT o.*, d.content AS latest_draft,
                        row_to_json(pf.*) AS latest_preflight,
-                       row_to_json(a.*) AS latest_action
+                       row_to_json(a.*) AS latest_action,
+                       jsonb_build_object(
+                           'desired_titles', profile.desired_titles, 'skills', profile.skills,
+                           'required_keywords', profile.required_keywords,
+                           'excluded_keywords', profile.excluded_keywords,
+                           'locations', profile.locations, 'remote_only', profile.remote_only,
+                           'employment_types', profile.employment_types,
+                           'max_age_hours', profile.max_age_hours, 'min_score', profile.min_score
+                       ) AS matching_preferences
                 FROM job_opportunities o
+                JOIN career_profiles profile ON profile.id = o.profile_id
                 LEFT JOIN LATERAL (
                     SELECT content FROM job_application_drafts
                     WHERE opportunity_id = o.id
@@ -361,7 +380,7 @@ class CareerStore(Database):
                 """,
                 (profile_id, profile_id, opportunity_status, opportunity_status, limit),
             ).fetchall()
-        return [{**row, "quality": assess_opportunity(row)} for row in rows]
+        return [self._opportunity_projection(row) for row in rows]
 
     def get_opportunity(self, opportunity_id: UUID) -> dict[str, Any]:
         with self.connect() as connection:
@@ -369,8 +388,17 @@ class CareerStore(Database):
                 """
                 SELECT o.*, d.content AS latest_draft,
                        row_to_json(pf.*) AS latest_preflight,
-                       row_to_json(a.*) AS latest_action
+                       row_to_json(a.*) AS latest_action,
+                       jsonb_build_object(
+                           'desired_titles', profile.desired_titles, 'skills', profile.skills,
+                           'required_keywords', profile.required_keywords,
+                           'excluded_keywords', profile.excluded_keywords,
+                           'locations', profile.locations, 'remote_only', profile.remote_only,
+                           'employment_types', profile.employment_types,
+                           'max_age_hours', profile.max_age_hours, 'min_score', profile.min_score
+                       ) AS matching_preferences
                 FROM job_opportunities o
+                JOIN career_profiles profile ON profile.id = o.profile_id
                 LEFT JOIN LATERAL (
                     SELECT content FROM job_application_drafts
                     WHERE opportunity_id = o.id
@@ -399,7 +427,7 @@ class CareerStore(Database):
             ).fetchone()
         if row is None:
             raise OpportunityNotFoundError(str(opportunity_id))
-        return {**row, "quality": assess_opportunity(row)}
+        return self._opportunity_projection(row)
 
     def update_opportunity_state(
         self, opportunity_id: UUID, request: OpportunityStateUpdate
@@ -444,6 +472,7 @@ class CareerStore(Database):
         result["latest_preflight"] = None
         result["latest_action"] = None
         result["quality"] = assess_opportunity(row)
+        result["fit_report"] = diagnose_opportunity(row, self.get_profile(row["profile_id"]))
         return result
 
     def get_draft_context(self, opportunity_id: UUID, profile_id: UUID) -> dict[str, Any]:

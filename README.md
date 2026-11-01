@@ -18,7 +18,8 @@ explicit, expiring Play scope. Read-only Gmail tracking brings shortlist,
 interview and offer signals into a **Your next decisions** queue with source
 evidence and review of uncertain matches.
 
-Discovery, matching, URL import, job-risk checks and reply classification make
+Discovery, age-independent fit, source/filter diagnostics, URL import, job-risk
+and draft-evidence checks, and reply classification make
 **zero model calls**. Models handle application writing through configured free
 hosted routes or local Qwen; generation still consumes tokens and compute.
 The existing Minecraft creator workflow researches public channels, prepares
@@ -94,13 +95,15 @@ understand what happened and take over at the right moment.
 | Durable workflows | Implemented | Dependency-aware plans, parallel ready steps, explicit result checks, deadlines, restart recovery, cancellation, and dashboard recipes; at most 32 steps and 4 concurrent tasks |
 | Reviewed goal planner | Implemented | A model proposes at most 8 server-defined actions using your explicitly selected context. Review the immutable steps before adoption; execution enters the existing task/policy/audit path. A clearly labeled local demo needs no model |
 | Feature readiness | Implemented | Per-feature prerequisites, next actions, and timestamped local test evidence; authenticated operator reports are stored in PostgreSQL and expire as readiness proof after 24 hours |
-| Career scout | Public adapters implemented; live coverage varies | Arbeitnow, optional Remotive, and configured Ashby, Greenhouse, Lever US and EU boards; all required keywords, location constraints, and explicit publication-date provenance. Remotive's public feed is delayed 24 hours |
+| Career scout | Public adapters implemented; live coverage varies | Arbeitnow, optional Remotive, configured Ashby, Greenhouse, Lever US/EU and bounded SmartRecruiters boards; all required keywords, location constraints, and explicit publication-date provenance. Remotive's public feed is delayed 24 hours |
+| Explainable fit and scan coverage | Implemented | Age-independent title/skill fit, explicit aliases, current filter evidence and per-scan exclusion counts. Freshness remains a separate hard gate; scores do not predict hiring |
+| Résumé-grounded application checks | Implemented; heuristic | Exact résumé quotations, supported keywords, conspicuous claim/length findings and cleaned posting views. Delegated authorization and final receipt recompute checks after lock waits; semantic truth and writing quality remain reviewed |
 | Job-risk assessment | Implemented; heuristic | Zero-model fee, credential, sensitive-data and destination checks; suspicious listings stop automatic preparation and are checked again before submission. No result proves a genuine employer or vacancy |
-| Employer-board URL import | Implemented | Paste supported Ashby, Greenhouse or Lever US/EU board/job links, including Greenhouse embeds. Recognition makes no network/model request; save the mission and scan the whole board |
+| Employer-board URL import | Implemented | Paste supported Ashby, Greenhouse, Lever US/EU or SmartRecruiters links, including Greenhouse embeds. Recognition makes no network/model request; save the mission and scan the whole board |
 | Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
 | Career Play/Pause | Implemented; external application proof pending | Choose preparation or authorize a bounded automatic run: fresh published listings, minimum fit, selected ATS hosts, rolling application cap, separate preparation allowance, expiry, profile binding, and duplicate prevention. Prepared actions stay linked to progress; optional job-published hiring email shares submission limits |
 | Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
-| Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
+| Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form/default-state signature, typed explicit consent, purpose-bound PDF résumé upload and durable receipt. Unknown documents, login and CAPTCHA stop for review; SmartRecruiters submission stays manual |
 | Email sender | Live SMTP and owned-inbox receipt verified | One approved Gmail self-test passed authenticated STARTTLS, durable acceptance and a matching Inbox Message-ID. This does not prove creator inbox placement. Default shared pacing is 15-minute global/30-minute same-domain gaps, 3/hour, 12/day and jitter; the daily limit is configurable |
 | Creator research and outreach | Reviewed English/Polish outreach continuing | 26 individually approved, paced invitations at the November 2 milestone. See the [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch) for acceptance/queue counts and remaining drafts. SMTP acceptance does not establish inbox placement or creator interest |
 | API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Current issued reservation history rotates research through unattempted then oldest-attempted creators before contact/relevance tie-breakers. Thirty refreshes per rolling day; no model calls, contact authorization or sends |
@@ -204,6 +207,12 @@ link and paste its supported ATS URL into **Job sources → Add board from URL**
 this imports that employer board, without logging into those platforms.
 See the
 [dashboard and career guide](docs/operations/dashboard-and-career.md).
+
+For the upstream comparison and decisions behind the career upgrade, see
+[AI Job Search adaptation](docs/research/ai-job-search-adaptation-2026-11.md) and
+the [seven-project ecosystem review](docs/research/job-search-ecosystem-2026-11.md).
+The implementation uses small original components inside the current workers;
+no additional scraper platform, paid-model subscription or skill pack is required.
 
 The **Start here** page suggests the next action based on approvals, ready plans,
 running work, and new matches. **Goal planner** lets you describe an outcome and

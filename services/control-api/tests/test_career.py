@@ -54,7 +54,7 @@ def job(**overrides: object) -> dict[str, object]:
 def test_fresh_evidence_based_match_scores_above_threshold() -> None:
     result = score_opportunity(job(), profile())
     assert result is not None
-    assert result["score"] >= 80
+    assert result["score"] >= 75
     assert "published within 24 hours" in result["score_reasons"]
 
 

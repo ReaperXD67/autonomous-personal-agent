@@ -85,6 +85,53 @@ conservative evidence; a subject alone cannot confirm a contradicted outcome.
 Review the original reply before relying on a signal. The agent neither accepts
 interviews nor sends replies from inbox content, and does not invent times.
 
+## Fit, scan coverage and application evidence
+
+Fit policy version 2 gives title evidence up to 45 points and up to five distinct
+saved-skill matches 11 points each. Explicit spelling aliases are deduplicated;
+Java does not match JavaScript, SQL does not match NoSQL, and React does not
+match “reactive”. A strong job retains the same fit at one or 71 hours. Freshness
+remains a separate hard window, and automatic applications still require a
+proven publication date. The score is an inspectable heuristic, not a probability
+of hiring or an assertion about experience, education or work authorization.
+Old scoring grants stop rather than inheriting changed semantics; review Play
+again after upgrading.
+
+Open a mission's **Latest search coverage and exclusions** for normalized listing
+counts, first exclusion reasons, source warnings and bounded provider coverage.
+An unavailable source is not evidence that its jobs closed. The worker cannot
+call a partial page a search of the entire web. Current fit details are recomputed
+from saved preferences; historical stored scores change on the next rescan.
+
+Draft review exposes exact saved-résumé evidence quotations, observed keywords,
+honest gaps and a generation-time quality report. Delegated submission requires
+current evidence checks, including narrow unsupported metric/tenure and
+placeholder findings. The useful-copy length rule is a heuristic, not a writing
+quality guarantee. Authorization and final submission recheck current inputs and
+grant expiry after database waits. Models cannot supply or approve their own
+quality verdict. Inspect complete copy before manually approving an exception.
+
+Form autofill uses stored identity only for supported, clearly identified text
+fields. A résumé is attached only to an explicit compatible résumé upload.
+Consent, radio choices, employer-specific questions and default-checked optional
+controls require explicit answers; unknown documents need manual handling on the
+employer page. A changed default invalidates the approved form signature.
+
+### SmartRecruiters and multi-location discovery
+
+Add SmartRecruiters company slugs or supported public board URLs under Search
+sources. The official adapter reads one page of at most 50 listings and at most
+ten fresh details per board, prioritizes matching title metadata and reports
+truncation/failures. Explicit India-only preferences can narrow the provider
+query; this does not establish work eligibility. `releasedDate` is an employer
+publication/re-publication date, not proof of first creation or authenticity.
+These jobs support discovery and drafting; submit on the original employer page.
+SmartRecruiters does not join the automatic browser destination allowlist.
+
+Ashby discovery now retains explicitly listed secondary locations and country
+metadata. A hybrid workplace is not classified as fully remote merely because
+the source's broad `isRemote` flag is true.
+
 ## Gmail read-only connection
 
 1. Enable the Gmail API in a Google Cloud project you control. Configure an OAuth

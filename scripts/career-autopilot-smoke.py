@@ -15,8 +15,10 @@ from uuid import uuid4
 
 import psycopg
 from app.action_store import SideEffectGuardError
+from app.career_autopilot import guard_autopilot_action
 from app.career_autopilot_models import CareerPlay
 from app.career_autopilot_store import CareerAutopilotStore
+from app.career_application_quality import assess_application_quality
 from app.career_models import CareerProfileCreate
 from app.career_tracking import GmailSyncError, classify_message, correlate_message
 from app.career_tracking_models import CareerEventCreate
@@ -90,13 +92,20 @@ def complete_preparation(store, profile, run):
         check(task is not None, "Fixture preparation task was not claimable")
         opportunity_id = task["payload"]["opportunity_id"]
         if task["kind"] == "career.application_draft":
+            draft_context = store.get_draft_context(opportunity_id, profile["id"])
+            draft_content = {
+                "cover_letter": (
+                    "I am applying for the Python Engineer role. My saved resume records Python "
+                    "engineering evidence, and I would welcome a discussion about the position "
+                    "and the team's requirements."
+                ),
+                "fit_summary": "Fixture only", "evidence": [draft_context["resume_text"]],
+                "honest_gaps": [], "resume_keywords": ["Python"],
+            }
+            draft_content["quality_report"] = assess_application_quality(draft_context, draft_content)
             store.save_application_draft(
                 opportunity_id=opportunity_id, profile_id=profile["id"], task_id=task["id"],
-                model="synthetic-no-inference", content={
-                    "cover_letter": "Synthetic application letter for the Python Engineer role.",
-                    "fit_summary": "Fixture only", "evidence": [], "honest_gaps": [],
-                    "resume_keywords": [],
-                },
+                model="synthetic-no-inference", content=draft_content,
             )
         else:
             opportunity = store.get_opportunity(opportunity_id)
@@ -524,6 +533,159 @@ def exercise_tracking(store, profile, opportunity):
     check(scheduled, "Reply monitoring stopped when application authority was paused")
 
 
+def exercise_smartrecruiters_source(dsn):
+    store = CareerAutopilotStore(dsn)
+    profile = store.create_profile(CareerProfileCreate(
+        name="Synthetic SmartRecruiters discovery", candidate_name="Synthetic Applicant",
+        desired_titles=["Software Engineer"], skills=["Python", "PostgreSQL"],
+        source_config={"arbeitnow": False, "smartrecruiters_boards": ["Example"]},
+        resume_text="Synthetic Applicant. Python and PostgreSQL project evidence.",
+        application_identity={"first_name": "Synthetic", "last_name": "Applicant",
+                              "email": "applicant@example.test"},
+        requested_by="career-source-smoke", active=False,
+    ))
+    result = store.save_opportunities(profile["id"], [{
+        "source": "smartrecruiters", "source_key": "Example:123",
+        "company": "Example", "title": "Software Engineer Intern", "location": "India",
+        "description": "Build Python and PostgreSQL services with engineering mentors.",
+        "remote": False, "employment_type": "Intern",
+        "source_url": "https://jobs.smartrecruiters.com/Example/123",
+        "apply_url": "https://jobs.smartrecruiters.com/Example/123",
+        "published_at": datetime.now(UTC), "published_at_basis": "published",
+        "score": 90, "score_reasons": ["Synthetic source persistence proof"],
+    }])
+    check(result["new"] == 1, "SmartRecruiters source could not persist")
+    row = store.list_opportunities(profile_id=profile["id"], opportunity_status=None, limit=10)[0]
+    check(row["source"] == "smartrecruiters", "SmartRecruiters source projection was lost")
+    run = store.play(profile["id"], CareerPlay(
+        actor="career-source-smoke", mode="apply", min_score=0,
+        allowed_hosts=["jobs.ashbyhq.com"],
+    ))
+    store._reconcile_run(run["id"], sender="")
+    check(not items_for(store, run) and not actions_for(store, run),
+          "Read-only SmartRecruiters source inherited submission authority")
+    return row["id"]
+
+
+def exercise_application_quality(dsn):
+    store = CareerAutopilotStore(dsn)
+    profile, run, _ = create_run(store)
+    complete_preparation(store, profile, run)
+    with store.connect() as connection:
+        draft = connection.execute(
+            "SELECT d.id, d.content FROM job_application_drafts d "
+            "JOIN agent_tasks t ON t.id=d.task_id "
+            "WHERE t.payload->>'autopilot_run_id'=%s", (str(run["id"]),),
+        ).fetchone()
+        forged = dict(draft["content"])
+        forged["cover_letter"] = "I reduced production costs by 99%."
+        forged["quality_report"] = {"version": 1, "disposition": "checks_passed", "findings": []}
+        connection.execute("UPDATE job_application_drafts SET content=%s WHERE id=%s",
+                           (psycopg.types.json.Jsonb(forged), draft["id"]))
+        connection.commit()
+    store._reconcile_run(run["id"], sender="sender@example.test")
+    check(not actions_for(store, run), "A forged quality report authorized unsupported copy")
+    items = items_for(store, run)
+    check(len(items) == 1 and items[0]["state"] == "needs_review"
+          and "quality review required" in items[0]["reason"],
+          "Unsupported candidate claims were not explained for review")
+
+    # Exercise the final quality guard in isolation from the separate exact-digest
+    # checks: even a coherent supplied draft hash cannot make a forged report pass.
+    _, _, _, action, _, _ = authorized_fixture(store)
+    from app.application_browser import canonical_hash
+    with store.connect() as connection:
+        connection.execute("UPDATE job_application_drafts SET content=%s WHERE id=%s",
+                           (psycopg.types.json.Jsonb(forged),
+                            action["private_context"]["draft_id"]))
+        supplied = {**action, "private_context": {
+            **action["private_context"], "draft_sha256": canonical_hash(forged),
+        }}
+        try:
+            guard_autopilot_action(connection, supplied, datetime.now(UTC))
+        except SideEffectGuardError as exc:
+            check("quality review required" in str(exc), "Final refusal was not the quality guard")
+        else:
+            raise AssertionError("Final guard trusted a stored quality verdict")
+        check(connection.execute(
+            "SELECT count(*) AS n FROM side_effect_receipts WHERE action_id=%s", (action["id"],),
+        ).fetchone()["n"] == 0, "Quality guard created a side-effect receipt")
+
+
+def exercise_draft_wait_expiry(dsn):
+    store = CareerAutopilotStore(dsn)
+    profile, run, _ = create_run(store)
+    complete_preparation(store, profile, run)
+    with store.connect() as connection:
+        connection.execute("UPDATE career_autopilot_runs SET expires_at=clock_timestamp() "
+                           "+ interval '1 second' WHERE id=%s", (run["id"],))
+        draft_id = connection.execute(
+            "SELECT d.id FROM job_application_drafts d JOIN agent_tasks t ON t.id=d.task_id "
+            "WHERE t.payload->>'autopilot_run_id'=%s", (str(run["id"]),),
+        ).fetchone()["id"]
+        connection.commit()
+    item = items_for(store, run)[0]
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with store.connect() as blocker:
+            blocker.execute("SELECT id FROM job_application_drafts WHERE id=%s FOR UPDATE",
+                            (draft_id,))
+            waiting = executor.submit(store._advance_item, run["id"], item,
+                                      sender="sender@example.test")
+            time.sleep(1.2)
+            blocker.commit()
+        waiting.result(timeout=20)
+    check(not actions_for(store, run), "Draft wait allowed approval after grant expiry")
+    check(items_for(store, run)[0]["state"] == "needs_review",
+          "Expired authority after the draft wait was not explained")
+
+    _, run, _, action, task, fingerprint = authorized_fixture(store)
+    with store.connect() as connection:
+        connection.execute("UPDATE career_autopilot_runs SET expires_at=clock_timestamp() "
+                           "+ interval '1 second' WHERE id=%s", (run["id"],))
+        connection.commit()
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        with store.connect() as blocker:
+            blocker.execute("SELECT id FROM job_application_drafts WHERE id=%s FOR UPDATE",
+                            (action["private_context"]["draft_id"],))
+            waiting = executor.submit(reject_boundary, store, task, fingerprint)
+            time.sleep(1.2)
+            blocker.commit()
+        waiting.result(timeout=20)
+
+
+
+def exercise_fit_projection(dsn):
+    store = CareerAutopilotStore(dsn)
+    profile, _, opportunities = create_run(store, mode="prepare")
+    opportunity_id = opportunities[0]["id"]
+    with store.connect() as connection:
+        connection.execute(
+            "UPDATE career_profiles SET skills = %s, locations = %s, "
+            "min_score = 75, max_age_hours = 72 WHERE id = %s",
+            (["Python", "FastAPI", "Docker"], ["India"], profile["id"]),
+        )
+        connection.execute(
+            "UPDATE job_opportunities SET description = %s, location = 'India', "
+            "published_at = now() - interval '71 hours', score = 64 WHERE id = %s",
+            ("Build Python APIs with FastAPI and Docker.", opportunity_id),
+        )
+        connection.commit()
+    listed = store.list_opportunities(
+        profile_id=profile["id"], opportunity_status=None, limit=10,
+    )
+    detail = store.get_opportunity(opportunity_id)
+    for result in (listed[0], detail):
+        check(result["score"] == 64, "Current fit overwrote the historical discovery score")
+        check(result["fit_report"]["score"] >= 75,
+              "Strong technical fit was penalized for authorized posting age")
+        check(result["fit_report"]["publication"]["within_window"],
+              "A 71-hour publication was incorrectly treated as stale")
+        check(result["fit_report"]["model_calls"] == 0,
+              "Deterministic projection claimed model calls")
+        check("matching_preferences" not in result,
+              "Internal profile projection escaped into the opportunity response")
+    return "Current fit projection preserves history and separates 71-hour freshness without inference"
+
 def main():
     migrations = globals().get("MIGRATIONS")
     if migrations is None:
@@ -549,6 +711,12 @@ def main():
                 patch("smtplib.SMTP", side_effect=AssertionError("SMTP forbidden")), \
                 patch("smtplib.SMTP_SSL", side_effect=AssertionError("SMTP forbidden")):
             groups = exercise(dsn)
+            groups.append(exercise_fit_projection(dsn))
+            exercise_application_quality(dsn)
+            groups.append("Grounded draft review before delegation and recomputation at final guard")
+            exercise_draft_wait_expiry(dsn)
+            groups.append("Grant expiry after draft-row waits fences approval and final receipt")
+            source_id = exercise_smartrecruiters_source(dsn)
             with psycopg.connect(dsn, autocommit=True) as connection:
                 opportunity_id = connection.execute(
                     """INSERT INTO job_opportunities (profile_id, source, source_key, company, title,
@@ -563,6 +731,10 @@ def main():
                 row = connection.execute("SELECT source FROM job_opportunities WHERE id = %s",
                                          (opportunity_id,)).fetchone()
                 check(row == ("remotive",), "Migration replay lost or invalidated Remotive data")
+                row = connection.execute("SELECT source FROM job_opportunities WHERE id = %s",
+                                         (source_id,)).fetchone()
+                check(row == ("smartrecruiters",), "Replay narrowed the new source constraint")
+            groups.append("Read-only SmartRecruiters persists without submit authority across replay")
             groups.append("All migrations replay with durable Remotive and application/tracking data")
         print(f"Career autonomy/tracking PostgreSQL proof passed: {len(groups)} scenario groups")
         for group in groups:

@@ -3074,3 +3074,102 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - Added ADR-0030 and synchronized README, creator operations, architecture,
   security review, roadmap, system evolution and Experiment 39. Recipient data,
   complete private launch copy and local credentials remain outside publication.
+
+## 2026-11-02 — Upstream-informed career operations
+
+- Researched the requested ai-job-search-dev/ai-job-search at inspected commit
+  7f01d752516d955a694271f75ee5534bc344873a and seven complementary repositories.
+  Recorded exact licenses, maintenance observations, source paths, dependency
+  cost and adopt/adapt/defer decisions in two research documents. No upstream
+  application, paid-model subscription, skill pack or third-party source code
+  was installed or copied. Job-Ops's AGPL-plus-Commons-Clause terms and two
+  unlicensed feed repositories were not treated as permissive reuse licenses.
+- Corrected the demonstrated coupling between fit and posting age. Version 2
+  exposes title/skill components, explicit deduplicated aliases, current matching
+  evidence and primary exclusion counts without model calls. Old scoring grants
+  fail their versioned profile hash. The same synthetic five-skill role scored
+  80/72/64/64 at one/25/49/71 hours previously and 100 throughout that window now;
+  both policies exclude 73 hours. This is a bounded fixture result, not measured
+  hiring probability or match accuracy.
+- Added original prompt-view posting sanitization and résumé-quotation, keyword,
+  placeholder, length and narrow unsupported metric/tenure checks. Worker output
+  receives a deterministic report; model-supplied verdicts are discarded.
+  Delegated approval and final receipt recompute current evidence. Cross-review
+  caught a grant-expiry race across a draft-row lock; both paths now recheck
+  wall-clock scope after the wait, with PostgreSQL lock-wait regressions.
+- Hardened form resolution so unknown documents cannot receive the résumé,
+  résumé uploads require compatible explicit purpose, and consent/radio answers
+  require booleans. Subject qualifiers stop employer/emergency/relocation facts
+  being filled from candidate identity. Unknown default-checked controls require
+  review, default state is signed with the form and typed answers are rechecked
+  before filling. The real networkless browser fixture verified explicit opt-out,
+  radio replacement, a real synthetic PDF attachment and refusal before receipt
+  for unknown documents or changed defaults.
+- Added bounded fixed-origin SmartRecruiters public discovery with migration 025,
+  explicit publication/re-publication provenance, request/response limits,
+  target-title priority and partial coverage. Returned network destinations are
+  ignored and browser submission remains manual. Ashby now retains explicitly
+  published secondary locations and distinguishes hybrid from fully remote.
+- Kept the original dirty creator-drafting checkout intact. The career changes
+  were implemented in a managed worktree from main. Isolated Compose validation
+  used a separate project, ports, generated test configuration and image tags;
+  no production credentials were copied into the test stack.
+- Final container lint and 1,084 tests passed. The complete verifier passed its
+  native OAuth/SMTP regressions, lifecycle/recovery/workflow/planner groups,
+  expanded career PostgreSQL groups, both career browser proofs, creator UI and
+  final delivery checks. A separate code-only composition test over the current
+  creator runtime plus the scoped career patch passed lint and 1,178 tests.
+  Its first attempt lacked the required synthetic environment; the corrected
+  network-disabled test passed without live credentials or provider access.
+- Built local-only runtime overlays from the exact running image identities,
+  preserving current creator modules and applying only the validated career
+  diff. The patch applied cleanly; the action-worker source matched its API copy.
+  Applied the normal idempotent migrations and refreshed only control API,
+  research and action workers with the combined images. No original working
+  files, creator approvals, campaign state or secrets were replaced.
+- Renewed an owner-authorized finite ATS-only run through authenticated APIs:
+  three applications per rolling day, score 75, 72-hour proven publication age,
+  reviewed hosts, 24-hour expiry and no email sending. Saved résumé and selected
+  application identity were retained. Discovery now includes 24 employer boards
+  and two public feeds. The real governed scan read 551 normalized listings from
+  25 of 26 sources, found one fresh match and used zero model calls. Its primary
+  exclusions were 439 age, 95 location, seven excluded terms, six title and three
+  below-profile-fit results. One Ashby source failed visibly.
+- Live SmartRecruiters requests returned two PhonePe details and one Freshworks
+  detail. PhonePe coverage was explicitly partial: 50 of a reported 130 list
+  records, ten details attempted and eight detail failures. Freshworks's listed
+  page contained 35 records. One 78-point SmartRecruiters role matched, but this
+  source has manual submission, so no automatic packet or submission was claimed.
+  Queued one governed application draft for that match. Career Gmail remains
+  disabled pending the chosen account's sign-in/label; email-sending scope was
+  not expanded. Real ATS submission and incoming career-reply proof remain open.
+- Synchronized README, roadmap, operations, architecture, security, ADR-0031,
+  system evolution and the measured experiment log. Deterministic checks do not
+  prove genuine employers, semantic résumé truth, eligibility or writing quality.
+
+- The live career draft completed once through local Qwen3 8B after the strict-free
+  hosted route was rate-limited. It contained 179 words and five evidence entries;
+  three quotations verified. The report flagged nonliteral evidence and an
+  unsupported résumé keyword, leaving review required and creating no outgoing
+  action or approval. This verifies real local generation and its refusal path,
+  not usable unedited application copy. No private copy is published.
+- The independently running creator milestone merged into main during this work.
+  Rebased the scoped career commit onto it, preserving both ADR/journal/experiment
+  entries. The merged application source exactly matched the previously tested
+  combined runtime snapshot; container lint/all 1,178 tests passed after rebase.
+  A coherent complete verifier on that source was then started. Agent doctor and
+  the real harmless Mistral free/default route canary also passed.
+- Added five independently researched early-career employer boards without
+  inferring posting freshness or applicant eligibility. Paused and replaced the
+  finite run through the same API, keeping three/day, score 75, 72 hours, the
+  existing hosts, no email and shared budgets. Twenty-nine employer boards plus
+  two public feeds now define discovery; a new governed scan was issued.
+
+- The coherent post-rebase complete verifier then passed all 1,178 tests and the
+  expanded native, PostgreSQL, browser, planner, delivery and recovery groups.
+  The second live scan checked 833 normalized records across thirty successful
+  sources out of thirty-one attempts, retaining the same single match and zero
+  model calls. It excluded 717 by the saved 72-hour age window, 97 by location,
+  eight by excluded terms, seven by title and three below profile fit. These are
+  scan counts, not unique opportunities across both scans. No career application
+  has been submitted; the active finite run has no application reservation yet.

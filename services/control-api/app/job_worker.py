@@ -8,6 +8,7 @@ import signal
 import socket
 import threading
 import time
+from datetime import UTC, datetime
 from types import FrameType
 from typing import Any
 from uuid import UUID
@@ -15,7 +16,10 @@ from uuid import UUID
 import redis
 
 from app.career import (
+    FILTER_REASONS,
+    SCORING_POLICY_VERSION,
     application_draft_messages,
+    diagnose_opportunity,
     fetch_arbeitnow,
     fetch_ashby,
     fetch_greenhouse,
@@ -27,6 +31,7 @@ from app.career import (
     score_opportunity,
 )
 from app.career_autopilot_store import CareerAutopilotStore
+from app.career_smartrecruiters import fetch_smartrecruiters, smartrecruiters_country_hint
 from app.career_tracking import execute_gmail_sync
 from app.career_tracking_store import CareerTrackingStore
 from app.creator_automation_gmail import execute_creator_gmail_sync
@@ -199,6 +204,7 @@ def execute_career_task(
         source_config = profile["source_config"]
         fetched: list[dict[str, object]] = []
         source_errors: list[str] = []
+        source_coverage: list[dict[str, Any]] = []
         sources_attempted = 0
         sources_succeeded = 0
 
@@ -256,6 +262,22 @@ def execute_career_task(
                 sources_succeeded += 1
             except Exception as exc:
                 source_errors.append(f"lever-eu/{board}: {type(exc).__name__}")
+        for board in source_config.get("smartrecruiters_boards", []):
+            _check_interrupted(interrupt)
+            sources_attempted += 1
+            coverage: dict[str, Any] = {}
+            try:
+                fetched.extend(fetch_smartrecruiters(
+                    board, max_age_hours=profile.get("max_age_hours", 168),
+                    checkpoint=lambda: _check_interrupted(interrupt), coverage=coverage,
+                    country=smartrecruiters_country_hint(profile.get("locations", [])),
+                    search_titles=profile.get("desired_titles", []),
+                ))
+                sources_succeeded += 1
+                source_coverage.append(coverage)
+            except Exception as exc:
+                _check_interrupted(interrupt)
+                source_errors.append(f"smartrecruiters/{board}: {type(exc).__name__}")
 
         if sources_attempted == 0:
             raise ValueError("Career profile has no enabled job sources")
@@ -263,11 +285,19 @@ def execute_career_task(
             raise RuntimeError("Every configured job source failed")
 
         matches = []
+        filter_counts = dict.fromkeys(FILTER_REASONS, 0)
+        filter_counts["matched"] = 0
+        matching_time = datetime.now(UTC)
         for job in fetched:
             _check_interrupted(interrupt)
-            scored = score_opportunity(job, profile)
+            report = diagnose_opportunity(job, profile, now=matching_time)
+            if report["filter_reason"]:
+                filter_counts[report["filter_reason"]] += 1
+                continue
+            scored = score_opportunity(job, profile, now=matching_time)
             if scored is not None:
                 matches.append(scored)
+                filter_counts["matched"] += 1
         # save_opportunities selects the first bounded set for automatic
         # preparation, so rank before persistence instead of spending scarce
         # hosted free calls in provider arrival order.
@@ -310,12 +340,18 @@ def execute_career_task(
             "handler": "career.search",
             "profile_id": str(profile_id),
             "sources_succeeded": sources_succeeded,
+            "sources_attempted": sources_attempted,
+            "scoring_version": SCORING_POLICY_VERSION,
+            "filter_counts": filter_counts,
+            "diagnostics_scope": "normalized_source_records",
+            "model_calls": 0,
             "fetched": len(fetched),
             "matched": len(matches),
             "new": save_result["new"],
             "updated": save_result["updated"],
             "auto_prepared": auto_prepared,
             "source_warnings": source_errors,
+            "source_coverage": source_coverage,
         }
 
     if task["kind"] == "career.application_draft":
@@ -436,6 +472,10 @@ def execute_career_task(
                 fallback_attempt=1,
             )
         _check_interrupted(interrupt)
+        from app.career_application_quality import assess_application_quality
+
+        # This report is derived by the worker, never accepted from model output.
+        content["quality_report"] = assess_application_quality(context, content)
         database.save_application_draft(
             opportunity_id=opportunity_id,
             profile_id=profile_id,
@@ -456,6 +496,8 @@ def execute_career_task(
             "model_fallback_attempt": fallback_attempt,
             "route_warning": route_warning,
             "draft_created": True,
+            "quality_disposition": content["quality_report"]["disposition"],
+            "quality_model_calls": 0,
             "automatic_approval_task_created": auto_action is not None,
         }
 

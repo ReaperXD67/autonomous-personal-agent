@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 from app.action_models import ApplicationIdentity, ApplicationPlanCreate, EmailActionCreate
 from app.action_store import ActionPreparationError, ActionStore
 from app.application_browser import canonical_hash
+from app.career_application_quality import application_quality_blocker
 from app.career_autopilot import (
     allowed_url,
     eligibility_reason,
@@ -405,6 +406,14 @@ class CareerAutopilotStore(ActionStore):
             self._item_state(item, "needs_review", "Job details changed during preparation")
             return
         try:
+            draft_context = self._application_context(opportunity["id"])
+            if run["mode"] == "apply":
+                quality_context = self.get_draft_context(opportunity["id"], run["profile_id"])
+                quality_reason = application_quality_blocker(
+                    quality_context, draft_context.get("draft_content") or {},
+                )
+                if quality_reason:
+                    raise ActionPreparationError(quality_reason)
             if allowed_url(opportunity["apply_url"], run["allowed_hosts"]):
                 action = self.create_application_action(
                     opportunity["id"],
@@ -562,6 +571,26 @@ class CareerAutopilotStore(ActionStore):
                 ).fetchone()
                 if not origin or origin["payload"].get("autopilot_run_id") != str(run_id):
                     raise ActionPreparationError("Application material belongs to a different run")
+            draft_field = ("draft_id" if action["action_type"] == "career.application_submit"
+                           else "career_draft_id")
+            draft = connection.execute(
+                "SELECT content FROM job_application_drafts WHERE id = %s FOR SHARE",
+                (execution["private_context"][draft_field],),
+            ).fetchone()
+            quality_reason = application_quality_blocker(
+                {**opportunity, "resume_text": profile["resume_text"]},
+                draft["content"] if draft else {},
+            )
+            if quality_reason:
+                raise ActionPreparationError(quality_reason)
+            # A current-quality read can block on the draft row. Finite authority
+            # must still exist after that wait, before recording delegated approval.
+            authorization_time = connection.execute(
+                "SELECT clock_timestamp() AS now"
+            ).fetchone()["now"]
+            reason = eligibility_reason(run, profile, opportunity, authorization_time)
+            if reason:
+                raise ActionPreparationError(reason)
             if action["action_type"] == "career.application_submit" and not allowed_url(
                     execution["public_context"].get("apply_url", ""), run["allowed_hosts"]
             ):

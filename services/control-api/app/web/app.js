@@ -856,8 +856,9 @@ function missionCard(profile, compact = false) {
     }
     card.append(checks);
     const sources = profile.source_config || {};
-    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever", "lever_eu"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : "")].filter(Boolean);
+    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever", "lever_eu", "smartrecruiters"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : "")].filter(Boolean);
     card.append(node("p", "fine-print", `Configured discovery: ${sourceNames.join(" · ") || "No source configured"}`));
+    card.append(careerScanEvidence(profile.id));
     const actions = node("div", "mission-actions");
     actions.append(button("Scan now", "button compact", "scan-profile", profile.id), button("Edit mission", "text-button", "edit-profile", profile.id), button("View applications", "text-button", "career-applications", profile.id));
     const sync = button(careerMailPending(profile.id) ? "Gmail sync in progress…" : "Check labeled Gmail replies", "text-button", "sync-career-mail", profile.id);
@@ -918,7 +919,7 @@ function opportunityRow(opportunity) {
   row.append(node("span", "logo", initials));
   const copy = node("span");
   copy.append(node("strong", "", opportunity.title), node("small", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${opportunityDateLabel(opportunity)}`));
-  row.append(copy, node("span", "score", `${opportunity.score}% fit`));
+  row.append(copy, node("span", "score", `${careerFitScore(opportunity)}/100 fit`));
   return row;
 }
 
@@ -927,7 +928,7 @@ function opportunityCard(opportunity) {
   const top = node("div", "opportunity-top");
   const copy = node("div");
   copy.append(node("span", "company-line", `${opportunity.company} · ${titleCase(opportunity.source)}`), node("h3", "", opportunity.title), node("p", "", opportunity.location || "Location not listed"));
-  top.append(copy, node("div", "opportunity-score", String(opportunity.score)));
+  top.append(copy, node("div", "opportunity-score", String(careerFitScore(opportunity))));
   card.append(top);
   const meta = node("div", "opportunity-meta");
   meta.append(node("span", "chip status-chip", titleCase(opportunity.status)), node("span", "chip", opportunityDateLabel(opportunity)));
@@ -941,6 +942,8 @@ function opportunityCard(opportunity) {
   opportunity.score_reasons.slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
   card.append(reasons);
   card.append(careerQualityEvidence(opportunity, true));
+  card.append(careerFitEvidence(opportunity, true));
+  if (opportunity.source === "smartrecruiters") card.append(node("p", "fine-print", "Discovery and drafting supported · submit through the employer page manually."));
   if (opportunity.source === "remotive") card.append(researchLink("View the original Remotive listing", opportunity.source_url));
   const actions = node("div", "card-actions");
   actions.append(button("Inspect", "button compact", "view-opportunity", opportunity.id));
@@ -989,6 +992,67 @@ function careerQualityEvidence(opportunity, compact = false) {
   (quality.signals || []).forEach((signal) => list.append(node("li", "", signal.message)));
   if (list.childElementCount) root.append(list);
   root.append(node("p", "fine-print", quality.limitations || "Automated checks cannot prove an employer or listing is genuine."));
+  return root;
+}
+
+const careerFilterLabels = {
+  invalid_date: "Publication date unavailable", future_date: "Future source date",
+  outside_freshness_window: "Outside freshness window", excluded_keyword: "Excluded term",
+  remote_only: "Remote requirement", location_mismatch: "Location mismatch",
+  employment_type_mismatch: "Employment type", missing_required_keywords: "Missing required terms",
+  title_mismatch: "Role mismatch", below_fit_threshold: "Below fit threshold", matched: "Matched",
+};
+
+function careerScanEvidence(profileId) {
+  const root = node("details", "career-scan-evidence");
+  root.append(node("summary", "", "Latest search coverage and exclusions"));
+  const task = state.tasks.filter((item) => item.kind === "career.search" && item.payload?.profile_id === profileId)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+  if (!task) { root.append(node("p", "fine-print", "Run a scan to see which sources and filters were checked.")); return root; }
+  root.append(node("p", "fine-print", `${titleCase(task.status)} · ${researchDate(task.created_at)}`));
+  if (!task.output?.filter_counts) { root.append(node("p", "fine-print", "This task has no filter breakdown. A completed scan with the current worker records it.")); return root; }
+  const output = task.output;
+  root.append(node("p", "", `${output.fetched || 0} normalized listings · ${output.sources_succeeded || 0}/${output.sources_attempted || 0} sources succeeded · ${output.matched || 0} matches. No model calls for this scan.`));
+  const counts = node("ul", "reason-list");
+  Object.entries(careerFilterLabels).forEach(([key, label]) => {
+    const count = output.filter_counts[key];
+    if (count > 0) counts.append(node("li", "", `${label}: ${count}`));
+  });
+  root.append(counts, node("p", "fine-print", "Each normalized listing is counted under its first exclusion or as a match. This is checked coverage, not the whole job market."));
+  (output.source_coverage || []).forEach((source) => root.append(node("p", "fine-print", `${titleCase(source.provider)} / ${source.board}: ${source.returned} details returned from ${source.listed} listed; ${source.truncated ? "partial coverage" : "within reported page coverage"}. Submission ${source.submission_supported ? "supported" : "manual"}.`)));
+  if (output.source_warnings?.length) root.append(node("p", "notice", `${output.source_warnings.length} source warning(s). Inspect this scan in task history for details.`));
+  return root;
+}
+
+function careerFitScore(opportunity) {
+  return Number.isFinite(opportunity.fit_report?.score) ? opportunity.fit_report.score : opportunity.score;
+}
+
+function careerFitEvidence(opportunity, compact = false) {
+  const report = opportunity.fit_report;
+  const root = node(compact ? "details" : "section", "career-fit-evidence");
+  if (!report) { root.append(node("p", "fine-print", "Refresh to compute fit evidence from the current mission.")); return root; }
+  root.append(node(compact ? "summary" : "h3", "", `Current fit evidence · ${report.score}/100`));
+  root.append(node("p", "fine-print", `Title ${report.components?.title?.points || 0}/${report.components?.title?.max || 45} · saved skill matches ${report.components?.skills?.points || 0}/${report.components?.skills?.max || 55}. Freshness is a separate eligibility check.`));
+  const skills = report.components?.skills;
+  if (skills?.matched?.length) root.append(node("p", "", `Observed in posting: ${skills.matched.join(", ")}`));
+  if (skills?.unobserved?.length) root.append(node("p", "fine-print", `Saved skills not observed here: ${skills.unobserved.join(", ")}. This does not establish a candidate gap or employer requirement.`));
+  const reasons = report.hard_filters?.reasons || [];
+  if (reasons.length) root.append(node("p", "notice", `Current filters: ${reasons.map((reason) => careerFilterLabels[reason] || titleCase(reason)).join(" · ")}`));
+  root.append(node("p", "fine-print", report.limitations || "Heuristic fit is not a hiring probability or proof of eligibility."));
+  return root;
+}
+
+function careerDraftQuality(draft) {
+  const report = draft.quality_report;
+  const root = node("section", "career-draft-quality");
+  if (!report) { root.append(node("p", "notice", "Legacy draft has no current generation-time evidence report. Generate fresh material before delegated application.")); return root; }
+  root.append(node("h3", "", report.disposition === "checks_passed" ? "Draft evidence checks passed" : "Draft evidence needs review"));
+  root.append(node("p", "fine-print", `${report.word_count} words · ${report.verified_evidence_count}/${report.evidence_count} exact résumé quotations · generation-time deterministic checks`));
+  const findings = node("ul");
+  (report.findings || []).forEach((finding) => findings.append(node("li", "", finding.message)));
+  if (findings.childElementCount) root.append(findings);
+  root.append(node("p", "fine-print", report.limitations || "Narrow evidence checks do not prove semantic truth or approve an application."));
   return root;
 }
 
@@ -2861,6 +2925,7 @@ function openProfileDialog(profile = null) {
     form.elements.greenhouse_boards.value = (profile.source_config.greenhouse_boards || []).join(", ");
     form.elements.lever_boards.value = (profile.source_config.lever_boards || []).join(", ");
     form.elements.lever_eu_boards.value = (profile.source_config.lever_eu_boards || []).join(", ");
+    form.elements.smartrecruiters_boards.value = (profile.source_config.smartrecruiters_boards || []).join(", ");
     for (const name of ["first_name", "last_name", "email", "phone", "identity_location", "linkedin_url", "github_url", "portfolio_url"]) {
       const identityName = name === "identity_location" ? "location" : name;
       form.elements[name].value = profile.application_identity?.[identityName] || "";
@@ -2885,7 +2950,7 @@ async function resolveCareerSource() {
   try {
     const source = await api("/v1/career/sources/resolve", { method: "POST", body: JSON.stringify({ url }) });
     if (request !== careerSourceRequest || !$("#profile-dialog").open || form.elements.profile_id.value !== profileId || input.value.trim() !== url) return;
-    const allowedKeys = new Set(["ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards"]);
+    const allowedKeys = new Set(["ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards", "smartrecruiters_boards"]);
     if (!allowedKeys.has(source.source_config_key)) throw new Error("The resolved source is not supported by this form.");
     const field = form.elements[source.source_config_key];
     field.value = [...new Set([...csv(field.value), source.board])].join(", ");
@@ -2923,7 +2988,7 @@ async function saveProfile(event) {
     max_age_hours: Number(form.elements.max_age_hours.value),
     min_score: Number(form.elements.min_score.value),
     schedule_minutes: Number(form.elements.schedule_minutes.value),
-    source_config: { arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value), lever_eu_boards: csv(form.elements.lever_eu_boards.value) },
+    source_config: { arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value), lever_eu_boards: csv(form.elements.lever_eu_boards.value), smartrecruiters_boards: csv(form.elements.smartrecruiters_boards.value) },
     application_identity: applicationIdentity,
     resume_text: form.elements.resume_text.value || (id ? null : ""),
     auto_prepare: form.elements.auto_prepare.checked,
@@ -3502,14 +3567,20 @@ function showApplicationAnswers(id, fields) {
   form.elements.opportunity_id.value = id;
   const container = $("#application-answer-fields");
   container.replaceChildren();
-  fields.forEach((field) => {
+  fields.forEach((field, index) => {
     const label = node("label");
-    label.append(node("span", "", field.label));
+    const caption = node("span", "", field.label);
+    caption.id = `application-answer-label-${index}`;
+    label.append(caption);
     let input;
-    if (field.type === "checkbox") {
+    if (["checkbox", "radio"].includes(field.type)) {
+      input = document.createElement("select");
+      input.append(new Option("Choose explicitly", ""), new Option("Yes / checked", "true"), new Option("No / unchecked", "false"));
+      input.dataset.booleanAnswer = "true";
+    } else if (field.type === "file") {
       input = document.createElement("input");
-      input.type = "checkbox";
-      label.className = "checkbox-row";
+      input.disabled = true;
+      input.placeholder = "Provide this document on the employer page";
     } else if (field.options?.length) {
       input = document.createElement("select");
       input.append(new Option("Choose an answer", ""));
@@ -3518,10 +3589,15 @@ function showApplicationAnswers(id, fields) {
       input = document.createElement(field.type === "textarea" ? "textarea" : "input");
     }
     input.dataset.fieldKey = field.key;
-    input.required = true;
+    input.setAttribute("aria-labelledby", caption.id);
+    input.required = field.type !== "file";
     label.append(input);
+    if (field.reason) label.append(node("small", "", field.reason));
     container.append(label);
   });
+  const unsupportedDocument = fields.some((field) => field.type === "file");
+  $("#application-answer-form button[type=submit]").disabled = unsupportedDocument;
+  if (unsupportedDocument) container.append(node("p", "notice", "A document needs your handling. Open the employer application; Hermes will not upload the résumé as another document."));
   $("#application-answer-dialog").showModal();
 }
 
@@ -3556,11 +3632,12 @@ function showOpportunity(id) {
   actionReviewId = null;
   actionReviewRecord = null;
   const root = $("#detail-content");
-  root.replaceChildren(node("span", "tag", `${titleCase(opportunity.source)} · ${opportunity.score}% fit`), node("h2", "", opportunity.title), node("p", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${opportunityDateLabel(opportunity)}`));
+  root.replaceChildren(node("span", "tag", `${titleCase(opportunity.source)} · ${careerFitScore(opportunity)}/100 fit`), node("h2", "", opportunity.title), node("p", "", `${opportunity.company} · ${opportunity.location || "Location not listed"} · ${opportunityDateLabel(opportunity)}`));
   const reasons = node("ul", "reason-list");
   opportunity.score_reasons.forEach((reason) => reasons.append(node("li", "", reason)));
   root.append(reasons, node("div", "detail-description", opportunity.description || "No description supplied by source."));
   root.append(careerQualityEvidence(opportunity));
+  root.append(careerFitEvidence(opportunity));
   if (opportunity.latest_draft) {
     const draft = opportunity.latest_draft;
     const box = node("section", "draft-box");
@@ -3568,6 +3645,7 @@ function showOpportunity(id) {
     const evidence = node("ul");
     (draft.evidence || []).forEach((item) => evidence.append(node("li", "", item)));
     box.append(node("h3", "", "Evidence to emphasize"), evidence, node("h3", "", "Cover letter"), node("p", "", draft.cover_letter || ""));
+    box.append(careerDraftQuality(draft));
     if ((draft.honest_gaps || []).length) {
       const gaps = node("ul");
       draft.honest_gaps.forEach((item) => gaps.append(node("li", "", item)));
@@ -3835,7 +3913,7 @@ $("#application-answer-form").addEventListener("submit", (event) => guardedSubmi
   const form = event.currentTarget;
   const answers = {};
   $$('[data-field-key]', form).forEach((input) => {
-    answers[input.dataset.fieldKey] = input.type === "checkbox" ? input.checked : input.value;
+    if (!input.disabled) answers[input.dataset.fieldKey] = input.dataset.booleanAnswer === "true" ? input.value === "true" : input.type === "checkbox" ? input.checked : input.value;
   });
   await planOpportunity(form.elements.opportunity_id.value, answers);
 }));

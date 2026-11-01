@@ -2,9 +2,17 @@ BEGIN;
 
 ALTER TABLE job_opportunities ADD COLUMN IF NOT EXISTS published_at_basis varchar(10)
     NOT NULL DEFAULT 'unknown' CHECK (published_at_basis IN ('published', 'updated', 'unknown'));
-ALTER TABLE job_opportunities DROP CONSTRAINT IF EXISTS job_opportunities_source_check;
-ALTER TABLE job_opportunities ADD CONSTRAINT job_opportunities_source_check
-    CHECK (source IN ('arbeitnow', 'ashby', 'greenhouse', 'lever', 'remotive'));
+-- Later source migrations may widen this check. Replay must not narrow it over
+-- already-persisted records from a newer public source.
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM schema_migrations WHERE version = '016_career_autopilot') THEN
+        ALTER TABLE job_opportunities DROP CONSTRAINT IF EXISTS job_opportunities_source_check;
+        ALTER TABLE job_opportunities ADD CONSTRAINT job_opportunities_source_check
+            CHECK (source IN ('arbeitnow', 'ashby', 'greenhouse', 'lever', 'remotive'));
+    END IF;
+END;
+$$;
 
 CREATE TABLE IF NOT EXISTS career_autopilot_runs (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

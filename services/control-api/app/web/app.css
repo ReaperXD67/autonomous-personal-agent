@@ -711,6 +711,8 @@ summary:focus-visible { outline: 2px solid var(--cyan); outline-offset: 5px; bor
 .career-quality h3 { margin: 0; font-size: 14px; }
 .career-quality ul { padding-left: 20px; }
 .career-source-import { margin: 12px 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; }
+.career-fit-evidence, .career-draft-quality, .career-scan-evidence { margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.career-fit-evidence h3, .career-draft-quality h3 { margin: 0 0 8px; font-size: 14px; }
 @media (max-width: 620px) {
   .career-attention { padding: 16px; }
   .career-attention-item { align-items: flex-start; flex-direction: column; gap: 10px; }

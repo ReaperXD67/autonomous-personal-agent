@@ -33,8 +33,12 @@ class CareerSourceConfig(BaseModel):
     greenhouse_boards: list[str] = Field(default_factory=list)
     lever_boards: list[str] = Field(default_factory=list)
     lever_eu_boards: list[str] = Field(default_factory=list)
+    smartrecruiters_boards: list[str] = Field(default_factory=list)
 
-    @field_validator("ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards")
+    @field_validator(
+        "ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards",
+        "smartrecruiters_boards",
+    )
     @classmethod
     def validate_board_slugs(cls, values: list[str], info: ValidationInfo) -> list[str]:
         return normalize_source_boards(values, config_key=str(info.field_name))
@@ -48,6 +52,7 @@ class CareerSourceConfig(BaseModel):
             and not self.greenhouse_boards
             and not self.lever_boards
             and not self.lever_eu_boards
+            and not self.smartrecruiters_boards
         ):
             raise ValueError("At least one reviewed career source must be enabled")
         return self
@@ -194,6 +199,7 @@ class OpportunityView(BaseModel):
     latest_preflight: dict[str, Any] | None = None
     latest_action: dict[str, Any] | None = None
     quality: dict[str, Any] = Field(default_factory=dict)
+    fit_report: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

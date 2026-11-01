@@ -7,7 +7,8 @@ from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from app.application_browser import canonical_hash
-from app.career import score_opportunity
+from app.career import SCORING_POLICY_VERSION, score_opportunity
+from app.career_application_quality import application_quality_blocker
 from app.career_quality import quality_blocker
 
 PROFILE_SCOPE_FIELDS = (
@@ -41,7 +42,10 @@ OPPORTUNITY_SCOPE_FIELDS = (
 
 
 def profile_hash(profile: dict[str, Any]) -> str:
-    return canonical_hash({key: profile.get(key) for key in PROFILE_SCOPE_FIELDS})
+    return canonical_hash({
+        "scoring_policy_version": SCORING_POLICY_VERSION,
+        "profile": {key: profile.get(key) for key in PROFILE_SCOPE_FIELDS},
+    })
 
 
 def opportunity_hash(opportunity: dict[str, Any]) -> str:
@@ -176,12 +180,26 @@ def guard_autopilot_action(connection: Any, action: dict[str, Any], now: datetim
         "public_context"
     ].get("recipient"):
         raise SideEffectGuardError("Published hiring email is outside the authorized scope")
-    else:
-        draft = connection.execute(
-            "SELECT content FROM job_application_drafts WHERE id = %s FOR SHARE",
-            (action["private_context"].get("career_draft_id"),),
-        ).fetchone()
-        if draft is None or canonical_hash(draft["content"]) != action["private_context"].get(
-            "career_draft_sha256"
-        ):
-            raise SideEffectGuardError("Career email draft changed after authorization")
+    draft_field, hash_field = (
+        ("draft_id", "draft_sha256") if action["action_type"] == "career.application_submit"
+        else ("career_draft_id", "career_draft_sha256")
+    )
+    draft = connection.execute(
+        "SELECT content FROM job_application_drafts WHERE id = %s FOR SHARE",
+        (action["private_context"].get(draft_field),),
+    ).fetchone()
+    if draft is None or canonical_hash(draft["content"]) != action["private_context"].get(
+        hash_field
+    ):
+        raise SideEffectGuardError("Career application draft changed after authorization")
+    quality_reason = application_quality_blocker(
+        {**opportunity, "resume_text": profile["resume_text"]}, draft["content"],
+    )
+    if quality_reason:
+        raise SideEffectGuardError(quality_reason)
+    # The draft FOR SHARE above may have waited until the finite grant expired.
+    # No subsequent lock or model call may move this check before that wait.
+    now = connection.execute("SELECT clock_timestamp() AS now").fetchone()["now"]
+    reason = eligibility_reason(run, profile, opportunity, now)
+    if reason:
+        raise SideEffectGuardError(reason)
