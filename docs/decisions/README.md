@@ -34,3 +34,4 @@ history.
 - [ADR-0028](ADR-0028-explicit-creator-oauth-renewal.md): explicit same-mailbox renewal after a confirmed invalid creator refresh grant
 - [ADR-0029](ADR-0029-bilingual-drafts-and-fair-research.md): frozen English/Polish creator drafts and fair research selection from issued reservation history
 - [ADR-0030](ADR-0030-grounded-creator-plans-and-draft-batches.md): grounded evidence/angle plans, server-authored copy and audited preparation-only batches
+- [ADR-0031](ADR-0031-evidence-backed-career-operations.md): age-independent fit, résumé evidence checks, typed form answers and bounded SmartRecruiters discovery

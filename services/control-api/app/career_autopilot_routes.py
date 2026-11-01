@@ -57,6 +57,16 @@ SOURCE_CATALOG = [
         "url": "https://www.ycombinator.com/jobs",
     },
     {
+        "id": "smartrecruiters",
+        "name": "SmartRecruiters",
+        "status": "research_only",
+        "description": (
+            "Bounded public employer discovery with publication dates. "
+            "Application execution is not connected; submit manually."
+        ),
+        "url": "https://careers.smartrecruiters.com/",
+    },
+    {
         "id": "linkedin",
         "name": "LinkedIn",
         "status": "import_required",
@@ -94,9 +104,16 @@ def overview(request: Request, profile_id: UUID | None = None) -> dict[str, Any]
             or config.get("remotive")
             or any(config.get(key) for key in (
                 "ashby_boards", "lever_boards", "lever_eu_boards", "greenhouse_boards",
+                "smartrecruiters_boards",
             ))
         )
         resume = profile["resume_present"]
+        application_sources = bool(
+            config.get("arbeitnow") or config.get("remotive")
+            or any(config.get(key) for key in (
+                "ashby_boards", "lever_boards", "lever_eu_boards", "greenhouse_boards",
+            ))
+        )
         readiness.append(
             {
                 "profile_id": profile["id"],
@@ -107,7 +124,7 @@ def overview(request: Request, profile_id: UUID | None = None) -> dict[str, Any]
                 ),
                 "sources_enabled": sources,
                 "can_prepare": resume and sources,
-                "can_apply": resume and sources and identity_complete,
+                "can_apply": resume and application_sources and identity_complete,
                 "gmail_configured": settings.gmail_enabled,
                 "smtp_configured": settings.mail_transport != "disabled",
             }

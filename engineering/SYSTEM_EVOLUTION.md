@@ -1,5 +1,28 @@
 # System evolution
 
+## 2026-11-02 — Evidence-backed career operations
+
+ADR-0031 records an upstream-informed adaptation using original components.
+Scoring version 2 separates title/skill evidence from posting age and adds
+explicit aliases, current matching projections and normalized-record exclusion
+counts. Scoring version joins the profile hash, so existing grants cannot
+silently inherit different semantics. No model call is needed for these stages.
+
+Application generation records a deterministic résumé/posting/draft report.
+Delegated approval and final submission recompute it, then recheck scope time
+after draft locks. The isolated executor now distinguishes résumé uploads from
+other documents, requires typed boolean decisions and freezes default checked
+state in its form signature. Unknown documents and controls remain reviewed;
+lexical evidence checks do not replace semantic judgment.
+
+Migration 025 expands source provenance for bounded official SmartRecruiters
+list/detail reads. The adapter ignores returned network destinations and reports
+partial coverage; its application submission remains manual. Ashby retains
+explicit secondary locations and distinguishes hybrid from fully remote.
+PostgreSQL, policy/audit/outbox, existing workers, inference routing, budgets and
+receipts remain authoritative. No service, framework, dependency or general
+account/browser authority was introduced.
+
 ## 2026-10-27 — Observable creator review and explicit mailbox renewal
 
 Creator draft reads compute editorial warnings from the existing stored public

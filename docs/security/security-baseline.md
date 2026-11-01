@@ -108,6 +108,23 @@ assume logs/artifacts containing a leaked value are compromised.
 
 ## Workflow authority
 
+Career application fields now bind document purpose and PDF compatibility,
+require real booleans for checkbox/radio answers and review unknown default
+choices. Subject qualifiers prevent employer/contact/legal questions being
+filled from candidate identity. Default checked state joins the form signature;
+the executor revalidates typed values before filling or obtaining a receipt.
+
+Delegated career copy requires current, recomputed résumé-evidence checks.
+Generation-time quality metadata cannot authorize a packet by itself. Draft-row
+waits are followed by a new wall-clock/scope check before approval and at final
+submission. Prompt-view sanitization and narrow lexical claim checks are defense
+in depth; they do not prove semantic truth or provide a general injection defense.
+
+SmartRecruiters discovery uses a fixed public API host, validated company/job
+identities, refused redirects, bounded response and request counts, and explicit
+partial-coverage reporting. Returned URLs never select another fetch target.
+It adds no automatic browser host, account authority or credential. See ADR-0031.
+
 Workflow plans can invoke only foundation echo/wait, allowlisted career search,
 draft/preflight, and creator discovery. Each step derives risk from capability
 policy; caller risk can only increase it. Raw email send and application submit

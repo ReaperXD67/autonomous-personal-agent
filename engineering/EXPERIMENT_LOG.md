@@ -1180,6 +1180,27 @@ reply reviews, confirmed interest and owner handoffs remain zero. Acceptance is
 not inbox-placement proof, and queued packets still depend on execution, expiry
 and final guards. No reply-rate or revenue improvement was measured.
 
+## 2026-11-02 — Synthetic fit-age separation
+
+Executed the prior `career.py` from commit `297ae97` and current version 2 in
+the same container against an identical synthetic Software Engineer role with
+five literal saved-skill matches, India location, no required-term/remote bonus
+and a 72-hour window. No model or provider request was made.
+
+| Age | Previous score | Version 2 score | Previous passes 75 | Version 2 passes 75 |
+|---|---|---|---|---|
+| 1 hour | 80 | 100 | Yes | Yes |
+| 25 hours | 72 | 100 | No | Yes |
+| 49 hours | 64 | 100 | No | Yes |
+| 71 hours | 64 | 100 | No | Yes |
+| 73 hours | Excluded | Excluded | No | No |
+
+This confirms the scoring/freshness defect and its bounded correction for the
+fixture. It does not calibrate fit, validate qualifications, measure semantic
+accuracy or demonstrate better applications, interviews or offers. Separate
+browser fixtures verify a real synthetic PDF upload, explicit opt-out/radio
+selection and refusal before receipt for unknown documents/default controls.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

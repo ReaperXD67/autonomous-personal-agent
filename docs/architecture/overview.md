@@ -33,6 +33,16 @@ contents nor product capabilities. See [ADR-0030](../decisions/ADR-0030-grounded
 
 ## Goals
 
+Career operations use a versioned fit policy independent of posting age, with
+current component/filter projections and zero-model scan diagnostics. Draft
+generation records bounded résumé/posting evidence findings; delegated approval
+and the final receipt recompute them and recheck expiry after draft-row waits.
+Typed document and consent handling remains in the isolated action worker.
+Migration 025 extends opportunity provenance for bounded official SmartRecruiters
+reads; submission authority remains unchanged. No new service or dependency is
+introduced. See [ADR-0031](../decisions/ADR-0031-evidence-backed-career-operations.md)
+and [upstream research](../research/ai-job-search-adaptation-2026-11.md).
+
 Foundation favors explicit boundaries over premature features:
 
 1. every task has durable identity and state;

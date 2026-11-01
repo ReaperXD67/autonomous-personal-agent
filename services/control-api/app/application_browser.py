@@ -72,6 +72,7 @@ def _normalize_field(raw: dict[str, Any], ordinal: int) -> dict[str, Any]:
         "id": str(raw.get("id") or "")[:200],
         "label": " ".join(str(raw.get("label") or "").split())[:500],
         "required": bool(raw.get("required")),
+        "checked": bool(raw.get("checked")),
         "accept": str(raw.get("accept") or "")[:300],
         "options": [str(value)[:300] for value in (raw.get("options") or [])[:100]],
     }
@@ -80,9 +81,59 @@ def _normalize_field(raw: dict[str, Any], ordinal: int) -> dict[str, Any]:
 
 
 def _field_semantics(field: dict[str, Any]) -> str:
-    return " ".join(
+    text = " ".join(
         str(field.get(name) or "") for name in ("key", "name", "id", "label")
-    ).casefold()
+    )
+    text = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text)
+    return " ".join(re.sub(r"[^\w]+", " ", text.casefold()).split())
+
+
+def _resume_upload(field: dict[str, Any], semantics: str) -> bool:
+    if field.get("type") != "file" or not re.search(
+        r"\b(?:resume|r\u00e9sum\u00e9|cv|curriculum vitae)\b", semantics,
+    ):
+        return False
+    if re.search(
+        r"\b(?:passport|authorization|citizenship|transcript|certificate|"
+        r"certification|photograph|identity|cover letter|proof)\b", semantics,
+    ):
+        return False
+    accept = str(field.get("accept") or "").casefold()
+    return not accept or any(
+        item.strip() in {".pdf", "application/pdf", "application/*", "*/*"}
+        for item in accept.split(",")
+    )
+
+
+def _identity_field(semantics: str, identity: dict[str, Any],
+                    full_name: str, cover_letter: str) -> str | None:
+    if re.search(
+        r"\b(?:consent|marketing|subscribe|sponsorship|authorization|citizenship|"
+        r"salary|compensation|experience|gender|veteran|disability|employer|"
+        r"company|reference|referrer|manager|emergency|alternate|secondary|"
+        r"parent|guardian|spouse|office|school|university|contact person|"
+        r"relocate|relocation|willing|preferred|desired|authorized)\b", semantics,
+    ):
+        return None
+    if re.search(r"\bfirst name\b", semantics):
+        return identity.get("first_name")
+    if re.search(r"\blast name\b", semantics):
+        return identity.get("last_name")
+    if re.search(r"\b(?:full name|your name|applicant name)\b", semantics) or (
+        re.fullmatch(r"(?:name\s*\d*\s*)+", semantics)
+    ):
+        return full_name
+    for pattern, key in (
+        (r"\be ?mail\b", "email"), (r"\b(?:phone|mobile)\b", "phone"),
+        (r"\blinkedin\b", "linkedin_url"), (r"\bgithub\b", "github_url"),
+        (r"\b(?:portfolio|personal website)\b", "portfolio_url"),
+        (r"\b(?:location|city)\b", "location"),
+    ):
+        if re.search(pattern, semantics):
+            return identity.get(key)
+    if re.search(r"\bcover letter\b", semantics):
+        return cover_letter
+    return None
 
 
 def resolve_application_fields(
@@ -101,29 +152,32 @@ def resolve_application_fields(
         value: str | bool | None = answers.get(key)
         if value is None and key.rsplit(":", 1)[0] in answers:
             value = answers[key.rsplit(":", 1)[0]]
-        if value is None:
-            if field_type == "file" or "resume" in semantics or "cv" in semantics:
+        invalid = None
+        if field_type in {"checkbox", "radio"}:
+            if value is not None and type(value) is not bool:
+                invalid = "Use an explicit true or false answer for this control"
+            elif field_type == "checkbox" and field.get("required") and value is False:
+                invalid = "This required checkbox is explicitly unchecked"
+            elif field_type == "checkbox" and value is None and field.get("checked"):
+                invalid = "Review this checkbox because the employer page checks it by default"
+        elif field_type == "file":
+            if _resume_upload(field, semantics) and value in {None, "__RESUME_PDF__"}:
                 value = "__RESUME_PDF__"
-            elif "first" in semantics and "name" in semantics:
-                value = identity.get("first_name")
-            elif "last" in semantics and "name" in semantics:
-                value = identity.get("last_name")
-            elif "full name" in semantics or semantics.endswith(" name"):
-                value = full_name
-            elif "email" in semantics:
-                value = identity.get("email")
-            elif "phone" in semantics or "mobile" in semantics:
-                value = identity.get("phone")
-            elif "linkedin" in semantics:
-                value = identity.get("linkedin_url")
-            elif "github" in semantics:
-                value = identity.get("github_url")
-            elif "portfolio" in semantics or "personal website" in semantics:
-                value = identity.get("portfolio_url")
-            elif "location" in semantics or "address" in semantics:
-                value = identity.get("location")
-            elif "cover" in semantics and "letter" in semantics:
-                value = cover_letter
+            elif value is not None or field.get("required"):
+                invalid = "Only an explicitly identified PDF resume upload is supported"
+        elif isinstance(value, bool):
+            invalid = "Use a text answer for this field"
+        elif value == "__RESUME_PDF__":
+            invalid = "A resume file cannot be entered into a text field"
+        elif value is None and field.get("tag") != "select" and field_type in {
+            "text", "email", "tel", "url", "search", "textarea",
+        }:
+            value = _identity_field(semantics, identity, full_name, cover_letter)
+        if invalid:
+            missing.append({"key": key, "label": field.get("label") or key,
+                            "type": field_type, "options": field.get("options") or [],
+                            "reason": invalid})
+            continue
         if isinstance(value, str):
             value = value.strip()
         if value not in {None, ""}:
@@ -137,6 +191,29 @@ def resolve_application_fields(
                     "options": field.get("options") or [],
                 }
             )
+    radio_groups: dict[str, list[dict[str, Any]]] = {}
+    for field in fields:
+        if field.get("type") == "radio":
+            radio_groups.setdefault(str(field.get("name") or field["key"]), []).append(field)
+    for group in radio_groups.values():
+        selected = [field for field in group if values.get(field["key"]) is True]
+        if len(selected) > 1:
+            for field in group:
+                values.pop(field["key"], None)
+            missing.append({"key": group[0]["key"], "label": group[0].get("label") or "Radio group",
+                            "type": "radio", "options": [],
+                            "reason": "Choose exactly one radio option"})
+        elif selected:
+            keys = {field["key"] for field in group}
+            missing = [field for field in missing
+                       if field["key"] not in keys or field.get("reason")]
+        elif any(field.get("required") or field.get("checked")
+                 or field["key"] in values for field in group) and not any(
+            field["key"] in {item["key"] for item in missing} for field in group
+        ):
+            missing.append({"key": group[0]["key"], "label": group[0].get("label") or "Radio group",
+                            "type": "radio", "options": [],
+                            "reason": "Choose one radio option explicitly"})
     return values, missing
 
 
@@ -188,6 +265,7 @@ def inspect_application_form(url: str, environment: str) -> dict[str, Any]:
                     : (element.getAttribute('aria-label')
                         || element.getAttribute('placeholder') || ''),
                   required: element.required || element.getAttribute('aria-required') === 'true',
+                  checked: element.checked === true,
                   accept: element.getAttribute('accept') || '',
                   options: element.tagName.toLowerCase() === 'select'
                     ? Array.from(element.options).map(option => option.textContent || option.value)
@@ -289,6 +367,7 @@ def submit_application_form(
                     : (element.getAttribute('aria-label')
                         || element.getAttribute('placeholder') || ''),
                   required: element.required || element.getAttribute('aria-required') === 'true',
+                  checked: element.checked === true,
                   accept: element.getAttribute('accept') || '',
                   options: element.tagName.toLowerCase() === 'select'
                     ? Array.from(element.options).map(option => option.textContent || option.value)
@@ -302,6 +381,12 @@ def submit_application_form(
             )
             if signature != expected_signature:
                 raise BrowserActionError("Application form changed after approval")
+
+            checked_values, missing = resolve_application_fields(fields, {}, "", values)
+            if missing or checked_values != values:
+                raise BrowserActionError(
+                    "Approved field answers need typed document or consent review"
+                )
 
             resume_path = temp_directory / "resume.pdf"
             if any(value == "__RESUME_PDF__" for value in values.values()):
@@ -317,7 +402,7 @@ def submit_application_form(
                     continue
                 locator = locators.nth(field["ordinal"])
                 field_type = field["type"]
-                if value == "__RESUME_PDF__":
+                if field_type == "file" and value == "__RESUME_PDF__":
                     locator.set_input_files(str(resume_path))
                 elif field["tag"] == "select":
                     try:
@@ -325,9 +410,9 @@ def submit_application_form(
                     except Exception:
                         locator.select_option(value=str(value))
                 elif field_type in {"checkbox", "radio"}:
-                    if bool(value):
+                    if value is True:
                         locator.check()
-                    else:
+                    elif field_type == "checkbox":
                         locator.uncheck()
                 else:
                     locator.fill(str(value))

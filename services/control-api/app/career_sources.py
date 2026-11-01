@@ -16,6 +16,9 @@ REVIEWED_HOSTS = {
     "job-boards.greenhouse.io": ("greenhouse", "greenhouse_boards"),
     "jobs.lever.co": ("lever", "lever_boards"),
     "jobs.eu.lever.co": ("lever", "lever_eu_boards"),
+    "jobs.smartrecruiters.com": ("smartrecruiters", "smartrecruiters_boards"),
+    "careers.smartrecruiters.com": ("smartrecruiters", "smartrecruiters_boards"),
+    "www.smartrecruiters.com": ("smartrecruiters", "smartrecruiters_boards"),
 }
 
 
@@ -26,10 +29,11 @@ class CareerSourceResolve(BaseModel):
 
 
 class ResolvedCareerSource(BaseModel):
-    provider: Literal["ashby", "greenhouse", "lever"]
+    provider: Literal["ashby", "greenhouse", "lever", "smartrecruiters"]
     board: str
     source_config_key: Literal[
         "ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards",
+        "smartrecruiters_boards",
     ]
     board_url: str
     posting_url: str | None
@@ -59,12 +63,12 @@ def resolve_career_source(value: str) -> ResolvedCareerSource:
     if host in {"linkedin.com", "www.linkedin.com", "ycombinator.com",
                 "www.ycombinator.com", "workatastartup.com", "www.workatastartup.com"}:
         raise ValueError(
-            "Open the employer's application link and paste its Ashby, Greenhouse or Lever URL. "
+            "Open the employer's application link and paste its supported ATS URL. "
             "LinkedIn and Y Combinator account applications are not connected."
         )
     if not valid_origin:
         raise ValueError(
-            "Use a reviewed Ashby, Greenhouse or Lever employer URL. "
+            "Use a reviewed Ashby, Greenhouse, Lever or SmartRecruiters employer URL. "
             "For a company careers page, copy its supported application link."
         )
     provider, config_key = REVIEWED_HOSTS[host]
@@ -103,6 +107,11 @@ def resolve_career_source(value: str) -> ResolvedCareerSource:
                         or (len(parts) == 4 and parts[3] != "application")):
                     raise ValueError("The Greenhouse board or posting path is not supported")
                 posting_id = parts[2]
+        elif provider == "smartrecruiters":
+            if len(parts) > 2 or (host == "careers.smartrecruiters.com" and len(parts) != 1):
+                raise ValueError("The SmartRecruiters board or posting path is not supported")
+            canonical_host = "jobs.smartrecruiters.com"
+            posting_id = parts[1] if len(parts) == 2 else None
         elif len(parts) != 1:
             suffix = "application" if provider == "ashby" else "apply"
             if len(parts) not in {2, 3} or (len(parts) == 3 and parts[2] != suffix):
@@ -113,9 +122,16 @@ def resolve_career_source(value: str) -> ResolvedCareerSource:
     if posting_id is not None:
         posting_url = (f"{board_url}/jobs/{posting_id}" if provider == "greenhouse"
                        else f"{board_url}/{posting_id}")
+    notice = ResolvedCareerSource.model_fields["notice"].default
+    if provider == "smartrecruiters":
+        notice = (
+            "Adds the entire employer board for bounded public discovery. "
+            "SmartRecruiters application execution is not connected; submit manually. "
+            "Recognizing this URL does not verify the employer."
+        )
     return ResolvedCareerSource(
         provider=provider, board=board, source_config_key=config_key,
-        board_url=board_url, posting_url=posting_url,
+        board_url=board_url, posting_url=posting_url, notice=notice,
     )
 
 

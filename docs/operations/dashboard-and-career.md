@@ -11,6 +11,12 @@ in **Your next decisions**. These stages make no model calls; application writin
 still uses configured inference. See [Career Play and Gmail](career-autopilot.md)
 for source import, readiness, scope and verification limits.
 
+Current fit evidence separates title/skill matches from freshness. Mission scan
+details explain exclusions and partial source coverage. Draft review displays
+generation-time résumé-grounding findings; automatic authorization recomputes
+them. Unknown documents and consent/default choices require explicit handling.
+SmartRecruiters extends read-only discovery and drafting, with manual submission.
+
 The **Workflows** view coordinates dependent tasks with explicit result checks,
 parallel limits, deadlines, and cancellation. Use its safe demo or the
 application draft → form inspection recipe; see the
