@@ -57,7 +57,7 @@
 
 - [x] Minecraft paid-first/revenue-share proposals, bounded creator runs and owner email/Discord handoff
 - [x] Reviewed creator feedback with explainable, bounded future-copy adaptation
-- [x] Policy-bound AI creator introductions with recorded video evidence, reviewed feedback, immutable copy and exact-digest individual review
+- [x] Policy-bound creator introductions with recorded video evidence, reviewed feedback, immutable copy and exact-digest individual review
 - [x] Native local Gmail OAuth onboarding with PKCE, expected mailbox/label checks, and atomic secret-safe setup
 - [x] Real creator-mailbox OAuth, identity, configured-label and empty-label runtime read canary
 - [x] Live external SMTP STARTTLS/authentication/NOOP canary through the audited action worker
@@ -67,9 +67,12 @@
 - [x] English/Polish creator reply and objection hints with quoted-history, negation and conditional safeguards
 - [x] Explicit same-mailbox creator OAuth renewal for confirmed invalid refresh grants, preserving account/client/scope checks
 - [x] Frozen English/Polish draft generation with reviewed verbatim briefs, legacy-English compatibility and unchanged exact-message approval
+- [x] Grounded v2 evidence/angle selection with server-authored EN/PL proposals, frozen provenance and complete stored-copy rederivation; legacy contexts/digests preserved
+- [x] Audited draft-only batches of up to five reviewed contacts, stable children/skips/resume, shared preparation reservations and cross-campaign channel/address deduplication
 - [x] Fair shortlist rotation from current issued reservation history before the candidate cap, preserving the ten-per-batch/thirty-per-day research limits
 - [x] Reusable repository-research skill and a source-linked comparison of related outreach systems
-- [ ] Verify creator-specific copy quality from a real configured model response
+- [x] Complete a real English/Polish grounded-model canary: five local drafts usable unchanged after complete-copy review
+- [ ] Evaluate relevance and manual-replacement needs on a representative reviewed holdout; the five-case canary is not a general accuracy or reply-rate benchmark
 - [x] Complete the reviewed two-message creator pilot after product-site availability and fresh exact review; record both real SMTP acceptances
 - [x] Renew the recorded creator OAuth connection and verify a fresh governed labeled read
 - [ ] Establish the appropriate Google publishing/verification or reconsent operation for continued reply monitoring

@@ -36,7 +36,7 @@ handoff email; Hermes does not log into Discord or send Discord DMs.
 | Discover | Official YouTube searches find a bounded sample of channels and videos. Scheduled discovery is optional. Country and language can remain unrestricted. |
 | Research | Source excerpts, activity, subscriber evidence, fit, content ideas, and public business-contact candidates are retained. Missing evidence stays visible. |
 | Qualify | The operator checks the source and authorizes the exact business contact. Discovery cannot authorize recipients. |
-| Introduce | Choose a campaign template, an AI personalized draft, or your own copy for exact approval. Finite runs use generated template introductions for already-reviewed contacts; AI drafts retain individual review. Revenue-share wording uses the campaign's explicit terms. |
+| Introduce | Choose a campaign template, a source-grounded personalized draft, or your own copy for exact approval. A preparation batch can queue up to five eligible drafts; it grants no sending authority. Finite sending runs use templates for already-reviewed contacts. |
 | Read replies | Optional Gmail adapter reads metadata/excerpts from one custom label. Sender and subject matching suggest the creator; classification is conservative evidence. |
 | Review | Positive interest and uncertain replies require confirmation against the original message. Explicit opt-outs suppress further contact. Questions need a reviewed answer. |
 | Handoff | After confirmed interest, prepare one owner-contact email. A run can separately authorize this handoff automatically. SMTP acceptance marks the conversation handed off. |
@@ -115,14 +115,29 @@ and `limit` of one to ten. `GET` on that route returns the latest task; normal
 task endpoints provide durable status and audit history. This is a research
 capability, not an unrestricted Hermes tool connection.
 
-## A model-written introduction for each creator
+## Source-grounded introductions
 
-This drafting mode is experimental. Local lifecycle and interface tests pass,
-and the configured local model has returned a real Polish draft.
-Live review still found unsupported product-capability wording in a Polish
-canary, so generation and a report without findings do not establish usable
-unedited copy. Failed validation stops the draft; use the separately reviewed
-manual or template path when appropriate.
+New personalized drafts use a bounded planning contract: the model chooses an
+issued video-evidence ID and one offered content-angle ID. Hermes writes the
+English/Polish opening, optional proposal, operator explanation and complete
+email from authored wording, the recorded title and your reviewed brief. It
+does not accept model-written factual prose on this path. The exact title is
+quoted with its public link; the proposed episode is separate from the unseen
+video. Title keywords offer possible angles, not proof of a video's contents,
+server support, audience preferences or likely interest.
+
+This replaces the free-copy contract for new drafts after review of the November
+1 launch retained one AI email and required twenty-three manual replacements.
+Historical drafts keep their original context, parser, complete copy and digest.
+The new contract narrows the factual surface; its presence is not certification
+of a truthful brief or a useful proposal. Inspect the complete email.
+
+The November 2 real canary completed five v2 drafts through local `qwen3:8b`,
+including English and Polish and the earlier rejected Polish security-claim
+case. Complete-copy review found all five usable without manual rewriting.
+The two preparation parents each issued two children and completed with no
+skips. These five cases are a small sample, not a matched comparison with the
+previous launch or proof of general accuracy, inbox placement or replies.
 
 Within **Prepare introduction**, select **AI personalized draft · review required**
 and choose **Generate personalized draft**. Drafting runs asynchronously through
@@ -133,19 +148,18 @@ evidence, a valid sampled video, and research no older than seven days. The
 drafting budget is at most three requests per creator and thirty globally per
 rolling day; these are separate from send limits.
 
-The model receives the campaign's product summary, the creator's sampled video
-title, public video URL, observed topics and subscriber count, and campaign-scoped
-reviewed aggregate feedback. Recipient addresses, raw descriptions and raw
-inbox text are excluded. It proposes an opening
-and a content idea, explains the approach and how the observed reach influenced
-the format, and cites recorded evidence. Reach is not a payment formula or a
-promise of views. English and Polish are supported output contracts. Preferred
+The model receives sanitized product metadata, the sampled video title and URL,
+observed topics and subscriber count, offered angle IDs, and campaign-scoped
+reviewed aggregate feedback. Recipient addresses, raw descriptions and raw inbox
+text are excluded. The server derives the explanation from the selected plan;
+observed reach can affect optional scope, never pay or a promise of views.
+English and Polish are supported output contracts. Preferred
 or strict targeting selects the base of the campaign's `target_language`, such
 as `pl` or `pl-pl`; unrestricted language selection defaults to English.
 Unsupported explicit languages stop before inference. The selected
 `output_language` is frozen in the stored model context, and legacy drafts
-without that field remain English. The model writes its opening and idea in
-the selected language; its operator-only rationale and JSON keys stay English.
+without that field remain English. New server-authored openings and ideas use
+the selected language; the operator explanation and wire keys remain English.
 
 For a Polish email, first supply an operator-reviewed Polish product summary,
 paid-offer description and optional revenue basis. The server inserts those
@@ -154,19 +168,23 @@ Polish framing and next steps, while deliberately retaining the existing
 English contact-source, privacy and opt-out footer. Inspect the complete
 mixed-language envelope before individual exact-message approval.
 
-The review shows the actual model and source, complete message, evidence links,
-quality notes, and feedback context. Inspect those sources and confirm that the
-idea matches what the website can actually offer. The existing free-only hosted
-model route and local fallback are used; neither route has authority to contact
-the creator. The local creator model can reason internally within a bounded
-request; only its final copy and explicit operator rationale are saved. Internal
-reasoning traces are discarded. Invalid local output can trigger one bounded
-regeneration from the
-same evidence and a fixed validation hint; rejected text is neither retained nor
-fed back into the prompt. Each attempt reserves inference separately and rechecks
-the task's lease, cancellation and context. Transport failures are not retried
-by this repair step. If no attempt passes, the draft stays visibly failed.
-Choosing a template is a separate, explicitly labeled option.
+The review identifies the angle-selection model separately from server-authored
+wording and shows the selected plan, source, complete copy and quality notes.
+Provenance binds the source title/URL, generation language, context and campaign.
+Before saving or preparing v2 copy, Hermes rederives it and rejects changed
+wording or provenance. A named SMP, mod, edition or feature in a title never
+establishes that the website supplies it. Prerequisites and the creator's own
+verdict remain part of reviewing a proposed independent test.
+
+The existing free-only hosted route and local fallback remain bounded by the
+inference ledger. Local v2 selection disables reasoning output and uses a
+512-token generation cap. One invalid-output correction is allowed, with a
+separate inference reservation and lease/cancellation/context checks; rejected
+text is neither retained nor echoed into the prompt. Transport failures do not
+receive this repair. `CREATOR_DRAFT_OUTPUT_INVALID` means responses failed the
+selection contract; `CREATOR_DRAFT_MODEL_UNAVAILABLE` means no usable model
+response was available. Neither silently creates fallback copy or an email.
+Templates and manual writing remain explicit alternatives.
 
 The draft review shows computed editorial findings and the complete-email word
 count before preparation. Older responses without a report display an explicit
@@ -175,7 +193,8 @@ on existing draft reads. It flags observable English/Polish wording markers, a
 stored output-language contract that differs from the campaign request,
 platform security-verification claims, feedback claims with zero reviewed creators,
 missing source/next-step markers, and rendered emails over 250 words. The rendered
-count includes terms/footer; the model count covers the hook and content idea.
+count includes terms/footer; the compatible hook/idea count covers server-authored
+fields on v2 and model suggestions on legacy drafts.
 Quoted title numbers are evidence, not invented commercial terms. Findings are
 displayed as plain escaped text, alongside the existing quality notes.
 There is no overall score or confidence estimate. The report does not rewrite
@@ -187,7 +206,7 @@ does not establish a capability to verify server safety; narrow wording guards
 cannot catch every unsupported claim. Inspect the original copy even when its
 editorial report has no findings. See the
 [editorial evaluation decision](../research/creator-outreach-intelligence-2026-10.md)
-and [current upstream comparison](../research/creator-outreach-systems-2026-11.md).
+and [grounded-generation comparison](../research/creator-grounded-generation-2026-11.md).
 
 **Prepare exact AI email** binds the saved draft digest to the ordinary email
 approval packet. It does not send the email or approve its own output. Changed
@@ -202,6 +221,38 @@ authorize arbitrary model-generated messages; those runs keep the bounded
 template path. Better relevance can reduce avoidable objections, but acceptance
 depends on the creator, offer and timing. No response or collaboration rate is
 guaranteed.
+
+## Prepare several drafts together
+
+Expand **Prepare personalized drafts in a batch**, choose one to five drafts
+(default three), then select **Prepare draft batch**. This queues a normal
+medium-risk preparation task, not an outreach run. Hermes selects eligible
+creators with reviewed unsuppressed business contacts and fresh evidence, then
+issues separate drafting tasks. **Refresh draft queue** shows each reserved,
+queued, ready, failed, stale or skipped item and links to its individual review.
+
+The batch shares the existing thirty-preparations-per-rolling-day and
+three-per-prospect limits with individual requests. Genuine unmaterialized
+reservations remain counted after cancellation or failure; materializing their
+own matching children does not count twice. Stable membership and UUID child
+keys make resume safe. Batch selection deduplicates canonical channel/profile
+identity and exact normalized business email across active drafts, issued
+reservations and its own selected items, including other campaigns.
+
+Changed campaign/research/contact context, withdrawn eligibility, suppression or
+an existing current draft can produce a durable per-item skip. Resuming does
+not reopen that skip. Cancellation stops remaining issuance; already queued
+drafts have their own task and require separate cancellation. Expired leases,
+unissued caller tasks and modified parent payloads cannot issue children.
+Neither the parent nor its children authorize a contact, create an outgoing
+packet or approve a message. Review each complete result and use the normal
+exact-message preparation and approval steps before any send.
+
+API clients use `POST /v1/marketing/campaigns/{id}/draft-batches` with `actor`,
+a UUID `idempotency_key` and `limit` from one to five. `GET` on that route returns
+the latest issued overview; `GET /v1/marketing/draft-batches/{task_id}` returns
+one batch. Ordinary task cancellation applies to the parent. These authenticated
+routes preserve the same policy, outbox and PostgreSQL audit boundary.
 
 ## Automatic-run boundaries
 
@@ -335,8 +386,20 @@ Those replacements are operator decisions, not creator feedback or evidence that
 the model learned from replies.
 
 The first new invitation was durably SMTP-accepted at 18:00:55 UTC (23:30:55 IST)
-on November 1; twenty-three remained in the paced queue. The final reserved slot
-is November 2 at 04:44:57 UTC (10:14:57 IST). Keep the computer and Docker running
+on November 1. At the November 2 checkpoint, two of those twenty-four were
+accepted and twenty-two remained in the paced queue. Their final reserved slot
+is November 2 at 04:44:57 UTC (10:14:57 IST). Two additional grounded v2 emails,
+one English and one Polish, were then individually prepared, compared with
+their exact reviewed bodies and approved through the ordinary action API.
+They remain queued for November 2 at 18:03:40 and 18:36:21 UTC, before their
+18:58:53 UTC packet expiry. This brings the current scope to twenty-six approved
+invitations: two SMTP-accepted, twenty-four queued and zero failed. The other
+three canary drafts remain ready and unprepared; a successful generation does
+not imply a send or current outreach eligibility.
+
+The new slots use existing rolling headroom; the shared twenty-four/day,
+three/hour, global/domain gaps and jitter were not raised. Keep the computer
+and Docker running
 for the existing action worker to execute eligible packets. Reservations remain
 conditional on final guards and each packet's 24-hour expiry; they are not
 delivery promises. The temporary second research worker was removed after
@@ -370,10 +433,11 @@ git diff --check
 ```
 
 The complete verifier includes disposable PostgreSQL creator-automation,
-AI-draft and API-shortlist proofs, plus network-free native OAuth and SMTP-setup
+grounded/legacy-draft and preparation-batch proofs, API-shortlist proofs, and
+network-free native OAuth and SMTP-setup
 regression checks. Its networkless creator-review browser proof checks the actual
-desktop/mobile UI, escaping, missing-report fallback and unchanged exact-action
-preparation behavior.
+desktop/mobile UI, escaping, missing-report fallback, draft queue and provenance,
+and unchanged exact-action preparation behavior.
 The draft proof uses synthetic model output, so it does not establish that a
 configured external or local model is responding.
 The paid-handoff smoke uses synthetic contacts and Mailpit: introduction,
@@ -384,4 +448,4 @@ YouTube coverage, attribution accuracy, revenue, or commercial agreement.
 
 For provider setup and delivery limits, see [creator outreach operations](creator-outreach.md).
 For the authority boundaries, see [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md)
-and [ADR-0026](../decisions/ADR-0026-reviewed-creator-ai-drafts.md).
+and [ADR-0030](../decisions/ADR-0030-grounded-creator-plans-and-draft-batches.md).

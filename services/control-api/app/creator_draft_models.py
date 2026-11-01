@@ -40,6 +40,32 @@ class CreatorModelCopy(BaseModel):
         return " ".join(value.split())
 
 
+class CreatorGroundedPlan(BaseModel):
+    """The model selects issued identifiers; no model-written prose crosses this wire."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    evidence_id: str = Field(min_length=1, max_length=64)
+    angle_id: str = Field(min_length=1, max_length=64)
+
+
+class CreatorGroundedProvenance(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    contract: Literal["creator-grounded-plan-v2"]
+    copy_origin: Literal["server_rendered"]
+    output_language: Literal["en", "pl"]
+    source_title: str = Field(min_length=1, max_length=300)
+    source_url: str = Field(min_length=1, max_length=1000)
+    context_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    campaign_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+
+
+class CreatorGroundedCopy(CreatorModelCopy):
+    """Server-derived copy and its selected plan; never sending authority."""
+
+    plan: CreatorGroundedPlan
+    provenance: CreatorGroundedProvenance
+
+
 class CreatorDraftQualityFinding(BaseModel):
     code: str
     severity: Literal["warning", "info"]

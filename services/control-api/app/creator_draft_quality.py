@@ -54,6 +54,9 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
     context = _object(row.get("model_context"))
     campaign = _object(_object(row.get("input_snapshot")).get("campaign"))
     copy = _object(row.get("model_copy"))
+    grounded = (context.get("drafting_contract") == "creator-grounded-plan-v2"
+                and _object(copy.get("provenance")).get("contract")
+                == "creator-grounded-plan-v2")
     body = _text(row.get("body"))
     hook, idea, rationale = (_text(copy.get(key)) for key in (
         "hook", "content_idea", "rationale",
@@ -73,6 +76,11 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
         note("COPY_UNAVAILABLE", "A complete rendered model draft is not available to inspect.",
              severity="info")
     else:
+        if grounded:
+            note("MODEL_SELECTED_PLAN", "The model selected an offered evidence and content-angle "
+                 "identifier. Hermes rendered the wording from frozen source and reviewed "
+                 "campaign text. Check the angle's relevance and the campaign claims.",
+                 severity="info")
         if marker != generated:
             note("OUTPUT_LANGUAGE_UNRECOGNIZED", "The stored output-language marker is "
                  "unsupported. Review the original copy; the report uses legacy English labels.")
@@ -86,7 +94,9 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
                  "terms and footer. Consider shortening it while preserving required information.")
         # Inspect model suggestions only. A quoted title can legitimately contain
         # numbers, questions or wording that must not become a claim by Hermes.
-        suggestions = " ".join((hook, idea))
+        # In v2 the hook quotes metadata, including potentially misleading title
+        # wording. A quotation is evidence of a title, not a new platform claim.
+        suggestions = idea if grounded else " ".join((hook, idea))
         polish = normalized_polish(suggestions)
         if security_verification_claim(
             suggestions, _text(_object(context.get("product")).get("product_name")),
@@ -148,7 +158,7 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
         "generated_language": generated,
         "campaign_language": language,
         "rendered_word_count": len(body.split()) if body else None,
-        "model_word_count": len((hook + " " + idea).split()) if copy else None,
+        "model_word_count": 0 if grounded else len((hook + " " + idea).split()) if copy else None,
         "findings": findings,
         "review_limitations": list(REVIEW_LIMITATIONS),
         "human_review_required": True,

@@ -540,3 +540,31 @@ No migration, dependency, service, credential scope or sending authority changes
 An instruction-only repository research skill records a reusable way to assess
 upstream provenance, licenses and fit. It is an authoring aid, outside the agent's
 runtime execution boundary; installation does not grant tools or sending access.
+
+## 2026-11-02 — Grounded creator plans and audited draft preparation batches
+
+ADR-0030 narrows new creator generation from factual prose to server-offered
+evidence and angle IDs. The existing research worker uses the same provider,
+lease and inference-accounting boundary; authored EN/PL rendering supplies the
+opening, independent proposal, rationale and commercial envelope. Provenance
+binds the source title/URL, language, context and campaign. Save/preparation
+rederive the complete stored copy, and rendering checks source/campaign bindings.
+Legacy model contexts, parsers, messages and reviewed digests are preserved.
+The existing source/privacy/opt-out footer and exact individual approval remain.
+
+The medium-risk `marketing.creator_draft_batch` capability reserves at most five
+eligible reviewed contacts, three by default, through the current policy,
+PostgreSQL task, audit and outbox path. A genuine creation audit binds the whole
+payload; UUID5 child keys and per-item outcomes make partial issuance resumable.
+Context, targeting, suppression and owned lease are rechecked after locks.
+Batch selection deduplicates canonical channel/profile identity and exact
+normalized business email across campaigns, current drafts, reservations and
+the selected set. This does not change single-draft creation semantics.
+
+A shared preparation lock counts actual draft rows and genuine unmaterialized
+reservations under thirty per rolling day and three per prospect. Stopped
+parents remain counted, while their own matching materialized children do not
+count twice. Parent cancellation stops remaining issuance without cancelling
+independently queued children. The parent makes no model call, prepares no
+outgoing email and grants no approval/contact/send authority. No new service,
+dependency, schema migration or credential compartment is introduced.

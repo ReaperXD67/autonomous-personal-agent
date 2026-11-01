@@ -13,6 +13,7 @@ from app.creator_draft_content import (
     CreatorCopyError,
     drafting_messages,
     parse_model_copy,
+    response_schema,
 )
 from app.creator_draft_models import CreatorModelCopy
 from app.creator_draft_store import CreatorDraftConflictError, CreatorDraftStore
@@ -26,19 +27,25 @@ class CreatorDraftModelError(RuntimeError):
     pass
 
 
+class CreatorDraftOutputError(CreatorDraftModelError):
+    """A model responded, but bounded selection never met the frozen contract."""
+
+
 class _NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise CreatorDraftModelError("Local drafting endpoint redirects are disabled")
 
 
-def local_draft_completion(messages, model):
+def local_draft_completion(messages, model, *, context=None):
+    grounded = bool(context and context.get("drafting_contract") == "creator-grounded-plan-v2")
     request = Request(
         "http://ollama:11434/api/chat", method="POST",
         headers={"Content-Type": "application/json", "Accept": "application/json"},
         data=json.dumps({
-            "model": model, "messages": messages, "stream": False, "think": True,
-            "format": CreatorModelCopy.model_json_schema(),
-            "options": {"temperature": 0.3, "num_predict": 2048},
+            "model": model, "messages": messages, "stream": False, "think": not grounded,
+            "format": response_schema(context) if context else CreatorModelCopy.model_json_schema(),
+            "options": {"temperature": 0 if grounded else 0.3,
+                        "num_predict": 512 if grounded else 2048},
         }).encode("utf-8"),
     )
     try:
@@ -70,6 +77,7 @@ def _checkpoint(task, row, database, interrupt):
 
 def _model_copy(task, row, database, runtime, client, interrupt):
     context = row["model_context"]
+    grounded = context.get("drafting_contract") == "creator-grounded-plan-v2"
     messages = drafting_messages(context)
     task_id = UUID(str(task["id"]))
     if client is not None:
@@ -137,15 +145,21 @@ def _model_copy(task, row, database, runtime, client, interrupt):
                 "content": (
                     "The previous attempt failed the fixed copy contract. Regenerate from the "
                     "same evidence and original schema. " + COPY_CORRECTIONS[repair_code]
-                    + " Recheck the original rules: connect the recorded subject tentatively, "
-                    "suggest independent testing, and keep numbers or commercial discussion "
-                    "out of the email fields."
+                    + (" Return only the offered evidence_id and angle_id. Do not add prose, "
+                       "facts, rationale, contacts, terms or new identifiers."
+                       if grounded else
+                       " Recheck the original rules: connect the recorded subject tentatively, "
+                       "suggest independent testing, and keep numbers or commercial discussion "
+                       "out of the email fields.")
                 ),
             }]
         started = time.monotonic()
         try:
             _checkpoint(task, row, database, interrupt)
-            content, usage = local_draft_completion(attempt_messages, runtime.local_model)
+            content, usage = (
+                local_draft_completion(attempt_messages, runtime.local_model, context=context)
+                if grounded else local_draft_completion(attempt_messages, runtime.local_model)
+            )
             copy = parse_model_copy(content, context)
         except (TaskInterruptedError, InvalidTaskStateError, CreatorDraftConflictError):
             database.fail_inference_invocation(invocation, "CREATOR_DRAFT_INTERRUPTED")
@@ -165,7 +179,8 @@ def _model_copy(task, row, database, runtime, client, interrupt):
             fallback_attempt=local_attempt,
         )
         return copy, "ollama", runtime.local_model
-    raise CreatorDraftModelError(
+    error_type = CreatorDraftOutputError if grounded and repair_code else CreatorDraftModelError
+    raise error_type(
         "No valid AI draft was produced; review research or choose the explicit template"
     )
 
@@ -198,6 +213,7 @@ def execute_creator_draft_task(
                 "draft_status": saved["status"], "source": source}
     except (CreatorDraftModelError, CreatorDraftConflictError) as exc:
         code = ("CREATOR_DRAFT_CONTEXT_CHANGED" if isinstance(exc, CreatorDraftConflictError)
+                else "CREATOR_DRAFT_OUTPUT_INVALID" if isinstance(exc, CreatorDraftOutputError)
                 else "CREATOR_DRAFT_MODEL_UNAVAILABLE")
         with suppress(InvalidTaskStateError):
             database.fail_draft(draft_id, task_id, task["lease_id"], code)

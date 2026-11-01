@@ -1,10 +1,11 @@
 # Creator outreach security review
 
-Review date: 2026-11-01
+Review date: 2026-11-02
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
-bounded draft adaptation, constrained AI copy, and local Gmail onboarding.
+bounded draft adaptation, grounded selection/rendering, draft preparation
+batches, and local Gmail onboarding.
 This is an implementation review, not legal advice or
 a review of a configured mail provider's terms.
 
@@ -97,39 +98,41 @@ a review of a configured mail provider's terms.
 ### CO-009 — Model personalization could fabricate claims or change the offer
 
 - Severity: High
-- Status: Constrained suggestions with individual review
+- Status: Bounded plan selection and server rendering; individual review retained
 - Evidence: `marketing.creator_draft` follows policy, durable task, audit and
   inference-accounting paths. Models see sanitized public metadata and reviewed
   aggregates, excluding recipient addresses and raw descriptions/inbox text.
-  Only a hook, optional idea, rationale, fixed evidence reference and assigned
-  reach strategy are accepted. Server code composes commercial terms and footer.
-  Immutable digest/context and lease checks fence stale drafts; AI messages
-  cannot use delegated template authority.
-  English/Polish output is selected into the immutable model context and used
-  by prompting, parsing and rendering. Legacy contexts retain English, and
-  unsupported explicit languages are refused. Reviewed product/offer text is
-  inserted verbatim; the standard English source/privacy/opt-out footer stays
-  unchanged. Polish lexical checks extend observable term, viewing and audience
-  claim guards without changing compensation or authorizing a send.
-  A real local Polish canary still attributed an unsupported security capability
-  to the platform and received no preparation or send approval. A narrow
-  English/Polish actor-specific guard now refuses observable platform-security
-  claims during generation validation, supplies a bounded correction hint and
-  exposes an editorial finding when reading affected stored copy. Reporting
-  does not rewrite the original copy or digest. A live read marked that original
-  draft stale, preserved its body/digest and exposed the security-claim marker;
-  preparation returned HTTP 409 without creating an outgoing packet. This
-  operator finding is not a creator reply or a learned creator objection.
-  The subsequent twenty-four-message launch retained one exact AI draft and
-  twenty-three explicit manual replacements, each separately approved after
-  review. Model completion was not treated as permission to send.
-- Residual risk: lexical/schema validation cannot prove truth, contextual
-  relevance or product availability. The operator must inspect the sources and
-  complete copy. The model sees only sampled metadata, not the actual video.
+  New `creator-grounded-plan-v2` contexts accept only an issued `evidence_id`
+  and offered `angle_id`, without extra fields or duplicate keys. The server
+  derives English/Polish copy and its explanation from authored wording,
+  observed title metadata and the reviewed campaign. Source/title/URL,
+  language, context and campaign digests bind the stored provenance; save and
+  preparation rederive and compare the complete stored copy. Rendering also
+  rejects changed source or campaign bindings. A title keyword offers an
+  independent proposal, not a product capability, supported mode or proof of
+  video contents. Commercial terms and the standard English footer remain
+  deterministic. Unsupported explicit languages fail before inference.
+  Markerless legacy contexts retain the existing free-copy validation path;
+  old records and reviewed digests are not rewritten into the new contract.
+  Immutable context, expiry, owned leases and cancellation fence both paths.
+  Neither can use delegated template-send authority.
+  Local v2 selection disables reasoning output and has a 512-token generation
+  cap; at most one invalid-output correction has its own inference accounting
+  and execution checks. Invalid selection and unavailable model response have
+  separate fixed errors. No failed request silently acquires fallback prose,
+  approval or sending authority.
+  The November 1 launch retained one AI message and twenty-three reviewed
+  manual replacements. Those operator decisions motivated the smaller factual
+  surface; they are not creator feedback, training or proof of improved replies.
+- Residual risk: source membership and deterministic rendering cannot establish
+  that an operator's product brief is true, a sampled title is representative,
+  a proposed test is suitable or a creator is interested. Authored angle wording
+  needs review when product scope changes. The operator must inspect the sources
+  and complete copy. The model sees sampled metadata, not the actual video.
   The computed editorial report adds observable wording/count warnings, not a
   semantic confidence score or approval. It cannot modify stored copy/digests.
-  An empty finding list did not establish semantic accuracy in the observed
-  canary; unsupported claims outside the explicit markers still require review.
+  An empty finding list did not establish semantic accuracy in the earlier
+  free-copy canary; legacy lexical checks remain bounded observations.
 
 ### CO-010 — Gmail setup could connect the wrong account or disclose credentials
 
@@ -180,6 +183,30 @@ a review of a configured mail provider's terms.
 - Residual risk: an operator can still select unsuitable upstream code or a
   skill. Research and a successful installation do not prove a measured benefit
   or grant permission for external actions.
+
+### CO-013 — Draft batching could amplify preparation or imply send permission
+
+- Severity: High
+- Status: Issued preparation-only capability
+- Evidence: `marketing.creator_draft_batch` is medium risk and enters the
+  existing policy/task/outbox/audit path. A creation audit binds the canonical
+  payload hash, frozen membership and child keys; generic caller tasks and
+  changed payloads cannot issue children. Each bounded batch contains at most
+  five reviewed contacts. A shared PostgreSQL lock accounts for actual drafts
+  plus genuine unmaterialized reservations, including stopped parents, under
+  thirty per rolling day and three per prospect. Child materialization checks
+  its key, actor, prospect and frozen input hash before consuming its reservation.
+  Cross-campaign batch selection excludes matching canonical channels/profiles
+  and exact normalized business addresses in current drafts, reservations and
+  its own selected set. Current eligibility, context and lease checks follow
+  row waits. Atomic child/outcome writes allow resume without duplicate work;
+  terminal skips remain terminal. Preparation creates no external-action
+  packet, approval decision, send grant or contact authorization.
+- Residual risk: a completed parent means child drafting was queued, not that
+  inference or complete-copy review succeeded. Cancelling a parent cannot recall
+  independently queued children. Identity matching depends on the recorded
+  channel/contact evidence and is not proof of ownership. The final sending
+  boundary and exact individual review remain separate.
 
 ## Production blockers and operating limits
 

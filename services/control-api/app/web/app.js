@@ -19,6 +19,7 @@ const state = {
   creatorCoverage: null,
   creatorAutomation: {},
   creatorPilot: {},
+  creatorDraftBatches: {},
   marketingResults: [],
   workflows: [],
   plans: [],
@@ -32,6 +33,10 @@ let prospectRequestVersion = 0;
 let coverageRequestVersion = 0;
 let creatorAutomationVersion = 0;
 let creatorPilotVersion = 0;
+let creatorDraftBatchVersion = 0;
+const creatorDraftBatchBusy = new Set();
+const creatorDraftBatchKeys = new Map();
+const creatorDraftBatchLimits = new Map();
 const creatorRunBusy = new Set();
 const creatorPilotBusy = new Set();
 const creatorPilotRequestKeys = new Map();
@@ -201,6 +206,8 @@ function disconnect(showMessage = true) {
   state.creatorCoverage = null;
   state.creatorAutomation = {};
   state.creatorPilot = {};
+  state.creatorDraftBatches = {};
+  creatorDraftBatchVersion += 1;
   creatorAutomationVersion += 1;
   creatorPilotVersion += 1;
   prospectRequestVersion += 1;
@@ -299,6 +306,7 @@ async function loadData({ quiet = false } = {}) {
     loadCreatorCoverage();
     loadCreatorAutomation();
     loadCreatorPilots();
+    loadCreatorDraftBatches();
     return true;
   } catch (error) {
     setConnection(false, "Connection failed");
@@ -1647,6 +1655,85 @@ async function loadCreatorPilots(campaignId = null) {
   renderCampaigns();
 }
 
+async function loadCreatorDraftBatches(campaignId = null) {
+  if (!isConnected()) return;
+  const version = ++creatorDraftBatchVersion;
+  const campaigns = state.campaigns.filter((campaign) => !campaignId || campaign.id === campaignId);
+  const results = await Promise.all(campaigns.map(async (campaign) => {
+    try { return [campaign.id, await api(`/v1/marketing/campaigns/${encodeURIComponent(campaign.id)}/draft-batches`) || { task: null, items: [] }]; }
+    catch (error) { return [campaign.id, { error: error.message }]; }
+  }));
+  if (version !== creatorDraftBatchVersion || !isConnected()) return;
+  Object.assign(state.creatorDraftBatches, Object.fromEntries(results));
+  renderCampaigns();
+}
+
+function creatorDraftBatchPanel(campaign) {
+  const panel = node("details", "creator-draft-batch");
+  panel.dataset.campaignId = campaign.id;
+  panel.append(node("summary", "", "Prepare personalized drafts in a batch"),
+    node("p", "fine-print", "Hermes selects eligible creators whose business contacts you already reviewed, then prepares source-grounded introductions. Each email still needs separate exact-message approval."));
+  const data = state.creatorDraftBatches[campaign.id];
+  const task = data?.task;
+  const pending = task && ["queued", "running", "retry_scheduled", "pending_approval"].includes(task.status);
+  const busy = creatorDraftBatchBusy.has(campaign.id);
+  const controls = node("div", "creator-pilot-controls");
+  const label = node("label", "", "Drafts to prepare");
+  const limit = node("input");
+  Object.assign(limit, { type: "number", min: "1", max: "5", step: "1", value: String(creatorDraftBatchLimits.get(campaign.id) || 3), required: true });
+  limit.name = "creator_draft_batch_limit";
+  limit.disabled = Boolean(pending) || busy;
+  limit.addEventListener("input", () => creatorDraftBatchLimits.set(campaign.id, limit.value));
+  label.append(limit);
+  const start = button(pending ? "Preparing draft queue…" : "Prepare draft batch", "button", "prepare-creator-draft-batch", campaign.id);
+  start.disabled = !data || Boolean(pending) || busy;
+  controls.append(label, start, button("Refresh draft queue", "text-button", "refresh-creator-draft-batch", campaign.id));
+  panel.append(controls, node("p", "fine-print", "Up to five per batch, sharing the existing thirty-per-day drafting allowance. Failed or cancelled reservations still count. Preparing drafts creates no sending permission."));
+  if (data?.error) panel.append(node("p", "notice", data.error));
+  if (task) panel.append(node("p", "fine-print", `Batch: ${titleCase(task.status)}`));
+  if (Array.isArray(data?.items)) {
+    const list = node("ul", "creator-pilot-results");
+    for (const item of data.items) {
+      const row = node("li", "creator-pilot-result");
+      row.append(node("strong", "", item.display_name || "Recorded creator"),
+        node("p", "fine-print", titleCase(item.status || "reserved")));
+      if (item.reason) row.append(node("p", "fine-print", item.reason));
+      if (item.draft_id && item.prospect_id) {
+        const open = button("Review prepared draft", "text-button", "review-pilot-prospect", item.prospect_id);
+        open.dataset.campaignId = campaign.id;
+        open.dataset.prepareDraft = "true";
+        row.append(open);
+      }
+      list.append(row);
+    }
+    panel.append(list);
+  }
+  return panel;
+}
+
+async function prepareCreatorDraftBatch(campaignId) {
+  if (creatorDraftBatchBusy.has(campaignId)) return;
+  const panel = $$(".creator-draft-batch").find((item) => item.dataset.campaignId === campaignId);
+  const input = $('input[name="creator_draft_batch_limit"]', panel);
+  if (!input?.reportValidity()) return;
+  const limit = Number(input.value);
+  creatorDraftBatchLimits.set(campaignId, limit);
+  if (!creatorDraftBatchKeys.has(campaignId)) creatorDraftBatchKeys.set(campaignId, crypto.randomUUID());
+  creatorDraftBatchBusy.add(campaignId);
+  renderCampaigns();
+  try {
+    const batch = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/draft-batches`, {
+      method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", idempotency_key: creatorDraftBatchKeys.get(campaignId), limit }),
+    });
+    creatorDraftBatchKeys.delete(campaignId);
+    if (!isConnected() || !state.campaigns.some((campaign) => campaign.id === campaignId)) return;
+    state.creatorDraftBatches[campaignId] = batch;
+    toast("Draft batch queued. Hermes will prepare the eligible introductions for review.");
+  } catch (error) {
+    if (isConnected()) state.creatorDraftBatches[campaignId] = { ...state.creatorDraftBatches[campaignId], error: error.message };
+  } finally { creatorDraftBatchBusy.delete(campaignId); renderCampaigns(); }
+}
+
 function creatorPilotPanel(campaign) {
   const panel = node("details", "creator-pilot");
   panel.dataset.campaignId = campaign.id;
@@ -1995,12 +2082,13 @@ function campaignCard(campaign) {
     button("Export full campaign CSV", "text-button", "export-campaign", campaign.id),
   );
   card.append(actions, node("p", "fine-print", `${campaign.active ? "Discovery scheduled" : "Discovery paused"} · last: ${formatDate(campaign.last_scan_at)} · next: ${formatDate(campaign.next_scan_at)}`));
-  if (campaign.outreach_mode === "paid") card.append(creatorPilotPanel(campaign));
+  if (campaign.outreach_mode === "paid") card.append(creatorPilotPanel(campaign), creatorDraftBatchPanel(campaign));
   return card;
 }
 
 function renderCampaigns() {
   const list = $("#campaign-list");
+  const draftBatchOpen = new Set($$(".creator-draft-batch[open]", list).map((panel) => panel.dataset.campaignId));
   const pilotOpen = new Set($$(".creator-pilot[open]", list).map((panel) => panel.dataset.campaignId));
   list.replaceChildren();
   if (!state.campaigns.length) {
@@ -2009,6 +2097,7 @@ function renderCampaigns() {
   }
   state.campaigns.forEach((campaign) => list.append(campaignCard(campaign)));
   $$(".creator-pilot", list).forEach((panel) => { panel.open = pilotOpen.has(panel.dataset.campaignId); });
+  $$(".creator-draft-batch", list).forEach((panel) => { panel.open = draftBatchOpen.has(panel.dataset.campaignId); });
 }
 
 async function showPromotionKit(campaignId) {
@@ -3183,7 +3272,13 @@ function renderCreatorDraftReview() {
   generate.textContent = creatorDraftLoading ? "Please wait…" : pending ? "Draft in progress…" : draft ? "Generate a fresh draft" : "Generate personalized draft";
   $("#creator-ai-refresh").disabled = creatorDraftLoading;
   if (!draft) return;
-  if (draft.source || draft.selected_model) review.append(node("p", "fine-print", `Written by ${draft.selected_model || "model not recorded"} · ${titleCase(draft.source || "source unavailable")} · ${researchDate(draft.created_at)}`));
+  const grounded = draft.model_copy?.provenance?.contract === "creator-grounded-plan-v2";
+  if (draft.source || draft.selected_model) review.append(node("p", "fine-print", `${grounded ? "Content angle selected by" : "Written by"} ${draft.selected_model || "model not recorded"} · ${titleCase(draft.source || "source unavailable")} · ${researchDate(draft.created_at)}`));
+  if (grounded) {
+    review.append(node("h3", "", "How this email is grounded"),
+      node("p", "", "The model selected an offered content angle. Hermes wrote the wording from the recorded title and reviewed campaign text; the model could not add product claims or commercial terms."),
+      node("p", "fine-print", `Selected angle: ${titleCase(draft.model_copy.plan?.angle_id || "unavailable")}. Check that this suggestion fits the creator before preparing the email.`));
+  }
   if (draft.subject && draft.body) {
     const copy = node("section", "creator-ai-copy");
     copy.setAttribute("aria-label", "Exact AI draft");
@@ -3607,6 +3702,8 @@ document.addEventListener("click", async (event) => {
   if (action === "scan-campaign") return scanCampaign(id);
   if (action === "research-creator-pilot") return researchCreatorPilot(id);
   if (action === "refresh-creator-pilot") return loadCreatorPilots(id);
+  if (action === "prepare-creator-draft-batch") return prepareCreatorDraftBatch(id);
+  if (action === "refresh-creator-draft-batch") return loadCreatorDraftBatches(id);
   if (action === "review-pilot-prospect") return reviewPilotProspect(id, target.dataset.campaignId, target.dataset.prepareDraft === "true");
   if (action === "promotion-kit") return showPromotionKit(id);
   if (action === "new-prospect") return openProspectDialog();

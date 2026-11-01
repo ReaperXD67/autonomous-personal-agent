@@ -1117,6 +1117,69 @@ without actual creator-response evidence. The final reserved release is November
 expiry. Confirmed creator interest and owner handoffs remain zero. SMTP acceptance
 does not prove inbox placement; no reply-rate or revenue improvement was measured.
 
+## Experiment 39 — Grounded creator plans and preparation batches (2026-11-02)
+
+Method: respond to the November 1 source/product review with a smaller model
+contract. New drafts accept only issued evidence/angle IDs, then use authored
+English/Polish rendering and frozen source/context/campaign provenance. Compare
+this path with synthetic regressions derived from the observed free-copy failure
+classes, retaining legacy snapshots, deterministic terms and exact approval.
+Separately exercise preparation-only batches through the existing PostgreSQL
+task/outbox/audit path, including concurrency and durable reservations.
+
+The preceding launch returned nineteen local-Qwen copies and five unavailable
+results from twenty-four tasks; final review retained one exact AI email and
+used twenty-three manual replacements. Intermediate review snapshots included
+queued drafts, so their rejection reasons do not establish a clean semantic
+failure rate. No creator-feedback outcome is inferred from operator copy review.
+
+Observed development checks: the extended disposable-database script passed
+container Ruff and a read-only, network-isolated import check with synthetic
+settings. The actual creator interface passed networkless desktop/mobile checks
+for draft-queue controls, selected-plan/source provenance and unchanged exact
+individual preparation. These checks make no provider or SMTP request. After
+the actual combined image build, container lint and all 1,049 tests passed via
+`./scripts/test.ps1 -SkipBuild`. The complete verifier subsequently passed all
+twenty-one disposable PostgreSQL draft/batch groups, including source/copy
+tampering, explicit legacy preservation, durable skips/resume, cross-campaign
+identity deduplication, cancellation, lease waits and concurrent shared-budget
+exhaustion. The full verifier then completed successfully, including native,
+workflow, scheduler, research, all creator/career PostgreSQL groups, both UIs,
+planner, delivery and recovery. `doctor.ps1 -Agent` and `agent-smoke.ps1` also
+passed, with a real `free/default` Mistral route response. That route canary is
+separate from the local creator-generation proof below.
+
+Five governed real-model preparations were subsequently issued within the
+remaining allowance: one regression draft and two two-creator batches, one
+English and one Polish. Both batch parents reserved two medium-risk items;
+issuance created no outgoing email action. All thirty rolling-day preparation
+slots were then reserved; no further preparations were issued at that cap.
+All five v2 draft tasks subsequently succeeded through local Ollama `qwen3:8b`,
+with no errors. Both parents succeeded, each issuing two children with no
+remaining reservations or skipped items. The selected angles included a short
+clip, building goal, walkthrough and first-session proposals. Complete emails
+were 190–227 words. Complete-copy and independent source/terms review judged
+all five usable unchanged, including the earlier rejected Polish security-claim
+case without that unsupported
+capability assumption. This is an unmatched five-case sample, not a representative
+holdout, model retraining or a measured general accuracy/reply-rate improvement.
+No outgoing action was created by either parent; separate exact-message approval
+and paced delivery remain distinct results.
+
+The final November 2 checkpoint retained two SMTP acceptances and twenty-two
+queued packets from the already approved twenty-four-message launch. Two new
+grounded emails, one English and one Polish, were individually prepared,
+compared with the exact reviewed bodies and approved through the normal API.
+Both are queued for November 2 at 18:03:40 and 18:36:21 UTC, before their
+18:58:53 UTC packet expiry. Total current-scope invitations are twenty-six:
+two accepted, twenty-four queued and zero failed. The other three canary drafts
+remain ready/unprepared, including the regression-only case. Batch issuance
+did not approve its own messages. Shared twenty-four/day, three/hour, gaps and
+jitter remain unchanged. The earlier twelve acceptances are separate; pending
+reply reviews, confirmed interest and owner handoffs remain zero. Acceptance is
+not inbox-placement proof, and queued packets still depend on execution, expiry
+and final guards. No reply-rate or revenue improvement was measured.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

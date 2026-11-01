@@ -5,9 +5,13 @@ pure `creator_learning` component reads reviewed outcome tags and accepted-send
 counts to select fixed draft strategies. PostgreSQL stores the evidence and
 selection reason; Gmail snippets are suggestions until reviewed. Adaptation
 cannot change commercial terms, scope, limits, approvals, or prepared packets.
-The same reviewed aggregates can inform a constrained model-written introduction.
-The model supplies an opening and optional content idea; deterministic code fixes
-the commercial envelope. Model copy requires individual exact-message review.
+The same reviewed aggregates can inform a bounded creator plan. For new v2
+drafts, the model selects only server-issued evidence and angle IDs; authored
+English/Polish rendering supplies the opening, optional idea, explanation and
+commercial envelope. Stored provenance binds the source, language, context and
+campaign. Revalidation rederives the copy rather than trusting stored prose.
+Legacy contexts retain their original free-copy parser and complete messages.
+Every personalized draft still requires individual exact-message review.
 Draft reads also compute an editorial report from the stored public context and
 rendered copy. It has no persistence, score, model invocation or authorization
 effect; metadata-only grounding and natural language still require review.
@@ -15,7 +19,7 @@ English/Polish reply hints normalize a bounded authored-text view without
 changing stored evidence. Only reviewed tags enter learning; direct opt-outs
 retain the existing durable suppression boundary.
 
-Creator draft prompts and rendering use `output_language` in the frozen model
+Creator draft selection and rendering use `output_language` in the frozen model
 context. Preferred/strict English or Polish targeting selects that contract;
 unrestricted selection and legacy contexts without a marker remain English.
 Unsupported explicit languages are refused before inference. The operator's
@@ -23,7 +27,9 @@ product summary, paid-offer wording and optional revenue basis are inserted
 verbatim and need review in the intended language. Polish rendering localizes
 the server envelope and next step while retaining the standard English
 contact-source/privacy/opt-out footer. The language marker describes the
-generation contract, not a linguistic quality score or sending decision.
+generation contract, not a linguistic quality score or sending decision. Angle
+eligibility comes from recorded title keywords; it establishes neither video
+contents nor product capabilities. See [ADR-0030](../decisions/ADR-0030-grounded-creator-plans-and-draft-batches.md).
 
 ## Goals
 
@@ -123,14 +129,38 @@ Read-only creator Gmail uses a separate label and confirmed mailbox identity;
 snippets cannot authorize positive interest. No new service or inference route
 is introduced. See [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
 
-Creator AI drafts are separate immutable product records in PostgreSQL. They
+Creator personalized drafts are separate immutable product records in PostgreSQL. They
 retain input snapshots, sanitized prompt context, evidence, copy, model route,
 expiry and digest; inference audit still omits prompts and outputs. The research
-worker executes `marketing.creator_draft`, validates constrained suggestions and
-composes fixed commercial wording. Exact-digest preparation rechecks current
+worker executes `marketing.creator_draft`. New contexts carry
+`creator-grounded-plan-v2`: the model returns only `evidence_id` and `angle_id`
+from offered choices, and the server renders source-grounded copy and fixed
+commercial wording. The stored plan and provenance are rederived before save
+or preparation; legacy contracts are not migrated. Exact-digest preparation rechecks current
 research/contact/campaign context. AI copy cannot use a run's delegated template
 approval; the usual action worker retains final delivery authority.
 See [ADR-0026](../decisions/ADR-0026-reviewed-creator-ai-drafts.md).
+
+`marketing.creator_draft_batch` is a medium-risk preparation capability handled
+by the existing research worker. A parent reserves at most five eligible
+reviewed contacts, three by default, with frozen membership, snapshot hashes
+and UUID5 child keys. The genuine creation audit binds the complete payload
+hash. Each child is issued atomically with its ordinary task, outbox and audit;
+durable per-item outcomes preserve skips and committed children on resume.
+Current context, targeting, identity, suppression and owned lease are rechecked
+after row locks. Batch-only deduplication spans current drafts, genuine
+unmaterialized reservations and the selected set across campaigns, using
+canonical channel/profile identity and exact normalized business email.
+
+The shared PostgreSQL preparation lock accounts for actual draft rows plus
+unmaterialized matching reservations: thirty per rolling day and three per
+prospect. Cancelled/failed reservations retain their allowance; their own
+matching children materialize without double counting. Parent cancellation
+stops remaining issuance without withdrawing independently queued child tasks.
+The parent makes no model call and creates no external packet, approval or send
+grant; the children use the existing inference path and individual review.
+Existing task/audit/draft tables suffice: no new service, migration, dependency
+or credential compartment is introduced.
 
 ### Agent and model plane
 

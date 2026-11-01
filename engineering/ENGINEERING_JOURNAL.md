@@ -2997,3 +2997,80 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   remained zero. No inbox-placement, reply-rate or revenue guarantee is claimed;
   real incoming-reply proof and Google Testing-mode token longevity remain
   operating limits. Recipient details and exact copy remain private local evidence.
+
+## 2026-11-02 — Grounded creator plans and audited draft preparation
+
+- Investigated the November 1 launch's operator review: nineteen model outputs
+  and five unavailable results led to one retained AI email and twenty-three
+  explicit manual replacements. Unsupported feature/verification and unseen-video
+  claims, weak personalization and unnatural wording motivated the change;
+  these findings are not creator replies or training signals. A primary-source
+  comparison of Outlines, Instructor, Guidance and Pydantic AI records release
+  pins, licenses, runtime costs and the decision to adapt finite-choice/context
+  validation patterns without adding a dependency or executing upstream code.
+- New `creator-grounded-plan-v2` contexts let the model select only an issued
+  evidence ID and offered content angle. Authored English/Polish wording supplies
+  the opening, optional independent proposal and operator explanation; the
+  recorded title remains a cited source, not a claim about unseen video contents.
+  Stored provenance binds source, language, context and campaign. Save and exact
+  preparation rederive the full copy; legacy contexts, parser, complete messages
+  and digests remain unchanged. Product/offer wording stays reviewed input and
+  the standard English source/privacy/opt-out footer remains.
+- Local v2 selection disables reasoning output and uses a 512-token generation
+  cap with at most one separately accounted invalid-output correction. Invalid
+  plan output and unavailable response have separate fixed errors. No failed
+  request silently becomes a template, manual message or approval.
+- Added the medium-risk `marketing.creator_draft_batch` parent through the
+  existing task/policy/outbox/audit path. It reserves at most five reviewed
+  eligible contacts, three by default, with canonical audit payload hash,
+  snapshot binding, UUID5 child keys and durable item outcomes. Actual drafts
+  and genuine unmaterialized reservations share thirty per rolling day and
+  three per prospect, including stopped parents. Current drafts and reserved
+  identities deduplicate channels/profiles and exact normalized business email
+  across campaigns. Context, eligibility, cancellation and owned leases are
+  checked after locks. No service, dependency, migration, credential scope,
+  contact authorization or sending authority is added.
+- The extended disposable PostgreSQL proof is written for source/brief bindings,
+  EN/PL copy, legacy preservation, tamper refusal, batch resume/skips/deduplication,
+  lease waits and concurrent shared-budget exhaustion. Container Ruff and a
+  read-only no-network import probe passed with synthetic settings. Networkless
+  desktop/mobile creator UI checks passed for the new queue/provenance flow and
+  unchanged exact-message preparation.
+  The actual combined test image subsequently passed lint and all 1,049 tests
+  through `./scripts/test.ps1 -SkipBuild`. All twenty-one disposable PostgreSQL
+  draft/batch groups then passed. The complete native/workflow/scheduler/research,
+  creator/career PostgreSQL, both-UI, planner, delivery and recovery verifier
+  completed successfully. Agent doctor and smoke also passed with a real Mistral
+  `free/default` response, separate from the local creator-model proof.
+- Five governed live preparations were issued under the remaining allowance:
+  one regression draft and two two-creator batches, one English and one Polish.
+  The medium-risk parents each reserved two eligible reviewed contacts without
+  creating outgoing packets. The full thirty-slot rolling preparation allowance
+  was then reserved; no further requests were issued. The English campaign's
+  preferred language does not certify spoken language; its two selected channels
+  declare Hindi, while the Polish pair declare Polish. No audience language is inferred.
+- All five v2 drafts subsequently reached ready/succeeded through local Ollama
+  `qwen3:8b`, with zero errors. Both two-item parents succeeded with no skipped
+  or remaining reserved items. Complete-body and independent source/terms review
+  found all five usable unchanged, including the earlier rejected Polish security-claim
+  regression without the unsupported capability assumption. Rendered email
+  length was 190–227 words. No manual replacement was needed in these five
+  cases; the sample is unmatched to the earlier launch and does not establish
+  general accuracy, learning, inbox placement or a reply-rate improvement.
+  Batch parents created no outgoing packet; exact approvals and delivery remain
+  separate actions.
+- At the final November 2 checkpoint, the original twenty-four invitations had
+  two SMTP acceptances and twenty-two still queued. Two additional v2 emails,
+  one English and one Polish, were separately prepared, exactly compared with
+  their reviewed bodies and approved through the normal API. They are queued
+  for November 2 at 18:03:40 and 18:36:21 UTC, before their 18:58:53 UTC expiry.
+  The current scope therefore has twenty-six approved invitations: two accepted,
+  twenty-four queued and zero failed. The other three canary drafts remain
+  ready/unprepared; the regression case was not automatically sent or promoted
+  as a current eligible lead. The shared twenty-four/day, three/hour, gaps and
+  jitter remain unchanged. Twelve earlier acceptances are separate; pending
+  reply reviews, confirmed creator interest and owner handoffs remain zero.
+  No queued invitation is represented as SMTP-accepted, delivered or answered.
+- Added ADR-0030 and synchronized README, creator operations, architecture,
+  security review, roadmap, system evolution and Experiment 39. Recipient data,
+  complete private launch copy and local credentials remain outside publication.

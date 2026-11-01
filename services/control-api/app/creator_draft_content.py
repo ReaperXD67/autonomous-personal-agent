@@ -10,6 +10,16 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.application_browser import canonical_hash
+from app.creator_draft_grounding import (
+    GroundedCopyError,
+    compose_grounded_email,
+    grounded_messages,
+    grounded_response_schema,
+    is_grounded_context,
+    parse_grounded_copy,
+    validate_grounded_copy,
+    with_grounding_context,
+)
 from app.creator_draft_language import (
     campaign_draft_language,
     compose_polish_ai_email,
@@ -18,7 +28,7 @@ from app.creator_draft_language import (
     polish_optional_idea,
     security_verification_claim,
 )
-from app.creator_draft_models import CreatorModelCopy
+from app.creator_draft_models import CreatorGroundedCopy, CreatorModelCopy
 from app.creator_intelligence import EMAIL, TOPIC_PATTERNS, plain_text, public_video_id
 from app.marketing import (
     _contact_footer,
@@ -62,6 +72,12 @@ COPY_CORRECTIONS = {
         "Do not add links, contact instructions or invented audience claims."
     ),
     "CREATOR_COPY_LANGUAGE": "Use only the server-selected English or Polish language contract.",
+    "CREATOR_COPY_PLAN": (
+        "Return only evidence_id and angle_id from the supplied schema choices; no prose or extras."
+    ),
+    "CREATOR_COPY_GROUNDING": (
+        "Stored copy differs from the server-derived plan; generate and review a fresh draft."
+    ),
 }
 
 
@@ -162,7 +178,33 @@ def model_context(campaign, prospect, learning):
     }
 
 
+def grounded_model_context(campaign, prospect, learning):
+    return with_grounding_context(model_context(campaign, prospect, learning), campaign, prospect)
+
+
+def response_schema(context):
+    try:
+        return (grounded_response_schema(context) if is_grounded_context(context)
+                else CreatorModelCopy.model_json_schema())
+    except GroundedCopyError as exc:
+        raise CreatorCopyError(exc.code) from None
+
+
+def validate_stored_copy(copydict, context):
+    try:
+        if is_grounded_context(context):
+            return validate_grounded_copy(copydict, context)
+    except GroundedCopyError as exc:
+        raise CreatorCopyError(exc.code) from None
+    return parse_model_copy(json.dumps(copydict), context)
+
+
 def drafting_messages(context):
+    try:
+        if is_grounded_context(context):
+            return grounded_messages(context)
+    except GroundedCopyError as exc:
+        raise CreatorCopyError(exc.code) from None
     language = context_draft_language(context)
     language_instruction = (
         "Write hook and content_idea in natural Polish. Keep JSON keys, evidence_ids and "
@@ -202,6 +244,11 @@ def drafting_messages(context):
 
 
 def parse_model_copy(content: str, context: dict[str, Any]) -> CreatorModelCopy:
+    try:
+        if is_grounded_context(context):
+            return parse_grounded_copy(content, context)
+    except GroundedCopyError as exc:
+        raise CreatorCopyError(exc.code) from None
     try:
         language = context_draft_language(context)
     except ValueError:
@@ -275,6 +322,11 @@ def parse_model_copy(content: str, context: dict[str, Any]) -> CreatorModelCopy:
 
 
 def compose_ai_email(campaign, prospect, copy: CreatorModelCopy, *, output_language="en"):
+    if isinstance(copy, CreatorGroundedCopy):
+        try:
+            return compose_grounded_email(campaign, prospect, copy)
+        except GroundedCopyError as exc:
+            raise CreatorCopyError(exc.code) from None
     if output_language == "pl":
         return compose_polish_ai_email(campaign, prospect, copy)
     if output_language != "en":
