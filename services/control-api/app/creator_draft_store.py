@@ -16,6 +16,7 @@ from app.creator_draft_content import (
     model_context,
     parse_model_copy,
 )
+from app.creator_draft_language import context_draft_language
 from app.creator_draft_models import CreatorDraftCreate
 from app.creator_draft_quality import creator_draft_quality_report
 from app.creator_learning import creator_learning_insights
@@ -266,7 +267,10 @@ class CreatorDraftStore(MarketingStore):
             if row["status"] != "queued":
                 raise CreatorDraftConflictError("Draft is no longer waiting for model output")
             copy = parse_model_copy(copy.model_dump_json(), row["model_context"])
-            subject, body = compose_ai_email(campaign, prospect, copy)
+            language = context_draft_language(row["model_context"])
+            subject, body = compose_ai_email(
+                campaign, prospect, copy, output_language=language,
+            )
             notes = [
                 "Model wrote the hook and optional content idea; "
                 "the server supplied terms and footer.",
@@ -274,8 +278,9 @@ class CreatorDraftStore(MarketingStore):
                 "or verified audience reach.",
                 "Lexical/schema checks passed; human review must still verify "
                 "relevance and accuracy.",
-                "English draft; exact approval is required. "
-                "This draft grants no sending authority.",
+                ("Polish" if language == "pl" else "English")
+                + " draft; the operator supplies the product brief and offer wording. "
+                "Exact approval is required; this draft grants no sending authority.",
             ]
             row = connection.execute(
                 "UPDATE creator_email_drafts SET status='ready',source=%s,selected_model=%s,"

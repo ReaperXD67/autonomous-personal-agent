@@ -100,11 +100,11 @@ understand what happened and take over at the right moment.
 | Career Play/Pause | Implemented; external application proof pending | Choose preparation or authorize a bounded automatic run: fresh published listings, minimum fit, selected ATS hosts, rolling application cap, separate preparation allowance, expiry, profile binding, and duplicate prevention. Prepared actions stay linked to progress; optional job-published hiring email shares submission limits |
 | Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form signature, explicit unknown answers, durable receipt, no CAPTCHA/login bypass |
-| Email sender | Live SMTP and owned-inbox receipt verified | One approved Gmail self-test passed authenticated STARTTLS, durable acceptance and a matching Inbox Message-ID. This does not prove creator inbox placement. Shared pacing remains 15-minute global/30-minute same-domain gaps, 3/hour, 12/day and jitter |
-| Creator research and outreach | Live pilot verified; reviewed outreach expanded | The two-message pilot passed SMTP acceptance. Expanded checkpoint: 12 reviewed invitations, 3 SMTP-accepted and 9 paced (2026-10-27 21:20 IST). Each contact and exact message is reviewed individually; research grants no blanket authority. Inbox placement, interest and handoff remain separate proofs |
-| API creator shortlist | Live batch refresh verified | At most ten saved creators and three recent uploads each, deterministic ranking, dated activity and public-contact evidence. Partial provider failures stay visible; research makes zero model calls or sends and never authorizes a contact |
+| Email sender | Live SMTP and owned-inbox receipt verified | One approved Gmail self-test passed authenticated STARTTLS, durable acceptance and a matching Inbox Message-ID. This does not prove creator inbox placement. Default shared pacing is 15-minute global/30-minute same-domain gaps, 3/hour, 12/day and jitter; the daily limit is configurable |
+| Creator research and outreach | Live SMTP verified; reviewed batch workflow | Official API research, qualified business contacts and individually approved messages share a durable paced queue. SMTP acceptance, inbox placement, creator interest and owner handoff remain separate results |
+| API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Current issued reservation history rotates research through unattempted then oldest-attempted creators before contact/relevance tie-breakers. Thirty refreshes per rolling day; no model calls, contact authorization or sends |
 | Minecraft paid-promotion workflow | Local workflow and owned-inbox delivery verified | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery. Actual creator reply/handoff proof remains pending |
-| AI creator introductions | Experimental; unedited copy unverified | Real model generation verified; the latest reviewed copy needed editing and was not approved to send. Bounded local reasoning, inspectable evidence/model metadata and exact individual approval. English copy; failure never silently becomes a template or send |
+| AI creator introductions | Experimental English/Polish drafting | Generation language is frozen with the draft; legacy drafts stay English. The operator supplies reviewed product/offer wording, and the standard English source/privacy/opt-out footer is retained. Inspect sources and complete copy before exact individual approval; live copy quality remains a separate proof |
 | Creator draft quality report | Implemented; review UI verified | Draft review shows computed editorial findings and complete-email word count; API exposes the full report. No score, model call or approval; semantic accuracy, language, fit and terms still need review |
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |
@@ -273,6 +273,12 @@ engine. Choose
 based on the sampled video, subscriber evidence and reviewed feedback. Inspect
 the sources and full email before preparing its exact approval packet.
 
+For Polish AI copy, select preferred or strict Polish language targeting and
+write the product summary, paid-offer wording and any revenue basis in reviewed
+Polish. These fields are inserted verbatim; generation does not translate them.
+Unrestricted language selection uses English. Supported output is English or
+Polish; the existing English source/privacy/opt-out footer remains unchanged.
+
 The reply inbox supports a dedicated Gmail label when OAuth is configured.
 Confirm positive interest before an optional automatic handoff. A handoff sends
 your chosen contact details to the creator and closes the agent's sequence.
@@ -282,6 +288,13 @@ See the [Minecraft workflow guide](docs/operations/minecraft-creator-workflow.md
 for setup, limits, and the precise division between automatic and reviewed work.
 The [Gmail setup guide](docs/operations/gmail-setup.md) connects labeled reply
 reading through local OAuth; a YouTube API key does not connect a mailbox.
+
+The [upstream comparison](docs/research/creator-outreach-systems-2026-11.md)
+records inspected licenses, commits and reuse decisions for eight related
+systems. The reusable [repository research skill](skills/repo-research-and-adapt/SKILL.md)
+can be installed with a skill installer for other projects. It guides sourced
+comparison and small verified adaptations; it grants no runtime or sending
+authority and adds no framework dependency.
 
 Prove the creator workflow locally before configuring or using external mail:
 

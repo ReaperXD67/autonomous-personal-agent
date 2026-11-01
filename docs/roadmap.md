@@ -66,6 +66,9 @@
 - [x] Read-only creator draft editorial report with observable markers, explicit review limits and synthetic no-egress evaluation cases
 - [x] English/Polish creator reply and objection hints with quoted-history, negation and conditional safeguards
 - [x] Explicit same-mailbox creator OAuth renewal for confirmed invalid refresh grants, preserving account/client/scope checks
+- [x] Frozen English/Polish draft generation with reviewed verbatim briefs, legacy-English compatibility and unchanged exact-message approval
+- [x] Fair shortlist rotation from current issued reservation history before the candidate cap, preserving the ten-per-batch/thirty-per-day research limits
+- [x] Reusable repository-research skill and a source-linked comparison of related outreach systems
 - [ ] Verify creator-specific copy quality from a real configured model response
 - [x] Complete the reviewed two-message creator pilot after product-site availability and fresh exact review; record both real SMTP acceptances
 - [x] Renew the recorded creator OAuth connection and verify a fresh governed labeled read

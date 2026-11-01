@@ -520,3 +520,23 @@ audit bind each reservation to its exact task; generic caller tasks cannot
 inherit it. Failed/cancelled tasks retain their rolling budget and receive no
 automatic execution retry. Targeting, creator identity and owned lease are
 rechecked after locks and before fixed API requests or evidence writes.
+
+## 2026-11-01 — Bilingual draft contracts and bounded research progress
+
+ADR-0029 extends the existing immutable draft context with an English/Polish
+output-language contract. Prompts, parsing, rendering and quality reporting use
+the frozen selection; old records without a marker remain English. Product and
+offer wording stays operator-reviewed verbatim input, and the standard English
+contact/privacy/opt-out footer is preserved. The marker and lexical checks do
+not replace semantic review or individual exact-message approval.
+
+Shortlist issuance reuses genuine 24-hour creation audits, canonical task hashes,
+current targeting snapshots and exact profile URLs to prioritize unattempted
+then oldest-attempted creators before the 500-candidate cap. Cancelled and failed
+reservations remain attempted and budgeted. The existing PostgreSQL lock,
+ten-creator batch bound and thirty-per-day allowance remain authoritative.
+No migration, dependency, service, credential scope or sending authority changes.
+
+An instruction-only repository research skill records a reusable way to assess
+upstream provenance, licenses and fit. It is an authoring aid, outside the agent's
+runtime execution boundary; installation does not grant tools or sending access.

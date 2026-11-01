@@ -15,6 +15,16 @@ English/Polish reply hints normalize a bounded authored-text view without
 changing stored evidence. Only reviewed tags enter learning; direct opt-outs
 retain the existing durable suppression boundary.
 
+Creator draft prompts and rendering use `output_language` in the frozen model
+context. Preferred/strict English or Polish targeting selects that contract;
+unrestricted selection and legacy contexts without a marker remain English.
+Unsupported explicit languages are refused before inference. The operator's
+product summary, paid-offer wording and optional revenue basis are inserted
+verbatim and need review in the intended language. Polish rendering localizes
+the server envelope and next step while retaining the standard English
+contact-source/privacy/opt-out footer. The language marker describes the
+generation contract, not a linguistic quality score or sending decision.
+
 ## Goals
 
 Foundation favors explicit boundaries over premature features:
@@ -53,6 +63,13 @@ and creator references; the restricted API key exists only in this egress-enable
 worker. Shortlist batches reserve server-selected creator IDs under a shared
 rolling budget before dispatch, then check the issued payload, current identity
 and owned lease before each provider request or evidence write.
+Research selection uses genuine creation audits from the preceding 24 hours,
+bound to their canonical task payload, current targeting snapshot and profile
+URL. Never-attempted creators precede oldest-attempted creators, then public
+contact evidence and relevance break ties. Eligibility and fair ordering apply
+before the 500-candidate cap. Cancelled/failed reservations remain attempted
+and budgeted; generic or changed-context task history cannot alter priority.
+No new cursor table, migration or service is required.
 The isolated action worker handles reviewed browser and email side effects only
 after an exact approval digest has entered the durable queue.
 Career Play grants can authorize those exact digests within a frozen, expiring

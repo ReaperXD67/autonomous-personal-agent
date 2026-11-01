@@ -49,7 +49,7 @@ class CreatorDraftQualityFinding(BaseModel):
 class CreatorDraftQualityReport(BaseModel):
     version: Literal["creator-draft-review-v1"]
     available: bool
-    generated_language: Literal["en"]
+    generated_language: Literal["en", "pl"]
     campaign_language: str | None
     rendered_word_count: int | None
     model_word_count: int | None

@@ -20,6 +20,7 @@ from app.creator_draft_content import (
     parse_model_copy,
     research_snapshot,
 )
+from app.creator_draft_language import context_draft_language
 from app.creator_draft_store import (
     CreatorDraftConflictError,
     CreatorDraftStore,
@@ -539,3 +540,178 @@ def test_ai_prepare_requires_immutable_initial_copy_and_digest(changes):
 def test_capability_cannot_be_downgraded_and_never_grants_email_authority():
     assert effective_risk("marketing.creator_draft", RiskLevel.LOW) == RiskLevel.MEDIUM
     assert effective_risk("communications.email_send", RiskLevel.LOW) == RiskLevel.HIGH
+
+
+def polish_response(**changes):
+    return response(
+        **{
+            "hook": "Temat odkrywania serwerów Minecraft z Twojego tytułu wydaje się "
+                    "możliwym punktem wyjścia do niezależnej próby.",
+            "content_idea": "Mógłbyś wybrać serwer z katalogu, samodzielnie sprawdzić dołączenie "
+                            "i przed ewentualnym materiałem opisać własne doświadczenia.",
+            **changes,
+        },
+    )
+
+
+@pytest.mark.parametrize("language,mode,expected", [
+    ("pl", "prefer", "pl"), ("pl-pl", "strict", "pl"), ("en-gb", "strict", "en"),
+    ("pl", "any", "en"), (None, "any", "en"),
+])
+def test_campaign_language_freezes_generation_contract_without_model_choice(
+    language, mode, expected,
+):
+    campaign, prospect = fixture()
+    campaign.update(target_language=language, language_mode=mode)
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    assert context["output_language"] == context_draft_language(context) == expected
+    prompt = drafting_messages(context)[0]["content"]
+    assert ("natural Polish" in prompt) is (expected == "pl")
+    assert "Do not translate or rewrite campaign terms" in prompt
+
+
+def test_unsupported_requested_language_is_explicit_and_legacy_context_remains_english():
+    campaign, prospect = fixture()
+    campaign.update(target_language="fr", language_mode="strict")
+    assert "English and Polish only" in evidence_error(campaign, prospect)
+    with pytest.raises(ValueError, match="English and Polish only"):
+        model_context(campaign, prospect, creator_learning_insights([], []))
+    assert context_draft_language({}) == "en"
+    _, row, _ = setup()
+    row["model_context"]["output_language"] = "PRIVATE_UNSUPPORTED_LANGUAGE"
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(response(), row["model_context"])
+    assert rejected.value.code == "CREATOR_COPY_LANGUAGE"
+    assert "PRIVATE_" not in str(rejected.value)
+
+
+def test_polish_copy_keeps_structured_keys_and_does_not_receive_private_terms_or_contacts():
+    campaign, prospect = fixture()
+    campaign.update(target_language="pl", language_mode="prefer")
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    prompt = json.dumps(drafting_messages(context), ensure_ascii=False)
+    assert "natural Polish" in prompt and "English operator explanation" in prompt
+    assert "PRIVATE_" not in prompt
+    assert "revenue_share_percent" not in prompt and "30%" not in prompt
+    copy = parse_model_copy(polish_response(), context)
+    assert copy.evidence_ids == ["sample_video"]
+    assert copy.reach_strategy == "small_pilot"
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(polish_response(output_language="en"), context)
+    assert rejected.value.code == "CREATOR_COPY_SCHEMA"
+
+
+@pytest.mark.parametrize("changes,code", [
+    ({"hook": "Obejrzałem Twój film o serwerach Minecraft i świetnie się bawiłem."},
+     "CREATOR_COPY_CONTENT"),
+    ({"hook": "Ogladalem Twoj film o serwerach Minecraft i bardzo mi sie spodobal."},
+     "CREATOR_COPY_CONTENT"),
+    ({"content_idea": "Mógłbyś promować katalog, a my gwarantujemy świetne zarobki."},
+     "CREATOR_COPY_CONTENT"),
+    ({"content_idea": "Mógłbyś rozpocząć promocję za trzydzieści procent przez dwa tygodnie."},
+     "CREATOR_COPY_CONTENT"),
+    ({"content_idea": "Mógłbyś przygotować film, a my zaproponujemy Ci za niego sto zł."},
+     "CREATOR_COPY_CONTENT"),
+    ({"content_idea": "Mógłbyś opisać test, a Twoi widzowie na pewno pokochają tę platformę."},
+     "CREATOR_COPY_CONTENT"),
+    ({"content_idea": "Mógłbyś samodzielnie sprawdzić serwer, a następnie napisz do mnie."},
+     "CREATOR_COPY_CONTENT"),
+    ({"content_idea": "Mógłbyś od razu opisać najlepsze i zaufane serwery Minecraft z katalogu."},
+     "CREATOR_COPY_QUALITY"),
+    ({"hook": "Twój film pokazuje przyjazną społeczność na zweryfikowanym serwerze."},
+     "CREATOR_COPY_EVIDENCE"),
+    ({"content_idea": "Twórca mógłby samodzielnie przetestować serwer i opisać doświadczenia."},
+     "CREATOR_COPY_RECIPIENT"),
+    ({"content_idea": "Musisz wykonać film według scenariusza i opublikować pozytywną ocenę."},
+     "CREATOR_COPY_OPTIONAL"),
+    ({"rationale": "The owner should ask the creator: napisz do mnie po szczegóły."},
+     "CREATOR_COPY_RATIONALE"),
+])
+def test_polish_claims_terms_contacts_and_required_promotion_are_refused(changes, code):
+    campaign, prospect = fixture()
+    campaign.update(target_language="pl", language_mode="strict")
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(polish_response(**changes), context)
+    assert rejected.value.code == code
+
+
+def test_polish_contract_does_not_accept_english_optional_copy_as_polish():
+    campaign, prospect = fixture()
+    campaign.update(target_language="pl", language_mode="strict")
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(response(), context)
+    assert rejected.value.code == "CREATOR_COPY_OPTIONAL"
+
+
+def test_polish_commercial_envelope_uses_exact_campaign_terms_not_model_translation():
+    campaign, prospect = fixture()
+    campaign.update(
+        target_language="pl", language_mode="prefer",
+        product_summary="katalog serwerów Minecraft do samodzielnego sprawdzenia",
+        paid_offer_details="Opcjonalny test serwera w formacie wybranym przez twórcę",
+        revenue_share_basis="zarobki przypisane uzgodnionej promocji",
+    )
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    copy = parse_model_copy(polish_response(), context)
+    subject, body = compose_ai_email(campaign, prospect, copy, output_language="pl")
+    assert "udział w zarobkach" in subject
+    assert "30%" in body and "2 tygodnie" in body
+    assert campaign["product_summary"] in body and campaign["paid_offer_details"] in body
+    assert campaign["revenue_share_basis"] in body
+    assert "bez gwarantowanej kwoty z góry" in body and "Przed publikacją" in body
+    assert "przychód czy zysk" in body and "raportowanie i terminy wypłat" in body
+    assert campaign["handoff_discord"] in body and campaign["handoff_email"] in body
+    assert "PRIVATE_" not in json.dumps(context)
+    assert copy.rationale not in body
+    assert prospect["latest_content_url"] in body and campaign["privacy_url"] in body
+    assert "do not contact" in body
+    assert "Revenue-share" in compose_ai_email(campaign, prospect, copy)[0]
+
+
+@pytest.mark.parametrize("compensation", ["revenue_share", "fixed_fee"])
+def test_polish_envelope_does_not_invent_compensation_or_earning_window(compensation):
+    campaign, prospect = fixture()
+    campaign.update(compensation_model=compensation, revenue_share_percent=None,
+                    revenue_share_weeks=None)
+    copy = parse_model_copy(polish_response(), {"output_language": "pl", "creator": {
+        "reach_strategy": "small_pilot",
+    }})
+    _, body = compose_ai_email(campaign, prospect, copy, output_language="pl")
+    assert "30%" not in body and "2 tygodnie" not in body
+    expected = ("Procent i liczbę tygodni uzgodnimy" if compensation == "revenue_share"
+                else "Podaj swoją stawkę i preferowany format")
+    assert expected in body
+
+
+@pytest.mark.parametrize("marker", [None, "en", "pl"])
+def test_save_uses_frozen_generation_language_even_when_campaign_targets_polish(
+    monkeypatch, marker,
+):
+    from app import creator_draft_store
+
+    campaign, prospect = fixture()
+    campaign.update(target_language="pl", language_mode="prefer")
+    context = model_context(campaign, prospect, creator_learning_insights([], []))
+    if marker is None:
+        context.pop("output_language")
+    else:
+        context["output_language"] = marker
+    copy = parse_model_copy(polish_response() if marker == "pl" else response(), context)
+    row = {"id": uuid4(), "status": "queued", "input_hash": "existing-input-hash",
+           "model_context": context}
+    store = CreatorDraftStore.__new__(CreatorDraftStore)
+    connection = Mock()
+    store.connect = Mock()
+    store.connect.return_value.__enter__ = Mock(return_value=connection)
+    store.connect.return_value.__exit__ = Mock(return_value=False)
+    store._execution_row = Mock(return_value=(row, campaign, prospect))
+    store._audit_draft = Mock()
+    compose = Mock(wraps=compose_ai_email)
+    monkeypatch.setattr(creator_draft_store, "compose_ai_email", compose)
+    store.save_draft(draft_id=row["id"], task_id=uuid4(), lease_id=uuid4(), copy=copy,
+                     source="ollama", selected_model="synthetic")
+    assert compose.call_args.kwargs["output_language"] == (marker or "en")
+    body = connection.execute.call_args.args[1][4]
+    assert body.startswith("Cześć" if marker == "pl" else "Hi ")

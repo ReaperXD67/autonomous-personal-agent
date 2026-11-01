@@ -82,8 +82,17 @@ publication date remains separate from the time research ran; declared country
 does not establish content language or viewer location. A partial/provider
 failure remains visible instead of looking like complete coverage.
 
-The server selects uncontacted Minecraft candidates from the saved campaign,
-preferring existing public-contact evidence before relevance. The shortlist
+The server selects uncontacted Minecraft candidates from the saved campaign.
+Within the preceding 24 hours, it prefers creators without a genuine issued
+research reservation, then those attempted least recently; public-contact
+evidence and relevance break ties. This ordering and eligibility filtering
+apply before the 500-candidate cap, so successive batches within that window
+advance beyond the same high-relevance prefix. History must match its canonical
+task-payload audit, current targeting snapshot and exact profile URL. Changed,
+unissued or expired history cannot change current priority. Cancelled or failed
+reservations still count as attempts and consume the existing budget.
+
+The shortlist
 requires a dated Minecraft publication within the campaign's age limit, capped
 at ninety days, an observed subscriber count inside its range, current explicit
 business-contact evidence and eligible declared targeting. **Selected** also
@@ -128,8 +137,20 @@ reviewed aggregate feedback. Recipient addresses, raw descriptions and raw
 inbox text are excluded. It proposes an opening
 and a content idea, explains the approach and how the observed reach influenced
 the format, and cites recorded evidence. Reach is not a payment formula or a
-promise of views. The first version writes English copy; translated pitches are
-not implemented.
+promise of views. English and Polish are supported output contracts. Preferred
+or strict targeting selects the base of the campaign's `target_language`, such
+as `pl` or `pl-pl`; unrestricted language selection defaults to English.
+Unsupported explicit languages stop before inference. The selected
+`output_language` is frozen in the stored model context, and legacy drafts
+without that field remain English. The model writes its opening and idea in
+the selected language; its operator-only rationale and JSON keys stay English.
+
+For a Polish email, first supply an operator-reviewed Polish product summary,
+paid-offer description and optional revenue basis. The server inserts those
+fields verbatim and does not translate commercial claims or terms. It supplies
+Polish framing and next steps, while deliberately retaining the existing
+English contact-source, privacy and opt-out footer. Inspect the complete
+mixed-language envelope before individual exact-message approval.
 
 The review shows the actual model and source, complete message, evidence links,
 quality notes, and feedback context. Inspect those sources and confirm that the
@@ -148,16 +169,20 @@ Choosing a template is a separate, explicitly labeled option.
 The draft review shows computed editorial findings and the complete-email word
 count before preparation. Older responses without a report display an explicit
 unavailable fallback. The authenticated draft API returns the full `quality_report`
-on existing draft reads. It flags observable wording markers, English copy against a requested
-non-English campaign language, feedback claims with zero reviewed creators,
+on existing draft reads. It flags observable English/Polish wording markers, a
+stored output-language contract that differs from the campaign request,
+feedback claims with zero reviewed creators,
 missing source/next-step markers, and rendered emails over 250 words. The rendered
 count includes terms/footer; the model count covers the hook and content idea.
 Quoted title numbers are evidence, not invented commercial terms. Findings are
 displayed as plain escaped text, alongside the existing quality notes.
 There is no overall score or confidence estimate. The report does not rewrite
 copy, change its digest, persist a review, block preparation or grant authority.
-Naturalness, translation, truthful relevance and semantic accuracy still require
-review. See the [research decision](../research/creator-outreach-intelligence-2026-10.md).
+The language marker records the generation contract rather than detecting or
+certifying the text's actual language. Naturalness, translation, truthful
+relevance and semantic accuracy still require review. See the
+[editorial evaluation decision](../research/creator-outreach-intelligence-2026-10.md)
+and [current upstream comparison](../research/creator-outreach-systems-2026-11.md).
 
 **Prepare exact AI email** binds the saved draft digest to the ordinary email
 approval packet. It does not send the email or approve its own output. Changed
@@ -192,6 +217,16 @@ guaranteed.
 - A changed brief or owner contact requires a new run and newly prepared exact
   packets. Legacy pending creator packets must be prepared again to acquire the
   new campaign/contact snapshot checks.
+
+The shared SMTP daily capacity is configured by
+`OUTBOUND_EMAIL_DAILY_LIMIT` in ignored local configuration; its repository
+default is twelve. The supported value must be at least the configured hourly
+limit and at most fifty. This is a shared capacity bound for all SMTP messages,
+including handoffs and career mail; it does not qualify contacts, approve copy
+or raise a creator run's separate ten-initials-per-day maximum. After an
+authorized configuration change, reload the affected services and inspect
+`GET /v1/communications/status` plus the exact packets' reserved release times.
+Approved work still has to fit within its expiry and pass the final send guards.
 
 ## Learning from real replies
 

@@ -1009,6 +1009,54 @@ tests, followed by the complete native, lifecycle, PostgreSQL, UI, delivery and
 queue-recovery verifier. No new model-quality or response-rate benchmark is
 claimed.
 
+## Experiment 38 — Bilingual drafting and research progress (2026-11-01)
+
+Method: extend the existing constrained draft context with an English/Polish
+generation contract and use hash-linked, current-target/profile reservation
+history for successive shortlist selection. Preserve exact review, commercial
+wording, the standard English contact/privacy/opt-out footer, research limits
+and sending guards. Evaluate these small original adaptations in the existing
+containers; the upstream comparison does not establish improved reply rates.
+
+The operational baseline after restoring Docker confirmed twelve of twelve
+previous invitations with durable SMTP acceptance, zero queued and zero failed
+in that scope. A governed labeled read completed on November 1 at 17:07 UTC
+(22:37 IST) with zero pending reply reviews. This confirms recorded sending and
+current label reading; it does not measure inbox placement or confirmed interest.
+
+Docker startup was recovered by preserving stale runtime IPC parent folders
+and creating fresh endpoints, without resetting Docker volumes or WSL user data.
+The restored engine reported 29.5.3. Container lint and all 940 tests passed,
+followed by the complete native, lifecycle, PostgreSQL, UI, planner, delivery and
+recovery verifier. Its ten draft PostgreSQL groups include Polish rendering;
+eleven shortlist groups include current issued history and a 501-candidate
+fixture. The official skill manifest validator passed in a read-only no-network
+container. These synthetic proofs establish their tested contracts, not real
+creator-copy quality or improved response rates.
+
+Fresh product home/privacy checks returned HTTP 200. A further governed Gmail
+sync fetched one message, inserted zero, left zero pending, had no further pages
+and made no mailbox modification. This continues owned self-mail exclusion
+evidence, without establishing an actual creator reply. Agent doctor checks and
+the agent smoke passed; a real 32-token `ROUTE_OK` canary used `free/default` and
+reported `Mistral-Small-3.2-24B-Instruct-2506`. Cached/unloaded local Qwen was not
+verified with a new response. This proves the observed route, not Polish copy
+quality. A real Polish draft and any new batch results remain separate evidence.
+
+The owner-requested local daily SMTP bound was set to twenty-four through the
+shared atomic configuration writer. The repository default remains twelve;
+local three/hour, global/domain gaps and jitter were retained. After a controlled
+reload, runtime status confirmed twenty-four/day, three/hour, 900-second global
+and 1,800-second same-domain spacing with 180-second jitter. This is capacity
+selection, with no measured claim that twenty-four messages were sent or that a
+larger batch increases response rate.
+
+Fresh governed discovery completed 66 dossiers, adding 25 and updating 41, with
+fourteen public business-contact candidates and zero automatic authorizations.
+A bounded ten-creator shortlist task was issued; issuance is not a completed
+refresh or send. Source inspection and a healthy container alone do not
+establish model quality or interested creators.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.creator_draft_language import SUPPORTED_DRAFT_LANGUAGES, normalized_polish
+
 REPORT_VERSION = "creator-draft-review-v1"
 REVIEW_LIMITATIONS = (
     "Only public metadata was observed. Check the title-to-idea connection; "
@@ -55,6 +57,9 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
     available = bool(hook and body)
     language = _text(campaign.get("target_language")).lower()
     language = language if re.fullmatch(r"[a-z]{2,3}(?:-[a-z]{2,8})?", language) else None
+    marker = context.get("output_language", "en")
+    generated = (marker if isinstance(marker, str) and marker in SUPPORTED_DRAFT_LANGUAGES
+                 else "en")
     findings: list[dict[str, str]] = []
 
     def note(code: str, message: str, *, severity: str = "warning") -> None:
@@ -64,29 +69,43 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
         note("COPY_UNAVAILABLE", "A complete rendered model draft is not available to inspect.",
              severity="info")
     else:
-        if language and language.split("-")[0] != "en" and campaign.get("language_mode") in {
+        if marker != generated:
+            note("OUTPUT_LANGUAGE_UNRECOGNIZED", "The stored output-language marker is "
+                 "unsupported. Review the original copy; the report uses legacy English labels.")
+        if language and language.split("-")[0] != generated and campaign.get("language_mode") in {
             "prefer", "strict",
         }:
-            note("CAMPAIGN_LANGUAGE_MISMATCH", "The current AI path writes English, while the "
-                 "stored campaign requests another language. Review or translate the exact copy.")
+            note("CAMPAIGN_LANGUAGE_MISMATCH", "The stored generation language differs from "
+                 "the campaign request. Review or translate the exact copy.")
         if len(body.split()) > 250:
             note("RENDERED_EMAIL_LONG", "The rendered email exceeds 250 words, including its "
                  "terms and footer. Consider shortening it while preserving required information.")
         # Inspect model suggestions only. A quoted title can legitimately contain
         # numbers, questions or wording that must not become a claim by Hermes.
         suggestions = " ".join((hook, idea))
+        polish = normalized_polish(suggestions)
         if re.search(r"\b(?:i|we)(?:['’]ve| have)?\s+(?:watched|enjoyed|loved)\b|"
-                     r"\bbeen following\b", suggestions, re.I):
+                     r"\bbeen following\b", suggestions, re.I) or re.search(
+                         r"\b(?:obejrzal\w*|ogladal\w*|widziale\w*|sledze|uwielbiam)\b",
+                         polish,
+                     ):
             note("VIEWING_CLAIM_MARKER", "The suggestions contain a viewing or fan claim. "
                  "Only public metadata was observed; inspect and remove unsupported claims.")
         if re.search(r"\b(?:your|the|this)\s+(?:latest\s+)?(?:video|upload|episode)\s+"
                      r"(?:shows?|showed|demonstrates?|reveals?|highlights?|highlighted)\b",
-                     suggestions, re.I):
+                     suggestions, re.I) or re.search(
+                         r"\b(?:film|odcinek|nagranie|material)\s+(?:\w+\s+)?"
+                         r"(?:pokaz\w*|udowad\w*|przedstawi\w*)\b", polish,
+                     ):
             note("VIDEO_CONTENT_CLAIM_MARKER", "The suggestions describe video contents. "
                  "A recorded title alone does not establish those contents.")
         if re.search(r"\b(?:your|the)\s+(?:minecraft\s+)?(?:channel|content|videos?)\s+"
                      r"(?:is|are|seems?(?: like)?|looks?(?: like)?|would be)\s+"
-                     r"(?:a\s+)?(?:great|good|perfect|nice)\s+fit\b", hook, re.I):
+                     r"(?:a\s+)?(?:great|good|perfect|nice)\s+fit\b", hook, re.I) or re.search(
+                         r"\b(?:twoj|twoje)\s+(?:kanal|tresci|filmy)\s+"
+                         r"(?:jest|sa|wydaje sie)\s+(?:idealn\w*|swietn\w*)\b",
+                         normalized_polish(hook),
+                     ):
             note("GENERIC_OPENING_MARKER", "The opening contains a generic fit phrase. "
                  "Check whether it explains a specific connection to the recorded topic.")
         samples = _object(_object(context.get("learning_summary")).get("samples"))
@@ -100,18 +119,23 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
         if not source_url or source_url not in body:
             note("SOURCE_REFERENCE_MISSING", "The rendered email does not contain its "
                  "recorded source link. Inspect the evidence citation.")
-        paragraphs = [paragraph for paragraph in body.split("\n\n")
-                      if not paragraph.lstrip().startswith("Public video reference:")]
-        next_step = "\n".join(paragraphs)
+        # The real composer places the citation after the hook in the same paragraph.
+        lines = [line for line in body.splitlines() if not line.lstrip().startswith((
+            "Public video reference:", "Publiczny tytuł:",
+        ))]
+        next_step = "\n".join(lines)
         if not re.search(r"\b(?:would|could|are|do|can)\s+you\b[^\n?]{0,170}\?|"
                          r"\b(?:please|feel free to)\s+(?:reply|share|let (?:me|us) know)\b",
-                         next_step, re.I):
-            note("NEXT_STEP_NOT_DETECTED", "No supported English reply question or request "
+                         next_step, re.I) and not re.search(
+                             r"\b(?:czy|chcesz|mozesz|moglbys|moglabys)\b[^\n?]{0,200}\?|"
+                             r"\b(?:odpisz|daj znac|napisz)\b", normalized_polish(next_step),
+                         ):
+            note("NEXT_STEP_NOT_DETECTED", "No supported English/Polish reply question or request "
                  "was detected outside the video citation. Review the next step manually.")
     return {
         "version": REPORT_VERSION,
         "available": available,
-        "generated_language": "en",
+        "generated_language": generated,
         "campaign_language": language,
         "rendered_word_count": len(body.split()) if body else None,
         "model_word_count": len((hook + " " + idea).split()) if copy else None,

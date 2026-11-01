@@ -2865,3 +2865,70 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   task IDs stay in ignored local evidence. The operational-handoff run passed
   container lint and all 910 tests, followed by the complete verifier across
   native setup, lifecycle, PostgreSQL, UI, delivery and queue-recovery proofs.
+
+## 2026-11-01 — Sourced reuse, bilingual drafts and fair shortlist batches
+
+- Compared eight related campaign, inbox and agent repositories using canonical
+  metadata, inspected commits, licenses and implementation/docs. Selected small
+  original adaptations of explicit message-language selection and durable batch
+  progress; no third-party framework, marketing app or executable skill pack was
+  installed. The source-linked research note records adoption and deferral reasons.
+- Added a reusable instruction-only repository-research skill with implicit
+  discovery metadata. A user-level preference was saved locally for substantial
+  work across projects. This is authoring guidance; existing execution,
+  dependency, publication and messaging authorization still apply. Installation
+  of the published skill remains a separate local delivery step.
+- Added a frozen English/Polish `output_language` contract to the existing model
+  context. Preferred/strict targeting selects the supported base language;
+  unrestricted and legacy contexts remain English. Unsupported explicit
+  languages are refused before inference. Polish prompting, optional-idea and
+  claim guards, server framing and report markers extend the existing path.
+  Product/offer wording remains reviewed verbatim text, operator rationale stays
+  English, and the standard English contact/privacy/opt-out footer is preserved.
+- Shortlist issuance now uses genuine creation audits from the preceding 24
+  hours, matched to canonical task payload, current targeting snapshot and exact
+  profile URL. Unattempted creators precede oldest attempts, with contact and
+  relevance tie-breakers before the 500-candidate cap. Failed/cancelled attempts
+  retain their existing budget. The implementation introduces no migration,
+  service, dependency or sending grant; contact authorization and the repository
+  default pacing policy are unchanged.
+- For the larger launch requested by the owner, local ignored configuration
+  selected `OUTBOUND_EMAIL_DAILY_LIMIT=24` through the shared atomic writer.
+  Repository defaults remain twelve/day, with three/hour, 900-second global and
+  1,800-second same-domain spacing plus jitter retained locally. This selects
+  capacity; it does not establish that twenty-four messages were prepared or
+  accepted, qualify contacts or enable a general sending grant.
+- Docker Desktop initially crashed on inaccessible stale Inference and Secrets
+  Engine runtime endpoints. With Docker stopped, the exact IPC parent folders
+  were preserved under sibling names and fresh endpoints were created on
+  restart. The local engine returned as 29.5.3. Persistent Docker/WSL data,
+  volumes and the running Ubuntu distribution were not reset or deleted.
+- The November 1 baseline confirmed all twelve previous creator invitations had
+  durable SMTP acceptance, with zero queued or failed in that scope. A governed
+  labeled Gmail read completed at 17:07 UTC (22:37 IST) with zero pending reply
+  reviews. Acceptance does not establish inbox placement or creator interest;
+  no live creator-reply/handoff proof or response-rate benchmark is claimed.
+- Container lint and all 940 tests passed, followed by the complete verifier:
+  native OAuth/SMTP setup, lifecycle/workflow/scheduler/research, nineteen creator
+  automation groups, ten draft groups including Polish, eleven shortlist groups
+  including fair selection beyond 500 candidates, thirteen career groups, both
+  networkless UIs, planner, delivery guards and queue recovery. The official
+  skill validator passed in a read-only, network-isolated container; its manifest
+  check does not prove research decisions.
+- Fresh product home/privacy checks returned HTTP 200. A further governed Gmail
+  read fetched one message with zero inserted or pending, no further pages and
+  no mailbox modification; this retains the owned self-mail exclusion evidence,
+  not proof of a creator reply.
+- Agent doctor checks and the agent smoke both passed. The harmless real gateway
+  canary returned `ROUTE_OK` in 32 tokens through `free/default`, reporting
+  `Mistral-Small-3.2-24B-Instruct-2506`. This is route evidence, not a creator-copy
+  benchmark; cached/unloaded local Qwen did not produce a new response in this run.
+- After a controlled service reload, communications status confirmed the local
+  daily limit of twenty-four, three/hour, 900-second global spacing,
+  1,800-second same-domain spacing and 180-second jitter. Fresh governed discovery
+  completed 66 dossiers: 25 new, 41 updated and fourteen public business-contact
+  candidates, with zero automatic contact authorizations. A ten-creator shortlist
+  task was issued; its completion and any sends remain separate results.
+- Added ADR-0029 and synchronized README, operations, architecture, security,
+  roadmap and system evolution. Real bilingual model output and any new outreach
+  batch remain separate results to be recorded when completed.

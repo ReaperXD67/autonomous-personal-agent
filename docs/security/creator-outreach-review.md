@@ -1,6 +1,6 @@
 # Creator outreach security review
 
-Review date: 2026-10-27
+Review date: 2026-11-01
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
@@ -105,6 +105,12 @@ a review of a configured mail provider's terms.
   reach strategy are accepted. Server code composes commercial terms and footer.
   Immutable digest/context and lease checks fence stale drafts; AI messages
   cannot use delegated template authority.
+  English/Polish output is selected into the immutable model context and used
+  by prompting, parsing and rendering. Legacy contexts retain English, and
+  unsupported explicit languages are refused. Reviewed product/offer text is
+  inserted verbatim; the standard English source/privacy/opt-out footer stays
+  unchanged. Polish lexical checks extend observable term, viewing and audience
+  claim guards without changing compensation or authorizing a send.
 - Residual risk: lexical/schema validation cannot prove truth, contextual
   relevance or product availability. The operator must inspect the sources and
   complete copy. The model sees only sampled metadata, not the actual video.
@@ -139,9 +145,27 @@ a review of a configured mail provider's terms.
   separates reasons, missing evidence, contact-review needs and publication
   dates. It makes no model call and creates no contact authorization or email.
   The dashboard loads the current dossier before a review or draft.
+  Selection rotates through unattempted then oldest-attempted creators using
+  24-hour issued reservation history bound to the canonical task-payload hash,
+  current targeting snapshot and exact profile URL. Eligibility/fair ordering
+  precede the 500-candidate cap. Generic tasks, stale context and modified audit
+  hashes cannot supply priority history; failed/cancelled work remains budgeted.
 - Residual risk: a small source sample can miss relevant activity, contacts or
   context. A score is a prioritization heuristic, not evidence of ownership,
   accurate audience demographics or willingness to collaborate.
+
+### CO-012 — Repository research could import untrusted execution instructions
+
+- Severity: High
+- Status: Instruction-only reuse workflow; runtime authority unchanged
+- Evidence: the reusable research skill requires primary-source provenance,
+  license and fit review before adoption. It contains no executable helper,
+  provider credentials or remote extension loader. Inspected repository content
+  remains source material; the existing project policy governs installations,
+  execution, publication and sending.
+- Residual risk: an operator can still select unsuitable upstream code or a
+  skill. Research and a successful installation do not prove a measured benefit
+  or grant permission for external actions.
 
 ## Production blockers and operating limits
 
