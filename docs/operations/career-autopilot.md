@@ -135,19 +135,32 @@ the source's broad `isRemote` flag is true.
 ## Gmail read-only connection
 
 1. Enable the Gmail API in a Google Cloud project you control. Configure an OAuth
-   consent screen and client for your account. Request offline access with only
+   consent screen and **Desktop app** client for your account. Add the career
+   mailbox as a test user if the app is in Testing; keep its downloaded JSON
+   private. Request offline access with only
    `https://www.googleapis.com/auth/gmail.readonly`; the worker rejects broader
    scopes and refresh responses without scope attestation.
 2. Create a Gmail label named `Hermes/Careers` (or your chosen label). Add only
    application replies to it, manually or using your own Gmail filters. The
    adapter cannot create labels or modify mail.
-3. Put `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, and
-   `GMAIL_CAREER_LABEL` in the ignored local `.env` or the deployment secret
-   manager. Never paste them into a task, commit, browser URL or screenshot.
-   Set `GMAIL_ENABLED=true` only after supplying these values. Recreate the
-   control API and research worker with `docker compose up -d control-api job-worker`.
-4. Use the exact Gmail account email in the mission's application identity.
-   The adapter checks the authenticated mailbox before reading labelled messages.
+3. Use the exact Gmail account email in the mission's application identity. From
+   the repository root, run the local helper with that address:
+
+   ```powershell
+   ./scripts/gmail-oauth.ps1 -Purpose Career `
+     -ClientJsonPath 'C:\Users\YourName\Downloads\client_secret_your_client.json' `
+     -Mailbox 'your-application@gmail.com'
+   ```
+
+   Select that account in Google's consent screen. The helper checks PKCE/state,
+   exact read-only scope, mailbox identity and the existing custom label before
+   saving anything. It does not create a label/filter or send mail.
+4. Successful setup atomically saves `GMAIL_CAREER_CLIENT_ID`,
+   `GMAIL_CAREER_CLIENT_SECRET`, `GMAIL_CAREER_REFRESH_TOKEN`,
+   `GMAIL_CAREER_MAILBOX`, `GMAIL_CAREER_LABEL` and `GMAIL_ENABLED=true` in ignored
+   `.env`. Only the research worker receives OAuth secrets. Recreate the readers
+   with `docker compose up -d control-api job-worker`. Never paste credentials
+   into a task, commit, browser URL or screenshot.
 5. Use **Sync Gmail** and verify the task result. A healthy container or enabled
    setting is only configuration evidence. A successful, harmless label sync is
    required before calling the connection verified.
@@ -166,10 +179,15 @@ Set `GMAIL_ENABLED=false` and recreate the services to stop scheduled and manual
 The local stack must remain running; laptop sleep pauses work.
 
 An OAuth connection for creator outreach does not automatically enable careers.
-The career label must exist and the authenticated mailbox must match the saved
-application identity. Configure that mailbox deliberately; do not change the
-candidate identity merely to make an existing connection pass. Shared credential
-changes also need to preserve any enabled creator mailbox's identity.
+`-Purpose Career` preserves the shared `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`
+and `GMAIL_REFRESH_TOKEN` used by Creator monitoring. All three dedicated Career
+credentials must be present together with `GMAIL_CAREER_MAILBOX`; partial tuples
+stop rather than borrowing individual Creator secrets. When all dedicated
+credentials are empty, older same-mailbox installations retain shared-grant
+fallback. The configured Career mailbox must match the selected profile before
+OAuth runs, and the authenticated mailbox is checked again before labeled reads.
+Do not change the candidate identity merely to make an existing connection pass.
+See the [OAuth runbook](gmail-setup.md) for recovery and token-expiry limits.
 
 Official references: [Gmail scopes](https://developers.google.com/workspace/gmail/api/auth/scopes),
 [offline OAuth](https://developers.google.com/identity/protocols/oauth2/web-server#offline),

@@ -17,7 +17,7 @@ while an unexpired active draft or exact outreach action protects it. The saved
 campaign discovery summary reports `protected_count`; it neither extends freshness nor changes
 the draft/body/digest. Terminal/expired work releases the pin, and explicit
 single-creator refresh retains invalidation. No task/action row locks, new
-service or schema are added. See [ADR-0032](../decisions/ADR-0032-preserve-active-creator-evidence-during-discovery.md).
+service or schema are added. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
 Draft reads also compute an editorial report from the stored public context and
 rendered copy. It has no persistence, score, model invocation or authorization
 effect; metadata-only grounding and natural language still require review.
@@ -234,6 +234,15 @@ rows prevent duplicate issuance by concurrent scheduler workers.
 
 ## Quality attributes
 
+Career drafting now binds server-issued résumé choices to a digest and permits
+one separately accounted corrective generation. The existing worker, policy,
+lease and inference ledger remain authoritative. Dedicated Career Gmail
+credentials keep account selection independent from creator outreach. Reviewed
+job-linked public contacts freeze provenance and drafts into normal individual
+email approvals; final SMTP checks enforce current identity, scope, suppression
+and canonical job/address duplicates. See
+[ADR-0032](../decisions/ADR-0032-grounded-career-drafts-and-isolated-mail.md).
+
 Career projections now compute job-risk and publication signals without
 inference. The autopilot refuses strong signals before preparation and rechecks
 them before its existing final receipt. A pure authenticated source resolver
@@ -253,11 +262,13 @@ before best-effort cleanup and cannot be downgraded by a later task failure.
 The approval transaction reserves an external-SMTP release time. The receipt
 boundary shares its advisory gate and rechecks conservative actual
 accepted/ambiguous history and unresolved sending against the stricter current
-and frozen policy. Overdue unstarted work is durably deferred through the same
+and frozen policy. After a gate wait, plain reads recheck the already-locked
+career/creator scope and its time limits without introducing another lock order.
+Overdue unstarted work is durably deferred through the same
 task/outbox without a receipt, consumed execution attempt, changed copy or
 extended expiry. Completion takes no inverse advisory lock. Mailpit remains
 immediate; no new service, dependency or host authority is introduced. See
-[ADR-0033](../decisions/ADR-0033-actual-smtp-pacing-and-durable-deferral.md).
+[ADR-0034](../decisions/ADR-0034-actual-smtp-pacing-and-durable-deferral.md).
 
 - **Reproducibility:** images and Python dependencies are release-pinned.
 - **Least privilege:** loopback ports, internal data network, non-root read-only app images.

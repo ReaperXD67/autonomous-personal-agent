@@ -17,8 +17,22 @@ from app.creator_automation import (
 )
 from app.creator_automation_gmail import execute_creator_gmail_sync
 from app.creator_automation_models import CreatorAutomationStart
+from app.creator_automation_store import CreatorAutomationStore
 
 NOW = datetime(2026, 10, 16, 12, tzinfo=UTC)
+
+
+def test_reply_opt_out_serializes_global_suppression_after_prospect_locks():
+    connection = Mock()
+    connection.execute.return_value.fetchall.return_value = [{"id": uuid4()}]
+    assert CreatorAutomationStore._suppress_address(connection, " Hiring@Example.Test ") == 1
+    statements = connection.execute.call_args_list
+    assert "UPDATE marketing_prospects" in statements[0].args[0]
+    assert statements[0].args[1] == ("hiring@example.test",)
+    assert "pg_advisory_xact_lock" in statements[1].args[0]
+    assert statements[1].args[1] == ("creator-email:hiring@example.test",)
+    assert "INSERT INTO creator_contact_suppressions" in statements[2].args[0]
+    assert statements[2].args[1][0] == "hiring@example.test"
 
 
 def campaign():
@@ -383,6 +397,57 @@ def test_unbound_automation_scope_never_creates_authority():
         },
     )
     assert "reservation" in reason
+
+
+@pytest.mark.parametrize("mutation", ["expiry", "gmail", "reply"])
+def test_post_lock_creator_recheck_keeps_time_and_reply_fences_without_new_locks(mutation):
+    campaign_id, prospect_id, run_id, action_id = [uuid4() for _ in range(4)]
+    configured = campaign()
+    authorized = run(monitor_gmail=True, campaign_id=campaign_id)
+    reservation = {"run_id": run_id, "context_hash": "frozen", "campaign_id": campaign_id,
+                   "prospect_id": prospect_id, "stage": "initial"}
+    action = {"id": action_id, "context_hash": "frozen", "private_context": {
+        "marketing": {"campaign_id": str(campaign_id)},
+        "creator_automation": {"run_id": str(run_id)},
+    }}
+    clock = [NOW]
+    state = {"gmail": True, "pending": False}
+    statements = []
+
+    def execute(query, params=()):
+        statements.append(query.upper())
+        if "creator_reply_messages" in query:
+            value = {"pending": 1} if state["pending"] else None
+        elif "creator_automation_actions" in query:
+            value = reservation
+        elif "creator_automation_runs" in query:
+            value = authorized
+        elif "marketing_campaigns" in query:
+            value = configured
+        elif "marketing_prospects" in query:
+            value = creator()
+        elif "clock_timestamp() AS now" in query:
+            value = {"now": clock[0]}
+        elif "creator_gmail_sync_state" in query:
+            value = {"fresh": 1} if state["gmail"] else None
+        else:
+            raise AssertionError("Unexpected validation query")
+        return Mock(fetchone=Mock(return_value=value))
+
+    connection = Mock(execute=execute)
+    assert validate_creator_automation(connection, action, acquire_locks=False) is None
+    if mutation == "expiry":
+        clock[0] += timedelta(hours=2)
+        expected = "expired"
+    elif mutation == "gmail":
+        state["gmail"] = False
+        expected = "recent completed sync"
+    else:
+        state["pending"] = True
+        expected = "Review new creator replies"
+    assert expected in validate_creator_automation(connection, action, acquire_locks=False)
+    assert all("FOR UPDATE" not in query and "FOR SHARE" not in query
+               and "PG_ADVISORY" not in query for query in statements)
 
 
 def test_gmail_cannot_run_when_disabled():

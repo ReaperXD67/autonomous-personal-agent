@@ -777,11 +777,10 @@ class CreatorAutomationStore(MarketingStore):
 
     @staticmethod
     def _suppress_address(connection: Any, sender: str) -> int:
-        connection.execute(
-            "INSERT INTO creator_contact_suppressions(email,reason) VALUES (lower(%s),%s) "
-            "ON CONFLICT(email) DO NOTHING",
-            (sender, "Recipient requested no further outreach"),
-        )
+        # Match the final delivery boundary's prospect -> recipient lock order.
+        # Career and ordinary email sends share the recipient lock even though
+        # they have no marketing prospect row to serialize an opt-out against.
+        sender = sender.strip().casefold()
         rows = connection.execute(
             "UPDATE marketing_prospects SET status='suppressed',suppressed_at=now(), "
             "suppression_reason='Recipient requested no further outreach', "
@@ -789,6 +788,15 @@ class CreatorAutomationStore(MarketingStore):
             "WHERE lower(contact_email)=lower(%s) AND suppressed_at IS NULL RETURNING id",
             (sender,),
         ).fetchall()
+        connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))",
+            (f"creator-email:{sender}",),
+        )
+        connection.execute(
+            "INSERT INTO creator_contact_suppressions(email,reason) VALUES (lower(%s),%s) "
+            "ON CONFLICT(email) DO NOTHING",
+            (sender, "Recipient requested no further outreach"),
+        )
         return len(rows)
 
     def review_reply(

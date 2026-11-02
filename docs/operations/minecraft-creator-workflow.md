@@ -128,7 +128,7 @@ silently assigned fresh observation times. New creators and unprotected rows
 continue normally. Explicit single-creator refresh remains intentional and can
 invalidate the frozen copy. Neither this preservation nor the recurring reviewer
 extends a draft/approval deadline or overrides withdrawal and final send guards.
-See [ADR-0032](../decisions/ADR-0032-preserve-active-creator-evidence-during-discovery.md).
+See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
 
 API clients can queue the same bounded job with
 `POST /v1/marketing/campaigns/{id}/pilot-research`, an actor, UUID idempotency key
@@ -445,8 +445,9 @@ enforced in that event. The deployed correction shares a database gate between
 approval and actual receipt acquisition, applies the stricter frozen/current
 policy to actual sending/accepted/ambiguous history, and durably defers unstarted
 work without consuming its attempt, changing approved copy or extending expiry.
-The rebuilt stack passed lint/all 1,226 tests and the complete verifier, with
-concurrent/expiry/lock-wait PostgreSQL pacing proofs. The preceding 1,216-test
+The combined career/creator stack passed lint/all 1,321 tests and the complete
+verifier, with concurrent/expiry/lock-wait PostgreSQL pacing proofs and time-
+dependent scope rechecks after the pacing gate. The preceding 1,216-test
 checkpoint missed this case; no new external SMTP pacing canary is claimed.
 An overdue slot or queued action label alone does not prove safe, runnable work.
 

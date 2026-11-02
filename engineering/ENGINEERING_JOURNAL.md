@@ -3174,6 +3174,100 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   scan counts, not unique opportunities across both scans. No career application
   has been submitted; the active finite run has no application reservation yet.
 
+## 2026-11-02 — Reliable career drafts, independent Gmail and reviewed hiring contacts
+
+- Replaced model-authored résumé quotes/keywords in new career drafts with
+  content-bound server-issued choices. Resolution preserves exact source text;
+  provenance is recomputed at quality and final action boundaries. Existing
+  immutable drafts remain unchanged. At most one correction is separately
+  reserved/accounted through the same model privacy, free-route and lease path.
+  Failed correction leaves the inspectable draft blocked. Deterministic checking
+  still makes zero model calls; free-text assertions require substantive review.
+- Added independent worker-only Career Gmail credentials and `-Purpose Career`
+  to the native PKCE helper. Exact account/scope/custom-label checks, all-or-none
+  tuple selection, safe legacy fallback, separate renewal and atomic writes
+  preserve the working Creator grant. A dedicated career label was created in
+  the owner's selected mailbox. The owner deferred Google consent; the waiting
+  helper was stopped and its temporary Desktop client copy removed. Career
+  monitoring remains disabled and unverified; no new OAuth grant was saved.
+- Added expiring, primary-source-attested public hiring/HR/founder contact
+  reviews and normal exact-message individual approvals. Migration 026 binds
+  contact/job/profile/action ledgers. Current fit/publication, sender identity,
+  source/draft/profile, expiry/revocation and canonical target duplicates are
+  checked again at delivery. This does not broaden Apply grants. This transport
+  has no résumé attachment and refuses claims that one is attached.
+- Extended common SMTP suppression to every email path and synchronized creator
+  Gmail opt-out writes with the recipient boundary. Independent review found and
+  corrected canonical duplicate-import and profile-linkage gaps. The maintained
+  disposable PostgreSQL contact proof covers real ledger/approval creation,
+  concurrent planning, revocation, cross-path opt-out serialization and migration
+  constraints without HTTP, SMTP, models or real accounts.
+- Reused the existing pinned research and finite-evidence pattern; no upstream
+  code, new dependency or service was added. Updated README, runbooks,
+  architecture/security/roadmap, SYSTEM_EVOLUTION and ADR-0032.
+- Added four primary-source-reviewed employer boards through authenticated
+  profile APIs, pausing the finite Apply run while changing its snapshot. The
+  governed scan checked 960 normalized records across 34 successful sources out
+  of 35. It retained one PhonePe SmartRecruiters match; 844 were outside 72 hours,
+  97 failed location, eight excluded terms, seven titles and three fit. Discovery
+  used zero model calls. No extra suitable supported-ATS posting or qualified
+  dated hiring-email lead was verified; no application/email was submitted.
+- The first complete verifier passed 1,241 tests plus native, PostgreSQL and
+  actual-browser groups. Subsequent review added repair accounting/cancellation,
+  contact integrity and suppression regressions. A rebuilt final unit gate passed
+  1,251 tests; final full verification and live grounded draft proof follow below.
+- Preserved the separate original checkout's creator-continuation branch and
+  uncommitted work. This milestone remains isolated in its managed codex branch.
+- The rebuilt complete verifier then passed all 1,251 tests and native OAuth,
+  SMTP setup, lifecycle/recovery/workflow/scheduler, creator, career/contact,
+  planner, delivery and network-disabled browser groups. The early development
+  test attempt found one overlong SMTP guard line; it was corrected before the
+  final green runs. Compose validation and diff checks passed.
+- Applied migration 026 and refreshed only API, career and action workers from
+  the validated images, preserving the original dirty creator checkout and
+  existing provider configuration. Agent doctor passed; a real harmless gateway
+  canary returned ROUTE_OK through the Mistral free/default route. Re-enabled the
+  owner-authorized 24-hour ATS-only Apply scope with the saved three/day, fit 75,
+  72-hour window and reviewed hosts; career email remains disabled because the
+  configured sender differs from the chosen career identity. Queued a new real
+  grounded draft, preserving the previous rejected draft.
+- The first two new real draft attempts failed without saving copy: hosted output
+  was invalid/rate-limited, and local structured generation failed. A harmless
+  GPU response after restarting Ollama was insufficient proof of the full draft.
+  A synthetic request then isolated HTTP400 grammar initialization failure in
+  pinned Ollama 0.32.5/llama.cpp b10091: strict string lengths became unsupported
+  grammar repetition ranges. Added a separate compatible local transport schema;
+  full strict prompt/parser bounds, enums, duplicate and provenance checks stay.
+  Real résumé-free structured generation passed, while placeholder copy remained
+  correctly blocked. These failed tasks and invocation history were preserved.
+- Another active creator milestone refreshed shared containers during delivery.
+  Captured its current live image/code, verified all eight career-modified files
+  still exactly matched their common main base, and applied only thirteen scoped
+  changed/new career modules. Sixty-four unrelated live files were preserved.
+  The combined app and preserved Creator/current Career tests passed network-
+  disabled Ruff and all 1,289 tests before a guarded combined rollout. The new
+  contact route also passed an authenticated harmless empty-list read.
+- The transport-fixed source passed the rebuilt complete verifier with all 1,256
+  tests and the full native/PostgreSQL/browser groups. A thin combined-image
+  follow-up changed only career.py, preserved the other 76 live app files exactly,
+  and passed network-disabled lint/all 1,294 combined tests. Refreshed API, career
+  and action workers after verifying their captured base image IDs.
+- The third real governed draft succeeded through local qwen3:8b after one hosted
+  rate-limit refusal: 187 words, six of six exact evidence entries verified, twelve
+  supported keywords, six honest gaps, valid grounding and checks_passed with no
+  quality findings. It used no corrective call; 4,973 local tokens were recorded.
+  A bounded source comparison found no unsupported technical/scope claims in the
+  inspected candidate sentences. It does not certify eligibility: tenure evidence
+  and education equivalence for this job remain unverified, and SmartRecruiters
+  submission is manual. No private résumé or letter is published.
+- A final governed scan read 846 normalized records from 32 of 33 attempted sources,
+  with one retained manual match and zero model calls. Public-feed budgets were
+  respected rather than bypassed; the known Ashby source failure stayed visible.
+  Counts describe this scan, not cumulative unique jobs. No career application
+  or hiring email has been submitted. Resumed the same owner-authorized ATS-only
+  scope at fit 75, 72 hours, three/day and 24-hour expiry; Gmail remains disabled by
+  owner deferral and cold email awaits a matching career SMTP identity.
+
 ## 2026-11-02 — Reviewed creator continuation and explicit business context
 
 - Defined an ongoing hourly reviewer loop for the two privately selected
@@ -3227,7 +3321,7 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   The saved campaign discovery summary records `protected_count` with a nonzero
   aggregate `marketing.discovery_evidence_preserved` audit. The existing
   new/updated result contract and explicit refresh path remain unchanged.
-  Added ADR-0032, its index entry and the corresponding architecture/system
+  Added ADR-0033, its index entry and the corresponding architecture/system
   evolution note. Twelve disposable creator-research PostgreSQL groups passed,
   including active AI/manual packets, expiry/terminal release, new inserts,
   post-wait protection and explicit refresh still preventing a final receipt.
@@ -3287,7 +3381,7 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   for both its action and task, with no SMTP-boundary or acceptance evidence.
   It was held without replay or replacement. Action status alone is not a
   runnable-queue count.
-- Implemented ADR-0033: approval and receipt acquisition share the global
+- Implemented ADR-0034: approval and receipt acquisition share the global
   advisory gate after their own locks, without locking other tasks/actions
   under it or taking an inverse completion lock. Conservative actual receipt
   and start/completion times, unresolved sending, rolling history and the
@@ -3308,3 +3402,30 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   unchanged packet and refunded attempt state, approval after actual acceptance,
   no-slot refusal, and lease/approval expiry after global advisory-lock waits.
   This is deployed local synthetic proof, not a new external SMTP pacing canary.
+
+## 2026-11-02 — Combined career/creator integration gate
+
+- Preserved the independently merged career drafting, isolated-mail and hiring-
+  contact implementation and its original ADR-0032. Renumbered the creator
+  evidence-preservation and SMTP-boundary decisions to ADR-0033 and ADR-0034;
+  all corresponding links were updated without dropping either milestone.
+- Integration retains the initial locking defaults of the Apply, reviewed career
+  contact and creator-run guards. After a global pacing wait, internal plain-
+  read variants recheck the already-held scope without new advisory/row locks.
+  Time-dependent career/contact authority, creator-run expiry, publication age,
+  Gmail freshness/pending replies and the AI draft's seven-day lifetime are
+  checked before final wall-clock lease/packet validity.
+- The final combined rebuild passed Ruff and all 1,321 tests, `test.ps1` and
+  the complete verifier, including twenty creator-automation PostgreSQL groups
+  and six career-contact groups. Actual gate-wait cases covered creator-run
+  expiry, Gmail freshness, publication age, AI lifetime and career-contact expiry;
+  opt-out serialization, all other PostgreSQL/native/UI, planner, delivery and
+  queue-recovery proofs passed. Seventeen added guard tests covered default
+  locking and post-lock plain reads. Agent doctor passed; the real free/default
+  gateway smoke returned exact `ROUTE_OK` through Mistral Small 3.2. No new local
+  Qwen response or external SMTP pacing canary is claimed for this integration.
+- The current scoped projection remains twenty-three accepted, four queued
+  and one zero-receipt blocked action, with one old regression draft held and
+  zero pending replies. No interested reply or owner handoff is established.
+  The publication scan found zero matches for twelve configured secret values,
+  174 private contact values and two private campaign IDs in public changes.

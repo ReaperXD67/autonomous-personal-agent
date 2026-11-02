@@ -1,4 +1,4 @@
-# ADR-0032 — Preserve active creator evidence during bulk discovery
+# ADR-0033 — Preserve active creator evidence during bulk discovery
 
 - Date: 2026-11-02
 - Status: Accepted

@@ -364,6 +364,7 @@ def execute_career_task(
         selected_provider = "ollama"
         fallback_attempt = 1
         route_warning: str | None = None
+        selected_route: str | None = None
 
         if openrouter_client is not None:
             try:
@@ -392,7 +393,9 @@ def execute_career_task(
                             application_draft_messages(context), attempt_plan
                         )
                         try:
-                            content = parse_application_draft(remote.content)
+                            content = parse_application_draft(
+                                remote.content, context, preserve_invalid_grounding=True,
+                            )
                         except ValueError:
                             database.fail_inference_invocation(
                                 invocation_id, "OPENROUTER_DRAFT_INVALID"
@@ -418,6 +421,7 @@ def execute_career_task(
                         )
                         selected_model = remote.selected_model
                         selected_provider = remote.selected_provider or "openrouter"
+                        selected_route = remote.selected_route
                         fallback_attempt = (
                             route_offset
                             + attempt_plan.models.index(remote.selected_route)
@@ -476,6 +480,97 @@ def execute_career_task(
 
         # This report is derived by the worker, never accepted from model output.
         content["quality_report"] = assess_application_quality(context, content)
+        before_codes = {item["code"] for item in content["quality_report"]["findings"]}
+        repair_calls = 0
+        repair_status = "not_needed"
+        # A rewrite cannot fix the source itself. Spend at most one additional
+        # invocation on issues the draft can correct, reserving its ledger row
+        # before any model request and retaining the reviewable original on failure.
+        if before_codes - {"posting_integrity_review", "resume_missing"}:
+            _check_interrupted(interrupt)
+            repair_provider = "openrouter" if selected_route is not None else "ollama"
+            repair_models = (selected_route,) if selected_route else (settings.local_model,)
+            repair_id = database.start_inference_invocation(
+                task_id=task_id,
+                purpose="career.application_draft.repair",
+                provider=repair_provider,
+                requested_models=repair_models,
+                privacy_mode=(openrouter_client.privacy_mode
+                              if selected_route and openrouter_client else "local_only"),
+                daily_limit=plan.daily_limit if selected_route else None,
+            )
+            if repair_id is None:
+                repair_status = "daily_cap"
+            else:
+                repair_calls = 1
+                repair_started = time.monotonic()
+                try:
+                    _check_interrupted(interrupt)
+                    if selected_route and openrouter_client:
+                        # Reuse the already reviewed free route. A quality repair
+                        # does not fan out, rerank providers or silently use a paid route.
+                        repair_plan = OpenRouterPlan(
+                            models=(selected_route,), daily_limit=plan.daily_limit,
+                            free_tier=plan.free_tier,
+                        )
+                        repaired_remote = openrouter_client.complete(
+                            application_draft_messages(context, correction=content), repair_plan,
+                        )
+                        repaired = parse_application_draft(
+                            repaired_remote.content, context, preserve_invalid_grounding=True,
+                        )
+                        repair_usage = {
+                            "selected_model": repaired_remote.selected_model,
+                            "selected_provider": repaired_remote.selected_provider,
+                            "prompt_tokens": repaired_remote.prompt_tokens,
+                            "completion_tokens": repaired_remote.completion_tokens,
+                            "total_tokens": repaired_remote.total_tokens,
+                            "cost": repaired_remote.cost,
+                            "latency_ms": repaired_remote.latency_ms,
+                            "fallback_attempt": repaired_remote.fallback_attempt,
+                        }
+                    else:
+                        repaired, usage = generate_application_draft_with_usage(
+                            context, settings.local_model, correction=content,
+                        )
+                        repair_usage = {
+                            "selected_model": settings.local_model,
+                            "selected_provider": "ollama", **usage, "cost": 0,
+                            "latency_ms": round((time.monotonic() - repair_started) * 1000),
+                            "fallback_attempt": 1,
+                        }
+                    _check_interrupted(interrupt)
+                    repaired["quality_report"] = assess_application_quality(context, repaired)
+                    after_codes = {item["code"] for item in repaired["quality_report"]["findings"]}
+                except OpenRouterError as exc:
+                    database.fail_inference_invocation(repair_id, exc.code)
+                    repair_status = "route_unavailable"
+                except (ValueError, RuntimeError) as exc:
+                    # Cancellation/lease loss still propagates and must never
+                    # save a draft or trigger an action after an interrupted call.
+                    if isinstance(exc, TaskInterruptedError):
+                        database.fail_inference_invocation(repair_id, "TASK_INTERRUPTED")
+                        raise
+                    database.fail_inference_invocation(
+                        repair_id, "APPLICATION_DRAFT_REPAIR_INVALID",
+                    )
+                    repair_status = "invalid"
+                else:
+                    database.complete_inference_invocation(repair_id, **repair_usage)
+                    if not after_codes or after_codes < before_codes:
+                        content = repaired
+                        selected_model = repair_usage["selected_model"]
+                        selected_provider = repair_usage["selected_provider"] or repair_provider
+                        repair_status = "improved"
+                    else:
+                        repair_status = "still_requires_review"
+        elif before_codes:
+            repair_status = "source_review_required"
+        content["quality_repair"] = {
+            "model_calls": repair_calls, "status": repair_status,
+            "initial_findings": sorted(before_codes),
+        }
+        _check_interrupted(interrupt)
         database.save_application_draft(
             opportunity_id=opportunity_id,
             profile_id=profile_id,
@@ -498,6 +593,8 @@ def execute_career_task(
             "draft_created": True,
             "quality_disposition": content["quality_report"]["disposition"],
             "quality_model_calls": 0,
+            "quality_repair_model_calls": repair_calls,
+            "quality_repair_status": repair_status,
             "automatic_approval_task_created": auto_action is not None,
         }
 

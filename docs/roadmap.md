@@ -109,6 +109,9 @@
 - [x] Explicit shortlist reply outcome, conservative asserted/conditional/negated signals and a priority decision queue
 - [x] Optional Remotive public feed with attribution and 24-hour-delay disclosure; explicit published/updated/unknown date provenance, all-required-keyword matching, and remote-location constraints
 - [x] Local résumé evidence and cover-letter drafting
+- [x] Server-issued exact résumé evidence/keyword selections, provenance rechecks and one separately budgeted corrective generation
+- [x] Isolated worker-only Career Gmail OAuth and native setup/renewal without replacing Creator credentials
+- [x] Expiring job-linked primary-source contact review and individually approved hiring/HR/founder email, with matching sender, suppression and duplicate fences
 - [x] First exact approval-gated single-page Greenhouse/Ashby/Lever hosted-form adapter
 - [x] Career Play/Pause with prepare/apply modes, explicit expiring scope, trusted ATS hosts, fresh-job and fit gates, shared rolling application limits, profile binding, and duplicate protection
 - [x] Separate bounded preparation allowance, preparation-limit explanations, and durable exact-action links through review and later submission outcomes

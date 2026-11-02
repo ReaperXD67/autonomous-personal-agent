@@ -592,9 +592,31 @@ independently queued children. The parent makes no model call, prepares no
 outgoing email and grants no approval/contact/send authority. No new service,
 dependency, schema migration or credential compartment is introduced.
 
+## 2026-11-02 — Career evidence selection, isolated mail and reviewed contacts
+
+ADR-0032 narrows new career generation to server-issued exact résumé evidence
+and keyword IDs bound to the résumé digest. The existing worker resolves choices
+and runs deterministic checks. One separately reserved corrective inference is
+allowed; failed correction preserves a blocked draft. The final action boundary
+recomputes the grounding marker. Free-text copy still requires substantive
+review and does not prove job eligibility.
+
+The local Gmail helper now creates an independent all-or-none Career credential
+tuple, checks its recorded and authenticated mailbox, and preserves the Creator
+grant. Secrets stay worker-only; metadata reads remain label restricted despite
+Google's mailbox-wide read-only permission. SMTP identity stays separate.
+
+Migration 026 adds durable, expiring public contact reviews and exact-action
+links. A contact email uses the normal high-risk individual approval path and
+cannot inherit an Apply grant. Current fit/publication, source/profile/draft,
+sender, revocation, expiry, canonical job/address deduplication and global
+suppression are rechecked before SMTP. Creator Gmail opt-outs and common SMTP
+delivery now synchronize on the recipient lock. No new service or external
+account executor is introduced.
+
 ## 2026-11-02 — Bulk-discovery preservation and reviewed continuation
 
-ADR-0032 protects immutable creator evidence from routine bulk refresh while
+ADR-0033 protects immutable creator evidence from routine bulk refresh while
 unexpired active drafts or exact outreach packets still use it. The existing
 campaign/canonical-prospect locks precede a read-only task/draft/action existence
 check; no inverse row locking, new persistence or private-data audit is added.
@@ -614,7 +636,7 @@ API calls. No new service, dependency, credential scope or database schema is ad
 
 ## 2026-11-02 — Actual SMTP-boundary pacing after recovery
 
-ADR-0033 corrects the observed reservation-only pacing gap: overdue slots could
+ADR-0034 corrects the observed reservation-only pacing gap: overdue slots could
 execute together after recovery. Approval and receipt acquisition now share the
 same advisory transaction gate, with no other task/action row lock acquired
 under it and no inverse completion lock. Actual accepted/ambiguous timestamps
@@ -629,3 +651,10 @@ no receipt or message submission occurs. An expired window refuses rather than
 extending authority. Existing tables, worker lifecycle and side-effect fences
 remain authoritative; Mailpit is immediate and no inference/runtime/schema or
 provider privilege changes.
+
+The combined career/creator integration retains default guard locking before
+the pacing gate. After waiting, internal plain-read variants recheck the
+already-locked Apply/contact/creator-run scope, including time-dependent
+publication, Gmail and draft validity, without new locks under the global gate.
+This preserves the career milestone's independent mail/contact boundary while
+closing time-of-check gaps introduced by a global pacing wait.

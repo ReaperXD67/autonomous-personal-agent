@@ -257,7 +257,7 @@ a review of a configured mail provider's terms.
 - Residual risk: preserved research can become outdated while a packet waits.
   The pin extends no freshness window or approval deadline and does not certify
   the current source. Operators can intentionally refresh/withdraw work when new
-  evidence requires it. See [ADR-0032](../decisions/ADR-0032-preserve-active-creator-evidence-during-discovery.md).
+  evidence requires it. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
 
 ### CO-016 — Overdue reservations could burst after worker recovery
 
@@ -275,8 +275,12 @@ a review of a configured mail provider's terms.
   task without a receipt, consumed claim attempt, changed copy or extended
   expiry; an insufficient window refuses. Concurrent overdue work, unresolved
   and completed receipts, policy changes, durable state and lease/approval
-  expiry after advisory-lock waits passed disposable PostgreSQL proof. See
-  [ADR-0033](../decisions/ADR-0033-actual-smtp-pacing-and-durable-deferral.md).
+  expiry after advisory-lock waits passed disposable PostgreSQL proof. The
+  combined career/creator integration also rechecks time-dependent scope after
+  that wait using plain reads of already-locked rows; creator-run/AI lifetime,
+  Gmail freshness, publication age and career-contact expiry wait cases passed.
+  See
+  [ADR-0034](../decisions/ADR-0034-actual-smtp-pacing-and-durable-deferral.md).
 - Residual risk: a queued action can have a terminal linked task. Recovery must
   inspect task/receipt state rather than count every queued action as runnable;
   actual SMTP acceptance still does not establish inbox placement. The corrected

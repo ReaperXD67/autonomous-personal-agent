@@ -1,4 +1,4 @@
-# ADR-0033 — Actual SMTP pacing and durable pre-receipt deferral
+# ADR-0034 — Actual SMTP pacing and durable pre-receipt deferral
 
 - Date: 2026-11-02
 - Status: Accepted
@@ -24,6 +24,13 @@ and `begin_side_effect`. Acquire it after the operation's own task/action/schedu
 and any relevant creator locks; do not lock another task or action under it.
 Read wall-clock time again after blocking locks. Keep completion outside this
 advisory gate to avoid inverse lock ordering.
+
+Preserve the initial locking behavior of the Career Apply, reviewed career
+contact and creator-run guards. After waiting for the global gate, recheck the
+already-held scope through their internal plain-read variants, acquiring no
+new advisory or row locks. Recompute time-dependent career authority/contact
+validity, creator-run expiry, publication age, Gmail freshness/pending replies
+and the AI draft's seven-day lifetime before the final lease/packet check.
 
 Approval considers future reservations plus conservative actual receipt/schedule
 start and completion evidence. The receipt boundary honors its own reservation
@@ -63,13 +70,18 @@ window. Inspect actual task/receipt state: an action labeled queued can still
 have a dead-lettered task. A confirmed zero-receipt blocked task is distinct
 from an uncertain post-boundary outcome and is not automatically replaced.
 
-The rebuilt stack passed lint/all 1,226 tests and the complete verifier.
+After integration with the independently merged career milestone, the rebuilt
+combined stack passed lint/all 1,321 tests and the complete verifier.
 Disposable PostgreSQL proof covered concurrent overdue attempts (one receipt,
 one deferral), old unresolved sending, actual completion/ambiguous boundaries,
 stricter frozen/current policy, unchanged content/expiry and refunded attempts,
 approval after actual acceptance, insufficient remaining time, and lease or
-approval expiry while waiting on the shared advisory gate. The journal and
-Experiment 41 record the measured scope. This is local synthetic proof of the
+approval expiry while waiting on the shared advisory gate. Twenty creator-
+automation PostgreSQL groups included actual gate waits across run expiry,
+Gmail freshness, publication age and AI draft lifetime; six career-contact groups
+included contact expiry across the gate wait and opt-out serialization. The
+guards retain locking by default; only the post-lock recheck uses plain reads.
+The journal and Experiment 41 record the measured scope. This is local synthetic proof of the
 deployed correction, not a new external SMTP pacing canary. No pacing test
 establishes inbox placement, creator interest, provider approval or a general
 response-rate improvement.

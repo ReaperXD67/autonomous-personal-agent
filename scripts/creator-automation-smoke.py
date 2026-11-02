@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import time
@@ -17,6 +18,10 @@ import psycopg
 from app.action_store import SideEffectGuardError
 from app.creator_automation_models import CreatorAutomationStart, CreatorReplyReview
 from app.creator_automation_store import CreatorAutomationStore
+from app.creator_draft_content import parse_model_copy
+from app.creator_draft_models import CreatorDraftCreate
+from app.creator_draft_store import CreatorDraftStore
+from app.email_pacing import EmailPacingPolicy
 from app.marketing_models import (
     MarketingCampaignCreate,
     MarketingEmailPlanCreate,
@@ -109,6 +114,105 @@ def expect_boundary_block(store, action, text):
         check(text in str(exc), f"Unexpected boundary error: {exc}")
     else:
         raise AssertionError("Revoked creator grant crossed the side-effect boundary")
+
+
+def expect_pacing_wait_refusal(store, action, fragment):
+    with store.connect() as connection:
+        connection.execute("UPDATE outbound_email_schedule SET scheduled_for=clock_timestamp()-"
+                           "interval '1 hour' WHERE action_id=%s", (action["id"],))
+        connection.execute("UPDATE agent_tasks SET next_attempt_at=clock_timestamp()-"
+                           "interval '1 hour' WHERE id=%s", (action["task_id"],))
+    claimed = store.transition_to_running(action["task_id"], 300, "creator-pacing-smoke")
+    with store.connect() as blocker, ThreadPoolExecutor(max_workers=1) as pool:
+        blocker.execute("SELECT pg_advisory_xact_lock(%s,%s)", (1212502605, 1))
+        future = pool.submit(store.begin_side_effect, claimed["id"], uuid4().hex * 2,
+                             claimed["lease_id"])
+        try:
+            deadline, blocked = time.monotonic() + 2, False
+            while not future.done() and time.monotonic() < deadline:
+                blocker.execute("SELECT pg_stat_clear_snapshot()")
+                blocked = blocker.execute(
+                    "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                    "WHERE datname=current_database() AND application_name='creator-pacing-expiry' "
+                    "AND pid<>pg_backend_pid() AND wait_event_type='Lock' "
+                    "AND wait_event='advisory') AS blocked",
+                ).fetchone()["blocked"]
+                if blocked:
+                    break
+                time.sleep(0.02)
+            check(blocked, "Creator boundary failed to reach the real global pacing wait")
+            time.sleep(3.1)
+        finally:
+            blocker.commit()
+        try:
+            future.result(timeout=10)
+        except SideEffectGuardError as error:
+            check(fragment in str(error), f"Wrong post-pacing time-boundary refusal: {error}")
+        else:
+            raise AssertionError("Expired creator evidence or authority crossed global pacing")
+    with store.connect() as connection:
+        check(not connection.execute("SELECT 1 FROM side_effect_receipts WHERE task_id=%s",
+                                     (claimed["id"],)).fetchone(),
+              "Expired creator scope acquired a side-effect receipt")
+        check(connection.execute("SELECT status FROM external_actions WHERE id=%s",
+                                 (action["id"],)).fetchone()["status"] == "queued",
+              "Post-wait time refusal rewrote the exact queued packet")
+
+
+def exercise_pacing_time_guards(dsn):
+    scoped = make_conninfo(dsn, application_name="creator-pacing-expiry")
+    store = CreatorAutomationStore(scoped, email_pacing_policy=EmailPacingPolicy(60, 60, 3, 12, 0))
+    for case, fragment in (
+        ("run", "authorization expired"),
+        ("gmail", "monitoring needs a recent completed sync"),
+        ("publication", "recent published content is required"),
+    ):
+        c, run, prospects = campaign(store)
+        if case == "publication":
+            with store.connect() as connection:
+                connection.execute("UPDATE marketing_prospects SET latest_content_published_at="
+                                   "clock_timestamp()-make_interval(days=>%s)+interval '3 seconds' "
+                                   "WHERE id=%s", (c["max_video_age_days"], prospects[0]["id"]))
+        store.execute(task_for(store, c["id"], run["id"]), sender="sender@example.test")
+        action = actions(store, c["id"])[0]
+        with store.connect() as connection:
+            if case == "run":
+                connection.execute("UPDATE creator_automation_runs SET expires_at="
+                                   "clock_timestamp()+interval '3 seconds' WHERE id=%s", (run["id"],))
+            if case == "gmail":
+                connection.execute("UPDATE creator_automation_runs SET monitor_gmail=true WHERE id=%s",
+                                   (run["id"],))
+                connection.execute("INSERT INTO creator_gmail_sync_state "
+                                   "(campaign_id,mailbox_key,label_name,last_complete_at) "
+                                   "VALUES (%s,%s,'Hermes/Creators',clock_timestamp()-"
+                                   "interval '30 minutes'+interval '3 seconds')",
+                                   (c["id"], "f" * 64))
+        expect_pacing_wait_refusal(store, action, fragment)
+
+    drafts = CreatorDraftStore(scoped, email_pacing_policy=EmailPacingPolicy(60, 60, 3, 12, 0))
+    c, _, prospects = campaign(store)
+    prospect = prospects[0]
+    with drafts.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET latest_content_title='Minecraft session',"
+                           "latest_content_url='https://www.youtube.com/watch?v=abcdefghijk',"
+                           "last_seen_at=clock_timestamp()-interval '7 days'+interval '3 seconds' "
+                           "WHERE id=%s", (prospect["id"],))
+    row = drafts.create_draft(prospect["id"], CreatorDraftCreate(
+        actor="creator-pacing-smoke", idempotency_key=uuid4(),
+    ))
+    task = drafts.transition_to_running(row["task_id"], 300, "creator-pacing-smoke")
+    owned = drafts.get_draft_for_execution(row["id"], task["id"], task["lease_id"])
+    copy = parse_model_copy(json.dumps({"evidence_id": "sample_video", "angle_id": "first_session"}),
+                            owned["model_context"])
+    saved = drafts.save_draft(draft_id=row["id"], task_id=task["id"], lease_id=task["lease_id"],
+                              copy=copy, source="ollama", selected_model="synthetic-no-inference")
+    drafts.complete_task(task["id"], task["lease_id"], {"synthetic": True})
+    action = drafts.plan_outreach_email(prospect["id"], MarketingEmailPlanCreate(
+        actor="creator-pacing-smoke", stage="initial", ai_draft_id=row["id"],
+        ai_draft_digest=saved["draft_digest"],
+    ), sender="sender@example.test")
+    drafts.decide_task(action["task_id"], ApprovalDecision(decision="approved", actor="fixture"))
+    expect_pacing_wait_refusal(drafts, action, "research changed or expired")
 
 
 def exercise(dsn):
@@ -505,6 +609,8 @@ def exercise(dsn):
         else:
             raise AssertionError("Concurrent manual opt-out ignored committed Gmail suppression")
     groups.append("Manual and Gmail opt-outs share writer-before-prospect lock order")
+    exercise_pacing_time_guards(dsn)
+    groups.append("Global pacing waits recheck creator run, Gmail/publication freshness and AI research TTL")
     return groups
 
 

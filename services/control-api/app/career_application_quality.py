@@ -174,6 +174,12 @@ def assess_application_quality(context: dict[str, Any], content: dict[str, Any])
         if not any(item["code"] == code for item in findings):
             findings.append({"code": code, "severity": "review", "message": message})
 
+    if "grounding" in content:
+        from app.career_draft_grounding import grounding_is_valid
+
+        if not grounding_is_valid(context, content):
+            add("resume_grounding_invalid", "Résumé selections do not match the current source.")
+
     resume = _fold(str(context.get("resume_text") or ""))
     integrity = inspect_posting(context.get("description"))["report"]
     letter = content.get("cover_letter")

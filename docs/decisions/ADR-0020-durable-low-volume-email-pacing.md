@@ -50,7 +50,7 @@ public unsubscribe service before volume increases.
 
 The reservation-only due-time check did not enforce actual recovery cadence:
 seventeen overdue messages were SMTP-accepted within 76 seconds. Its earlier
-synthetic proof was insufficient for that case. [ADR-0033](ADR-0033-actual-smtp-pacing-and-durable-deferral.md)
+synthetic proof was insufficient for that case. [ADR-0034](ADR-0034-actual-smtp-pacing-and-durable-deferral.md)
 adds the shared actual-receipt boundary gate and durable pre-receipt deferral.
 This correction retains approval reservations and their policy intent; it does
 not reinterpret reserved timestamps as actual send evidence.

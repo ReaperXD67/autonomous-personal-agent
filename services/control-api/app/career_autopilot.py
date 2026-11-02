@@ -147,7 +147,9 @@ def lock_profile(connection: Any, profile_id: Any) -> None:
     )
 
 
-def guard_autopilot_action(connection: Any, action: dict[str, Any], now: datetime) -> None:
+def guard_autopilot_action(
+    connection: Any, action: dict[str, Any], now: datetime, *, acquire_locks: bool = True,
+) -> None:
     # Imported here to keep the core decision functions independent of persistence.
     from app.action_store import SideEffectGuardError
 
@@ -156,15 +158,19 @@ def guard_autopilot_action(connection: Any, action: dict[str, Any], now: datetim
     ).fetchone()
     if ledger is None:
         return
-    lock_profile(connection, ledger["profile_id"])
+    if acquire_locks:
+        lock_profile(connection, ledger["profile_id"])
     run = connection.execute(
-        "SELECT * FROM career_autopilot_runs WHERE id = %s FOR UPDATE", (ledger["run_id"],)
+        ("SELECT * FROM career_autopilot_runs WHERE id = %s FOR UPDATE" if acquire_locks else
+         "SELECT * FROM career_autopilot_runs WHERE id = %s"), (ledger["run_id"],)
     ).fetchone()
     profile = connection.execute(
-        "SELECT * FROM career_profiles WHERE id = %s FOR SHARE", (ledger["profile_id"],)
+        ("SELECT * FROM career_profiles WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT * FROM career_profiles WHERE id = %s"), (ledger["profile_id"],)
     ).fetchone()
     opportunity = connection.execute(
-        "SELECT * FROM job_opportunities WHERE id = %s FOR SHARE", (ledger["opportunity_id"],)
+        ("SELECT * FROM job_opportunities WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT * FROM job_opportunities WHERE id = %s"), (ledger["opportunity_id"],)
     ).fetchone()
     # Re-read time after locks so expiry cannot pass during a wait.
     now = connection.execute("SELECT clock_timestamp() AS now").fetchone()["now"]
@@ -185,7 +191,8 @@ def guard_autopilot_action(connection: Any, action: dict[str, Any], now: datetim
         else ("career_draft_id", "career_draft_sha256")
     )
     draft = connection.execute(
-        "SELECT content FROM job_application_drafts WHERE id = %s FOR SHARE",
+        ("SELECT content FROM job_application_drafts WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT content FROM job_application_drafts WHERE id = %s"),
         (action["private_context"].get(draft_field),),
     ).fetchone()
     if draft is None or canonical_hash(draft["content"]) != action["private_context"].get(

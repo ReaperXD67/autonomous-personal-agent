@@ -456,6 +456,38 @@ def test_wrong_mailbox_refuses_message_reads_and_store_writes(monkeypatch):
     store.save_gmail_sync.assert_not_called()
 
 
+def test_career_sync_selects_dedicated_grant_instead_of_creator_credentials(monkeypatch):
+    client, store, settings, task = sync_fixture(monkeypatch, count=0)
+    settings.__dict__.update({
+        "gmail_career_client_id": "career-id", "gmail_career_client_secret": "career-secret",
+        "gmail_career_refresh_token": "career-refresh",
+        "gmail_career_mailbox": "applicant@example.test",
+    })
+    constructor = Mock(return_value=client)
+    monkeypatch.setattr(tracking, "GmailReadClient", constructor)
+    execute_gmail_sync(task, store, settings)
+    constructor.assert_called_once_with("career-id", "career-secret", "career-refresh")
+
+
+@pytest.mark.parametrize("overrides", [
+    {"gmail_career_client_id": "career-id"},
+    {"gmail_career_mailbox": "different@example.test"},
+    {"gmail_career_client_id": "career-id", "gmail_career_client_secret": "career-secret",
+     "gmail_career_refresh_token": "career-refresh"},
+])
+def test_invalid_career_gmail_configuration_refuses_before_oauth(monkeypatch, overrides):
+    _, store, settings, task = sync_fixture(monkeypatch)
+    for name, value in overrides.items():
+        setattr(settings, name, value)
+    constructor = Mock(side_effect=AssertionError("No Google request before configuration checks"))
+    monkeypatch.setattr(tracking, "GmailReadClient", constructor)
+    with pytest.raises(GmailSyncError):
+        execute_gmail_sync(task, store, settings)
+    constructor.assert_not_called()
+    store.gmail_sync_context.assert_not_called()
+    store.save_gmail_sync.assert_not_called()
+
+
 def test_disabled_gmail_refuses_before_oauth_even_with_saved_credentials(monkeypatch):
     _, store, settings, task = sync_fixture(monkeypatch)
     settings.gmail_enabled = False

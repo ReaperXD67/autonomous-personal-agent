@@ -69,7 +69,7 @@ task through the app's Scheduled controls. See the
    refresh their timestamps. Explicit
    single-creator refresh still invalidates a changed frozen context. Protection
    ends with the relevant expiry/terminal state and does not delay opt-outs or
-   other final send guards. See [ADR-0032](../decisions/ADR-0032-preserve-active-creator-evidence-during-discovery.md).
+   other final send guards. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
 4. **Prepare within remaining allowance.** Request individual drafts for the
    exact prequalified creator IDs when the campaign's broader server-selected
    batch could include sources outside this runbook's additional ninety-day
@@ -203,10 +203,13 @@ that case. The deployed correction shares a database gate between approval and
 the actual receipt boundary, applies the stricter frozen/current policy to
 actual history and durably defers unstarted work without a receipt, spent
 attempt, changed copy or extended expiry. An unresolved sending receipt blocks
-further egress. See [ADR-0033](../decisions/ADR-0033-actual-smtp-pacing-and-durable-deferral.md).
+further egress. See [ADR-0034](../decisions/ADR-0034-actual-smtp-pacing-and-durable-deferral.md).
 
-The rebuilt stack passed lint/all 1,226 tests and the complete verifier,
+The combined career/creator stack passed lint/all 1,321 tests and the complete verifier,
 including concurrent overdue deferral, accepted/ambiguous/unresolved history,
 frozen-policy limits, unchanged packet/attempt state, no-slot refusal and lease
-or approval expiry after advisory-lock waits. This is local PostgreSQL/native
+or approval expiry after advisory-lock waits. Actual wait cases also checked
+creator-run expiry, Gmail freshness, publication age, AI draft lifetime and
+career-contact expiry without taking new locks under the global gate.
+This is local PostgreSQL/native
 proof, not a new external SMTP pacing canary. CI remains the publication gate.
