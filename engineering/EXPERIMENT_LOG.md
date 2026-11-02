@@ -1362,3 +1362,21 @@ optional parser modules were unavailable; computed contrast was not evaluated.
 These checks establish local behavior, not external ATS compatibility, job authenticity,
 eligibility accuracy, Gmail tracking or improved hiring outcomes. No inference route
 was changed or local-model canary claimed for this milestone.
+
+## 2026-11-02 — YC public schema correction measurements
+
+The initial expanded governed scan returned 1,444 normalized records, zero matches
+and twenty YC list failures. It exposed an inaccurate fixture assumption: generic
+jobs navigation had been used as company identity. The correction requires the
+actual canonical public companyUrl plus matching company.slug and retains all
+other origin, posting, date and account restrictions. Nine additional regressions
+bring the passing unit/contract suite to 1,561 tests with Ruff clean.
+
+Bounded real public parser canaries observed ClickPe 2, SuperKalam 10 and Aviator
+5 listing records. Two details each produced six stale exclusions, zero invalid
+records and zero list/detail failures. No inference, account or application was
+used. This proves those sampled public reads, not current vacancies or general
+provider compatibility; governed runtime verification is recorded separately.
+The final isolated fix build also passed Compose configuration, test.ps1,
+the complete verify.ps1 and git diff --check. Independent source review confirmed
+the existing origin/account/identity/date/request boundaries remain intact.

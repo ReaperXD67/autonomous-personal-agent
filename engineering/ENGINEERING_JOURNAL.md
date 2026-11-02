@@ -3464,3 +3464,27 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   suitable fresh executable match in the bounded samples. This milestone makes
   no external-application, Gmail-ingestion or hiring-outcome claim. Career Gmail
   and the mismatched email sender remain deferred; Creator configuration is preserved.
+
+## 2026-11-02 — YC public-page canary correction
+
+- The first governed expanded search completed 1,444 normalized records with
+  zero matches (1,428 excluded for age), but every one of twenty YC list reads
+  failed before normalization. Passing fixtures/healthy workers did not establish
+  a working YC reader. Native LinkedIn/YC submissions were never enabled.
+- Reproduced the mismatch on a real public page: jobsUrl is generic Bookface
+  navigation, while companyUrl and company.slug identify the public company.
+  The narrow correction validates the latter on list and detail pages and ignores
+  navigation. Existing per-job/rendered-link/schema/date checks, fixed fetch paths,
+  redirect/account refusal and request budgets remain. Static failure codes expose
+  bounded diagnostics without provider bodies. No new authority or scope version.
+- Corrected fixtures to the observed public shape and added wrong/missing/account/
+  foreign identity regressions. Ruff/all 1,561 tests passed. Three bounded public
+  parser canaries (ClickPe, SuperKalam, Aviator) observed 2/10/5 list records with
+  no invalid records or list/detail failures; two details per company were correctly
+  rejected as stale. These were unauthenticated public reads with no model, account,
+  personal-data submission or application call. Shared deployment and a fresh
+  governed scan remain separate runtime verification steps.
+- The final fix build also passed Compose configuration, test.ps1, the complete
+  verify.ps1 and diff checks. Independent source review found no material weakening
+  of origin, account, posting identity, date or budget checks. No runtime overlay
+  was used; publication and deployment use the combined-main workflow.

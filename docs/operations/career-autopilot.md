@@ -33,6 +33,10 @@ timezone-aware `JobPosting.datePosted` on the matching public posting establishe
 freshness. Recently-added labels, account redirects and source observation times
 do not. YC job cards remain manual applications, even when public metadata says
 `directApply`; employer ATS imports can use the ordinary supported adapter.
+Public YC company identity comes from its canonical `companyUrl` and matching
+company metadata. Generic jobs-navigation links are ignored and never followed
+into Bookface or an account flow. Bounded coverage includes static failure codes
+when public metadata changes; no provider response body is retained in errors.
 
 ### Job-risk and freshness checks
 

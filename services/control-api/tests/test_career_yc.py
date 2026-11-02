@@ -22,7 +22,11 @@ def job(identifier=1, title="Backend Engineer Intern", **changes):
 
 
 def page(props, schemas=None, links=()):
-    payload = html.escape(json.dumps({"props": {"currentUser": None, "signedIn": False, **props}}),
+    payload = html.escape(json.dumps({"props": {
+        "currentUser": None, "signedIn": False,
+        "companyUrl": yc.ROOT + "/companies/example",
+        "jobsUrl": "https://bookface.ycombinator.com/workatastartup", **props,
+    }}),
                           quote=True)
     anchors = "".join(f'<a href="{html.escape(link, quote=True)}">Role</a>' for link in links)
     scripts = "".join('<script type="application/ld+json">' + json.dumps(schema) + '</script>'
@@ -33,7 +37,7 @@ def page(props, schemas=None, links=()):
 def listing(jobs=None, *, extra_links=(), **props):
     jobs = [job()] if jobs is None else jobs
     return page({"company": {"slug": "example", "name": "Example Ltd"},
-                 "jobsUrl": "/companies/example/jobs", "jobPostings": jobs, **props},
+                 "jobPostings": jobs, **props},
                 links=[item["url"] for item in jobs if isinstance(item, dict)] + list(extra_links))
 
 
@@ -87,6 +91,38 @@ def test_public_detail_uses_exact_publication_and_keeps_submission_manual(monkey
     assert not coverage["truncated"] and not coverage["submission_supported"]
 
 
+def test_observed_generic_bookface_navigation_is_not_a_board_identity_or_fetch_target(monkeypatch):
+    """Sanitized shape of public ClickPe list/detail observed 2026-11-02.
+
+    Top-level companyUrl is absolute, each job companyUrl is relative, and
+    jobsUrl points at generic Bookface account navigation on both pages.
+    """
+    requests = source(monkeypatch, listing(), {"T1-role": detail()})
+    coverage = {}
+    assert len(yc.fetch_yc("example", now=NOW, coverage=coverage)) == 1
+    assert requests == [("example", None), ("example", "T1-role")]
+    assert coverage["list_failure_code"] is None
+
+
+@pytest.mark.parametrize("company_url", [
+    None, "/companies/other", yc.ROOT + "/companies/other",
+    "https://account.ycombinator.com/companies/example",
+    "https://www.ycombinator.com.evil.test/companies/example",
+    yc.ROOT + "/companies/example?continue=private", ["/companies/example"],
+])
+def test_public_company_url_must_match_even_when_jobs_navigation_looks_correct(
+    monkeypatch, company_url,
+):
+    requests = source(monkeypatch, listing(
+        companyUrl=company_url, jobsUrl="/companies/example/jobs",
+    ))
+    coverage = {}
+    with pytest.raises(ValueError, match="company identity"):
+        yc.fetch_yc("example", now=NOW, coverage=coverage)
+    assert requests == [("example", None)]
+    assert coverage["list_failure_code"] == "company_identity_mismatch"
+
+
 @pytest.mark.parametrize("date,reason", [
     (None, "unknown_date"), ("yesterday", "unknown_date"), ("2026-11-02", "unknown_date"),
     ("2026-11-02T11:00:00", "unknown_date"), (True, "unknown_date"),
@@ -113,6 +149,7 @@ def test_exact_window_boundary_and_non_utc_offsets_are_preserved(monkeypatch):
     {"job": job(companyUrl="/companies/other")}, {"job": job(isIncomplete=True)},
     {"company": {"slug": "other", "name": "Example Ltd"}}, {"signedIn": True},
     {"currentUser": {"id": 10}},
+    {"companyUrl": yc.ROOT + "/companies/other"},
 ])
 def test_detail_identity_and_public_account_boundary_are_rechecked(monkeypatch, changes):
     source(monkeypatch, details={"T1-role": detail(**changes)})
@@ -257,14 +294,16 @@ def test_missing_list_or_login_page_is_not_reported_as_an_empty_success(monkeypa
     with pytest.raises(ValueError):
         yc.fetch_yc("example", now=NOW, coverage=coverage)
     assert coverage["list_failures"] == 1 and coverage["truncated"]
+    assert coverage["list_failure_code"] == "missing_public_metadata"
     source(monkeypatch, listing([]))
     assert yc.fetch_yc("example", now=NOW, coverage=coverage) == []
     assert coverage["list_failures"] == 0 and not coverage["truncated"]
+    assert coverage["list_failure_code"] is None
 
 
 @pytest.mark.parametrize("changes", [
     {"company": {"slug": "other", "name": "Example Ltd"}},
-    {"jobsUrl": "/companies/other/jobs"}, {"jobPostings": {}},
+    {"companyUrl": "/companies/other"}, {"jobPostings": {}},
 ])
 def test_wrong_company_or_malformed_index_is_a_source_failure(monkeypatch, changes):
     source(monkeypatch, listing(**changes))
@@ -272,6 +311,7 @@ def test_wrong_company_or_malformed_index_is_a_source_failure(monkeypatch, chang
     with pytest.raises(ValueError):
         yc.fetch_yc("example", now=NOW, coverage=coverage)
     assert coverage["list_failures"] == 1 and coverage["truncated"]
+    assert coverage["list_failure_code"] in {"company_identity_mismatch", "invalid_job_list"}
 
 
 def test_public_index_record_must_have_a_matching_rendered_link(monkeypatch):
