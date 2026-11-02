@@ -119,9 +119,9 @@ task through the app's Scheduled controls. See the
   suppression, prior conversation state and cross-campaign duplicate guards.
 - Apply the ninety-day rule as an additional recurring-selection gate. Do not
   silently tighten existing campaigns or rewrite their already approved packets.
-  The two previously reviewed ready drafts remain under the existing 365-day
-  campaign scope; do not relabel them as newly qualified ninety-day leads or
-  rewrite their prior review basis. The out-of-window regression sample remains
+  The two previously reviewed drafts were approved under the existing 365-day
+  campaign scope and later SMTP-accepted; do not relabel them as newly qualified
+  ninety-day leads or rewrite their prior review basis. The out-of-window regression sample remains
   a test case until
   fresh evidence qualifies it and a fresh draft can be prepared within budget.
 
@@ -182,19 +182,26 @@ schedule, healthy service, ready draft, exact approval, SMTP acceptance, inbox
 arrival and interested creator are distinct results. This workflow guarantees
 none of the latter outcomes and does not retrain its model from silence.
 
-At November 2, 2026, 05:45:50 UTC (11:15:50 IST), the twenty-eight-invitation
-scope contained twenty-three SMTP acceptances, four runnable queued v2 packets
-and one blocked action whose linked task was dead-lettered after lease
-exhaustion. The blocked action/task had zero receipts and no established SMTP
-acceptance; it was held without replay or replacement. Both mailbox monitors
-were fresh, the current creation window was complete and pending replies were
-zero. No actual creator interest or owner handoff was established.
+At November 2, 2026, 19:57 UTC (November 3, 01:27 IST), the exact original
+twenty-eight invitation IDs matched a complete API action page: twenty-seven
+SMTP-accepted, zero runnable queued and one unchanged blocked action with a
+dead-lettered task. That blocked work had no receipt or established acceptance
+and was not replayed or replaced. Both label monitors were fresh with zero
+pending replies; no actual creator interest or owner handoff was established.
 
-The hourly heartbeat is active and its saved state was checked; its first
-scheduled Codex wake remains unobserved. A manual six-GET snapshot and both
-native daily scans succeeded. Discovery preserved ten active records, with all
-four queued v2 bodies, digests and research snapshots unchanged in before/after
-reads. These are separate proofs of manual inspection and native scheduling.
+The hourly reviewer is active, with scheduled cycles observed since 06:20 UTC.
+Earlier native daily scans preserved ten active records; before/after reads
+kept all four v2 bodies, digests and research snapshots unchanged. Those four
+individually approved invitations were subsequently SMTP-accepted unchanged,
+with each successive acceptance more than 1,800 seconds apart.
+This is a small actual-send pacing canary, not a guarantee about future cadence,
+inbox placement or replies.
+
+A draft was requested for one qualified candidate at 19:06 UTC and failed at
+19:09 UTC with `CREATOR_DRAFT_MODEL_UNAVAILABLE`; local inference was unavailable.
+No new packet or manual fallback was created. New AI introductions are held;
+reply monitoring continues. Preserve the failed task rather than using another
+identity or replacement copy to conceal the failure.
 
 The recovery audit found seventeen actual SMTP acceptances from 05:18:23 through
 05:19:39 UTC despite spaced reserved slots. The old due-time check did not
@@ -205,11 +212,12 @@ actual history and durably defers unstarted work without a receipt, spent
 attempt, changed copy or extended expiry. An unresolved sending receipt blocks
 further egress. See [ADR-0034](../decisions/ADR-0034-actual-smtp-pacing-and-durable-deferral.md).
 
-The combined career/creator stack passed lint/all 1,321 tests and the complete verifier,
+The earlier combined career/creator stack passed lint/all 1,321 tests and the complete verifier,
 including concurrent overdue deferral, accepted/ambiguous/unresolved history,
 frozen-policy limits, unchanged packet/attempt state, no-slot refusal and lease
 or approval expiry after advisory-lock waits. Actual wait cases also checked
 creator-run expiry, Gmail freshness, publication age, AI draft lifetime and
 career-contact expiry without taking new locks under the global gate.
-This is local PostgreSQL/native
-proof, not a new external SMTP pacing canary. CI remains the publication gate.
+Those are local PostgreSQL/native proofs; the four later acceptances are the
+limited live pacing canary above. This documentation checkpoint adds no runtime
+behavior; CI remains the publication gate.
