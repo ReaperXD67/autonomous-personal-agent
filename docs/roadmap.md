@@ -40,6 +40,8 @@
 - [x] Install a scoped OpenRouter inference key and pass the harmless live fallback canary
 - [ ] Safe memory writer/retriever with provenance and deletion policy
 - [x] Career scheduler persists tasks through the policy/outbox path before queue publication
+- [x] Bounded public YC company discovery and LinkedIn/YC employer-link provenance, with exact publication evidence and manual native-platform applications
+- [x] Zero-model mandatory-qualification review with private résumé evidence, explicit scoped India authorization facts and version-bound Apply grants
 - [ ] General-purpose scheduler beyond career missions
 - [x] Make career/creator schedule advancement atomic with task creation to close the pre-task crash gap
 - [x] Policy-bound model planner that proposes reviewed workflows using the immutable plan API

@@ -234,6 +234,21 @@ rows prevent duplicate issuance by concurrent scheduler workers.
 
 ## Quality attributes
 
+Public YC discovery runs inside the existing career search task: fixed public
+origin, one bounded company page, ten detail attempts per company and twenty
+across a scan. Exact matching JSON-LD publication evidence is required. YC stays
+manual; LinkedIn/YC references may be paired with independently observed employer
+ATS links without adding a platform account executor. Migration 027 persists YC
+source identity and optional owner screening facts in PostgreSQL.
+
+The same deterministic mandatory-qualification gate runs at automatic preparation,
+selection, delegated authorization and final receipt. It reads private résumé
+evidence and narrowly scoped facts without model calls. Public projections remove
+the evidence and show only public posting excerpts/findings. Policy version and
+facts join the existing profile digest, so changed semantics require a fresh Play
+grant. No new service, transport privilege or submission host is added. See
+[ADR-0035](../decisions/ADR-0035-platform-discovery-and-qualification-review.md).
+
 Career drafting now binds server-issued résumé choices to a digest and permits
 one separately accounted corrective generation. The existing worker, policy,
 lease and inference ledger remain authoritative. Dedicated Career Gmail

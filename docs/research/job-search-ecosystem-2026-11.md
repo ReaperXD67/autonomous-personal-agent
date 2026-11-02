@@ -113,6 +113,31 @@ are not substituted for source evidence.
   delivery, interview rate or market leadership. Record measured outcomes after
   real authorized executions instead of adopting upstream marketing claims.
 
+## LinkedIn and YC follow-up: 2026-11-02
+
+The pinned JobSpy/JobNavigator comparisons above still favor explicit source
+contracts and provenance over importing another scraper/runtime. No upstream
+code or dependency was copied for this follow-up. The original public YC parser
+uses observed company-page identity plus matching posting JSON-LD. The public
+[Aviator internship](https://www.ycombinator.com/companies/aviator/jobs/aaMaqQu-software-engineering-intern)
+demonstrated why a visible job link is insufficient: its exact publication was
+2022-03-03. Account application URLs also appeared alongside `directApply`.
+Only exact, timezone-aware matching `datePosted` can qualify a new listing.
+
+LinkedIn public search returned rate limiting during research; no retry/proxy or
+authenticated scraper was substituted. Its [automated-access guidance](https://www.linkedin.com/robots.txt)
+and [partner access documentation](https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access)
+do not provide Hermes a generic native application API. The adopted path is a
+canonical platform reference paired with an independently observed supported
+employer ATS URL. Native LinkedIn/YC submissions stay manual.
+
+An independent twenty-company YC sample exposed 42 engineering roles but no
+verified suitable posting inside the selected 72 hours. Relative added times and
+search-engine crawl dates were not treated as publication. Research leads with
+unknown exact dates, mandatory availability questions or unsupported company
+forms were not submitted. These observations are coverage evidence, not a claim
+that no suitable jobs exist elsewhere or a measurement of adapter accuracy.
+
 
 ## Additional early-career employer research
 

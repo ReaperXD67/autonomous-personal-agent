@@ -38,3 +38,4 @@ history.
 - [ADR-0032](ADR-0032-grounded-career-drafts-and-isolated-mail.md): exact résumé selections, bounded corrective generation, isolated Career Gmail and individually reviewed hiring contacts
 - [ADR-0033](ADR-0033-preserve-active-creator-evidence-during-discovery.md): preserve active reviewed creator evidence during bulk discovery and keep continuation review explicit
 - [ADR-0034](ADR-0034-actual-smtp-pacing-and-durable-deferral.md): enforce pacing at the actual SMTP boundary and durably defer overdue work without spending a send attempt
+- [ADR-0035](ADR-0035-platform-discovery-and-qualification-review.md): bounded public YC discovery, paired platform references and deterministic mandatory-qualification gates

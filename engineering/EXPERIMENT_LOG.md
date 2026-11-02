@@ -1344,3 +1344,21 @@ remains held. These checks establish integration behavior, not creator interest.
 - Record route availability, throttling, latency, and human-intervention rate.
 - Evaluate Prime Agent only inside a disposable worktree/container with a fixed
   token/time/tool budget.
+
+## 2026-11-02 — Career platform and eligibility verification
+
+The final isolated platform build passed Compose configuration, Ruff/all 1,552
+unit/contract tests, test.ps1, the complete verify.ps1 and git diff --check.
+Seven new disposable PostgreSQL groups verified source/fact persistence, omitted
+field preservation, private evidence stripping, YC upsert and migration replay,
+mandatory selection/approval/receipt gates, and policy/fact grant invalidation.
+No HTTP/SMTP requests or side-effect receipts were allowed in that database proof.
+
+Network-disabled desktop/mobile dashboard checks exercised actual edit/save HTTP
+payloads, paired reference import, YC manual-only status, escaped public evidence,
+reference preservation/removal and tri-state India facts. Screenshots were inspected.
+The single Impeccable detector returned [] only in degraded regex mode because
+optional parser modules were unavailable; computed contrast was not evaluated.
+These checks establish local behavior, not external ATS compatibility, job authenticity,
+eligibility accuracy, Gmail tracking or improved hiring outcomes. No inference route
+was changed or local-model canary claimed for this milestone.

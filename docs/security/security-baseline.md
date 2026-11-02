@@ -140,6 +140,18 @@ identities, refused redirects, bounded response and request counts, and explicit
 partial-coverage reporting. Returned URLs never select another fetch target.
 It adds no automatic browser host, account authority or credential. See ADR-0031.
 
+Public YC reads likewise use only fixed public company/posting paths, refuse
+redirects and accounts, and bound bytes, time and detail attempts. Exact matching
+JSON-LD dates are required; relative labels cannot grant freshness. LinkedIn/YC
+reference intake is a pure parser paired with an independently observed employer
+ATS URL, not account access or new egress authority. YC remains manual.
+Mandatory-qualification heuristics separately block automatic selection,
+delegated approval and final submission when explicit requirements are unverified.
+Private résumé evidence never leaves opportunity projections; optional strict
+owner facts are narrowly country-scoped and included with the policy version in
+the expiring profile digest. A positive report cannot prove eligibility or detect
+all unusual wording. See ADR-0035.
+
 Workflow plans can invoke only foundation echo/wait, allowlisted career search,
 draft/preflight, and creator discovery. Each step derives risk from capability
 policy; caller risk can only increase it. Raw email send and application submit

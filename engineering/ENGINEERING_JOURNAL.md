@@ -3429,3 +3429,38 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   zero pending replies. No interested reply or owner handoff is established.
   The publication scan found zero matches for twelve configured secret values,
   174 private contact values and two private campaign IDs in public changes.
+
+## 2026-11-02 — Career platform discovery and mandatory qualification review
+
+- Added ADR-0035 and migration 027: public YC source identity and separate strict
+  owner screening facts remain PostgreSQL state. Older source constraints cannot
+  narrow YC on replay. The original bounded YC reader uses fixed public paths,
+  refuses account redirects and requires matching exact publication metadata.
+  Ten detail attempts per company share a twenty-attempt scan budget, including
+  failed details; coverage remains explicit when later companies are list-only.
+- Paired LinkedIn/YC reference intake retains a separately observed supported ATS
+  destination without network/model calls or platform account authority. Native
+  LinkedIn/YC applications remain manual. Dashboard edit/save preserves references
+  and optional tri-state India authorization; unknown remains the default.
+- Added deterministic review for explicit mandatory tenure, completed education,
+  enrollment/cohort and legal requirements, including opaque persisted YC fields.
+  Explicit India authorization supports only a clear India-only general requirement;
+  it does not infer citizenship, visas, other countries or internship availability.
+  Private résumé evidence is removed from public opportunity projections. Automatic
+  preparation, scoped selection, approval and final receipt share the gate; policy
+  version and facts invalidate old profile grants. No new model route or sender.
+- The final isolated rebuild passed Compose configuration, Ruff/all 1,552 tests,
+  test.ps1, the complete verify.ps1 and diff checks. Seven new real PostgreSQL
+  groups cover persistence/privacy, 027/025 replay with existing YC rows, selection,
+  delegated approval, final receipt and scope invalidation with zero receipts.
+  Network-disabled desktop/mobile UI proofs passed and screenshots were inspected.
+  The one Impeccable detector run returned no findings in degraded regex mode:
+  optional HTML/CSS parser modules were absent, so no computed-contrast proof is
+  claimed. No project dependency was installed on Windows.
+- During implementation the authorized limit was raised from three to ten per
+  rolling day, then Apply was paused for the policy upgrade. The existing live
+  search checked 844 normalized records, matched zero and excluded 833 for age;
+  source failures/budgets were reported. Independent public research also found no
+  suitable fresh executable match in the bounded samples. This milestone makes
+  no external-application, Gmail-ingestion or hiring-outcome claim. Career Gmail
+  and the mismatched email sender remain deferred; Creator configuration is preserved.
