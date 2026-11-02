@@ -9,6 +9,8 @@ example, the Aviator detail still declares 2022-03-03T00:59:42Z despite appearin
 in a "recently" index. createdAt/lastActive and showDirectApply are not authority;
 the latter can accompany an account.ycombinator.com authentication applyUrl.
 This is an original parser for public pages, not a versioned provider API.
+The public companyUrl binds the page identity; jobsUrl is generic Bookface
+navigation and is never a fetch destination or a board-identity assertion.
 """
 
 from __future__ import annotations
@@ -127,7 +129,10 @@ class _Page(HTMLParser):
             page = json.loads(self.pages[0])
             props = page["props"]
             if (not isinstance(props, dict) or not isinstance(props.get("company"), dict)
-                    or props["company"].get("slug") != company):
+                    or props["company"].get("slug") != company
+                    or props.get("companyUrl") not in {
+                        f"/companies/{company}", f"{ROOT}/companies/{company}",
+                    }):
                 raise ValueError
         except (ValueError, KeyError, TypeError):
             raise ValueError("YC public company identity did not match") from None
@@ -256,6 +261,7 @@ def fetch_yc(
         "provider": "yc", "board": company, "listed": 0, "reported_total": None,
         "observed_list_records": 0, "coverage_scope": "single_company_public_page",
         "details_fetched": 0, "detail_failures": 0, "list_failures": 0, "invalid_list_records": 0,
+        "list_failure_code": None,
         "returned": 0, "unknown_date": 0, "future_date": 0, "stale_date": 0, "closed": 0,
         "truncated": True, "blocked": False, "list_limit": LIST_LIMIT, "detail_limit": detail_limit,
         "submission_supported": False, "model_calls": 0,
@@ -267,13 +273,17 @@ def fetch_yc(
         try:
             listing = _Page(_read_public(company))
             props = listing.props(company)
-            if (_canonical(props.get("jobsUrl"), company, detail=False)
-                    != f"{ROOT}/companies/{company}/jobs"
-                    or not isinstance(props.get("jobPostings"), list)):
+            if not isinstance(props.get("jobPostings"), list):
                 raise ValueError("YC returned an invalid public job list")
         except (RuntimeError, ValueError, RecursionError) as exc:
             stats["list_failures"] = 1
             stats["blocked"] = isinstance(exc, _Blocked)
+            stats["list_failure_code"] = ("public_access_blocked" if stats["blocked"] else {
+                "YC public page metadata is missing or ambiguous": "missing_public_metadata",
+                "YC public company identity did not match": "company_identity_mismatch",
+                "YC returned an invalid public job list": "invalid_job_list",
+                "YC public request failed": "public_request_failed",
+            }.get(str(exc), "invalid_public_response"))
             raise
         raw = props["jobPostings"]
         # Public HTML exposes this page's records, not a documented complete-board total.
