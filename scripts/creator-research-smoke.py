@@ -4,19 +4,25 @@ import os
 import re
 import csv
 import io
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
 from app.marketing_models import (
     MarketingCampaignCreate, MarketingCampaignUpdate, MarketingProspectCreate,
-    MarketingProspectUpdate,
+    MarketingProspectUpdate, MarketingEmailPlanCreate,
 )
 from app.marketing_store import MarketingOutreachError, MarketingStore
 from app.creator_export import creator_coverage, creator_csv
-from app.models import TaskCreate
+from app.action_store import SideEffectGuardError
+from app.creator_draft_content import parse_model_copy, research_snapshot
+from app.creator_draft_models import CreatorDraftCreate
+from app.creator_draft_store import CreatorDraftConflictError, CreatorDraftStore
+from app.models import ApprovalDecision, TaskCancellation, TaskCreate
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
@@ -128,6 +134,195 @@ def exercise_history(store, campaign_request, research):
     check(not edited["intelligence"].get("contact_history")
           and not edited["intelligence"].get("contact_candidates"),
           "Identity edit retained the former channel contact evidence")
+
+
+def exercise_active_evidence(dsn, campaign_request, research):
+    store = CreatorDraftStore(dsn)
+    campaign = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Active evidence preservation proof",
+           "paid_offer_enabled": True, "paid_offer_details": "An optional synthetic server trial",
+           "outreach_mode": "paid", "compensation_model": "revenue_share",
+           "handoff_discord": "synthetic_owner"},
+    ))
+
+    def creator():
+        channel = "UC" + uuid4().hex[:22]
+        profile = f"https://www.youtube.com/channel/{channel}"
+        prospect = store.create_prospect(MarketingProspectCreate(
+            campaign_id=campaign["id"], platform="youtube", external_id=channel,
+            display_name="Synthetic protected creator", profile_url=profile,
+            contact_email=f"{uuid4().hex}@example.test", contact_source_url=profile,
+            contact_basis_note="Synthetic public business source", authorize_contact=True,
+            requested_by="research-smoke",
+        ))
+        evidence = {
+            **research, "external_id": channel, "profile_url": profile,
+            "intelligence": {"source_channel_id": channel, "topics": ["Minecraft", "Servers"]},
+        }
+        store.save_prospect_research(
+            prospect["id"], evidence, expected_profile_url=profile,
+            expected_campaign_id=campaign["id"],
+        )
+        return store.get_prospect(prospect["id"]), evidence
+
+    def draft(prospect, *, ready=True):
+        row = store.create_draft(prospect["id"], CreatorDraftCreate(
+            actor="research-smoke", idempotency_key=uuid4(),
+        ))
+        if ready:
+            task = store.transition_to_running(row["task_id"], 300, "research-smoke")
+            owned = store.get_draft_for_execution(row["id"], task["id"], task["lease_id"])
+            copy = parse_model_copy(json.dumps({
+                "evidence_id": "sample_video", "angle_id": "first_session",
+            }), owned["model_context"])
+            row = store.save_draft(
+                draft_id=row["id"], task_id=task["id"], lease_id=task["lease_id"], copy=copy,
+                source="ollama", selected_model="synthetic-research-proof",
+            )
+            store.complete_task(task["id"], task["lease_id"], {"synthetic": True})
+        return row
+
+    def prepare(prospect, row=None):
+        return store.plan_outreach_email(prospect["id"], MarketingEmailPlanCreate(
+            actor="research-smoke", stage="initial",
+            **({"ai_draft_id": row["id"], "ai_draft_digest": row["draft_digest"]} if row else {
+                "subject": "Synthetic reviewed introduction",
+                "body": "A synthetic optional creator collaboration for this disposable proof.",
+            }),
+        ), sender="synthetic@example.test")
+
+    unprepared, ready_evidence = creator()
+    unprepared_row = draft(unprepared)
+    approved, approved_evidence = creator()
+    approved_row = draft(approved)
+    action = prepare(approved, approved_row)
+    store.decide_task(action["task_id"], ApprovalDecision(decision="approved", actor="research-smoke"))
+    queued, queued_evidence = creator()
+    queued_row = draft(queued, ready=False)
+    manual, manual_evidence = creator()
+    manual_action = prepare(manual)
+    prospects = [unprepared, approved, queued, manual]
+    evidence = [ready_evidence, approved_evidence, queued_evidence, manual_evidence]
+    refreshed = [{**item, "display_name": "Fresh discovery name", "audience_size": 99999,
+                  "latest_content_title": "Changed bulk Minecraft sample",
+                  "intelligence": {**item["intelligence"], "topics": ["Minecraft", "Survival"]}}
+                 for item in evidence]
+    new_channel = "UC" + uuid4().hex[:22]
+    brand_new = {**research, "external_id": new_channel,
+                 "profile_url": f"https://www.youtube.com/channel/{new_channel}"}
+    before = {item["id"]: store.get_prospect(item["id"]) for item in prospects}
+    with store.connect() as connection:
+        draft_before = connection.execute(
+            "SELECT id,input_snapshot,input_hash,subject,body,draft_digest,model_copy "
+            "FROM creator_email_drafts WHERE id=ANY(%s) ORDER BY id",
+            ([unprepared_row["id"], approved_row["id"], queued_row["id"]],),
+        ).fetchall()
+        action_before = connection.execute(
+            "SELECT public_context,private_context,context_hash,status FROM external_actions WHERE id=%s",
+            (action["id"],),
+        ).fetchone()
+    check(store.save_discovered_prospects(campaign["id"], [*refreshed, brand_new]) == {
+        "new": 1, "updated": 0,
+    }, "Bulk rescan changed active research or failed to insert a new creator")
+    for prospect in prospects:
+        after = store.get_prospect(prospect["id"])
+        check(research_snapshot(after) == research_snapshot(before[prospect["id"]]),
+              "Bulk rescan changed active research snapshot/last-seen time")
+        check(after["intelligence"] == before[prospect["id"]]["intelligence"]
+              and after["contact_email"] == before[prospect["id"]]["contact_email"],
+              "Bulk rescan changed protected dossier or selected contact")
+    with store.connect() as connection:
+        check(connection.execute(
+            "SELECT id,input_snapshot,input_hash,subject,body,draft_digest,model_copy "
+            "FROM creator_email_drafts WHERE id=ANY(%s) ORDER BY id",
+            ([unprepared_row["id"], approved_row["id"], queued_row["id"]],),
+        ).fetchall() == draft_before, "Bulk rescan rewrote frozen copy or digest")
+        check(connection.execute(
+            "SELECT public_context,private_context,context_hash,status FROM external_actions WHERE id=%s",
+            (action["id"],),
+        ).fetchone() == action_before, "Bulk rescan changed exact approved queued action")
+        check(connection.execute(
+            "SELECT result_metadata FROM audit_events "
+            "WHERE action='marketing.discovery_evidence_preserved' "
+            "AND input_metadata->>'campaign_id'=%s ORDER BY occurred_at DESC LIMIT 1",
+            (str(campaign["id"]),),
+        ).fetchone()["result_metadata"]["protected_count"] == 4, "Protected audit count missing")
+    check(store.get_campaign(campaign["id"])["last_discovery_summary"]["protected_count"] == 4,
+          "Protected scan summary count missing")
+
+    # Status and expiry transitions release only inactive preservation; none authorizes a send.
+    with store.connect() as connection:
+        for state in ("failed", "cancelled", "rejected", "dead_lettered"):
+            connection.execute("UPDATE agent_tasks SET status=%s WHERE id=%s",
+                               (state, unprepared_row["task_id"]))
+            check(not store._discovery_evidence_protected(connection, unprepared["id"]),
+                  "Terminal drafting task retained an evidence pin")
+        connection.execute("UPDATE agent_tasks SET status='succeeded' WHERE id=%s",
+                           (unprepared_row["task_id"],))
+        for state in ("pending_approval", "queued", "executing", "ambiguous"):
+            for prospect, active_action in ((manual, manual_action), (approved, action)):
+                connection.execute("UPDATE external_actions SET status=%s WHERE id=%s",
+                                   (state, active_action["id"]))
+                check(store._discovery_evidence_protected(connection, prospect["id"]),
+                      "Active manual or prepared outreach state did not preserve evidence")
+        for state in ("succeeded", "failed", "rejected", "cancelled"):
+            for prospect, active_action in ((manual, manual_action), (approved, action)):
+                connection.execute("UPDATE external_actions SET status=%s WHERE id=%s",
+                                   (state, active_action["id"]))
+                check(not store._discovery_evidence_protected(connection, prospect["id"]),
+                      "Finished manual or prepared action retained an evidence pin")
+        connection.execute("UPDATE external_actions SET status='queued' WHERE id=%s", (action["id"],))
+        connection.execute("UPDATE external_actions SET status='queued',"
+                           "expires_at=clock_timestamp()-interval '1 second' WHERE id=%s",
+                           (manual_action["id"],))
+        check(not store._discovery_evidence_protected(connection, manual["id"]),
+              "Expired queued action retained an evidence pin")
+        connection.execute("UPDATE creator_email_drafts SET expires_at=clock_timestamp()-"
+                           "interval '1 second' WHERE id=%s", (unprepared_row["id"],))
+    store.cancel_task(queued_row["task_id"], TaskCancellation(
+        actor="research-smoke", reason="Synthetic queued draft cancellation",
+    ))
+    store.cancel_task(action["task_id"], TaskCancellation(
+        actor="research-smoke", reason="Synthetic approved packet cancellation",
+    ))
+    check(store.save_discovered_prospects(campaign["id"], refreshed) == {"new": 0, "updated": 4},
+          "Expiry/cancellation did not release bulk evidence preservation")
+
+    # Explicit operator refresh retains the existing invalidation boundary even while pinned.
+    explicit, explicit_evidence = creator()
+    explicit_row = draft(explicit)
+    store.save_prospect_research(
+        explicit["id"], {**explicit_evidence, "latest_content_title": "Explicit changed Minecraft"},
+        expected_profile_url=explicit["profile_url"], expected_campaign_id=campaign["id"],
+    )
+    check(store.get_draft(explicit_row["id"])["status"] == "stale",
+          "Explicit refresh failed to invalidate ready draft")
+    try:
+        prepare(explicit, explicit_row)
+    except CreatorDraftConflictError:
+        pass
+    else:
+        raise AssertionError("Explicitly refreshed research reused old ready copy")
+    explicit_send, send_evidence = creator()
+    send_action = prepare(explicit_send, draft(explicit_send))
+    store.decide_task(send_action["task_id"], ApprovalDecision(
+        decision="approved", actor="research-smoke",
+    ))
+    store.save_prospect_research(
+        explicit_send["id"], {**send_evidence, "latest_content_title": "Explicit post-approval change"},
+        expected_profile_url=explicit_send["profile_url"], expected_campaign_id=campaign["id"],
+    )
+    send_task = store.transition_to_running(send_action["task_id"], 300, "research-smoke")
+    try:
+        store.begin_side_effect(send_task["id"], uuid4().hex * 2, send_task["lease_id"])
+    except SideEffectGuardError as error:
+        check("research changed" in str(error), "Wrong final explicit-refresh refusal")
+    else:
+        raise AssertionError("Final side-effect guard accepted explicitly changed research")
+    with store.connect() as connection:
+        check(not connection.execute("SELECT 1 FROM side_effect_receipts WHERE action_id=%s",
+                                     (send_action["id"],)).fetchone(),
+              "Explicitly stale research acquired a side-effect receipt")
 
 
 def exercise(dsn):
@@ -279,13 +474,17 @@ def exercise(dsn):
     check(sum(reserved) == 90 and max(reserved) <= 9, "Concurrent search budget exceeded limits")
     check(not store.reserve_youtube_search(tasks[0]["id"]), "Budget was not durable")
     exercise_history(store, campaign_request, research)
+    exercise_active_evidence(dsn, campaign_request, research)
     return ["JSONB dossier persisted without authority", "identity edits clear stale evidence and resist rescan rebinding",
             "refresh preserves reviewed contact and identity",
             "suppression blocks scan updates and direct refresh",
             "current Poland eligibility and stale campaign scan fence",
             "601-row snapshot export, 602-row coverage, and stable list pagination",
             "concurrent durable search reservations obey per-task and global limits",
-            "source history preserves dates, survives concurrent refresh, expires, and respects identity/suppression"]
+            "source history preserves dates, survives concurrent refresh, expires, and respects identity/suppression",
+            "bulk discovery preserves active queued/ready/prepared copy while discovering new creators",
+            "active action states preserve evidence; expiry and cancellation release preservation",
+            "explicit research refresh still invalidates ready and approved AI copy before side effects"]
 
 
 def main():
@@ -315,7 +514,10 @@ def main():
                 connection.execute(migration)
         legacy_budget(probe_dsn, next(source for source in migrations
                                     if "018_creator_discovery_budget" in source))
-        results = exercise(probe_dsn)
+        with patch("urllib.request.OpenerDirector.open", side_effect=AssertionError("HTTP forbidden")), \
+                patch("smtplib.SMTP", side_effect=AssertionError("SMTP forbidden")), \
+                patch("smtplib.SMTP_SSL", side_effect=AssertionError("SMTP forbidden")):
+            results = exercise(probe_dsn)
         results.append("legacy delayed/retried request accounting and migration replay")
     finally:
         if created:

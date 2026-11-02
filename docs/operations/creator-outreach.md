@@ -17,7 +17,7 @@ Optional creator Gmail reads one configured custom label; positive interest
 requires review. Expiring operator-authorized runs can approve exact template
 introductions and optional handoffs within their frozen scope. Optional
 model-written paid introductions retain individual exact-message review; see
-the [AI draft workflow](minecraft-creator-workflow.md#a-model-written-introduction-for-each-creator).
+the [grounded draft workflow](minecraft-creator-workflow.md#source-grounded-introductions).
 
 ## 1. Configure official YouTube discovery
 
@@ -256,8 +256,14 @@ saved SMTP username/password is explicitly omitted from the test containers.
 Run `./scripts/side-effect-smoke.ps1` as the broader application-and-email proof
 when you also want to test the isolated ATS adapter and duplicate-submit guard.
 
-Pacing prevents bursts; it cannot force a mailbox provider to place a message
-in the inbox. Before contacting any creator, configure the sending domain with
+Spaced reservations alone did not prevent an observed recovery burst: overdue
+slots could execute together. The deployed correction checks actual receipts
+under a shared database gate and durably defers unstarted work without consuming
+its attempt or extending approval. Concurrent, expiry and lock-wait PostgreSQL
+proofs passed; a new external SMTP pacing canary remains separate evidence. See
+the [recovery evidence](creator-outreach-continuation.md#pausing-and-evidence).
+Neither reserved slots nor pacing establishes inbox placement. Before contacting
+any creator, configure the sending domain with
 your provider and DNS host:
 
 1. publish exactly the SPF record your provider documents;

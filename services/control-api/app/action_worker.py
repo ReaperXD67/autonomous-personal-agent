@@ -22,7 +22,7 @@ from uuid import UUID
 
 import redis
 
-from app.action_store import ActionStore
+from app.action_store import ActionStore, EmailPacingDeferred
 from app.application_browser import (
     inspect_application_form,
     submit_application_form,
@@ -156,6 +156,8 @@ def _send_email(
     try:
         _smtp_timeout(client, deadline)
         database.begin_side_effect(UUID(str(action["task_id"])), fingerprint, lease_id)
+        # Database lock waits consume the original SMTP session budget too.
+        _smtp_timeout(client, deadline)
         try:
             refused = client.send_message(
                 message,
@@ -320,6 +322,14 @@ def run() -> None:
                     "correlation_id": str(result["correlation_id"]),
                     "action": f"task.{result['status']}",
                 },
+            )
+        except EmailPacingDeferred as deferred:
+            # The boundary already committed the same task's paced queue/outbox state.
+            # No receipt was created: do not finalize, fail, or spend a retry here.
+            logger.info(
+                "email execution deferred by durable pacing",
+                extra={"task_id": str(task_id), "action": "email.pacing_deferred",
+                       "next_attempt_at": deferred.next_attempt_at.isoformat()},
             )
         except TaskInterruptedError:
             if (

@@ -3173,3 +3173,138 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   eight by excluded terms, seven by title and three below profile fit. These are
   scan counts, not unique opportunities across both scans. No career application
   has been submitted; the active finite run has no application reservation yet.
+
+## 2026-11-02 — Reviewed creator continuation and explicit business context
+
+- Defined an ongoing hourly reviewer loop for the two privately selected
+  English/Polish creator campaigns, with a ceiling of six new introductions per
+  rolling 24 hours combined and a soft three/three split. Hermes's native daily
+  official YouTube discovery, existing eligible five-minute read-only Gmail
+  monitoring and paced action worker retain their separate responsibilities.
+  No generic template-sending run, new service, schema or authority boundary is
+  added. Contact, complete-copy, positive-reply and owner-handoff review continue
+  through the existing APIs. Compensation remains the saved individually
+  negotiated percentage/earning-window proposal, with Discord `karixai`.
+- Corrected public contact extraction so business wording inside an email
+  address cannot supply its own positive evidence. All email spans are masked
+  before bounded context slicing, including neighboring addresses cut by the
+  excerpt boundary. Explicit nearby business/partnership/Biznes wording still
+  qualifies a candidate; existing negative-context and source review remain.
+  The narrow creator-intelligence suite passed seventy-five tests, including
+  thirty-two added regressions. This is candidate-filter evidence, not proof
+  of recipient ownership or permission to send.
+- Added the continuation runbook: inspect authoritative state first, avoid
+  duplicate research/drafts/packets, hold unreliable or language-mismatched
+  new candidates, apply a ninety-day publication gate without changing existing
+  approved campaign snapshots, review exact messages, and notify only on
+  meaningful changes. Existing SMTP twenty-four/day and three/hour limits,
+  preparation/refresh thirty-per-day bounds, expiry and global suppression stay
+  unchanged. A historical regression sample is not promoted into a current lead.
+- The first combined test image passed lint and all 1,210 tests. A real compact
+  snapshot probe exposed PowerShell typed-JSON-date and non-enumerated action
+  array handling defects in the new operator helper. Those projections were
+  corrected, with native synthetic regressions using actual JSON conversion;
+  fixed redacted HTTP diagnostics distinguish a 409 deferral without exposing
+  provider response text. The helper separately reports whether the current
+  creation window is complete; a 200-item lifetime-history boundary need not
+  prevent that determination when its verified oldest creation is outside 24 hours.
+- The two remaining previously reviewed ready drafts were individually
+  prepared without rewriting, exactly compared and approved through the normal
+  API. Their reserved releases are November 2 at 19:07:12 and 19:37:35 UTC,
+  before their 20:02:16 UTC packet expiry. They remain queued, not SMTP-accepted.
+  The out-of-window historical regression draft was held; a future fresh
+  qualification and draft remain contingent on evidence and allowance.
+- Native daily discovery was initially held after identifying that a bulk rescan could
+  refresh source fields or observation time behind an active immutable draft or
+  exact email packet, causing the final research fence to reject it. The
+  bulk-only preservation fix retains explicit single-creator invalidation.
+- The bulk-only guard is now implemented under the existing campaign and
+  canonical-prospect locks. Unexpired queued/ready drafts with nonterminal tasks,
+  prepared drafts with active unexpired actions, and independently linked active
+  outreach actions preserve the source row. Expired or terminal records release
+  their protection; new creators and unprotected rows continue normally. No
+  task/action row locks, body/digest changes or deadline extensions are added.
+  The saved campaign discovery summary records `protected_count` with a nonzero
+  aggregate `marketing.discovery_evidence_preserved` audit. The existing
+  new/updated result contract and explicit refresh path remain unchanged.
+  Added ADR-0032, its index entry and the corresponding architecture/system
+  evolution note. Twelve disposable creator-research PostgreSQL groups passed,
+  including active AI/manual packets, expiry/terminal release, new inserts,
+  post-wait protection and explicit refresh still preventing a final receipt.
+- Before the actual-send recovery audit, the combined image passed lint and all
+  1,216 tests. The complete
+  verifier passed its current career/creator PostgreSQL groups, native helper
+  and onboarding checks, workflow/scheduler, both UIs, planner, delivery and
+  recovery paths. The preservation proof forbade provider/SMTP calls; local
+  test-sink delivery in the verifier remains separate from real outreach.
+- Enabled the two campaigns' native daily discovery through the normal API,
+  preserving all other saved copy, offer, compensation and targeting fields.
+  No generic sending run was enabled. Both actual scheduled scans succeeded
+  around November 2 at 05:21 UTC: English 134 researched records, twenty-two
+  new, 105 updated, seven protected and thirty-one candidate observations;
+  Polish forty-four researched, seven new, thirty-four updated, three protected
+  and ten candidate observations. Combined: 178 records, twenty-nine new,
+  139 updated and ten protected, with forty-one candidate observations and zero
+  automatic authorizations. These are not unique people or qualified leads.
+  The next native scans were scheduled for November 3 around 05:21 UTC.
+- Before/after authenticated reads confirmed all four queued v2 complete
+  messages, digests and research snapshots stayed unchanged through those scans.
+  A manual six-GET compact snapshot verified fresh monitoring in both campaigns,
+  twenty-eight scoped initial actions, a complete current creation window and
+  zero pending replies. This also verifies the corrected live JSON projections.
+- Created the hourly reviewer heartbeat active and verified its saved hourly,
+  current-chat heartbeat configuration. It continues until the user pauses it
+  and stays quiet on unchanged cycles. Its six-packet allowance counts creation
+  timestamps in the preceding 24 hours, not recent execution of older packets.
+  Individual drafting is used when server-selected batches could include older
+  sources outside the extra recurring ninety-day gate. No scheduled Codex wake
+  has yet completed;
+  the manual review read and native discovery executions are separate proof.
+- At November 2, 05:45:50 UTC (11:15:50 IST), the twenty-eight-invitation scope
+  had twenty-three SMTP acceptances, four runnable queued v2 packets and one
+  blocked action with a dead-lettered task. The action-only projection labeled
+  five queued. The historical regression remained held. Twelve earlier
+  acceptances are separate. Both monitors were fresh, the creation window was
+  complete, and pending replies, confirmed interest and owner handoffs were zero.
+  No inbox placement, interested lead, model learning or response-rate benefit
+  is inferred. Recipient data, exact copy and local schedule identifiers remain
+  private. The recovery finding and corrected validation are recorded below.
+
+## 2026-11-02 — Actual-send recovery pacing correction
+
+- The final execution audit found seventeen actual SMTP acceptances from
+  05:18:23 through 05:19:39 UTC after worker recovery. These were real acceptance
+  timestamps, not reserved release times. The configured 900-second global gap,
+  1,800-second domain gap and three-per-hour policy were not enforced in this
+  event. Approval had reserved spaced times, but the receipt boundary checked
+  only that a slot was no longer in the future, allowing overdue slots to run
+  together. The preceding 1,216-test/full-verifier checkpoint did not exercise
+  this recovery case and is not proof of actual execution pacing.
+- The action-level snapshot showed twenty-three acceptances and five queued
+  actions. Joining task state refined that projection: one queued action's task
+  was dead-lettered with lease exhaustion after host sleep, leaving four runnable
+  queued v2 packets and one blocked action. Subsequent checks found zero receipts
+  for both its action and task, with no SMTP-boundary or acceptance evidence.
+  It was held without replay or replacement. Action status alone is not a
+  runnable-queue count.
+- Implemented ADR-0033: approval and receipt acquisition share the global
+  advisory gate after their own locks, without locking other tasks/actions
+  under it or taking an inverse completion lock. Conservative actual receipt
+  and start/completion times, unresolved sending, rolling history and the
+  stricter current/frozen policy govern paced creator and career email.
+  Constraint-anchored jitter avoids perpetual delay on repeated checks.
+- A later safe time atomically requeues the same approved task through its
+  schedule/outbox, clears the lease, refunds the claim attempt and audits
+  `email.pacing_deferred`; no receipt or email submission occurs. Copy, hash,
+  action identity and expiry stay unchanged. A missing window refuses without
+  extension/replacement. Wall-clock fences recheck lease/approval after waits.
+- The first new suite passed 1,225 tests with one obsolete repository
+  source-string assertion failing; its contract was updated for the corrected
+  boundary/deferral wiring. The final rebuilt stack passed lint/all 1,226 tests
+  and the complete native, career/creator PostgreSQL, workflow/scheduler, both
+  UIs, planner, delivery and recovery verifier. Final delivery proof covered
+  concurrent overdue attempts (one receipt/one deferral), old unresolved
+  sending, actual accepted/ambiguous completion, stricter saved limits,
+  unchanged packet and refunded attempt state, approval after actual acceptance,
+  no-slot refusal, and lease/approval expiry after global advisory-lock waits.
+  This is deployed local synthetic proof, not a new external SMTP pacing canary.

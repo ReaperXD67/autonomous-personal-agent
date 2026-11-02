@@ -42,6 +42,18 @@ handoff email; Hermes does not log into Discord or send Discord DMs.
 | Handoff | After confirmed interest, prepare one owner-contact email. A run can separately authorize this handoff automatically. SMTP acceptance marks the conversation handed off. |
 | Stop | Hermes sends no further sequence messages after handoff. You negotiate and continue. No automatic reminders, contracts, payments, or revenue collection are implemented. |
 
+For ongoing operation, follow the [creator continuation runbook](creator-outreach-continuation.md).
+It separates an hourly Codex reviewer loop from Hermes's daily official YouTube
+discovery, five-minute eligible Gmail reads and existing paced action worker.
+The selected operating scope is six new introductions per rolling day across
+the two reviewed English/Polish campaigns, with a soft three/three split. This
+does not enable a generic template-sending run or remove individual contact,
+complete-copy, positive-reply and handoff review. Installation and actual run
+results are recorded in the journal; a schedule alone is not operational proof.
+The hourly heartbeat is now active. Both native daily scans completed, and a
+manual compact review cycle verified fresh mailbox monitoring and the complete
+current creation window. The first scheduled Codex wake remains unobserved.
+
 ## Set up the campaign
 
 1. Run `./scripts/promotion.ps1` for a secret-safe readiness report.
@@ -108,6 +120,15 @@ opens the separate AI review workflow for a selected, already-authorized contact
 it does not generate or send automatically. Browser spot checks remain useful
 when source ownership or product claims are unclear, but they are not the
 normal discovery or batch-research mechanism.
+
+Routine bulk discovery now preserves existing research when an unexpired active
+draft or exact outreach action protects it, including manual packets. The saved
+campaign discovery summary exposes `protected_count`; protected rows are not
+silently assigned fresh observation times. New creators and unprotected rows
+continue normally. Explicit single-creator refresh remains intentional and can
+invalidate the frozen copy. Neither this preservation nor the recurring reviewer
+extends a draft/approval deadline or overrides withdrawal and final send guards.
+See [ADR-0032](../decisions/ADR-0032-preserve-active-creator-evidence-during-discovery.md).
 
 API clients can queue the same bounded job with
 `POST /v1/marketing/campaigns/{id}/pilot-research`, an actor, UUID idempotency key
@@ -385,36 +406,49 @@ exact AI draft and used twenty-three explicitly reviewed manual replacements.
 Those replacements are operator decisions, not creator feedback or evidence that
 the model learned from replies.
 
-The first new invitation was durably SMTP-accepted at 18:00:55 UTC (23:30:55 IST)
-on November 1. At the November 2 checkpoint, two of those twenty-four were
-accepted and twenty-two remained in the paced queue. Their final reserved slot
-is November 2 at 04:44:57 UTC (10:14:57 IST). Two additional grounded v2 emails,
-one English and one Polish, were then individually prepared, compared with
-their exact reviewed bodies and approved through the ordinary action API.
-They remain queued for November 2 at 18:03:40 and 18:36:21 UTC, before their
-18:58:53 UTC packet expiry. This brings the current scope to twenty-six approved
-invitations: two SMTP-accepted, twenty-four queued and zero failed. The other
-three canary drafts remain ready and unprepared; a successful generation does
-not imply a send or current outreach eligibility.
+Four subsequent grounded v2 emails, two English and two Polish, were individually
+prepared unchanged, exactly compared and approved through the ordinary API. At
+November 2, 2026, 05:45:50 UTC (11:15:50 IST), the current scope contained
+twenty-eight approved invitations: twenty-three SMTP-accepted, four runnable
+queued v2 packets and one blocked action whose linked task was dead-lettered
+after lease exhaustion. The action-only projection still labeled five queued.
+The blocked action/task had zero receipts and no SMTP acceptance; it was held
+without replacement. The out-of-window regression draft was
+held for future fresh qualification and preparation, not sent as a current lead.
+The earlier twelve acceptances are separate. Pending reply reviews, confirmed
+creator interest and owner handoffs were zero at this checkpoint.
 
-The new slots use existing rolling headroom; the shared twenty-four/day,
-three/hour, global/domain gaps and jitter were not raised. Keep the computer
-and Docker running
-for the existing action worker to execute eligible packets. Reservations remain
-conditional on final guards and each packet's 24-hour expiry; they are not
-delivery promises. The temporary second research worker was removed after
-drafting, and the ordinary single-worker configuration was restored.
+Native scheduled discovery completed both campaign scans at approximately
+05:21 UTC: 178 researched records, twenty-nine new, 139 updated and ten protected,
+with forty-one business-contact candidate observations and zero automatic
+authorizations. These are record observations across campaigns, not unique
+people or qualified leads. Before/after reads confirmed that all four queued
+v2 bodies, digests and research snapshots remained unchanged. A six-GET manual
+review snapshot confirmed fresh monitoring for both campaigns and a complete
+current creation window. The hourly reviewer heartbeat is active and its saved
+state was checked; a scheduled Codex wake has not yet been observed.
 
-The local shared bound is twenty-four/day, with three/hour, 900-second global
+The local shared bound remains twenty-four/day, three/hour, 900-second global
 and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The repository
-default remains twelve/day. After the first new acceptance, automatic read-only
-Gmail monitoring completed at 18:01:20 UTC for English and 18:03:24 UTC for Polish
-(23:31:20 and 23:33:24 IST), both with zero pending reply reviews and no active
-sending run. The earlier twelve
-invitations have separate SMTP-acceptance proof; neither group has confirmed
-creator interest or an owner handoff at this checkpoint. Inbox placement and a
-real incoming-reply matching/replay canary remain separate proof, and Google's
-Testing-mode refresh-token longevity still requires attention.
+default remains twelve/day. Keep the computer, Docker and the desktop app
+running; queued releases still depend on their expiry and final guards.
+Individual approval and SMTP acceptance are not inbox-placement or reply proof.
+Actual creator-reply matching/replay, owner handoff and Google's Testing-mode
+refresh-token longevity remain operating limits.
+
+The final recovery audit found seventeen actual SMTP acceptances between
+05:18:23 and 05:19:39 UTC on November 2. Those were real acceptance times, not
+reserved-slot timestamps. The reserved schedule had been spaced, but the send
+boundary only rejected future slots, allowing multiple overdue slots to execute
+together after recovery. The intended spacing/hourly policy was therefore not
+enforced in that event. The deployed correction shares a database gate between
+approval and actual receipt acquisition, applies the stricter frozen/current
+policy to actual sending/accepted/ambiguous history, and durably defers unstarted
+work without consuming its attempt, changing approved copy or extending expiry.
+The rebuilt stack passed lint/all 1,226 tests and the complete verifier, with
+concurrent/expiry/lock-wait PostgreSQL pacing proofs. The preceding 1,216-test
+checkpoint missed this case; no new external SMTP pacing canary is claimed.
+An overdue slot or queued action label alone does not prove safe, runnable work.
 
 ## Test before real outreach
 

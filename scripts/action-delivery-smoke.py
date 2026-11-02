@@ -12,11 +12,176 @@ from uuid import uuid4
 
 import psycopg
 from app.action_models import EmailActionCreate
-from app.action_store import ActionStore, ExternalActionNotFoundError, SideEffectGuardError
+from app.action_store import (
+    ActionStore, EmailPacingDeferred, ExternalActionNotFoundError, SideEffectGuardError,
+)
 from app.email_pacing import EmailPacingPolicy
 from app.models import ApprovalDecision, TaskCancellation
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
+
+
+def overdue_pacing_proof(paced, scoped_dsn):
+    # Age only the synthetic earlier smoke receipt, then emulate several approved
+    # reservations becoming overdue together after a worker outage.
+    with paced.connect() as connection:
+        connection.execute("UPDATE side_effect_receipts SET started_at=clock_timestamp()-"
+                           "interval '25 hours',completed_at=clock_timestamp()-interval '25 hours'")
+        connection.execute("UPDATE outbound_email_schedule SET scheduled_for=clock_timestamp()-"
+                           "interval '25 hours',completed_at=clock_timestamp()-interval '25 hours'")
+    actions = [paced.create_email_action(EmailActionCreate(
+        recipient="backlog@example.test", subject=f"Overdue synthetic {uuid4()}",
+        body="Synthetic overdue queue recovery; no SMTP is opened.", actor="action-delivery-smoke",
+        approval_window_minutes=1440,
+    ), sender="synthetic-sender@example.test") for _ in range(4)]
+    for action in actions:
+        paced.decide_task(action["task_id"], ApprovalDecision(
+            decision="approved", actor="action-delivery-smoke",
+        ))
+    with paced.connect() as connection:
+        connection.execute("UPDATE outbound_email_schedule SET scheduled_for=clock_timestamp()-"
+                           "interval '8 hours' WHERE action_id=ANY(%s)",
+                           ([action["id"] for action in actions],))
+        connection.execute("UPDATE agent_tasks SET next_attempt_at=clock_timestamp()-"
+                           "interval '8 hours' WHERE id=ANY(%s)",
+                           ([action["task_id"] for action in actions],))
+    # A looser current configuration cannot relax the packet's frozen300s domain gap.
+    executing = ActionStore(scoped_dsn, email_pacing_policy=EmailPacingPolicy(60, 60, 10, 50, 0))
+    tasks = [executing.transition_to_running(action["task_id"], 120, "action-delivery-smoke")
+             for action in actions]
+    fingerprints = [hashlib.sha256(f"overdue:{action['id']}".encode()).hexdigest()
+                    for action in actions]
+    with executing.connect() as connection:
+        before = connection.execute(
+            "SELECT id,context_hash,public_context,private_context,expires_at "
+            "FROM external_actions WHERE id=ANY(%s) ORDER BY id",
+            ([action["id"] for action in actions],),
+        ).fetchall()
+
+    def attempt(index):
+        try:
+            executing.begin_side_effect(tasks[index]["id"], fingerprints[index],
+                                        tasks[index]["lease_id"])
+            return "executing", index
+        except EmailPacingDeferred:
+            return "deferred", index
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        outcomes = list(executor.map(attempt, (0, 1)))
+    assert sorted(state for state, _ in outcomes) == ["deferred", "executing"]
+    winner = next(index for state, index in outcomes if state == "executing")
+    deferred = next(index for state, index in outcomes if state == "deferred")
+    with executing.connect() as connection:
+        # An unresolved send stays conservative even when its start appears old.
+        connection.execute("UPDATE side_effect_receipts SET started_at=clock_timestamp()-"
+                           "interval '25 hours' WHERE task_id=%s", (tasks[winner]["id"],))
+    assert attempt(2)[0] == "deferred"
+    executing.complete_side_effect(tasks[winner]["id"], fingerprints[winner], "synthetic-backlog")
+    with executing.connect() as connection:
+        actual = connection.execute("SELECT completed_at FROM side_effect_receipts WHERE task_id=%s",
+                                    (tasks[winner]["id"],)).fetchone()["completed_at"]
+        task = connection.execute("SELECT * FROM agent_tasks WHERE id=%s",
+                                  (tasks[deferred]["id"],)).fetchone()
+        schedule = connection.execute("SELECT * FROM outbound_email_schedule WHERE task_id=%s",
+                                      (task["id"],)).fetchone()
+        outbox = connection.execute("SELECT * FROM task_outbox WHERE task_id=%s",
+                                    (task["id"],)).fetchone()
+        assert task["status"] == "queued" and task["attempt_count"] == 0
+        assert task["lease_id"] is None and task["lease_expires_at"] is None
+        assert task["error_code"] is None and task["completed_at"] is None
+        assert schedule["status"] == "scheduled"
+        assert schedule["scheduled_for"] == task["next_attempt_at"] == outbox["available_at"]
+        assert outbox["published_at"] is None and outbox["generation"] >= 2
+        assert not connection.execute("SELECT 1 FROM side_effect_receipts WHERE task_id=%s",
+                                      (task["id"],)).fetchone()
+        assert connection.execute(
+            "SELECT id,context_hash,public_context,private_context,expires_at "
+            "FROM external_actions WHERE id=ANY(%s) ORDER BY id",
+            ([action["id"] for action in actions],),
+        ).fetchall() == before
+        # Its old reservation and old receipt start cannot outweigh real acceptance.
+        connection.execute("UPDATE outbound_email_schedule SET scheduled_for=clock_timestamp()-"
+                           "interval '8 hours' WHERE task_id=%s", (task["id"],))
+        connection.execute("UPDATE agent_tasks SET next_attempt_at=clock_timestamp()-"
+                           "interval '8 hours' WHERE id=%s", (task["id"],))
+    task = executing.transition_to_running(tasks[deferred]["id"], 120, "action-delivery-smoke")
+    try:
+        executing.begin_side_effect(task["id"], fingerprints[deferred], task["lease_id"])
+    except EmailPacingDeferred as error:
+        assert error.next_attempt_at >= actual + timedelta(seconds=300)
+    else:
+        raise AssertionError("Old reservation bypassed actual frozen-domain acceptance spacing")
+    # Newly approved slots also account for the real acceptance, not its old slot.
+    fresh = executing.create_email_action(EmailActionCreate(
+        recipient="new@example.test", subject=f"Actual-aware {uuid4()}",
+        body="Synthetic actual-aware approval.", actor="action-delivery-smoke",
+        approval_window_minutes=1440,
+    ), sender="synthetic-sender@example.test")
+    executing.decide_task(fresh["task_id"], ApprovalDecision(
+        decision="approved", actor="action-delivery-smoke",
+    ))
+    with executing.connect() as connection:
+        assert connection.execute("SELECT scheduled_for FROM outbound_email_schedule WHERE action_id=%s",
+                                  (fresh["id"],)).fetchone()["scheduled_for"] > actual
+        # An ambiguous result still consumes its completion-time gap and rolling budget.
+        connection.execute("UPDATE side_effect_receipts SET status='ambiguous' WHERE task_id=%s",
+                           (tasks[winner]["id"],))
+        connection.execute("UPDATE outbound_email_schedule SET status='ambiguous' WHERE task_id=%s",
+                           (tasks[winner]["id"],))
+        connection.execute("UPDATE external_actions SET expires_at=clock_timestamp()+"
+                           "interval '2 seconds' WHERE id=%s", (actions[3]["id"],))
+        expiry_before = connection.execute("SELECT expires_at FROM external_actions WHERE id=%s",
+                                           (actions[3]["id"],)).fetchone()["expires_at"]
+    try:
+        executing.begin_side_effect(tasks[3]["id"], fingerprints[3], tasks[3]["lease_id"])
+    except SideEffectGuardError as error:
+        assert "no send window before the approval expires" in str(error)
+    else:
+        raise AssertionError("Pacing extended an approval without a safe remaining send window")
+    with executing.connect() as connection:
+        assert connection.execute("SELECT expires_at FROM external_actions WHERE id=%s",
+                                  (actions[3]["id"],)).fetchone()["expires_at"] == expiry_before
+        assert not connection.execute("SELECT 1 FROM side_effect_receipts WHERE task_id=%s",
+                                      (tasks[3]["id"],)).fetchone()
+    for table, field, fragment in (
+        ("agent_tasks", "lease_expires_at", "task lease has expired"),
+        ("external_actions", "expires_at", "action has expired"),
+    ):
+        waiting = executing.create_email_action(EmailActionCreate(
+            recipient="waiting@example.test", subject=f"Global wait {uuid4()}",
+            body="Synthetic global-lock expiry; no SMTP.", actor="action-delivery-smoke",
+            approval_window_minutes=1440,
+        ), sender="synthetic-sender@example.test")
+        executing.decide_task(waiting["task_id"], ApprovalDecision(
+            decision="approved", actor="action-delivery-smoke",
+        ))
+        with executing.connect() as connection:
+            connection.execute("UPDATE outbound_email_schedule SET scheduled_for=clock_timestamp()-"
+                               "interval '1 hour' WHERE action_id=%s", (waiting["id"],))
+            connection.execute("UPDATE agent_tasks SET next_attempt_at=clock_timestamp()-"
+                               "interval '1 hour' WHERE id=%s", (waiting["task_id"],))
+        claimed = executing.transition_to_running(waiting["task_id"], 120, "action-delivery-smoke")
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with executing.connect() as blocker:
+                blocker.execute(sql.SQL(
+                    "UPDATE {} SET {}=clock_timestamp()+interval '0.4 seconds' WHERE id=%s",
+                ).format(sql.Identifier(table), sql.Identifier(field)),
+                    (claimed["id"] if table == "agent_tasks" else waiting["id"],))
+                blocker.commit()
+                blocker.execute("SELECT pg_advisory_xact_lock(%s,%s)", (1212502605, 1))
+                future = executor.submit(executing.begin_side_effect, claimed["id"],
+                                         uuid4().hex * 2, claimed["lease_id"])
+                time.sleep(0.6)
+                blocker.commit()
+            try:
+                future.result(timeout=10)
+            except SideEffectGuardError as error:
+                assert fragment in str(error)
+            else:
+                raise AssertionError("Global pacing lock wait bypassed expiry")
+        with executing.connect() as connection:
+            assert not connection.execute("SELECT 1 FROM side_effect_receipts WHERE task_id=%s",
+                                          (claimed["id"],)).fetchone()
 
 
 def main() -> None:
@@ -135,9 +300,12 @@ def main() -> None:
             assert connection.execute(
                 "SELECT count(*) AS n FROM outbound_email_schedule WHERE status = 'accepted'"
             ).fetchone()["n"] == 1
+
             assert connection.execute(
                 "SELECT count(*) AS n FROM outbound_email_schedule WHERE status = 'skipped'"
             ).fetchone()["n"] == 1
+
+        overdue_pacing_proof(paced, scoped_dsn)
 
         action, task, fingerprint = action_task()
         reject_boundary(task, fingerprint, lease_id=uuid4())
@@ -217,7 +385,10 @@ def main() -> None:
         assert database.fail_external_action(
             task["id"], "Synthetic uncertainty after boundary", task["lease_id"],
         ) == "ambiguous"
-        print("Action delivery guards passed: atomic pacing, lease/cancellation/hash fences, "
+        print("Action delivery guards passed: atomic approval and actual-receipt pacing, "
+              "overdue recovery/concurrent send deferral without retry consumption, "
+              "unresolved/accepted/ambiguous boundaries, frozen limits and no-slot expiry, "
+              "lease/cancellation/hash fences, "
               "expiry after locks, receipt rollback, durable acceptance, failure semantics, "
               "public lookup; no SMTP")
     finally:

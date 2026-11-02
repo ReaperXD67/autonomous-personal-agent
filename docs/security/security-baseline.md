@@ -44,7 +44,10 @@ capability must enter this registry before its handler is reachable.
   validated recipient, and local-only no-TLS Mailpit test mode;
 - atomic external-SMTP schedule reservation with bounded 15-minute global and
   30-minute same-domain gaps, rolling 3/hour and 12/day caps, deterministic
-  jitter, restart-safe outbox release, and a final due-time check;
+  jitter and restart-safe outbox release; a shared actual-receipt gate also
+  checks accepted/ambiguous history and unresolved sending under the stricter
+  current/frozen policy, durably deferring overdue unstarted work without a
+  receipt, consumed execution attempt or extended approval expiry (ADR-0033);
 - test-profile startup explicitly blanks deployment SMTP username/password
   before creating Mailpit-mode containers;
 - official-host-only YouTube research with a worker-scoped API key, bounded

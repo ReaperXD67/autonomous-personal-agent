@@ -137,7 +137,8 @@ def test_external_email_pacing_is_durable_and_enforced_at_send_boundary() -> Non
     assert "outbound_email_schedule" in migration
     assert "pg_advisory_xact_lock" in store
     assert "Safe email pacing would place this send" in store
-    assert "External email send window has not opened" in guard
+    assert "next_email_attempt_at(" in guard
+    assert "except EmailPacingDeferred" in worker
     assert 'message["Date"]' in worker
     assert "from_addr=str(context" in worker
     for service in ("control-api", "action-worker"):

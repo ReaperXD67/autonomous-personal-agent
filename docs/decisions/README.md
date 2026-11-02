@@ -35,3 +35,5 @@ history.
 - [ADR-0029](ADR-0029-bilingual-drafts-and-fair-research.md): frozen English/Polish creator drafts and fair research selection from issued reservation history
 - [ADR-0030](ADR-0030-grounded-creator-plans-and-draft-batches.md): grounded evidence/angle plans, server-authored copy and audited preparation-only batches
 - [ADR-0031](ADR-0031-evidence-backed-career-operations.md): age-independent fit, résumé evidence checks, typed form answers and bounded SmartRecruiters discovery
+- [ADR-0032](ADR-0032-preserve-active-creator-evidence-during-discovery.md): preserve active reviewed creator evidence during bulk discovery and keep continuation review explicit
+- [ADR-0033](ADR-0033-actual-smtp-pacing-and-durable-deferral.md): enforce pacing at the actual SMTP boundary and durably defer overdue work without spending a send attempt

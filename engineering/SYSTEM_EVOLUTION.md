@@ -591,3 +591,41 @@ count twice. Parent cancellation stops remaining issuance without cancelling
 independently queued children. The parent makes no model call, prepares no
 outgoing email and grants no approval/contact/send authority. No new service,
 dependency, schema migration or credential compartment is introduced.
+
+## 2026-11-02 — Bulk-discovery preservation and reviewed continuation
+
+ADR-0032 protects immutable creator evidence from routine bulk refresh while
+unexpired active drafts or exact outreach packets still use it. The existing
+campaign/canonical-prospect locks precede a read-only task/draft/action existence
+check; no inverse row locking, new persistence or private-data audit is added.
+The saved campaign discovery summary exposes `protected_count`, with a nonzero
+aggregate preservation audit.
+New creators and unprotected rows retain normal bulk behavior. Expiry/terminal
+states release the pin; explicit single-creator refresh, withdrawal, suppression,
+campaign changes and final delivery guards remain unchanged.
+
+An hourly scheduled reviewer coordinates two privately selected campaigns,
+native daily official discovery and existing eligible five-minute reply reads.
+Its six-new-introductions-per-rolling-day scope does not change server policy:
+contact, complete-copy, interest and handoff review still enter ordinary APIs,
+with existing shared pacing, preparation budgets and individual exact approval.
+The helper adds compact read-only projections; explicit mutations remain control
+API calls. No new service, dependency, credential scope or database schema is added.
+
+## 2026-11-02 — Actual SMTP-boundary pacing after recovery
+
+ADR-0033 corrects the observed reservation-only pacing gap: overdue slots could
+execute together after recovery. Approval and receipt acquisition now share the
+same advisory transaction gate, with no other task/action row lock acquired
+under it and no inverse completion lock. Actual accepted/ambiguous timestamps
+and unresolved sending supplement future reservation planning. The stricter
+current/frozen policy governs the actual boundary for all paced creator/career
+email, with wall-clock checks after waits and stable constraint-anchored jitter.
+
+A safe later time requeues the same approved task and schedule through the
+existing outbox, clears its lease, refunds the claim attempt and records a
+pre-receipt deferral. Copy, action identity, approval and expiry remain unchanged;
+no receipt or message submission occurs. An expired window refuses rather than
+extending authority. Existing tables, worker lifecycle and side-effect fences
+remain authoritative; Mailpit is immediate and no inference/runtime/schema or
+provider privilege changes.

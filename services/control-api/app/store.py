@@ -332,6 +332,33 @@ class Database:
         )
         return row
 
+    @staticmethod
+    def _email_send_slots(
+        connection: psycopg.Connection[Any], current_time: datetime, *,
+        include_scheduled: bool, exclude_action_id: UUID | None = None,
+    ) -> tuple[list[EmailSendSlot], bool]:
+        rows = connection.execute(
+            """SELECT s.recipient_domain,
+                      s.status = 'sending' OR r.status = 'executing' AS unresolved,
+                      CASE WHEN s.status = 'sending' OR r.status = 'executing' THEN %s
+                           ELSE GREATEST(s.scheduled_for,s.completed_at,r.started_at,r.completed_at)
+                      END AS boundary_at
+               FROM outbound_email_schedule s
+               LEFT JOIN side_effect_receipts r ON r.action_id = s.action_id
+               WHERE s.status IN ('scheduled', 'sending', 'accepted', 'ambiguous')
+                 AND (%s OR s.status <> 'scheduled' OR r.status IS NOT NULL)
+                 AND (%s::uuid IS NULL OR s.action_id <> %s)
+                 AND (s.scheduled_for > %s - interval '24 hours'
+                      OR s.completed_at > %s - interval '24 hours'
+                      OR r.completed_at > %s - interval '24 hours'
+                      OR s.status = 'sending' OR r.status = 'executing')""",
+            (current_time, include_scheduled, exclude_action_id, exclude_action_id,
+             current_time, current_time, current_time),
+        ).fetchall()
+        return ([EmailSendSlot(scheduled_for=row["boundary_at"],
+                               recipient_domain=row["recipient_domain"]) for row in rows],
+                any(row["unresolved"] for row in rows))
+
     def _reserve_email_schedule(
         self,
         connection: psycopg.Connection[Any],
@@ -346,28 +373,13 @@ class Database:
         current_time = connection.execute(
             "SELECT clock_timestamp() AS current_time"
         ).fetchone()["current_time"]
-        existing = connection.execute(
-            """
-            SELECT scheduled_for, recipient_domain
-            FROM outbound_email_schedule
-            WHERE status IN ('scheduled', 'sending', 'accepted', 'ambiguous')
-              AND scheduled_for > %s - interval '24 hours'
-            ORDER BY scheduled_for
-            """,
-            (current_time,),
-        ).fetchall()
+        slots, _ = self._email_send_slots(connection, current_time, include_scheduled=True)
         recipient = str(action["private_context"]["recipient"])
         scheduled_for = next_email_send_at(
             now=current_time,
             action_id=action["id"],
             recipient=recipient,
-            existing_slots=[
-                EmailSendSlot(
-                    scheduled_for=row["scheduled_for"],
-                    recipient_domain=row["recipient_domain"],
-                )
-                for row in existing
-            ],
+            existing_slots=slots,
             policy=policy,
         )
         if scheduled_for >= action["expires_at"]:

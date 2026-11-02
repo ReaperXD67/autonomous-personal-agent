@@ -1,12 +1,15 @@
+import json
 import smtplib
 from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 from unittest.mock import Mock
 from uuid import uuid4
 
 import pytest
 
 from app import action_worker
-from app.action_store import ActionStore, SideEffectGuardError
+from app.action_store import ActionStore, EmailPacingDeferred, SideEffectGuardError
 
 
 @pytest.fixture
@@ -109,6 +112,76 @@ def test_email_disconnect_during_send_retains_unconfirmed_boundary(smtp) -> None
         action_worker.execute_action_task(task, database, _runtime())
     database.begin_side_effect.assert_called_once()
     database.complete_side_effect.assert_not_called()
+
+
+def test_pacing_deferral_closes_authenticated_smtp_without_sending_or_acceptance(smtp):
+    client, _ = smtp
+    task, _, database = _email()
+    due = datetime.now(UTC) + timedelta(minutes=15)
+    database.begin_side_effect.side_effect = EmailPacingDeferred(due)
+    with pytest.raises(EmailPacingDeferred) as caught:
+        action_worker.execute_action_task(task, database, _runtime())
+    assert caught.value.next_attempt_at == due
+    client.login.assert_called_once()
+    client.send_message.assert_not_called()
+    database.complete_side_effect.assert_not_called()
+    client.close.assert_called_once()
+
+
+def test_gate_wait_cannot_send_after_the_original_smtp_session_budget_expires(smtp, monkeypatch):
+    client, _ = smtp
+    task, _, database = _email()
+    clock = [0]
+    monkeypatch.setattr(action_worker.time, "monotonic", lambda: clock[0])
+    database.begin_side_effect.side_effect = lambda *_: clock.__setitem__(0, 31)
+    with pytest.raises(TimeoutError, match="SMTP session time budget expired"):
+        action_worker.execute_action_task(task, database, _runtime())
+    database.begin_side_effect.assert_called_once()
+    client.send_message.assert_not_called()
+    database.complete_side_effect.assert_not_called()
+    client.close.assert_called_once()
+
+
+@pytest.mark.parametrize("heartbeat_reason", [None, "lease_lost", "cancel_requested"])
+def test_worker_preserves_committed_deferral_without_failure_retry_or_completion(
+    smtp, monkeypatch, heartbeat_reason,
+):
+    client, _ = smtp
+    task, _, database = _email()
+    database.transition_to_running.return_value = task
+    database.begin_side_effect.side_effect = EmailPacingDeferred(
+        datetime.now(UTC) + timedelta(minutes=15),
+    )
+    monkeypatch.setattr(action_worker, "ActionStore", Mock(return_value=database))
+    monkeypatch.setattr(action_worker, "settings", _runtime())
+    monkeypatch.setattr(action_worker, "stopping", False)
+    monkeypatch.setattr(action_worker.signal, "signal", Mock())
+    heartbeat = Mock()
+    heartbeat.__enter__ = Mock(return_value=SimpleNamespace(reason=heartbeat_reason))
+    heartbeat.__exit__ = Mock(return_value=False)
+    monkeypatch.setattr(action_worker, "LeaseHeartbeat", Mock(return_value=heartbeat))
+    queue = Mock()
+    reads = 0
+
+    def read(*args, **kwargs):
+        nonlocal reads
+        reads += 1
+        if reads == 1:
+            return "queue", json.dumps({"task_id": str(task["id"])})
+        action_worker.stopping = True
+        return None
+
+    queue.brpop.side_effect = read
+    monkeypatch.setattr(action_worker.redis.Redis, "from_url", Mock(return_value=queue))
+    action_worker.run()
+    client.send_message.assert_not_called()
+    client.close.assert_called_once()
+    queue.close.assert_called_once()
+    database.complete_side_effect.assert_not_called()
+    database.complete_task.assert_not_called()
+    database.fail_external_action.assert_not_called()
+    database.fail_task.assert_not_called()
+    database.finalize_cancellation.assert_not_called()
 
 
 @pytest.mark.parametrize("tls_mode,username", [("starttls", "synthetic"), ("ssl", "synthetic"),

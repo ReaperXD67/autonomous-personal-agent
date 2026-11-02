@@ -334,6 +334,30 @@ class MarketingStore(ActionStore):
             )
             return True
 
+    @staticmethod
+    def _discovery_evidence_protected(connection: Any, prospect_id: UUID) -> bool:
+        """Bulk discovery leaves evidence in active reviewed preparation unchanged."""
+        row = connection.execute(
+            """SELECT EXISTS (
+                   SELECT 1 FROM creator_email_drafts d
+                   JOIN agent_tasks t ON t.id = d.task_id
+                   LEFT JOIN external_actions a ON a.id = d.action_id
+                   WHERE d.prospect_id = %s AND d.expires_at > clock_timestamp()
+                     AND t.status NOT IN ('failed', 'cancelled', 'rejected', 'dead_lettered')
+                     AND (d.status IN ('queued', 'ready') OR (
+                         d.status = 'prepared' AND a.expires_at > clock_timestamp()
+                         AND a.status IN ('pending_approval', 'queued', 'executing', 'ambiguous')
+                     ))
+               ) OR EXISTS (
+                   SELECT 1 FROM marketing_outreach_messages m
+                   JOIN external_actions a ON a.id = m.action_id
+                   WHERE m.prospect_id = %s AND a.expires_at > clock_timestamp()
+                     AND a.status IN ('pending_approval', 'queued', 'executing', 'ambiguous')
+               ) AS protected""",
+            (prospect_id, prospect_id),
+        ).fetchone()
+        return row["protected"]
+
     def save_discovered_prospects(
         self, campaign_id: UUID, prospects: list[dict[str, Any]], *,
         selection_stats: dict[str, int] | None = None,
@@ -341,6 +365,7 @@ class MarketingStore(ActionStore):
     ) -> dict[str, int]:
         inserted = 0
         updated = 0
+        protected = 0
         with self.connect() as connection:
             campaign = connection.execute(
                 "SELECT id, updated_at FROM marketing_campaigns WHERE id = %s FOR UPDATE",
@@ -365,6 +390,11 @@ class MarketingStore(ActionStore):
                     existing["profile_url"] != prospect["profile_url"] or existing["suppressed_at"]
                     or existing["status"] in {"suppressed", "bounced"}
                 ):
+                    continue
+                if existing is not None and self._discovery_evidence_protected(
+                    connection, existing["id"],
+                ):
+                    protected += 1
                     continue
                 intelligence = merge_contact_history(
                     existing.get("intelligence", {}) if existing else {},
@@ -419,8 +449,17 @@ class MarketingStore(ActionStore):
             connection.execute(
                 "UPDATE marketing_campaigns SET last_scan_at = now(), "
                 "last_discovery_summary = %s WHERE id = %s",
-                (Jsonb(selection_stats or {}), campaign_id),
+                (Jsonb({**(selection_stats or {}), "protected_count": protected}), campaign_id),
             )
+            if protected:
+                self._append_audit(
+                    connection, correlation_id=uuid4(), task_id=None,
+                    actor_type="worker", actor_id="job-worker",
+                    tool_name="marketing.creator_discovery", risk_level=RiskLevel.LOW,
+                    action="marketing.discovery_evidence_preserved", approval_status="not_required",
+                    execution_status="succeeded", input_metadata={"campaign_id": str(campaign_id)},
+                    result_metadata={"protected_count": protected},
+                )
             connection.commit()
         return {"new": inserted, "updated": updated}
 
