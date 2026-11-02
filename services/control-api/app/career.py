@@ -583,6 +583,25 @@ def application_draft_schema(context: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
+def application_draft_transport_schema(context: dict[str, Any]) -> dict[str, Any]:
+    """Use Ollama's supported grammar subset; the strict contract stays server-side.
+
+    Ollama v0.32.5 pins llama.cpp b10091. Its string-length constraints become
+    grammar repetitions, whose parser rejects the 2,000/6,000 character bounds
+    above. uniqueItems is unsupported by the schema-to-grammar converter. Do not
+    weaken the prompt or parser to accommodate these transport limitations.
+    """
+    def supported(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {key: supported(item) for key, item in value.items()
+                    if key not in {"minLength", "maxLength", "uniqueItems"}}
+        if isinstance(value, list):
+            return [supported(item) for item in value]
+        return value
+
+    return supported(application_draft_schema(context))
+
+
 def application_draft_messages(
     context: dict[str, Any], *, correction: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
@@ -714,7 +733,7 @@ def generate_application_draft_with_usage(
             "messages": application_draft_messages(context, correction=correction),
             "stream": False,
             "think": False,
-            "format": application_draft_schema(context),
+            "format": application_draft_transport_schema(context),
             "options": {"temperature": 0.2},
         }
     ).encode("utf-8")

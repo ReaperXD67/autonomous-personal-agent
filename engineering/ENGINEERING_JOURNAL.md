@@ -3208,7 +3208,7 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 - Added four primary-source-reviewed employer boards through authenticated
   profile APIs, pausing the finite Apply run while changing its snapshot. The
   governed scan checked 960 normalized records across 34 successful sources out
-  of 35. It retained one PhonePe SmartRecruiters match; 844 were outside72 hours,
+  of 35. It retained one PhonePe SmartRecruiters match; 844 were outside 72 hours,
   97 failed location, eight excluded terms, seven titles and three fit. Discovery
   used zero model calls. No extra suitable supported-ATS posting or qualified
   dated hiring-email lead was verified; no application/email was submitted.
@@ -3227,7 +3227,43 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   the validated images, preserving the original dirty creator checkout and
   existing provider configuration. Agent doctor passed; a real harmless gateway
   canary returned ROUTE_OK through the Mistral free/default route. Re-enabled the
-  owner-authorized 24-hour ATS-only Apply scope with the saved three/day, fit75,
+  owner-authorized 24-hour ATS-only Apply scope with the saved three/day, fit 75,
   72-hour window and reviewed hosts; career email remains disabled because the
   configured sender differs from the chosen career identity. Queued a new real
   grounded draft, preserving the previous rejected draft.
+- The first two new real draft attempts failed without saving copy: hosted output
+  was invalid/rate-limited, and local structured generation failed. A harmless
+  GPU response after restarting Ollama was insufficient proof of the full draft.
+  A synthetic request then isolated HTTP400 grammar initialization failure in
+  pinned Ollama 0.32.5/llama.cpp b10091: strict string lengths became unsupported
+  grammar repetition ranges. Added a separate compatible local transport schema;
+  full strict prompt/parser bounds, enums, duplicate and provenance checks stay.
+  Real résumé-free structured generation passed, while placeholder copy remained
+  correctly blocked. These failed tasks and invocation history were preserved.
+- Another active creator milestone refreshed shared containers during delivery.
+  Captured its current live image/code, verified all eight career-modified files
+  still exactly matched their common main base, and applied only thirteen scoped
+  changed/new career modules. Sixty-four unrelated live files were preserved.
+  The combined app and preserved Creator/current Career tests passed network-
+  disabled Ruff and all 1,289 tests before a guarded combined rollout. The new
+  contact route also passed an authenticated harmless empty-list read.
+- The transport-fixed source passed the rebuilt complete verifier with all 1,256
+  tests and the full native/PostgreSQL/browser groups. A thin combined-image
+  follow-up changed only career.py, preserved the other 76 live app files exactly,
+  and passed network-disabled lint/all 1,294 combined tests. Refreshed API, career
+  and action workers after verifying their captured base image IDs.
+- The third real governed draft succeeded through local qwen3:8b after one hosted
+  rate-limit refusal: 187 words, six of six exact evidence entries verified, twelve
+  supported keywords, six honest gaps, valid grounding and checks_passed with no
+  quality findings. It used no corrective call; 4,973 local tokens were recorded.
+  A bounded source comparison found no unsupported technical/scope claims in the
+  inspected candidate sentences. It does not certify eligibility: tenure evidence
+  and education equivalence for this job remain unverified, and SmartRecruiters
+  submission is manual. No private résumé or letter is published.
+- A final governed scan read 846 normalized records from 32 of 33 attempted sources,
+  with one retained manual match and zero model calls. Public-feed budgets were
+  respected rather than bypassed; the known Ashby source failure stayed visible.
+  Counts describe this scan, not cumulative unique jobs. No career application
+  or hiring email has been submitted. Resumed the same owner-authorized ATS-only
+  scope at fit 75, 72 hours, three/day and 24-hour expiry; Gmail remains disabled by
+  owner deferral and cold email awaits a matching career SMTP identity.

@@ -94,6 +94,16 @@ automatic submission; these mechanical checks do not prove semantic truth or eli
 Task output records `quality_repair_model_calls` and `quality_repair_status`; the
 deterministic review's `quality_model_calls` stays zero.
 
+Local generation uses a separate transport schema: finite ID enums, required fields
+and small array caps stay in Ollama's `format`, while string-length limits and
+uniqueness remain in the full prompt and server validation. Ollama 0.32.5
+[pins llama.cpp b10091](https://github.com/ollama/ollama/blob/v0.32.5/LLAMA_CPP_VERSION),
+whose [grammar parser](https://github.com/ggml-org/llama.cpp/blob/b10091/src/llama-grammar.cpp)
+rejects the repetitions produced by the 2,000/6,000-character string bounds.
+The [schema converter documentation](https://github.com/ggml-org/llama.cpp/blob/b10091/grammars/README.md)
+also lists `uniqueItems` as unsupported. This transport accommodation does not relax
+the parser's length/type checks, duplicate-ID rejection or source-provenance guard.
+
 The **Settings** page shows which route actually ran. **Inspect form** opens only a reviewed
 Greenhouse, Ashby, or Lever hosted form in the isolated worker. **Prepare exact
 submission** resolves routine fields and asks for every unknown required answer.

@@ -1201,6 +1201,24 @@ accuracy or demonstrate better applications, interviews or offers. Separate
 browser fixtures verify a real synthetic PDF upload, explicit opt-out/radio
 selection and refusal before receipt for unknown documents/default controls.
 
+## 2026-11-02 — Local career schema compatibility
+
+Pinned Ollama 0.32.5 rejected the initial grounded draft schema with HTTP 400
+before generation: its llama.cpp b10091 grammar parser cannot compile the
+2,000/6,000 character repetitions produced by the strict string bounds.
+`uniqueItems` is also unsupported by its schema converter. A synthetic request
+reproduced the failure without using a résumé or external provider.
+
+After separating the local transport grammar from the strict prompt/server
+contract, the normal Qwen3 8B generator returned a valid grounded structure in
+15.1 seconds: 146 words, three of three exact evidence selections, four supported
+keywords and 1,473 recorded tokens. A synthetic corrective request took 8.1
+seconds and 1,423 tokens. Both remained review-required for placeholder output;
+neither is an application-quality pass or an eligibility benchmark. No real
+application was submitted. Full parser length, duplicate and provenance checks
+were retained. Exact upstream references are in the
+[career operations guide](../docs/operations/dashboard-and-career.md).
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

@@ -6,6 +6,7 @@ import pytest
 from app.career import (
     application_draft_messages,
     application_draft_schema,
+    application_draft_transport_schema,
     generate_application_draft_with_usage,
     parse_application_draft,
 )
@@ -190,5 +191,47 @@ def test_local_generation_passes_finite_schema_and_accounts_for_usage(monkeypatc
     monkeypatch.setattr("app.career.build_opener", lambda: Opener())
     parsed, usage = generate_application_draft_with_usage(original, "synthetic:local")
     assert grounding_is_valid(original, parsed)
-    assert requests[0]["format"] == application_draft_schema(original)
+    assert requests[0]["format"] == application_draft_transport_schema(original)
+    assert '"maxLength": 6000' in requests[0]["messages"][1]["content"]
     assert usage == {"prompt_tokens": 30, "completion_tokens": 40, "total_tokens": 70}
+
+
+def test_local_transport_schema_avoids_large_grammar_expansion_without_losing_finite_ids():
+    original = context()
+    strict = application_draft_schema(original)
+    transport = application_draft_transport_schema(original)
+    assert strict["properties"]["cover_letter"]["maxLength"] == 6000
+    assert strict["properties"]["fit_summary"]["maxLength"] == 2000
+    assert strict["properties"]["evidence_ids"]["uniqueItems"] is True
+
+    def check_grammar_subset(value):
+        if isinstance(value, dict):
+            assert not ({"minLength", "maxLength", "uniqueItems"} & value.keys())
+            for item in value.values():
+                check_grammar_subset(item)
+        elif isinstance(value, list):
+            for item in value:
+                check_grammar_subset(item)
+
+    check_grammar_subset(transport)
+    assert transport["required"] == strict["required"]
+    assert transport["additionalProperties"] is False
+    for name in ("evidence_ids", "resume_keyword_ids"):
+        assert transport["properties"][name]["items"]["enum"] == (
+            strict["properties"][name]["items"]["enum"]
+        )
+        assert transport["properties"][name]["maxItems"] == (
+            strict["properties"][name]["maxItems"]
+        )
+    # Transport filtering must never mutate the full prompt/server contract.
+    assert strict == application_draft_schema(original)
+
+
+@pytest.mark.parametrize("change", [
+    {"fit_summary": "x" * 2001}, {"cover_letter": "x" * 6001},
+    {"honest_gaps": ["x" * 501]}, {"fit_summary": ""},
+])
+def test_server_still_rejects_bounds_not_expressed_in_local_grammar(change):
+    original = context()
+    with pytest.raises(ValueError):
+        parse_application_draft(wire(original, **change), original)
