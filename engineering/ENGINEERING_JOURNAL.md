@@ -3488,3 +3488,32 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   verify.ps1 and diff checks. Independent source review found no material weakening
   of origin, account, posting identity, date or budget checks. No runtime overlay
   was used; publication and deployment use the combined-main workflow.
+
+## 2026-11-02 — Creator delivery and scheduled-review checkpoint
+
+- At 19:57 UTC (November 3, 01:27 IST), the exact original twenty-eight invitation
+  IDs matched a complete API action page: twenty-seven SMTP-accepted, zero runnable
+  queued and one unchanged blocked action with a dead-lettered task. The result
+  was confirmed again at 20:02 UTC. The blocked work was not replayed or replaced;
+  the old out-of-window regression draft remains held. Earlier twelve accepted
+  invitations are a separate scope.
+- All four previously approved grounded-v2 invitations reached SMTP acceptance
+  with their exact reviewed context unchanged. Successive acceptance gaps were
+  1,959.888540, 1,850.969555 and 1,821.906906 seconds, each above the configured
+  1,800-second same-domain gap. This is a small actual pacing canary and does not
+  erase the seventeen-send recovery incident, establish inbox placement or prove
+  general delivery cadence or creator interest.
+- Scheduled hourly reviewer cycles have been observed since 06:20 UTC. Both label
+  monitors were fresh with zero pending replies; no interested reply or owner
+  handoff was established. An AI draft was requested for one qualified candidate at
+  19:06 UTC; it failed at 19:09 UTC with `CREATOR_DRAFT_MODEL_UNAVAILABLE` and local
+  inference unavailable. No new packet or manual fallback was created. New AI
+  introductions are held while reply monitoring continues.
+- Updated the README and existing operational checkpoint to distinguish these
+  live results from the prior 1,321-test integration proof. This is a documentation-
+  only checkpoint, with no source/runtime changes. Private recipient data,
+  creator identities, exact invitation IDs and message bodies remain untracked.
+- Compose configuration, 60 local documentation file links and diff checks passed.
+  The publication scan found no matches for twelve configured credential values,
+  186 private contact values or the two private campaign IDs. Full runtime tests
+  and verification remain the CI gate before merge; live services were not restarted.

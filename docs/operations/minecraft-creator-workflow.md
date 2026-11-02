@@ -50,9 +50,10 @@ the two reviewed English/Polish campaigns, with a soft three/three split. This
 does not enable a generic template-sending run or remove individual contact,
 complete-copy, positive-reply and handoff review. Installation and actual run
 results are recorded in the journal; a schedule alone is not operational proof.
-The hourly heartbeat is now active. Both native daily scans completed, and a
-manual compact review cycle verified fresh mailbox monitoring and the complete
-current creation window. The first scheduled Codex wake remains unobserved.
+The hourly heartbeat is active, with scheduled reviews observed since November
+2, 2026, 06:20 UTC. Both native daily scans and compact review reads were
+verified. Reply monitoring continues while new AI introductions are held after
+an unavailable-model failure; see the [dated checkpoint](#verified-reviewed-launch).
 
 ## Set up the campaign
 
@@ -406,17 +407,19 @@ exact AI draft and used twenty-three explicitly reviewed manual replacements.
 Those replacements are operator decisions, not creator feedback or evidence that
 the model learned from replies.
 
-Four subsequent grounded v2 emails, two English and two Polish, were individually
-prepared unchanged, exactly compared and approved through the ordinary API. At
-November 2, 2026, 05:45:50 UTC (11:15:50 IST), the current scope contained
-twenty-eight approved invitations: twenty-three SMTP-accepted, four runnable
-queued v2 packets and one blocked action whose linked task was dead-lettered
-after lease exhaustion. The action-only projection still labeled five queued.
-The blocked action/task had zero receipts and no SMTP acceptance; it was held
-without replacement. The out-of-window regression draft was
-held for future fresh qualification and preparation, not sent as a current lead.
-The earlier twelve acceptances are separate. Pending reply reviews, confirmed
-creator interest and owner handoffs were zero at this checkpoint.
+At November 2, 2026, 19:57 UTC (November 3, 01:27 IST), the exact original
+twenty-eight invitation IDs were matched against a complete API action page:
+twenty-seven were SMTP-accepted, none had runnable queued tasks and one existing
+action remained blocked by its dead-lettered task. That zero-receipt blocked
+work was unchanged, without replay or replacement. The out-of-window regression
+draft remains held rather than being treated as a current lead. Twelve earlier
+acceptances are separate.
+
+All four subsequent grounded v2 invitations, two English and two Polish, were
+SMTP-accepted with their individually reviewed copy unchanged. Each successive
+acceptance was more than 1,800 seconds apart in this small actual-send pacing
+canary. This does not establish
+general cadence, inbox placement or a response-rate guarantee.
 
 Native scheduled discovery completed both campaign scans at approximately
 05:21 UTC: 178 researched records, twenty-nine new, 139 updated and ten protected,
@@ -425,8 +428,14 @@ authorizations. These are record observations across campaigns, not unique
 people or qualified leads. Before/after reads confirmed that all four queued
 v2 bodies, digests and research snapshots remained unchanged. A six-GET manual
 review snapshot confirmed fresh monitoring for both campaigns and a complete
-current creation window. The hourly reviewer heartbeat is active and its saved
-state was checked; a scheduled Codex wake has not yet been observed.
+current creation window. Scheduled hourly reviews have been observed since
+06:20 UTC. At the 19:57 UTC checkpoint both label monitors were fresh, with zero
+pending replies, confirmed creator interest or owner handoffs.
+
+One newly qualified candidate was submitted for AI drafting at 19:06 UTC; the
+task failed at 19:09 UTC with `CREATOR_DRAFT_MODEL_UNAVAILABLE` and local inference
+unavailable. No new email packet or manual fallback was created. New AI
+introductions are held while reply monitoring continues.
 
 The local shared bound remains twenty-four/day, three/hour, 900-second global
 and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The repository
@@ -445,10 +454,11 @@ enforced in that event. The deployed correction shares a database gate between
 approval and actual receipt acquisition, applies the stricter frozen/current
 policy to actual sending/accepted/ambiguous history, and durably defers unstarted
 work without consuming its attempt, changing approved copy or extending expiry.
-The combined career/creator stack passed lint/all 1,321 tests and the complete
+The earlier combined career/creator stack passed lint/all 1,321 tests and the complete
 verifier, with concurrent/expiry/lock-wait PostgreSQL pacing proofs and time-
 dependent scope rechecks after the pacing gate. The preceding 1,216-test
-checkpoint missed this case; no new external SMTP pacing canary is claimed.
+checkpoint missed this case. The four later spaced acceptances are the limited
+live canary described above; this checkpoint adds no runtime behavior.
 An overdue slot or queued action label alone does not prove safe, runnable work.
 
 ## Test before real outreach

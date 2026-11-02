@@ -1266,8 +1266,8 @@ fresh mailbox monitoring in both campaigns, twenty-eight scoped initial actions,
 a complete current creation window and zero pending reply reviews.
 
 The hourly heartbeat was created active and its saved current-chat/hourly
-configuration verified. A scheduled Codex wake remains unobserved; the manual
-snapshot and native scheduled scans do not establish that future execution.
+configuration verified. At that initial checkpoint no scheduled Codex wake had
+been observed; the manual snapshot and native scans were separate evidence.
 At November 2, 05:45:50 UTC, the twenty-eight-invitation scope had twenty-three
 SMTP acceptances, four runnable queued v2 packets and one blocked action with a
 dead-lettered task; the action-only projection labeled five queued. Twelve
@@ -1333,9 +1333,28 @@ opt-out serialization. The other PostgreSQL, native helper, both UIs, planner,
 delivery and queue-recovery proofs passed. Agent doctor passed, and a real
 free/default gateway request returned exact `ROUTE_OK` through Mistral Small
 3.2. No new local Qwen response or external SMTP pacing canary is inferred.
-The delivery/reply projection remains twenty-three accepted, four queued, one
-zero-receipt blocked action and zero pending replies; the old regression draft
-remains held. These checks establish integration behavior, not creator interest.
+At that integration checkpoint the delivery/reply projection was twenty-three
+accepted, four queued, one zero-receipt blocked action and zero pending replies;
+the old regression draft was held. These checks establish integration behavior,
+not creator interest.
+
+### Later live pacing and reviewer checkpoint
+
+At November 2, 19:57 UTC (November 3, 01:27 IST), matching the exact original
+twenty-eight invitation IDs to a complete API action page established twenty-
+seven SMTP acceptances, zero runnable queued and one unchanged blocked task;
+the result was confirmed again at 20:02 UTC. All four previously approved v2
+invitations were accepted with unchanged reviewed context. Their consecutive
+acceptance gaps were 1,959.888540, 1,850.969555 and 1,821.906906 seconds, each above
+the configured 1,800-second same-domain gap. This small actual-send canary is
+separate from the earlier synthetic proof and the recorded recovery burst.
+
+Scheduled reviewer cycles were observed since 06:20 UTC, with fresh label
+monitoring and zero pending replies. One new draft requested at 19:06 UTC failed
+at 19:09 UTC with `CREATOR_DRAFT_MODEL_UNAVAILABLE` and local inference unavailable;
+no replacement packet or manual fallback was created. New AI introductions are
+held; monitoring continues. No interest/handoff, inbox-placement or general
+pacing guarantee is inferred. This checkpoint adds no runtime behavior.
 
 ## Planned experiments
 
