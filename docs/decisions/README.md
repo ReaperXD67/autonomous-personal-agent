@@ -35,3 +35,4 @@ history.
 - [ADR-0029](ADR-0029-bilingual-drafts-and-fair-research.md): frozen English/Polish creator drafts and fair research selection from issued reservation history
 - [ADR-0030](ADR-0030-grounded-creator-plans-and-draft-batches.md): grounded evidence/angle plans, server-authored copy and audited preparation-only batches
 - [ADR-0031](ADR-0031-evidence-backed-career-operations.md): age-independent fit, résumé evidence checks, typed form answers and bounded SmartRecruiters discovery
+- [ADR-0032](ADR-0032-grounded-career-drafts-and-isolated-mail.md): exact résumé selections, bounded corrective generation, isolated Career Gmail and individually reviewed hiring contacts

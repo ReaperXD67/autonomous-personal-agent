@@ -85,6 +85,10 @@ class Settings:
     gmail_client_secret: str = ""
     gmail_refresh_token: str = ""
     gmail_career_label: str = "Hermes/Careers"
+    gmail_career_client_id: str = ""
+    gmail_career_client_secret: str = ""
+    gmail_career_refresh_token: str = ""
+    gmail_career_mailbox: str = ""
     creator_gmail_enabled: bool = False
     gmail_creator_label: str = "Hermes/Creators"
     creator_gmail_mailbox: str = ""
@@ -161,6 +165,10 @@ class Settings:
             gmail_client_secret=os.getenv("GMAIL_CLIENT_SECRET", "").strip(),
             gmail_refresh_token=os.getenv("GMAIL_REFRESH_TOKEN", "").strip(),
             gmail_career_label=os.getenv("GMAIL_CAREER_LABEL", "Hermes/Careers").strip(),
+            gmail_career_client_id=os.getenv("GMAIL_CAREER_CLIENT_ID", "").strip(),
+            gmail_career_client_secret=os.getenv("GMAIL_CAREER_CLIENT_SECRET", "").strip(),
+            gmail_career_refresh_token=os.getenv("GMAIL_CAREER_REFRESH_TOKEN", "").strip(),
+            gmail_career_mailbox=os.getenv("GMAIL_CAREER_MAILBOX", "").strip().casefold(),
             creator_gmail_enabled=_boolean_environment("CREATOR_GMAIL_ENABLED", False),
             gmail_creator_label=os.getenv("GMAIL_CREATOR_LABEL", "Hermes/Creators").strip(),
             creator_gmail_mailbox=os.getenv("CREATOR_GMAIL_MAILBOX", "").strip().casefold(),
@@ -186,6 +194,7 @@ class Settings:
         ]
         if missing:
             raise ConfigurationError(f"Missing required settings: {', '.join(missing)}")
+        career_gmail_credentials(self)
         if self.api_token.startswith("CHANGE_ME"):
             raise ConfigurationError("CONTROL_API_TOKEN still contains a placeholder")
         if len(self.api_token) < 32:
@@ -315,6 +324,35 @@ class Settings:
             daily_limit=self.outbound_email_daily_limit,
             jitter_seconds=self.outbound_email_jitter_seconds,
         )
+
+
+def career_gmail_credentials(
+    settings: Settings, expected_mailbox: str | None = None,
+) -> tuple[str, str, str]:
+    """Select an isolated career grant without borrowing individual shared secrets."""
+    dedicated = tuple(getattr(settings, f"gmail_career_{key}", "") for key in (
+        "client_id", "client_secret", "refresh_token",
+    ))
+    mailbox = getattr(settings, "gmail_career_mailbox", "")
+    if any(dedicated) and not all(dedicated):
+        raise ConfigurationError("GMAIL_CAREER credentials must be configured together")
+    if all(dedicated) and not mailbox:
+        raise ConfigurationError("Dedicated career Gmail requires GMAIL_CAREER_MAILBOX")
+    if mailbox:
+        display, address = parseaddr(mailbox)
+        local, separator, domain = address.rpartition("@")
+        if (display or address != mailbox or not separator or not local or "." not in domain
+                or any(char.isspace() for char in mailbox)):
+            raise ConfigurationError("GMAIL_CAREER_MAILBOX must be one plain email address")
+        if expected_mailbox is not None and mailbox.casefold() != expected_mailbox.casefold():
+            raise ConfigurationError(
+                "Configured Gmail mailbox must match the career profile application email"
+            )
+    if all(dedicated):
+        return dedicated
+    # Existing single-mailbox installations keep their complete legacy grant.
+    # Creator sync always uses these shared fields directly, never the override.
+    return settings.gmail_client_id, settings.gmail_client_secret, settings.gmail_refresh_token
 
 
 @lru_cache(maxsize=1)

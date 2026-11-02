@@ -226,6 +226,15 @@ rows prevent duplicate issuance by concurrent scheduler workers.
 
 ## Quality attributes
 
+Career drafting now binds server-issued résumé choices to a digest and permits
+one separately accounted corrective generation. The existing worker, policy,
+lease and inference ledger remain authoritative. Dedicated Career Gmail
+credentials keep account selection independent from creator outreach. Reviewed
+job-linked public contacts freeze provenance and drafts into normal individual
+email approvals; final SMTP checks enforce current identity, scope, suppression
+and canonical job/address duplicates. See
+[ADR-0032](../decisions/ADR-0032-grounded-career-drafts-and-isolated-mail.md).
+
 Career projections now compute job-risk and publication signals without
 inference. The autopilot refuses strong signals before preparation and rechecks
 them before its existing final receipt. A pure authenticated source resolver

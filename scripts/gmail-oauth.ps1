@@ -2,11 +2,12 @@
 param(
     [Parameter(Mandatory)][string]$ClientJsonPath,
     [Parameter(Mandatory)][string]$Mailbox,
+    [ValidateSet('Creator', 'Career')][string]$Purpose = 'Creator',
     [ValidateRange(60, 900)][int]$TimeoutSeconds = 600,
     [switch]$ReauthorizeExistingMailbox
 )
 
-# Operator-only credential onboarding. This cannot send mail, grant a creator
+# Operator-only credential onboarding. This cannot send mail, grant an outreach
 # run, or fetch message content. Runtime mailbox reads still use governed tasks.
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'environment-lock.ps1')
@@ -50,7 +51,8 @@ function Set-GmailEnvironment {
     $values = ConvertFrom-GmailEnvironment $current
     $guarded = @('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN',
         'GMAIL_ENABLED', 'GMAIL_CAREER_LABEL', 'GMAIL_CREATOR_LABEL',
-        'CREATOR_GMAIL_ENABLED', 'CREATOR_GMAIL_MAILBOX')
+        'CREATOR_GMAIL_ENABLED', 'CREATOR_GMAIL_MAILBOX', 'GMAIL_CAREER_CLIENT_ID',
+        'GMAIL_CAREER_CLIENT_SECRET', 'GMAIL_CAREER_REFRESH_TOKEN', 'GMAIL_CAREER_MAILBOX')
     foreach ($key in $guarded) {
         if ([string]$Baseline[$key] -cne [string]$values[$key]) {
             throw 'Gmail settings changed during consent. Nothing was written; rerun setup.'
@@ -236,15 +238,87 @@ function Assert-GmailReadOnlyToken {
     }
 }
 
+function Assert-GmailCareerExistingIdentity {
+    param(
+        [Collections.IDictionary]$Values,
+        [string]$ExpectedMailbox,
+        [Collections.IDictionary]$DesktopClient,
+        [switch]$ReauthorizeExistingMailbox
+    )
+    if ($Values.GMAIL_CAREER_MAILBOX -and
+        ([string]$Values.GMAIL_CAREER_MAILBOX).Trim().ToLowerInvariant() -cne $ExpectedMailbox) {
+        throw 'Career monitoring already names another mailbox. No settings were changed.'
+    }
+    $configured = @('GMAIL_CAREER_CLIENT_ID', 'GMAIL_CAREER_CLIENT_SECRET', 'GMAIL_CAREER_REFRESH_TOKEN' |
+        Where-Object { $Values[$_] })
+    if ($configured.Count -eq 0 -and -not $ReauthorizeExistingMailbox) { return }
+    if ($configured.Count -ne 3) {
+        throw 'Existing dedicated career Gmail credentials are incomplete. No settings were changed.'
+    }
+    if ($ReauthorizeExistingMailbox -and (
+        -not $Values.GMAIL_CAREER_MAILBOX -or
+        [string]$Values.GMAIL_ENABLED -ine 'true' -or
+        -not $Values.GMAIL_CAREER_LABEL -or
+        -not $DesktopClient -or
+        [string]$DesktopClient.client_id -cne [string]$Values.GMAIL_CAREER_CLIENT_ID -or
+        [string]$DesktopClient.client_secret -cne [string]$Values.GMAIL_CAREER_CLIENT_SECRET
+    )) {
+        throw 'Same-mailbox renewal requires the recorded career identity, enabled career monitoring, and the same Desktop client. No settings were changed.'
+    }
+    $existing = $null
+    try {
+        try {
+            $existing = Invoke-GmailToken @{
+                client_id = $Values.GMAIL_CAREER_CLIENT_ID; client_secret = $Values.GMAIL_CAREER_CLIENT_SECRET
+                refresh_token = $Values.GMAIL_CAREER_REFRESH_TOKEN; grant_type = 'refresh_token'
+            }
+        }
+        catch {
+            if ($ReauthorizeExistingMailbox -and
+                $_.Exception.Data['HermesGmailFailure'] -ceq 'invalid_refresh_grant') {
+                Write-Host 'The previous grant is invalid; renewing only the recorded career mailbox with the same Desktop client.'
+                return
+            }
+            throw
+        }
+        if ((Get-GmailIdentity ([string]$existing.access_token)) -cne $ExpectedMailbox) {
+            throw 'Existing dedicated career Gmail credentials belong to another mailbox. No settings were changed.'
+        }
+    }
+    finally { $existing = $null }
+}
+
+function Get-GmailOnboardingEntries {
+    param([string]$Purpose, [Collections.IDictionary]$Client, $Token, [string]$Mailbox, [string]$Label)
+    if ($Purpose -eq 'Career') {
+        return [ordered]@{
+            GMAIL_CAREER_CLIENT_ID = $Client.client_id; GMAIL_CAREER_CLIENT_SECRET = $Client.client_secret
+            GMAIL_CAREER_REFRESH_TOKEN = [string]$Token.refresh_token; GMAIL_ENABLED = 'true'
+            GMAIL_CAREER_MAILBOX = $Mailbox; GMAIL_CAREER_LABEL = $Label
+        }
+    }
+    if ($Purpose -ne 'Creator') { throw 'Unsupported Gmail onboarding purpose. Nothing was saved.' }
+    return [ordered]@{
+        GMAIL_CLIENT_ID = $Client.client_id; GMAIL_CLIENT_SECRET = $Client.client_secret
+        GMAIL_REFRESH_TOKEN = [string]$Token.refresh_token; CREATOR_GMAIL_ENABLED = 'true'
+        CREATOR_GMAIL_MAILBOX = $Mailbox; GMAIL_CREATOR_LABEL = $Label
+    }
+}
+
 function Assert-GmailCreatorLabel {
     param([string]$AccessToken, [string]$Label)
+    if (-not $Label -or $Label.Length -gt 225 -or $Label -match '[\x00-\x1f\x7f]') {
+        throw 'Choose one explicit custom Gmail label. No settings were changed.'
+    }
     try {
         $result = Invoke-RestMethod -Method Get -Uri 'https://gmail.googleapis.com/gmail/v1/users/me/labels' `
             -Headers @{ Authorization = "Bearer $AccessToken" } -TimeoutSec 20 -MaximumRedirection 0 -ErrorAction Stop
     }
     catch { throw 'Gmail label check failed. No settings were changed; provider response was withheld.' }
-    if (-not @($result.labels | Where-Object { $_.name -ceq $Label }).Count) {
-        throw 'Create the configured creator label in Gmail first, then rerun setup. No settings were changed.'
+    if (-not @($result.labels | Where-Object {
+        $_.name -ceq $Label -and $_.type -ceq 'user' -and [string]$_.id -cmatch '^[A-Za-z0-9_-]{1,128}$'
+    }).Count) {
+        throw 'Create the configured Gmail label first, then rerun setup. No settings were changed.'
     }
 }
 
@@ -333,12 +407,19 @@ catch { throw 'Mailbox must be the exact sender email address without a display 
 $Mailbox = $Mailbox.Trim().ToLowerInvariant()
 $client = Read-GmailDesktopClient $ClientJsonPath
 $baseline = ConvertFrom-GmailEnvironment ([IO.File]::ReadAllText($envPath))
-if ($baseline.CREATOR_GMAIL_MAILBOX -and $baseline.CREATOR_GMAIL_MAILBOX.ToLowerInvariant() -cne $Mailbox) {
-    throw 'Creator monitoring already names another mailbox. Resolve the account change explicitly before setup.'
+if ($Purpose -eq 'Career') {
+    Assert-GmailCareerExistingIdentity $baseline $Mailbox -DesktopClient $client `
+        -ReauthorizeExistingMailbox:$ReauthorizeExistingMailbox
+    $label = if ($baseline.GMAIL_CAREER_LABEL) { $baseline.GMAIL_CAREER_LABEL } else { 'Hermes/Careers' }
 }
-Assert-GmailExistingIdentity $baseline $Mailbox -DesktopClient $client `
-    -ReauthorizeExistingMailbox:$ReauthorizeExistingMailbox
-$label = if ($baseline.GMAIL_CREATOR_LABEL) { $baseline.GMAIL_CREATOR_LABEL } else { 'Hermes/Creators' }
+else {
+    if ($baseline.CREATOR_GMAIL_MAILBOX -and $baseline.CREATOR_GMAIL_MAILBOX.ToLowerInvariant() -cne $Mailbox) {
+        throw 'Creator monitoring already names another mailbox. Resolve the account change explicitly before setup.'
+    }
+    Assert-GmailExistingIdentity $baseline $Mailbox -DesktopClient $client `
+        -ReauthorizeExistingMailbox:$ReauthorizeExistingMailbox
+    $label = if ($baseline.GMAIL_CREATOR_LABEL) { $baseline.GMAIL_CREATOR_LABEL } else { 'Hermes/Creators' }
+}
 $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
 $token = $null
 $callback = $null
@@ -356,7 +437,7 @@ try {
         code_challenge_method = 'S256'; access_type = 'offline'; prompt = 'consent select_account'; login_hint = $Mailbox
     }))
     Write-Host 'Opening Google consent in your default browser. Choose the expected mailbox and review read-only access.'
-    Write-Host 'The Gmail permission covers the mailbox; Hermes limits message reads to the configured creator label.'
+    Write-Host "The Gmail permission covers the mailbox; Hermes limits $Purpose message reads to the configured label."
     Write-Host 'The local callback expires in ten minutes by default. No authorization URL, code, or token will be printed.'
     try { Start-Process -FilePath $authorization | Out-Null }
     catch { throw 'The consent browser could not open. Nothing was saved; check your default browser and retry.' }
@@ -371,15 +452,11 @@ try {
         throw 'Google authorized a different mailbox. No settings were changed; select the expected account.'
     }
     Assert-GmailCreatorLabel ([string]$token.access_token) $label
-    $entries = [ordered]@{
-        GMAIL_CLIENT_ID = $client.client_id; GMAIL_CLIENT_SECRET = $client.client_secret
-        GMAIL_REFRESH_TOKEN = [string]$token.refresh_token; CREATOR_GMAIL_ENABLED = 'true'
-        CREATOR_GMAIL_MAILBOX = $Mailbox; GMAIL_CREATOR_LABEL = $label
-    }
+    $entries = Get-GmailOnboardingEntries $Purpose $client $token $Mailbox $label
     Set-GmailEnvironment $envPath $baseline $entries
     Write-Host 'Gmail read-only credentials saved atomically in ignored .env; mailbox identity and label verified.' -ForegroundColor Green
-    Write-Host 'Restart control-api and job-worker, then run a governed creator reply sync with an owned-inbox canary.'
-    Write-Host 'This proves account access only. Reply ingestion, SMTP sending, and creator outreach remain separate checks.'
+    Write-Host "Restart control-api and job-worker, then run a governed $Purpose reply sync with an owned-inbox canary."
+    Write-Host 'This proves account access only. Reply ingestion, SMTP sending, and outreach remain separate checks.'
 }
 finally {
     $listener.Stop()

@@ -100,7 +100,7 @@ understand what happened and take over at the right moment.
 | Résumé-grounded application checks | Implemented; heuristic | Exact résumé quotations, supported keywords, conspicuous claim/length findings and cleaned posting views. Delegated authorization and final receipt recompute checks after lock waits; semantic truth and writing quality remain reviewed |
 | Job-risk assessment | Implemented; heuristic | Zero-model fee, credential, sensitive-data and destination checks; suspicious listings stop automatic preparation and are checked again before submission. No result proves a genuine employer or vacancy |
 | Employer-board URL import | Implemented | Paste supported Ashby, Greenhouse, Lever US/EU or SmartRecruiters links, including Greenhouse embeds. Recognition makes no network/model request; save the mission and scan the whole board |
-| Application preparation | Local verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. The agent can auto-preflight common forms and prepare the exact action |
+| Application preparation | Local grounded generation verified; hosted canary verified | A live benchmark/capability-ranked, zero-cost-only OpenRouter chain tries the strongest privacy-compatible current candidates, switches on provider or invalid-output failure, then uses Qwen3 8B locally. Exact résumé evidence checks passed on a real local draft; applicant eligibility remains separate. The agent can auto-preflight common forms and prepare the exact action |
 | Career Play/Pause | Implemented; external application proof pending | Choose preparation or authorize a bounded automatic run: fresh published listings, minimum fit, selected ATS hosts, rolling application cap, separate preparation allowance, expiry, profile binding, and duplicate prevention. Prepared actions stay linked to progress; optional job-published hiring email shares submission limits |
 | Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form/default-state signature, typed explicit consent, purpose-bound PDF résumé upload and durable receipt. Unknown documents, login and CAPTCHA stop for review; SmartRecruiters submission stays manual |
@@ -114,7 +114,7 @@ understand what happened and take over at the right moment.
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |
 | Creator reply inbox | EN/PL triage and renewed label read verified; real reply pending | Quote/forward filtering, negation and conditional checks suggest interest and reviewed feedback tags; direct objections suppress further contact. Actual incoming-reply matching/replay and handoff still need live proof |
-| Gmail onboarding | Same-mailbox renewal and runtime read verified | Desktop OAuth with PKCE, exact read-only scope, expected mailbox/label and atomic saves. Explicit same-client renewal recovered a confirmed invalid grant; the governed reader ignored self-mail without mailbox changes. Testing-mode longevity remains a limit |
+| Gmail onboarding | Creator read verified; isolated Career setup implemented | Desktop OAuth with PKCE, exact read-only scope, expected mailbox/custom label and atomic saves. A dedicated Career grant preserves Creator credentials; Career consent and ingestion still need a live canary. Explicit Creator renewal/read were verified. Testing-mode longevity remains a limit |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
@@ -198,10 +198,25 @@ cap and one-application-per-job guard. This does not authorize general cold
 outreach. Unsupported forms, unknown required answers, and changed context stop
 for review. Work enters the existing task, policy, audit, and receipt path.
 
+New drafts select server-issued résumé evidence and keyword IDs, then resolve
+them to exact source text. One bounded, separately counted model correction can
+repair failed checks; unresolved drafts stay blocked. Cover-letter truthfulness
+and applicant requirements still need substantive review. Public hiring, HR or
+founder contacts outside the posting can use the
+[reviewed career contact API](docs/operations/career-contact-outreach.md), with
+expiring source evidence, a matching SMTP identity and individual exact-message
+approval. This email transport does not attach the résumé.
+
 Use **Application tracker** for submissions, reviewed replies, interviews, and
 outcomes. The Gmail adapter reads only its configured career label and keeps
 uncertain matches for review. It is prepared but needs local OAuth configuration
-and a real canary before it can be called operational. LinkedIn, Y Combinator,
+and a real canary before it can be called operational. Connect the application
+mailbox with `./scripts/gmail-oauth.ps1 -Purpose Career`; the helper uses separate
+Career credentials and preserves the Creator grant. The mailbox must match the
+saved application identity. Create its custom label and apply it manually or
+with a Gmail filter.
+See the [Career Gmail setup](docs/operations/career-autopilot.md#gmail-read-only-connection).
+LinkedIn, Y Combinator,
 and Discord account automation is not connected. Follow the employer application
 link and paste its supported ATS URL into **Job sources → Add board from URL**;
 this imports that employer board, without logging into those platforms.
@@ -378,7 +393,8 @@ normal operation. Real side effects are controlled by
 | `./scripts/promotion.ps1 -LocalTest` | — | Start Docker if needed and run the creator-specific no-egress proof |
 | `./scripts/promotion.ps1 -ConfigureSMTP` | — | Configure an existing SMTP provider through local prompts with a hidden password; save settings atomically |
 | `./scripts/promotion.ps1 -ConfigureGmail` | — | Configure Gmail SMTP locally using a hidden app-password prompt after Google 2-Step Verification setup |
-| `./scripts/gmail-oauth.ps1 -ClientJsonPath <private-file> -Mailbox <sender>` | — | Connect read-only labeled Gmail replies using the owner's Desktop OAuth client; verify the mailbox before saving ignored configuration |
+| `./scripts/gmail-oauth.ps1 -ClientJsonPath <private-file> -Mailbox <sender>` | — | Connect Creator Gmail replies (default purpose) using the owner's Desktop OAuth client; verify account/custom label before saving ignored configuration |
+| `./scripts/gmail-oauth.ps1 -Purpose Career -ClientJsonPath <private-file> -Mailbox <application-email>` | — | Connect a separate Career Gmail grant without replacing Creator credentials; requires the career custom label and matching profile email |
 | `./scripts/creator-draft-smoke.ps1` | — | Exercise creator drafting and exact-digest preparation in a disposable PostgreSQL database with synthetic model output |
 | `./scripts/creator-pilot-smoke.ps1` | — | Exercise shortlist reservations, budgets, lease fencing and unchanged contact authority in a disposable PostgreSQL database without provider or model requests |
 | `./scripts/promotion.ps1 -CheckSMTP` | — | Queue an audited fixed-provider connection/TLS/authentication check; send no email |

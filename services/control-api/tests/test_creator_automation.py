@@ -17,8 +17,22 @@ from app.creator_automation import (
 )
 from app.creator_automation_gmail import execute_creator_gmail_sync
 from app.creator_automation_models import CreatorAutomationStart
+from app.creator_automation_store import CreatorAutomationStore
 
 NOW = datetime(2026, 10, 16, 12, tzinfo=UTC)
+
+
+def test_reply_opt_out_serializes_global_suppression_after_prospect_locks():
+    connection = Mock()
+    connection.execute.return_value.fetchall.return_value = [{"id": uuid4()}]
+    assert CreatorAutomationStore._suppress_address(connection, " Hiring@Example.Test ") == 1
+    statements = connection.execute.call_args_list
+    assert "UPDATE marketing_prospects" in statements[0].args[0]
+    assert statements[0].args[1] == ("hiring@example.test",)
+    assert "pg_advisory_xact_lock" in statements[1].args[0]
+    assert statements[1].args[1] == ("creator-email:hiring@example.test",)
+    assert "INSERT INTO creator_contact_suppressions" in statements[2].args[0]
+    assert statements[2].args[1][0] == "hiring@example.test"
 
 
 def campaign():

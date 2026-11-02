@@ -15,10 +15,12 @@ from uuid import uuid4
 
 import psycopg
 from app.action_store import SideEffectGuardError
+from app.career import parse_application_draft
 from app.career_autopilot import guard_autopilot_action
 from app.career_autopilot_models import CareerPlay
 from app.career_autopilot_store import CareerAutopilotStore
 from app.career_application_quality import assess_application_quality
+from app.career_draft_grounding import build_grounding_inventory
 from app.career_models import CareerProfileCreate
 from app.career_tracking import GmailSyncError, classify_message, correlate_message
 from app.career_tracking_models import CareerEventCreate
@@ -93,16 +95,22 @@ def complete_preparation(store, profile, run):
         opportunity_id = task["payload"]["opportunity_id"]
         if task["kind"] == "career.application_draft":
             draft_context = store.get_draft_context(opportunity_id, profile["id"])
-            draft_content = {
+            inventory = build_grounding_inventory(draft_context)
+            draft_content = parse_application_draft({
                 "cover_letter": (
                     "I am applying for the Python Engineer role. My saved resume records Python "
                     "engineering evidence, and I would welcome a discussion about the position "
                     "and the team's requirements."
                 ),
-                "fit_summary": "Fixture only", "evidence": [draft_context["resume_text"]],
-                "honest_gaps": [], "resume_keywords": ["Python"],
-            }
+                "fit_summary": "Fixture only",
+                "evidence_ids": [inventory["evidence"][0]["id"]],
+                "honest_gaps": [],
+                "resume_keyword_ids": [item["id"] for item in inventory["keywords"]
+                                       if item["text"] == "Python"],
+            }, draft_context)
             draft_content["quality_report"] = assess_application_quality(draft_context, draft_content)
+            check(draft_content["quality_report"]["disposition"] == "checks_passed",
+                  "Server-issued fixture evidence did not pass the recomputed quality gate")
             store.save_application_draft(
                 opportunity_id=opportunity_id, profile_id=profile["id"], task_id=task["id"],
                 model="synthetic-no-inference", content=draft_content,

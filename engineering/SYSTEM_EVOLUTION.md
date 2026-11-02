@@ -591,3 +591,25 @@ count twice. Parent cancellation stops remaining issuance without cancelling
 independently queued children. The parent makes no model call, prepares no
 outgoing email and grants no approval/contact/send authority. No new service,
 dependency, schema migration or credential compartment is introduced.
+
+## 2026-11-02 — Career evidence selection, isolated mail and reviewed contacts
+
+ADR-0032 narrows new career generation to server-issued exact résumé evidence
+and keyword IDs bound to the résumé digest. The existing worker resolves choices
+and runs deterministic checks. One separately reserved corrective inference is
+allowed; failed correction preserves a blocked draft. The final action boundary
+recomputes the grounding marker. Free-text copy still requires substantive
+review and does not prove job eligibility.
+
+The local Gmail helper now creates an independent all-or-none Career credential
+tuple, checks its recorded and authenticated mailbox, and preserves the Creator
+grant. Secrets stay worker-only; metadata reads remain label restricted despite
+Google's mailbox-wide read-only permission. SMTP identity stays separate.
+
+Migration 026 adds durable, expiring public contact reviews and exact-action
+links. A contact email uses the normal high-risk individual approval path and
+cannot inherit an Apply grant. Current fit/publication, source/profile/draft,
+sender, revocation, expiry, canonical job/address deduplication and global
+suppression are rechecked before SMTP. Creator Gmail opt-outs and common SMTP
+delivery now synchronize on the recipient lock. No new service or external
+account executor is introduced.

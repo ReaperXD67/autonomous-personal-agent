@@ -30,6 +30,8 @@ from app.auth import (
 )
 from app.career_autopilot_routes import router as career_autopilot_router
 from app.career_autopilot_store import CareerAutopilotStore
+from app.career_contact_routes import router as career_contact_router
+from app.career_contact_store import CareerContactStore
 from app.career_models import (
     AuditEventView,
     CareerProfileCreate,
@@ -106,6 +108,7 @@ async def lifespan(application: FastAPI):
         settings.database_url, email_pacing_policy=settings.email_pacing_policy(),
     )
     application.state.career_tracking = CareerTrackingStore(settings.database_url)
+    application.state.career_contacts = CareerContactStore(settings.database_url)
     application.state.actions = ActionStore(settings.database_url)
     application.state.marketing = MarketingStore(settings.database_url)
     application.state.creator_pilot = CreatorPilotStore(settings.database_url)
@@ -141,6 +144,7 @@ app.include_router(communication_router)
 app.include_router(career_autopilot_router)
 app.include_router(career_tracking_router)
 app.include_router(career_source_router)
+app.include_router(career_contact_router)
 app.include_router(creator_automation_router)
 app.include_router(creator_draft_router)
 app.include_router(creator_draft_batch_router)

@@ -70,7 +70,11 @@ function Invoke-RestMethod {
     }
     if ($Uri -eq 'https://gmail.googleapis.com/gmail/v1/users/me/labels') {
         if ($requestMode -eq 'no-label') { return @{ labels = @() } }
-        return @{ labels = @(@{ name = 'Hermes/Creators' }) }
+        if ($requestMode -eq 'system-label') { return @{ labels = @(@{ name = 'INBOX'; type = 'system'; id = 'INBOX' }) } }
+        return @{ labels = @(
+            @{ name = 'Hermes/Creators'; type = 'user'; id = 'Label_Creators' },
+            @{ name = 'Hermes/Careers'; type = 'user'; id = 'Label_Careers' }
+        ) }
     }
     throw 'Unexpected provider request.'
 }
@@ -78,7 +82,8 @@ function Invoke-RestMethod {
 try {
     New-Item -ItemType Directory -Path $probeDirectory -Force | Out-Null
     $path = Join-Path $probeDirectory '.env'
-    $seed = "# unchanged comment`r`nUNRELATED=old`r`n`r`nGMAIL_CLIENT_ID=old`r`n"
+    $seed = "# unchanged comment`r`nUNRELATED=old`r`n`r`nGMAIL_CLIENT_ID=old`r`n" +
+        "GMAIL_REFRESH_TOKEN=creator-refresh`r`nCREATOR_GMAIL_MAILBOX=owner@example.test`r`nGMAIL_CREATOR_LABEL=Hermes/Creators`r`n"
     [IO.File]::WriteAllText($path, $seed)
     $baseline = ConvertFrom-GmailEnvironment $seed
     # An unrelated edit completed while the browser was open must survive.
@@ -167,6 +172,27 @@ try {
     [IO.File]::WriteAllText($clientPath, ($config | ConvertTo-Json))
     $client = Read-GmailDesktopClient $clientPath
     if ($client.client_id -cne $config.installed.client_id) { throw 'Client parsing failed.' }
+    $careerEntries = Get-GmailOnboardingEntries 'Career' $client @{ refresh_token = 'career-refresh' } 'career@example.test' 'Hermes/Careers'
+    if (($careerEntries.Keys | Sort-Object) -join ',' -cne
+        'GMAIL_CAREER_CLIENT_ID,GMAIL_CAREER_CLIENT_SECRET,GMAIL_CAREER_LABEL,GMAIL_CAREER_MAILBOX,GMAIL_CAREER_REFRESH_TOKEN,GMAIL_ENABLED') {
+        throw 'Career setup may only write isolated career settings.'
+    }
+    Set-GmailEnvironment $path $loaded $careerEntries
+    $afterCareer = ConvertFrom-GmailEnvironment ([IO.File]::ReadAllText($path))
+    foreach ($key in @('GMAIL_CLIENT_ID', 'GMAIL_CLIENT_SECRET', 'GMAIL_REFRESH_TOKEN',
+        'CREATOR_GMAIL_ENABLED', 'CREATOR_GMAIL_MAILBOX', 'GMAIL_CREATOR_LABEL')) {
+        if ([string]$loaded[$key] -cne [string]$afterCareer[$key]) { throw 'Career setup changed creator credentials/settings.' }
+    }
+    if ($afterCareer.GMAIL_CAREER_MAILBOX -cne 'career@example.test' -or
+        $afterCareer.GMAIL_CAREER_REFRESH_TOKEN -cne 'career-refresh' -or $afterCareer.GMAIL_ENABLED -cne 'true') {
+        throw 'Career setup did not save its isolated identity/grant.'
+    }
+    Assert-Rejected { Set-GmailEnvironment $path $loaded $careerEntries }
+    $creatorEntries = Get-GmailOnboardingEntries 'Creator' $client @{ refresh_token = 'creator-refresh' } 'owner@example.test' 'Hermes/Creators'
+    if (@($creatorEntries.Keys | Where-Object { $_ -like 'GMAIL_CAREER_*' -or $_ -eq 'GMAIL_ENABLED' }).Count) {
+        throw 'Creator setup may not change career settings.'
+    }
+    Assert-Rejected { Get-GmailOnboardingEntries 'Unknown' $client @{} 'owner@example.test' 'Hermes/Creators' }
     $config.installed.token_uri = 'https://attacker.example/token'
     [IO.File]::WriteAllText($clientPath, ($config | ConvertTo-Json))
     Assert-Rejected { Read-GmailDesktopClient $clientPath }
@@ -192,8 +218,16 @@ try {
     Assert-Rejected { Assert-GmailExistingIdentity @{ GMAIL_CLIENT_ID = 'incomplete' } 'owner@example.test' }
     $requestMode = 'ok'
     Assert-GmailCreatorLabel 'synthetic-access' 'Hermes/Creators'
+    Assert-GmailCreatorLabel 'synthetic-access' 'Hermes/Careers'
     $requestMode = 'no-label'
     Assert-Rejected { Assert-GmailCreatorLabel 'synthetic-access' 'Hermes/Creators' }
+    Assert-Rejected { Assert-GmailCreatorLabel 'synthetic-access' 'Hermes/Careers' }
+    $requestMode = 'system-label'
+    Assert-Rejected { Assert-GmailCreatorLabel 'synthetic-access' 'INBOX' }
+    $before = $requestCount
+    Assert-Rejected { Assert-GmailCreatorLabel 'synthetic-access' '' }
+    Assert-Rejected { Assert-GmailCreatorLabel 'synthetic-access' "bad`nlabel" }
+    if ($requestCount -ne $before) { throw 'Invalid label reached Google.' }
     $requestMode = 'error'
     Assert-Rejected { Invoke-GmailToken @{ grant_type = 'refresh_token' } }
     Assert-Rejected { Get-GmailIdentity 'synthetic-access' }
@@ -253,6 +287,53 @@ try {
     $requestMode = 'ok'
     Assert-GmailExistingIdentity $renewable 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox
 
+    # Isolated career setup never probes or replaces a creator grant, even when
+    # the shared grant belongs to a different mailbox.
+    $before = $requestCount
+    Assert-GmailCareerExistingIdentity $shared 'career@example.test' -DesktopClient $client
+    if ($requestCount -ne $before) { throw 'Career setup probed shared creator credentials.' }
+    $career = @{
+        GMAIL_CAREER_CLIENT_ID = 'synthetic.apps.googleusercontent.com'
+        GMAIL_CAREER_CLIENT_SECRET = 'synthetic-secret'; GMAIL_CAREER_REFRESH_TOKEN = 'career-refresh'
+        GMAIL_CAREER_MAILBOX = 'owner@example.test'; GMAIL_CAREER_LABEL = 'Hermes/Careers'
+        GMAIL_ENABLED = 'true'; CREATOR_GMAIL_ENABLED = 'true'; CREATOR_GMAIL_MAILBOX = 'creator@example.test'
+    }
+    Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $client
+    $requestMode = 'other-account'
+    Assert-Rejected { Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $client }
+    $requestMode = 'invalid-grant'
+    Assert-Rejected { Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $client }
+    Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox
+    foreach ($change in @(
+        @{ GMAIL_CAREER_MAILBOX = 'other@example.test' },
+        @{ GMAIL_CAREER_MAILBOX = '' },
+        @{ GMAIL_ENABLED = 'false' },
+        @{ GMAIL_CAREER_LABEL = '' },
+        @{ GMAIL_CAREER_REFRESH_TOKEN = '' },
+        @{ GMAIL_CAREER_CLIENT_SECRET = '' }
+    )) {
+        $conflict = $career.Clone()
+        foreach ($key in $change.Keys) { $conflict[$key] = $change[$key] }
+        $before = $requestCount
+        Assert-Rejected { Assert-GmailCareerExistingIdentity $conflict 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox }
+        if ($requestCount -ne $before) { throw 'Invalid career renewal provenance reached Google.' }
+    }
+    foreach ($wrongClient in @(
+        @{ client_id = 'other.apps.googleusercontent.com'; client_secret = 'synthetic-secret' },
+        @{ client_id = 'synthetic.apps.googleusercontent.com'; client_secret = 'different-secret' },
+        @{}
+    )) {
+        Assert-Rejected { Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $wrongClient -ReauthorizeExistingMailbox }
+    }
+    foreach ($failureMode in @('error', 'invalid-client', 'invalid-grant-server-error',
+        'invalid-grant-unauthorized', 'malformed-token-error', 'oversized-token-error',
+        'array-token-error', 'nonstring-token-error', 'other-account')) {
+        $requestMode = $failureMode
+        Assert-Rejected { Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox }
+    }
+    $requestMode = 'ok'
+    Assert-GmailCareerExistingIdentity $career 'owner@example.test' -DesktopClient $client -ReauthorizeExistingMailbox
+
     # Exercise the actual bounded callback server over loopback with a dummy
     # authorization code. No Google request or live entrypoint is invoked.
     $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
@@ -302,4 +383,4 @@ finally {
         Remove-Item -LiteralPath $resolved -Recurse -Force
     }
 }
-Write-Host 'Gmail OAuth smoke passed: PKCE, nonce/state, callback bounds, scope, identity/conflicts, explicit same-mailbox renewal, label, redacted failures, atomic merge, concurrent writers, and real loopback response. No live account or environment accessed.'
+Write-Host 'Gmail OAuth smoke passed: PKCE, nonce/state, callback bounds, scope, isolated career/creator identity and renewal, labels, redacted failures, atomic merge, concurrent writers, and real loopback response. No live account or environment accessed.'
