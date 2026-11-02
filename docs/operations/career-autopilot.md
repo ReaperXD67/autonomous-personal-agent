@@ -18,10 +18,21 @@ employer board through its public API; importing a job link does not select,
 verify or apply to that particular vacancy. The provider-specific fields also
 accept matching URLs directly. US and EU Lever boards are separate sources.
 
-For LinkedIn, YC or a company careers page, follow the employer's application
-link and copy its supported ATS URL. Direct platform/account automation and
-arbitrary website scraping remain unavailable. Unsupported links produce setup
-guidance rather than silently connecting an account.
+For a LinkedIn or YC job reference, follow the employer's application link and
+paste its independently observed supported ATS URL in the optional employer URL
+field. Import retains both canonical references; removing a reference does not
+remove its employer board. LinkedIn references alone do not enable discovery or
+an account connection. Hermes does not scrape LinkedIn search or operate its
+native application account. Unsupported links produce setup guidance.
+
+Public YC company URLs can also populate **YC companies** directly. One company
+page contributes at most 50 observed links and ten detail attempts, with twenty
+detail attempts shared across the entire scan. Later companies still report
+their observed list coverage when that budget is spent. Only an exact,
+timezone-aware `JobPosting.datePosted` on the matching public posting establishes
+freshness. Recently-added labels, account redirects and source observation times
+do not. YC job cards remain manual applications, even when public metadata says
+`directApply`; employer ATS imports can use the ordinary supported adapter.
 
 ### Job-risk and freshness checks
 
@@ -47,6 +58,11 @@ answers. Required unknown answers stop the item for review. Editing profile
 preferences, identity or resume invalidates the existing grant. Press Play again
 after reviewing the changed scope. Pause stops new submissions at the durable
 receipt boundary; already submitted requests cannot be undone.
+
+The supported application limit is one to ten per rolling 24 hours. Raising it
+does not widen freshness, reduce fit, bypass screening or promise that enough
+suitable vacancies exist. A profile/source/fact or eligibility-policy change
+invalidates the old grant; review and press Play again for the current scope.
 
 Preparation uses a separate rolling allowance: at most 20 opportunities per
 profile in 24 hours, across all runs and including failed preparation, and at
@@ -96,6 +112,25 @@ proven publication date. The score is an inspectable heuristic, not a probabilit
 of hiring or an assertion about experience, education or work authorization.
 Old scoring grants stop rather than inheriting changed semantics; review Play
 again after upgrading.
+
+**Mandatory qualifications** are shown separately from fit and job risk. A
+deterministic conservative parser identifies explicit mandatory tenure,
+completed-degree, enrollment/cohort and work-authorization requirements, then
+checks only explicit résumé evidence and narrowly scoped owner facts. Unknown
+requirements require review before automatic preparation/selection and again
+at scoped authorization and the final receipt boundary. Preferred qualifications
+and a zero-minimum experience range do not alone block. Dates are never added
+up into professional years; an in-progress degree is not a completed degree.
+This heuristic can miss unusual wording and cannot certify applicant eligibility.
+
+The mission's optional **India work authorization** answer starts as unknown.
+Only an explicit confirmation of authorization without employer sponsorship can
+satisfy a clear India-only general requirement. It says nothing about citizenship,
+residency, a specific visa, other countries, internship availability or graduation.
+It is saved separately from the résumé and is not inserted into model prompts.
+Public opportunity reports contain posting excerpts and findings, never private
+résumé evidence. Manual application and substantive qualification review remain
+available; a high skill score does not establish eligibility.
 
 Open a mission's **Latest search coverage and exclusions** for normalized listing
 counts, first exclusion reasons, source warnings and bounded provider coverage.
@@ -199,9 +234,11 @@ Official references: [Gmail scopes](https://developers.google.com/workspace/gmai
 `./scripts/test.ps1` runs containerized lint and unit/contract tests.
 `./scripts/career-autopilot-smoke.ps1` exercises durable run, risk, receipt,
 shortlist and reply-monitoring guards in a disposable PostgreSQL database.
+`./scripts/career-platform-smoke.ps1` checks platform persistence, migration replay,
+private qualification evidence and scoped eligibility in a disposable database.
 `./scripts/career-ui-smoke.ps1` runs the actual dashboard assets with synthetic
 data and no browser network access, checking outcome priority, escaped text,
 risk filters, source-import errors and mobile overflow. Screenshots stay under
-ignored `output/playwright/career/`. The full `./scripts/verify.ps1` includes both
+ignored `output/playwright/career/`. The full `./scripts/verify.ps1` includes these
 career checks. These fixtures do not prove real external ATS compatibility or
 incoming Gmail reply accuracy.

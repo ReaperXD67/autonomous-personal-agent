@@ -52,8 +52,11 @@ SOURCE_CATALOG = [
     {
         "id": "yc",
         "name": "Y Combinator",
-        "status": "import_required",
-        "description": "Find a YC company, then add its Ashby, Lever or Greenhouse employer board.",
+        "status": "research_only",
+        "description": (
+            "Configured public company pages with exact publication dates. "
+            "YC account applications need manual submission; employer ATS links can be imported."
+        ),
         "url": "https://www.ycombinator.com/jobs",
     },
     {
@@ -70,7 +73,10 @@ SOURCE_CATALOG = [
         "id": "linkedin",
         "name": "LinkedIn",
         "status": "import_required",
-        "description": "Find employers with saved searches, then add supported employer boards.",
+        "description": (
+            "Save a public job lead with its observed employer ATS link. "
+            "This imports the employer board; LinkedIn account submission is not connected."
+        ),
         "url": "https://www.linkedin.com/jobs/",
     },
     {
@@ -105,6 +111,7 @@ def overview(request: Request, profile_id: UUID | None = None) -> dict[str, Any]
             or any(config.get(key) for key in (
                 "ashby_boards", "lever_boards", "lever_eu_boards", "greenhouse_boards",
                 "smartrecruiters_boards",
+                "yc_companies",
             ))
         )
         resume = profile["resume_present"]

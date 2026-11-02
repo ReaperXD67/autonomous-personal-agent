@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 from psycopg.types.json import Jsonb
 
 from app.career import diagnose_opportunity
+from app.career_eligibility import assess_eligibility, eligibility_blocker
 from app.career_models import CareerProfileCreate, CareerProfileUpdate, OpportunityStateUpdate
 from app.career_quality import assess_opportunity, quality_blocker
 from app.models import TaskCreate
@@ -40,12 +41,12 @@ class CareerStore(Database):
                     name, candidate_name, desired_titles, skills, required_keywords,
                     excluded_keywords, locations, remote_only, employment_types,
                     max_age_hours, min_score, schedule_minutes, source_config,
-                    application_identity, resume_text, auto_prepare,
+                    application_identity, eligibility_facts, resume_text, auto_prepare,
                     auto_prepare_min_score, max_auto_prepare_per_scan,
                     active, requested_by, next_scan_at
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s, %s, %s, %s, now()
+                    %s, %s, %s, %s, %s, %s, %s, %s, now()
                 )
                 RETURNING *
                 """,
@@ -68,6 +69,7 @@ class CareerStore(Database):
                         if request.application_identity
                         else {}
                     ),
+                    Jsonb(request.eligibility_facts.model_dump()),
                     request.resume_text,
                     request.auto_prepare,
                     request.auto_prepare_min_score,
@@ -132,6 +134,11 @@ class CareerStore(Database):
                 if request.application_identity is None
                 else request.application_identity.model_dump()
             )
+            eligibility_facts = (
+                existing.get("eligibility_facts") or {}
+                if request.eligibility_facts is None
+                else request.eligibility_facts.model_dump()
+            )
             next_scan_at = (
                 datetime.now(UTC)
                 if request.active and not existing["active"]
@@ -144,7 +151,7 @@ class CareerStore(Database):
                     required_keywords = %s, excluded_keywords = %s, locations = %s,
                     remote_only = %s, employment_types = %s, max_age_hours = %s,
                     min_score = %s, schedule_minutes = %s, source_config = %s,
-                    application_identity = %s, resume_text = %s,
+                    application_identity = %s, eligibility_facts = %s, resume_text = %s,
                     auto_prepare = %s, auto_prepare_min_score = %s,
                     max_auto_prepare_per_scan = %s, active = %s, next_scan_at = %s
                 WHERE id = %s
@@ -165,6 +172,7 @@ class CareerStore(Database):
                     request.schedule_minutes,
                     Jsonb(request.source_config.model_dump()),
                     Jsonb(application_identity),
+                    Jsonb(eligibility_facts),
                     resume_text,
                     request.auto_prepare,
                     request.auto_prepare_min_score,
@@ -189,6 +197,7 @@ class CareerStore(Database):
                     "profile_id": str(profile_id),
                     "active": request.active,
                     "resume_replaced": request.resume_text is not None,
+                    "eligibility_facts_changed": request.eligibility_facts is not None,
                 },
             )
             connection.commit()
@@ -241,7 +250,8 @@ class CareerStore(Database):
         with self.connect() as connection:
             profile = connection.execute(
                 """
-                SELECT auto_prepare, auto_prepare_min_score, max_auto_prepare_per_scan
+                SELECT auto_prepare, auto_prepare_min_score, max_auto_prepare_per_scan,
+                       resume_text, eligibility_facts
                 FROM career_profiles WHERE id = %s
                 """,
                 (profile_id,),
@@ -301,6 +311,7 @@ class CareerStore(Database):
                         profile["auto_prepare"]
                         and opportunity["score"] >= profile["auto_prepare_min_score"]
                         and quality_blocker(opportunity) is None
+                        and eligibility_blocker(profile, opportunity) is None
                         and len(auto_prepare_ids) < profile["max_auto_prepare_per_scan"]
                     ):
                         auto_prepare_ids.append(saved["id"])
@@ -324,6 +335,9 @@ class CareerStore(Database):
         result["quality"] = assess_opportunity(result)
         if isinstance(preferences, dict):
             result["fit_report"] = diagnose_opportunity(result, preferences)
+        private_evidence = result.pop("eligibility_evidence", None)
+        if isinstance(private_evidence, dict):
+            result["eligibility"] = assess_eligibility(private_evidence, result)
         return result
 
     def list_opportunities(
@@ -339,6 +353,8 @@ class CareerStore(Database):
                 SELECT o.*, d.content AS latest_draft,
                        row_to_json(pf.*) AS latest_preflight,
                        row_to_json(a.*) AS latest_action,
+                       jsonb_build_object('resume_text', profile.resume_text,
+                           'eligibility_facts', profile.eligibility_facts) AS eligibility_evidence,
                        jsonb_build_object(
                            'desired_titles', profile.desired_titles, 'skills', profile.skills,
                            'required_keywords', profile.required_keywords,
@@ -389,6 +405,8 @@ class CareerStore(Database):
                 SELECT o.*, d.content AS latest_draft,
                        row_to_json(pf.*) AS latest_preflight,
                        row_to_json(a.*) AS latest_action,
+                       jsonb_build_object('resume_text', profile.resume_text,
+                           'eligibility_facts', profile.eligibility_facts) AS eligibility_evidence,
                        jsonb_build_object(
                            'desired_titles', profile.desired_titles, 'skills', profile.skills,
                            'required_keywords', profile.required_keywords,

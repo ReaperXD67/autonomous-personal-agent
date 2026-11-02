@@ -658,3 +658,21 @@ already-locked Apply/contact/creator-run scope, including time-dependent
 publication, Gmail and draft validity, without new locks under the global gate.
 This preserves the career milestone's independent mail/contact boundary while
 closing time-of-check gaps introduced by a global pacing wait.
+
+## 2026-11-02 — Public platform discovery and qualification boundary
+
+ADR-0035 adds bounded public YC company discovery to the existing governed career
+search handler. Matching exact publication metadata is required; account redirects
+and native YC applications remain manual. A pure LinkedIn/YC reference parser
+retains an observed supported employer ATS destination without a new scraper or
+account executor. Existing ATS submission hosts and high-risk approval paths stay
+authoritative. Migration 027 widens durable source identity and adds separate
+optional owner screening facts; migration replay preserves existing YC rows.
+
+A deterministic mandatory-qualification assessment reads explicit private résumé
+evidence and strictly scoped facts. Automatic preparation, selection, delegated
+approval and final receipt refuse unverified mandatory requirements. Public reports
+strip private evidence. Facts and the eligibility-policy version bind Play grants,
+requiring renewed scope after an upgrade. The current one-to-ten rolling-day ceiling
+does not relax fit, freshness, duplicate protection or unknown form answers. No new
+service, production dependency, inference route, credential or email sender is added.

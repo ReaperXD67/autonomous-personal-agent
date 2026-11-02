@@ -4,10 +4,22 @@ from datetime import datetime
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    ValidationInfo,
+    field_validator,
+    model_validator,
+)
 
 from app.action_models import ApplicationIdentity
-from app.career_sources import normalize_source_boards
+from app.career_sources import (
+    CareerDiscoveryLead,
+    normalize_source_boards,
+    normalize_yc_companies,
+)
 
 
 def _clean_values(values: list[str], *, limit: int = 40) -> list[str]:
@@ -34,6 +46,13 @@ class CareerSourceConfig(BaseModel):
     lever_boards: list[str] = Field(default_factory=list)
     lever_eu_boards: list[str] = Field(default_factory=list)
     smartrecruiters_boards: list[str] = Field(default_factory=list)
+    yc_companies: list[str] = Field(default_factory=list)
+    discovery_leads: list[CareerDiscoveryLead] = Field(default_factory=list, max_length=50)
+
+    @field_validator("yc_companies")
+    @classmethod
+    def validate_yc_companies(cls, values: list[str]) -> list[str]:
+        return normalize_yc_companies(values)
 
     @field_validator(
         "ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards",
@@ -53,9 +72,16 @@ class CareerSourceConfig(BaseModel):
             and not self.lever_boards
             and not self.lever_eu_boards
             and not self.smartrecruiters_boards
+            and not self.yc_companies
         ):
             raise ValueError("At least one reviewed career source must be enabled")
         return self
+
+
+class CareerEligibilityFacts(BaseModel):
+    """Optional owner-supplied screening facts; never inferred from residence."""
+    model_config = ConfigDict(extra="forbid")
+    india_authorized_without_sponsorship: StrictBool | None = None
 
 
 class CareerProfileCreate(BaseModel):
@@ -77,6 +103,7 @@ class CareerProfileCreate(BaseModel):
     schedule_minutes: int = Field(default=360, ge=360, le=10080)
     source_config: CareerSourceConfig = Field(default_factory=CareerSourceConfig)
     application_identity: ApplicationIdentity | None = None
+    eligibility_facts: CareerEligibilityFacts = Field(default_factory=CareerEligibilityFacts)
     resume_text: str = Field(default="", max_length=100000)
     auto_prepare: bool = False
     auto_prepare_min_score: int = Field(default=75, ge=0, le=100)
@@ -115,6 +142,7 @@ class CareerProfileUpdate(BaseModel):
     schedule_minutes: int = Field(default=360, ge=360, le=10080)
     source_config: CareerSourceConfig = Field(default_factory=CareerSourceConfig)
     application_identity: ApplicationIdentity | None = None
+    eligibility_facts: CareerEligibilityFacts | None = None
     resume_text: str | None = Field(default=None, max_length=100000)
     auto_prepare: bool = False
     auto_prepare_min_score: int = Field(default=75, ge=0, le=100)
@@ -152,6 +180,7 @@ class CareerProfileView(BaseModel):
     schedule_minutes: int
     source_config: dict[str, Any]
     application_identity: dict[str, Any]
+    eligibility_facts: dict[str, Any] = Field(default_factory=dict)
     active: bool
     auto_prepare: bool
     auto_prepare_min_score: int
@@ -200,6 +229,7 @@ class OpportunityView(BaseModel):
     latest_action: dict[str, Any] | None = None
     quality: dict[str, Any] = Field(default_factory=dict)
     fit_report: dict[str, Any] = Field(default_factory=dict)
+    eligibility: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

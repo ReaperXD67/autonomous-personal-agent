@@ -34,6 +34,7 @@ from app.career_autopilot_store import CareerAutopilotStore
 from app.career_smartrecruiters import fetch_smartrecruiters, smartrecruiters_country_hint
 from app.career_tracking import execute_gmail_sync
 from app.career_tracking_store import CareerTrackingStore
+from app.career_yc import fetch_yc
 from app.creator_automation_gmail import execute_creator_gmail_sync
 from app.creator_automation_store import CreatorAutomationStore
 from app.creator_draft_batch_store import CreatorDraftBatchStore
@@ -278,6 +279,29 @@ def execute_career_task(
             except Exception as exc:
                 _check_interrupted(interrupt)
                 source_errors.append(f"smartrecruiters/{board}: {type(exc).__name__}")
+
+        yc_detail_budget = 20
+        for company in source_config.get("yc_companies", []):
+            _check_interrupted(interrupt)
+            sources_attempted += 1
+            coverage = {}
+            try:
+                fetched.extend(fetch_yc(
+                    company, max_age_hours=profile.get("max_age_hours", 72),
+                    checkpoint=lambda: _check_interrupted(interrupt), coverage=coverage,
+                    search_titles=profile.get("desired_titles", []),
+                    detail_limit=min(10, yc_detail_budget),
+                ))
+                sources_succeeded += 1
+            except Exception as exc:
+                _check_interrupted(interrupt)
+                source_errors.append(f"yc/{company}: {type(exc).__name__}")
+            finally:
+                yc_detail_budget = max(
+                    0, yc_detail_budget - int(coverage.get("details_fetched") or 0),
+                )
+                if coverage:
+                    source_coverage.append(coverage)
 
         if sources_attempted == 0:
             raise ValueError("Career profile has no enabled job sources")

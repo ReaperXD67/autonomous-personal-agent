@@ -17,7 +17,7 @@ from app.marketing_store import MarketingStore
 
 @pytest.mark.parametrize("url,provider,key,board,posting", [
     ("https://jobs.ashbyhq.com/example", "ashby", "ashby_boards", "example", None),
-    ("https://jobs.ashbyhq.com/Example/role-1/application?utm_source=linkedin#form",
+    ("https://jobs.ashbyhq.com/Example/role-1/application?utm_source=linkedin",
      "ashby", "ashby_boards", "Example", "https://jobs.ashbyhq.com/Example/role-1"),
     ("https://job-boards.greenhouse.io/example/jobs/123?gh_src=yc",
      "greenhouse", "greenhouse_boards", "example",
@@ -57,6 +57,7 @@ def test_resolves_reviewed_employer_links_without_model_or_network(
     "https://boards.greenhouse.io/embed/job_app?for=example&for=other&token=123",
     "https://boards.greenhouse.io/embed/job_app?for=example&token=123&token=456",
     "https://jobs.lever.co/example/role/application", "https://jobs.ashbyhq.com/example/role/apply",
+    "https://jobs.ashbyhq.com/example/role#form",
 ])
 def test_rejects_unreviewed_origins_and_ambiguous_paths(url):
     with pytest.raises(ValueError):
@@ -64,7 +65,7 @@ def test_rejects_unreviewed_origins_and_ambiguous_paths(url):
 
 
 @pytest.mark.parametrize("url", [
-    "https://www.linkedin.com/jobs/view/123", "https://www.ycombinator.com/companies/example/jobs",
+    "https://www.linkedin.com/jobs/view/123",
     "https://www.workatastartup.com/jobs/123",
 ])
 def test_platform_links_have_actionable_employer_import_guidance(url):

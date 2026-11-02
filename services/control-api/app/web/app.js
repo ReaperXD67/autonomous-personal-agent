@@ -705,6 +705,7 @@ function renderCareerReadiness() {
   (state.careerAutopilot?.sources || []).forEach((source) => {
     const row = node("div", "career-source-row");
     row.append(node("strong", "", `${source.name} · ${titleCase(source.status)}`), node("p", "", source.description));
+    if (source.id === "yc") row.append(node("p", "fine-print", "YC account applications are not connected. Open the official job page to apply manually."));
     if (source.url) row.append(researchLink("Open source", source.url));
     details.append(row);
   });
@@ -856,8 +857,15 @@ function missionCard(profile, compact = false) {
     }
     card.append(checks);
     const sources = profile.source_config || {};
-    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever", "lever_eu", "smartrecruiters"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : "")].filter(Boolean);
+    const sourceNames = [sources.arbeitnow ? "Arbeitnow" : "", sources.remotive ? "Remotive (24h delay)" : "", ...["ashby", "greenhouse", "lever", "lever_eu", "smartrecruiters"].map((name) => (sources[`${name}_boards`] || []).length ? `${titleCase(name)}: ${sources[`${name}_boards`].join(", ")}` : ""), sources.yc_companies?.length ? `YC (manual applications): ${sources.yc_companies.join(", ")}` : ""].filter(Boolean);
     card.append(node("p", "fine-print", `Configured discovery: ${sourceNames.join(" · ") || "No source configured"}`));
+    const india = profile.eligibility_facts?.india_authorized_without_sponsorship;
+    card.append(node("p", "fine-print", `India work authorization: ${india === true ? "confirmed without employer sponsorship" : india === false ? "employer sponsorship needed" : "unknown"}.`));
+    if (sources.discovery_leads?.length) {
+      const references = node("details", "career-scan-evidence");
+      references.append(node("summary", "", `Saved discovery references · ${sources.discovery_leads.length}`), careerDiscoveryReferences(sources.discovery_leads));
+      card.append(references);
+    }
     card.append(careerScanEvidence(profile.id));
     const actions = node("div", "mission-actions");
     actions.append(button("Scan now", "button compact", "scan-profile", profile.id), button("Edit mission", "text-button", "edit-profile", profile.id), button("View applications", "text-button", "career-applications", profile.id));
@@ -942,8 +950,10 @@ function opportunityCard(opportunity) {
   opportunity.score_reasons.slice(0, 3).forEach((reason) => reasons.append(node("li", "", reason)));
   card.append(reasons);
   card.append(careerQualityEvidence(opportunity, true));
+  card.append(careerEligibilityEvidence(opportunity, true));
   card.append(careerFitEvidence(opportunity, true));
   if (opportunity.source === "smartrecruiters") card.append(node("p", "fine-print", "Discovery and drafting supported · submit through the employer page manually."));
+  if (opportunity.source === "yc") card.append(node("p", "fine-print", "YC public discovery · apply manually on the YC job page. YC account applications are not connected."));
   if (opportunity.source === "remotive") card.append(researchLink("View the original Remotive listing", opportunity.source_url));
   const actions = node("div", "card-actions");
   actions.append(button("Inspect", "button compact", "view-opportunity", opportunity.id));
@@ -992,6 +1002,45 @@ function careerQualityEvidence(opportunity, compact = false) {
   (quality.signals || []).forEach((signal) => list.append(node("li", "", signal.message)));
   if (list.childElementCount) root.append(list);
   root.append(node("p", "fine-print", quality.limitations || "Automated checks cannot prove an employer or listing is genuine."));
+  return root;
+}
+
+const careerEligibilityMessages = {
+  mandatory_tenure_unverified: "Explicit résumé evidence does not establish this tenure.",
+  mandatory_degree_unverified: "The required degree or equivalence is not established.",
+  mandatory_graduation_batch_unverified: "The required graduation cohort is not established.",
+  mandatory_enrollment_unverified: "Required current enrollment is not established.",
+  mandatory_work_authorization_unverified: "Required work or citizenship status is unstated.",
+  qualification_scan_incomplete: "The posting exceeds the bounded qualification review.",
+};
+
+function careerEligibilityEvidence(opportunity, compact = false) {
+  const report = opportunity.eligibility;
+  const root = node(compact ? "details" : "section", "career-fit-evidence career-eligibility");
+  if (!["review_required", "no_blocking_requirement"].includes(report?.disposition)) {
+    root.append(node(compact ? "summary" : "h3", "", "Mandatory qualification checks unavailable"), node("p", "fine-print", "Review the original requirements."));
+    return root;
+  }
+  const review = report.disposition === "review_required";
+  root.append(node(compact ? "summary" : "h3", "", review ? "Mandatory qualifications · review required" : "Mandatory qualifications · no blocking requirement found"));
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const entries = node("ul");
+  findings.slice(0, 20).forEach((finding) => {
+    const entry = node("li");
+    entry.append(node("p", "", careerEligibilityMessages[finding.code] || "Review this requirement against your verified facts."));
+    if (typeof finding.requirement_excerpt === "string" && finding.requirement_excerpt) entry.append(node("blockquote", "", finding.requirement_excerpt));
+    entries.append(entry);
+  });
+  if (entries.childElementCount) root.append(entries);
+  if (!findings.length && Array.isArray(report.requirements) && report.requirements.length) {
+    const requirements = node("details");
+    requirements.append(node("summary", "", "Public requirements checked"));
+    report.requirements.slice(0, 20).forEach((requirement) => {
+      if (typeof requirement.excerpt === "string" && requirement.excerpt) requirements.append(node("blockquote", "", requirement.excerpt));
+    });
+    root.append(requirements);
+  }
+  root.append(node("p", "fine-print", "This bounded requirement review does not certify eligibility. It does not infer completed education, experience or work authorization."));
   return root;
 }
 
@@ -2892,6 +2941,7 @@ function profilePayload(profile, overrides = {}) {
     min_score: profile.min_score,
     schedule_minutes: profile.schedule_minutes,
     source_config: profile.source_config,
+    eligibility_facts: profile.eligibility_facts || { india_authorized_without_sponsorship: null },
     application_identity: null,
     resume_text: null,
     auto_prepare: profile.auto_prepare,
@@ -2910,6 +2960,8 @@ function openProfileDialog(profile = null) {
   careerSourceRequest += 1;
   $("#career-source-resolve").disabled = false;
   $("#career-source-result").textContent = "";
+  careerEditingDiscoveryLeads = Array.isArray(profile?.source_config?.discovery_leads) ? profile.source_config.discovery_leads.map((lead) => ({ ...lead })) : [];
+  renderCareerDiscoveryLeads();
   form.elements.profile_id.value = profile?.id || "";
   $("#profile-dialog-title").textContent = profile ? "Edit career mission" : "Create a job-hunt mission";
   $("#resume-help").textContent = profile?.resume_present ? `A ${profile.resume_characters.toLocaleString()} character résumé is stored. Leave blank to keep it.` : "Paste plain text. Stored privately; never sent to job sources.";
@@ -2926,6 +2978,9 @@ function openProfileDialog(profile = null) {
     form.elements.lever_boards.value = (profile.source_config.lever_boards || []).join(", ");
     form.elements.lever_eu_boards.value = (profile.source_config.lever_eu_boards || []).join(", ");
     form.elements.smartrecruiters_boards.value = (profile.source_config.smartrecruiters_boards || []).join(", ");
+    form.elements.yc_companies.value = (profile.source_config.yc_companies || []).join(", ");
+    const india = profile.eligibility_facts?.india_authorized_without_sponsorship;
+    form.elements.india_authorized_without_sponsorship.value = india === true ? "true" : india === false ? "false" : "";
     for (const name of ["first_name", "last_name", "email", "phone", "identity_location", "linkedin_url", "github_url", "portfolio_url"]) {
       const identityName = name === "identity_location" ? "location" : name;
       form.elements[name].value = profile.application_identity?.[identityName] || "";
@@ -2936,27 +2991,70 @@ function openProfileDialog(profile = null) {
 }
 
 let careerSourceRequest = 0;
+let careerEditingDiscoveryLeads = [];
+
+function careerDiscoveryReferences(leads, editable = false) {
+  const root = node("div");
+  const list = node("ul");
+  leads.forEach((lead, index) => {
+    const platform = lead.platform === "linkedin" ? "LinkedIn" : lead.platform === "yc" ? "YC" : "Discovery";
+    const entry = node("li");
+    entry.append(researchLink(`${platform} reference ${index + 1}`, lead.source_url), document.createTextNode(" · "), researchLink("Observed employer destination", lead.employer_url));
+    if (editable) {
+      const remove = button("Remove reference", "text-button", "remove-career-source-lead", String(index));
+      remove.setAttribute("aria-label", `Remove ${platform} reference ${index + 1}`);
+      entry.append(document.createTextNode(" · "), remove);
+    }
+    list.append(entry);
+  });
+  if (list.childElementCount) root.append(list);
+  else root.append(node("p", "fine-print", "No paired discovery references saved."));
+  return root;
+}
+
+function renderCareerDiscoveryLeads() {
+  $("#career-source-leads").replaceChildren(careerDiscoveryReferences(careerEditingDiscoveryLeads, true));
+}
+
+function removeCareerDiscoveryLead(index) {
+  if (!Number.isInteger(index) || index < 0 || index >= careerEditingDiscoveryLeads.length) return;
+  careerEditingDiscoveryLeads.splice(index, 1);
+  renderCareerDiscoveryLeads();
+  const remaining = $$('[data-action="remove-career-source-lead"]', $("#career-source-leads"));
+  (remaining[Math.min(index, remaining.length - 1)] || $("#profile-form").elements.career_source_url).focus();
+}
+
 async function resolveCareerSource() {
   const form = $("#profile-form");
   const input = form.elements.career_source_url;
   const result = $("#career-source-result");
   const submit = $("#career-source-resolve");
   const url = input.value.trim();
-  if (!url) { result.textContent = "Paste an employer's Ashby, Greenhouse, or Lever URL first."; input.focus(); return; }
+  const employerUrl = form.elements.career_employer_url.value.trim();
+  if (!url) { result.textContent = "Paste a supported employer, YC company or LinkedIn job URL first."; input.focus(); return; }
   const request = ++careerSourceRequest;
   const profileId = form.elements.profile_id.value;
   submit.disabled = true;
   result.textContent = "Checking the board URL…";
   try {
-    const source = await api("/v1/career/sources/resolve", { method: "POST", body: JSON.stringify({ url }) });
-    if (request !== careerSourceRequest || !$("#profile-dialog").open || form.elements.profile_id.value !== profileId || input.value.trim() !== url) return;
-    const allowedKeys = new Set(["ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards", "smartrecruiters_boards"]);
+    const source = await api("/v1/career/sources/resolve", { method: "POST", body: JSON.stringify({ url, ...(employerUrl ? { employer_url: employerUrl } : {}) }) });
+    if (request !== careerSourceRequest || !$("#profile-dialog").open || form.elements.profile_id.value !== profileId || input.value.trim() !== url || form.elements.career_employer_url.value.trim() !== employerUrl) return;
+    const allowedKeys = new Set(["ashby_boards", "greenhouse_boards", "lever_boards", "lever_eu_boards", "smartrecruiters_boards", "yc_companies"]);
     if (!allowedKeys.has(source.source_config_key)) throw new Error("The resolved source is not supported by this form.");
     const field = form.elements[source.source_config_key];
+    if (source.discovery_platform && source.discovery_url && source.employer_url) {
+      const lead = { platform: source.discovery_platform, source_url: source.discovery_url, employer_url: source.employer_url };
+      if (!careerEditingDiscoveryLeads.some((saved) => saved.platform === lead.platform && saved.source_url === lead.source_url && saved.employer_url === lead.employer_url)) {
+        if (careerEditingDiscoveryLeads.length >= 50) throw new Error("Save up to 50 discovery references. Remove an older reference before adding another.");
+        careerEditingDiscoveryLeads.push(lead);
+        renderCareerDiscoveryLeads();
+      }
+    }
     field.value = [...new Set([...csv(field.value), source.board])].join(", ");
-    result.textContent = `${titleCase(source.provider)} board added to this form. ${source.notice} Save the mission to enable discovery.`;
+    const provider = source.provider === "yc" ? "YC company" : source.provider === "smartrecruiters" ? "SmartRecruiters board" : `${titleCase(source.provider)} board`;
+    result.textContent = `${provider} added to this form. ${source.notice} Save the mission to enable discovery.`;
   } catch (error) {
-    if (request === careerSourceRequest && $("#profile-dialog").open) result.textContent = error.message;
+    if (request === careerSourceRequest && $("#profile-dialog").open && input.value.trim() === url && form.elements.career_employer_url.value.trim() === employerUrl) result.textContent = error.message;
   } finally { if (request === careerSourceRequest) submit.disabled = false; }
 }
 
@@ -2975,6 +3073,8 @@ async function saveProfile(event) {
     portfolio_url: form.elements.portfolio_url.value.trim() || null,
   };
   const applicationIdentity = identityValues.email ? identityValues : null;
+  const existing = state.profiles.find((profile) => profile.id === id);
+  const india = form.elements.india_authorized_without_sponsorship.value;
   const payload = {
     name: form.elements.name.value.trim(),
     candidate_name: form.elements.candidate_name.value.trim(),
@@ -2988,7 +3088,8 @@ async function saveProfile(event) {
     max_age_hours: Number(form.elements.max_age_hours.value),
     min_score: Number(form.elements.min_score.value),
     schedule_minutes: Number(form.elements.schedule_minutes.value),
-    source_config: { arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value), lever_eu_boards: csv(form.elements.lever_eu_boards.value), smartrecruiters_boards: csv(form.elements.smartrecruiters_boards.value) },
+    source_config: { ...(existing?.source_config || {}), arbeitnow: form.elements.arbeitnow.checked, remotive: form.elements.remotive.checked, ashby_boards: csv(form.elements.ashby_boards.value), greenhouse_boards: csv(form.elements.greenhouse_boards.value), lever_boards: csv(form.elements.lever_boards.value), lever_eu_boards: csv(form.elements.lever_eu_boards.value), smartrecruiters_boards: csv(form.elements.smartrecruiters_boards.value), yc_companies: csv(form.elements.yc_companies.value), discovery_leads: careerEditingDiscoveryLeads.map((lead) => ({ ...lead })) },
+    eligibility_facts: { ...(existing?.eligibility_facts || {}), india_authorized_without_sponsorship: india === "true" ? true : india === "false" ? false : null },
     application_identity: applicationIdentity,
     resume_text: form.elements.resume_text.value || (id ? null : ""),
     auto_prepare: form.elements.auto_prepare.checked,
@@ -3637,7 +3738,10 @@ function showOpportunity(id) {
   opportunity.score_reasons.forEach((reason) => reasons.append(node("li", "", reason)));
   root.append(reasons, node("div", "detail-description", opportunity.description || "No description supplied by source."));
   root.append(careerQualityEvidence(opportunity));
+  root.append(careerEligibilityEvidence(opportunity));
   root.append(careerFitEvidence(opportunity));
+  const manualSource = ["yc", "smartrecruiters"].includes(opportunity.source);
+  if (opportunity.source === "yc") root.append(node("p", "notice", "YC public discovery only. Apply manually on the YC job page; YC account applications are not connected."));
   if (opportunity.latest_draft) {
     const draft = opportunity.latest_draft;
     const box = node("section", "draft-box");
@@ -3664,8 +3768,9 @@ function showOpportunity(id) {
   catch (_error) { source.removeAttribute("href"); source.textContent = "Unsafe source URL rejected"; }
   source.target = "_blank";
   source.rel = "noopener noreferrer";
-  actions.append(source, button("Generate private draft", "button", "draft-opportunity", id), button("Inspect application form", "button", "preflight-opportunity", id));
-  if (opportunity.latest_draft && opportunity.latest_preflight && !opportunity.latest_preflight.blocked_reason) actions.append(button("Prepare exact submission", "button primary", "plan-opportunity", id));
+  actions.append(source, button("Generate private draft", "button", "draft-opportunity", id));
+  if (!manualSource) actions.append(button("Inspect application form", "button", "preflight-opportunity", id));
+  if (!manualSource && opportunity.latest_draft && opportunity.latest_preflight && !opportunity.latest_preflight.blocked_reason) actions.append(button("Prepare exact submission", "button primary", "plan-opportunity", id));
   actions.append(button("Prepare follow-up email", "text-button", "email-opportunity", id), button("Mark applied after manual submission", "text-button", "applied-opportunity", id), button("Dismiss", "text-button danger-text", "dismiss-opportunity", id));
   root.append(actions);
   $("#detail-dialog").showModal();
@@ -3752,6 +3857,7 @@ document.addEventListener("click", async (event) => {
   }
   if (action === "new-profile") return openProfileDialog();
   if (action === "resolve-career-source") return resolveCareerSource();
+  if (action === "remove-career-source-lead") return removeCareerDiscoveryLead(Number(id));
   if (action === "edit-profile") return openProfileDialog(state.profiles.find((item) => item.id === id));
   if (action === "toggle-profile") return toggleProfile(id);
   if (action === "play-career") return openCareerPlay(id);

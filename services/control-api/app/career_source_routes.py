@@ -12,6 +12,6 @@ router = APIRouter(prefix="/v1/career/sources", dependencies=[Depends(require_ap
 def resolve_source(payload: CareerSourceResolve) -> ResolvedCareerSource:
     """A pure URL parser: no source request, profile mutation or application authority."""
     try:
-        return resolve_career_source(payload.url)
+        return resolve_career_source(payload.url, employer_url=payload.employer_url)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

@@ -35,6 +35,7 @@ try {
     & (Join-Path $PSScriptRoot 'creator-pilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-autopilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-contact-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'career-platform-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-ui-smoke.ps1') -SkipBuild
     & (Join-Path $PSScriptRoot 'application-field-safety-smoke.ps1') -SkipBuild
     & (Join-Path $PSScriptRoot 'creator-ui-smoke.ps1') -SkipBuild

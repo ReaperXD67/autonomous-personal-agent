@@ -9,12 +9,14 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from app.application_browser import canonical_hash
 from app.career import SCORING_POLICY_VERSION, score_opportunity
 from app.career_application_quality import application_quality_blocker
+from app.career_eligibility import ELIGIBILITY_POLICY_VERSION, eligibility_blocker
 from app.career_quality import quality_blocker
 
 PROFILE_SCOPE_FIELDS = (
     "candidate_name",
     "resume_text",
     "application_identity",
+    "eligibility_facts",
     "desired_titles",
     "skills",
     "required_keywords",
@@ -44,6 +46,7 @@ OPPORTUNITY_SCOPE_FIELDS = (
 def profile_hash(profile: dict[str, Any]) -> str:
     return canonical_hash({
         "scoring_policy_version": SCORING_POLICY_VERSION,
+        "eligibility_policy_version": ELIGIBILITY_POLICY_VERSION,
         "profile": {key: profile.get(key) for key in PROFILE_SCOPE_FIELDS},
     })
 
@@ -116,7 +119,7 @@ def eligibility_reason(
     scored = score_opportunity(opportunity, profile, now=now)
     if scored is None or scored["score"] < run["min_score"]:
         return "Opportunity no longer meets the authorized fit threshold"
-    return None
+    return eligibility_blocker(profile, opportunity, now=now)
 
 
 def hiring_email(description: str) -> str | None:
