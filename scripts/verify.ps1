@@ -14,6 +14,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Image build failed' }
     & (Join-Path $PSScriptRoot 'test.ps1') -SkipBuild
     & (Join-Path $PSScriptRoot 'smtp-setup-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'creator-review-api-smoke.ps1')
     docker compose up -d
     if ($LASTEXITCODE -ne 0) { throw 'Stack startup failed' }
     # Compose omits profiled services from a default up, even when already running.

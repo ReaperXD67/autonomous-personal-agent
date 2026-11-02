@@ -48,7 +48,9 @@ def email_content_error(body: str) -> str | None:
     return None
 
 
-def guard_career_contact_action(connection: Any, action: dict[str, Any]) -> None:
+def guard_career_contact_action(
+    connection: Any, action: dict[str, Any], *, acquire_locks: bool = True,
+) -> None:
     from app.action_store import SideEffectGuardError
 
     packet = action["private_context"].get("career_contact")
@@ -62,13 +64,16 @@ def guard_career_contact_action(connection: Any, action: dict[str, Any]) -> None
     if ledger is None or str(ledger["contact_id"]) != packet.get("contact_id"):
         raise SideEffectGuardError("Career contact action has no matching durable ledger")
     contact = connection.execute(
-        "SELECT * FROM career_contacts WHERE id = %s FOR SHARE", (ledger["contact_id"],),
+        ("SELECT * FROM career_contacts WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT * FROM career_contacts WHERE id = %s"), (ledger["contact_id"],),
     ).fetchone()
     opportunity = connection.execute(
-        "SELECT * FROM job_opportunities WHERE id = %s FOR SHARE", (ledger["opportunity_id"],),
+        ("SELECT * FROM job_opportunities WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT * FROM job_opportunities WHERE id = %s"), (ledger["opportunity_id"],),
     ).fetchone()
     profile = connection.execute(
-        "SELECT * FROM career_profiles WHERE id = %s FOR SHARE", (ledger["profile_id"],),
+        ("SELECT * FROM career_profiles WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT * FROM career_profiles WHERE id = %s"), (ledger["profile_id"],),
     ).fetchone()
     if contact is None or profile is None or opportunity is None:
         raise SideEffectGuardError("Career contact source records are missing")
@@ -88,8 +93,9 @@ def guard_career_contact_action(connection: Any, action: dict[str, Any]) -> None
     if error:
         raise SideEffectGuardError(error)
     draft = connection.execute(
-        "SELECT content FROM job_application_drafts WHERE id = %s "
-        "AND opportunity_id = %s FOR SHARE",
+        ("SELECT content FROM job_application_drafts WHERE id = %s "
+         "AND opportunity_id = %s FOR SHARE" if acquire_locks else
+         "SELECT content FROM job_application_drafts WHERE id = %s AND opportunity_id = %s"),
         (packet.get("draft_id"), opportunity["id"]),
     ).fetchone()
     if draft is None or canonical_hash(draft["content"]) != packet.get("draft_sha256"):

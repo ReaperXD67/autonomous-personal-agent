@@ -399,6 +399,57 @@ def test_unbound_automation_scope_never_creates_authority():
     assert "reservation" in reason
 
 
+@pytest.mark.parametrize("mutation", ["expiry", "gmail", "reply"])
+def test_post_lock_creator_recheck_keeps_time_and_reply_fences_without_new_locks(mutation):
+    campaign_id, prospect_id, run_id, action_id = [uuid4() for _ in range(4)]
+    configured = campaign()
+    authorized = run(monitor_gmail=True, campaign_id=campaign_id)
+    reservation = {"run_id": run_id, "context_hash": "frozen", "campaign_id": campaign_id,
+                   "prospect_id": prospect_id, "stage": "initial"}
+    action = {"id": action_id, "context_hash": "frozen", "private_context": {
+        "marketing": {"campaign_id": str(campaign_id)},
+        "creator_automation": {"run_id": str(run_id)},
+    }}
+    clock = [NOW]
+    state = {"gmail": True, "pending": False}
+    statements = []
+
+    def execute(query, params=()):
+        statements.append(query.upper())
+        if "creator_reply_messages" in query:
+            value = {"pending": 1} if state["pending"] else None
+        elif "creator_automation_actions" in query:
+            value = reservation
+        elif "creator_automation_runs" in query:
+            value = authorized
+        elif "marketing_campaigns" in query:
+            value = configured
+        elif "marketing_prospects" in query:
+            value = creator()
+        elif "clock_timestamp() AS now" in query:
+            value = {"now": clock[0]}
+        elif "creator_gmail_sync_state" in query:
+            value = {"fresh": 1} if state["gmail"] else None
+        else:
+            raise AssertionError("Unexpected validation query")
+        return Mock(fetchone=Mock(return_value=value))
+
+    connection = Mock(execute=execute)
+    assert validate_creator_automation(connection, action, acquire_locks=False) is None
+    if mutation == "expiry":
+        clock[0] += timedelta(hours=2)
+        expected = "expired"
+    elif mutation == "gmail":
+        state["gmail"] = False
+        expected = "recent completed sync"
+    else:
+        state["pending"] = True
+        expected = "Review new creator replies"
+    assert expected in validate_creator_automation(connection, action, acquire_locks=False)
+    assert all("FOR UPDATE" not in query and "FOR SHARE" not in query
+               and "PG_ADVISORY" not in query for query in statements)
+
+
 def test_gmail_cannot_run_when_disabled():
     settings = Mock(creator_gmail_enabled=False)
     with pytest.raises(GmailSyncError, match="disabled"):

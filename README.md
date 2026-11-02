@@ -40,6 +40,7 @@ flowchart LR
 **Start here:** [Career Play and Gmail](docs/operations/career-autopilot.md)
 · [Local proof](#quick-start-windows--docker-desktop)
 · [Minecraft creator workflow](docs/operations/minecraft-creator-workflow.md)
+· [Continue creator outreach](docs/operations/creator-outreach-continuation.md)
 · [Architecture](docs/architecture/overview.md)
 · [Roadmap](docs/roadmap.md)
 
@@ -79,8 +80,9 @@ understand what happened and take over at the right moment.
 - **Learning you can inspect:** reviewed objections, distinct-creator counts,
   three draft strategies, and reasons for each selection. Sparse data stays a
   hypothesis; there is no promise of replies, collaborations, or revenue.
-- **Control that survives restarts:** finite send authority, durable pacing,
-  duplicate protection, opt-out suppression, and a final check before SMTP.
+- **Control at the send boundary:** finite authority, actual-send pacing with
+  durable deferral of overdue work, duplicate protection, opt-out suppression,
+  and a final check before SMTP.
 - **Honest delivery evidence:** a captured local message, SMTP acceptance, and
   inbox arrival are separate claims. Unconfigured providers stay visibly unverified.
 
@@ -104,12 +106,13 @@ understand what happened and take over at the right moment.
 | Career Play/Pause | Implemented; external application proof pending | Choose preparation or authorize a bounded automatic run: fresh published listings, minimum fit, selected ATS hosts, rolling application cap, separate preparation allowance, expiry, profile binding, and duplicate prevention. Prepared actions stay linked to progress; optional job-published hiring email shares submission limits |
 | Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form/default-state signature, typed explicit consent, purpose-bound PDF résumé upload and durable receipt. Unknown documents, login and CAPTCHA stop for review; SmartRecruiters submission stays manual |
-| Email sender | Live SMTP and owned-inbox receipt verified | One approved Gmail self-test passed authenticated STARTTLS, durable acceptance and a matching Inbox Message-ID. This does not prove creator inbox placement. Default shared pacing is 15-minute global/30-minute same-domain gaps, 3/hour, 12/day and jitter; the daily limit is configurable |
-| Creator research and outreach | Reviewed English/Polish outreach continuing | 26 individually approved, paced invitations at the November 2 milestone. See the [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch) for acceptance/queue counts and remaining drafts. SMTP acceptance does not establish inbox placement or creator interest |
+| Email sender | Live SMTP verified; corrected recovery gate locally verified | Authenticated STARTTLS and owned-inbox delivery passed. A recovery audit exposed overdue reservations bursting; the correction checks actual receipts, rechecks finite career/creator authority after waits, and durably defers unstarted work without changing approved copy or expiry. Concurrent/expiry PostgreSQL proofs passed; no new external pacing canary is claimed. See the [continuation evidence](docs/operations/creator-outreach-continuation.md#pausing-and-evidence) |
+| Creator research and outreach | Reviewed English/Polish outreach continuing | Individually approved invitations use durable pacing and reply monitoring. See the [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch) for acceptance/queue counts and remaining drafts. SMTP acceptance does not establish inbox placement or creator interest |
 | API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Current issued reservation history rotates research through unattempted then oldest-attempted creators before contact/relevance tie-breakers. Thirty refreshes per rolling day; no model calls, contact authorization or sends |
 | Minecraft paid-promotion workflow | Local workflow and owned-inbox delivery verified | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery. Actual creator reply/handoff proof remains pending |
 | Grounded creator introductions | English/Polish live canary verified | Models select issued evidence/angle IDs; Hermes renders copy and rederives its provenance. Five real local Qwen drafts were usable unchanged after complete-copy review; this small sample is not an accuracy or reply-rate guarantee. Legacy digests and individual exact approval remain |
 | Creator draft preparation queue | Database and UI flow verified | Up to five eligible reviewed contacts per batch, three by default; durable reservations share the 30/day and 3/prospect preparation limits. Stable children, skips, cancellation and cross-campaign identity deduplication; a batch creates no email approval or sending authority |
+| Creator continuation | Active heartbeat; native cycle verified | Hourly reviewer scope for two campaigns, at most six new introductions per rolling day combined. Daily native discovery and a compact live review cycle passed; the first scheduled Codex wake remains unobserved. Contact, exact-copy and interest review stay explicit |
 | Creator draft quality report | Implemented; review UI verified | Draft review shows computed editorial findings and complete-email word count; API exposes the full report. No score, model call or approval; semantic accuracy, language, fit and terms still need review |
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |

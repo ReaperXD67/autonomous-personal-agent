@@ -45,3 +45,12 @@ mailer. Hermes does not promise inbox placement, automatically warm a domain,
 manage provider DNS, ingest complaints, or provide RFC 8058 HTTPS one-click
 unsubscribe. Those require provider/domain setup and, for list mail, a scoped
 public unsubscribe service before volume increases.
+
+## 2026-11-02 correction
+
+The reservation-only due-time check did not enforce actual recovery cadence:
+seventeen overdue messages were SMTP-accepted within 76 seconds. Its earlier
+synthetic proof was insufficient for that case. [ADR-0034](ADR-0034-actual-smtp-pacing-and-durable-deferral.md)
+adds the shared actual-receipt boundary gate and durable pre-receipt deferral.
+This correction retains approval reservations and their policy intent; it does
+not reinterpret reserved timestamps as actual send evidence.

@@ -1219,6 +1219,124 @@ application was submitted. Full parser length, duplicate and provenance checks
 were retained. Exact upstream references are in the
 [career operations guide](../docs/operations/dashboard-and-career.md).
 
+## Experiment 41 — Explicit business context and reviewed continuation (2026-11-02)
+
+Method: remove every email span from the text used to establish positive
+commercial context before any bounded excerpt is selected. Keep original
+evidence, negative-context refusal, source review and authorization separate.
+The creator-intelligence suite passed seventy-five tests, including thirty-two
+new regressions for address-only labels and bounded neighboring/preceding-line
+cases. These cases establish the tested candidate-filter behavior, not address
+ownership, consent, deliverability or response rate.
+
+The initial combined image passed lint and 1,210 tests. A real compact snapshot
+probe exposed typed-date and nested action-array projection defects; corrected
+native regressions use actual parsed JSON and bounded creation-window cases.
+Bulk discovery was held until active reviewed evidence was protected under the
+existing campaign/prospect locks. The guard records aggregate protected counts,
+adds no task/action row locks and leaves explicit refresh invalidation intact.
+Twelve disposable creator-research PostgreSQL groups verified active AI/manual
+packets, terminal/expiry release, new insertion, protection after row waits and
+explicit refresh still refusing a final side-effect receipt. Before the actual
+recovery-pacing audit, this image passed lint/all 1,216 tests and the complete
+native, career/creator PostgreSQL,
+workflow/scheduler, UI, planner, delivery and recovery verifier.
+
+The two previously reviewed ready messages were individually prepared unchanged
+and approved. Their reserved November 2 releases are 19:07:12 and 19:37:35 UTC,
+before the 20:02:16 UTC packet expiry. The out-of-window regression remains held.
+The continuation retains six new introductions per rolling day combined, existing
+shared pacing/preparation/refresh allowances and individual exact review.
+
+Both campaigns' native daily discovery was enabled without changing other
+copy/compensation/targeting fields. Actual scheduled scans completed around
+November 2 at 05:21 UTC:
+
+| Campaign | Researched records | New | Updated | Protected | Business-contact candidate observations | Automatic authorizations |
+|---|---:|---:|---:|---:|---:|---:|
+| English | 134 | 22 | 105 | 7 | 31 | 0 |
+| Polish | 44 | 7 | 34 | 3 | 10 | 0 |
+| Total | 178 | 29 | 139 | 10 | 41 | 0 |
+
+These are record/candidate observations across campaigns, not unique creators,
+qualified leads or consent. The next native scans were scheduled for November 3
+around 05:21 UTC. Before/after reads preserved all four queued v2
+bodies, digests and research snapshots. A six-GET live compact snapshot verified
+fresh mailbox monitoring in both campaigns, twenty-eight scoped initial actions,
+a complete current creation window and zero pending reply reviews.
+
+The hourly heartbeat was created active and its saved current-chat/hourly
+configuration verified. A scheduled Codex wake remains unobserved; the manual
+snapshot and native scheduled scans do not establish that future execution.
+At November 2, 05:45:50 UTC, the twenty-eight-invitation scope had twenty-three
+SMTP acceptances, four runnable queued v2 packets and one blocked action with a
+dead-lettered task; the action-only projection labeled five queued. Twelve
+earlier acceptances are separate. Both monitors were fresh, the creation window
+complete and pending replies zero. Confirmed interest and handoffs remained
+zero. No queued message, candidate or schedule is counted as inbox arrival, an
+interested lead, model learning or a response-rate improvement.
+
+### Actual-send recovery audit and correction
+
+Seventeen actual SMTP acceptances occurred between November 2, 05:18:23 and
+05:19:39 UTC after recovery. They were not reservation timestamps. Spaced
+approval reservations plus a final not-in-the-future check did not enforce the
+configured 900/1,800-second gaps or three-per-hour policy when many old slots
+were overdue. The prior local gate therefore does not establish this behavior.
+
+The earlier API checkpoint of five queued actions also included one whose
+linked task was dead-lettered after lease exhaustion. The refined state was
+twenty-three accepted, four runnable queued v2 packets and one blocked action;
+the blocked action/task had zero receipts and no established SMTP acceptance.
+It was held without replacement.
+
+ADR-0034's correction was rebuilt and deployed. Approval and actual receipt
+acquisition share an advisory database gate; conservative receipt completion
+history and unresolved sending enforce the stricter frozen/current policy.
+Durable pre-receipt deferral retains the original packet, refunds its claim
+attempt and requeues through the outbox without extending expiry. Insufficient
+time refuses, and post-wait lease/approval checks use wall-clock time.
+
+The first new suite had 1,225 passes and one obsolete source-string assertion
+failure, corrected to the new boundary/deferral contract. The final image passed
+lint/all 1,226 tests and the complete verifier. Its disposable PostgreSQL proof
+established:
+
+- Two concurrent overdue attempts create exactly one receipt and one deferral.
+- Old unresolved sending blocks further egress; actual acceptance/ambiguous
+  completion overrides old reservations, and a new approval honors actual history.
+- A looser current policy cannot relax a saved stricter gap; jitter remains
+  anchored to the actual constraint.
+- Deferral preserves the complete packet/hash/expiry, clears the lease, leaves
+  no error or receipt, refunds the attempt and matches schedule/outbox release.
+- No slot before expiry refuses; lease and approval expiry while waiting on the
+  global advisory gate both refuse before creating a receipt.
+
+The full verifier also passed native helper, creator/career PostgreSQL, both
+UIs, workflow/scheduler, planner and recovery paths. This is local synthetic
+proof of the deployed gate, not a new external SMTP pacing canary or evidence
+of inbox placement, interest or improved response rates.
+
+### Combined-main integration verification
+
+The independently merged career milestone and creator changes passed a fresh
+combined rebuild: Ruff/all 1,321 tests, `test.ps1` and the complete verifier.
+Seventeen added guard regressions distinguish default locking from post-lock
+plain reads. Existing Apply, career-contact and creator-run guards still acquire
+their initial locks; only the recheck after the global pacing wait uses the
+internal nonlocking path against already-held scope.
+
+Twenty creator-automation PostgreSQL groups included four actual global-wait
+cases for run expiry, Gmail freshness, publication age and the AI draft's seven-
+day lifetime. Six career-contact groups included expiry across that wait and
+opt-out serialization. The other PostgreSQL, native helper, both UIs, planner,
+delivery and queue-recovery proofs passed. Agent doctor passed, and a real
+free/default gateway request returned exact `ROUTE_OK` through Mistral Small
+3.2. No new local Qwen response or external SMTP pacing canary is inferred.
+The delivery/reply projection remains twenty-three accepted, four queued, one
+zero-receipt blocked action and zero pending replies; the old regression draft
+remains held. These checks establish integration behavior, not creator interest.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

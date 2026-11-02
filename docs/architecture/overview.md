@@ -12,6 +12,12 @@ commercial envelope. Stored provenance binds the source, language, context and
 campaign. Revalidation rederives the copy rather than trusting stored prose.
 Legacy contexts retain their original free-copy parser and complete messages.
 Every personalized draft still requires individual exact-message review.
+Bulk discovery preserves research under the existing campaign/prospect locks
+while an unexpired active draft or exact outreach action protects it. The saved
+campaign discovery summary reports `protected_count`; it neither extends freshness nor changes
+the draft/body/digest. Terminal/expired work releases the pin, and explicit
+single-creator refresh retains invalidation. No task/action row locks, new
+service or schema are added. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
 Draft reads also compute an editorial report from the stored public context and
 rendered copy. It has no persistence, score, model invocation or authorization
 effect; metadata-only grounding and natural language still require review.
@@ -108,8 +114,10 @@ reconstructible ready queues and future cache state.
 Losing Redis may delay work but must not erase authoritative history.
 External-action envelopes, form preflights, and side-effect receipts also live
 in PostgreSQL so approval and duplicate prevention survive a crash.
-External SMTP approvals also reserve durable send slots with rolling volume
-limits, same-domain spacing, and jitter, preventing queue or VPS recovery bursts.
+External SMTP approvals reserve durable send slots with rolling volume limits,
+same-domain spacing and jitter. The receipt boundary separately checks actual
+sending/accepted/ambiguous history and durably defers overdue unstarted work;
+reservation time alone is not proof of safe execution cadence.
 Inference invocations retain requested/selected route, token, latency, privacy,
 fallback, status, and cost metadata but never prompt or output text.
 Creator campaigns, channel prospects, public-contact provenance, durable
@@ -251,9 +259,16 @@ It sends no email and returns only transport/TLS/authentication evidence.
 External actions revalidate owned leases, cancellation, frozen context, and
 contact authority at the submission boundary. SMTP acceptance is committed
 before best-effort cleanup and cannot be downgraded by a later task failure.
-The approval transaction reserves an external-SMTP release time and the worker
-rechecks it before the receipt. Mailpit remains immediate. No new service,
-dependency, or host authority is introduced.
+The approval transaction reserves an external-SMTP release time. The receipt
+boundary shares its advisory gate and rechecks conservative actual
+accepted/ambiguous history and unresolved sending against the stricter current
+and frozen policy. After a gate wait, plain reads recheck the already-locked
+career/creator scope and its time limits without introducing another lock order.
+Overdue unstarted work is durably deferred through the same
+task/outbox without a receipt, consumed execution attempt, changed copy or
+extended expiry. Completion takes no inverse advisory lock. Mailpit remains
+immediate; no new service, dependency or host authority is introduced. See
+[ADR-0034](../decisions/ADR-0034-actual-smtp-pacing-and-durable-deferral.md).
 
 - **Reproducibility:** images and Python dependencies are release-pinned.
 - **Least privilege:** loopback ports, internal data network, non-root read-only app images.

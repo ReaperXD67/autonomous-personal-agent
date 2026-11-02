@@ -52,9 +52,14 @@ a review of a configured mail provider's terms.
 ### CO-005 — Public channel data could be treated as a contact database
 
 - Severity: High
-- Status: Updated with bounded candidate research (2026-09-19; ADR-0021)
+- Status: Bounded candidate research; address-only business-word false positives fixed (2026-11-02)
 - Evidence: official public channel/video descriptions may yield business-email
-  candidates only with nearby business/collaboration wording. Sources, bounded
+  candidates only with nearby business/collaboration wording outside email
+  addresses. All address spans are masked before bounded context slicing, so
+  the candidate's local part, domain or a truncated neighboring address cannot
+  supply the business label. The immediately preceding label line remains
+  bounded and cannot contain another address; existing negative-context checks
+  remain. A bare `business@…` is not an invitation. Sources, bounded
   excerpts, and timestamps are retained separately from authorized recipients.
   Contact authorization still requires source review, written basis, and an
   explicit operator decision. Refresh cannot authorize contact or undo suppression.
@@ -207,6 +212,80 @@ a review of a configured mail provider's terms.
   independently queued children. Identity matching depends on the recorded
   channel/contact evidence and is not proof of ownership. The final sending
   boundary and exact individual review remain separate.
+
+### CO-014 — A recurring reviewer could bypass review or duplicate ongoing work
+
+- Severity: High
+- Status: Defined operator continuation scope; existing API boundaries retained
+- Evidence: the [continuation runbook](../operations/creator-outreach-continuation.md)
+  fixes the reviewer to two privately selected campaigns and at most six new
+  introductions per rolling 24 hours combined. This is an operating ceiling,
+  not a new server authorization. The heartbeat inspects existing tasks,
+  reservations, pending replies and the complete current action-creation window before
+  adding work. Native discovery, labeled reply reads, draft generation and
+  action execution retain their existing task/policy/audit paths. Personalized
+  mail still requires recorded contact review, complete-copy review and an
+  individual exact-action approval; positive interest is confirmed before one
+  owner handoff. No generic template-send run is enabled by this continuation.
+  The shared SMTP and preparation/refresh limits are unchanged. New automatic
+  lead selection additionally requires recent dated Minecraft evidence and
+  explicit business wording outside addresses; ambiguity is held for review.
+- Residual risk: the reviewer can make an incorrect judgment, an app schedule
+  can miss a run, or required local services/credentials can become unavailable.
+  An incomplete current creation window cannot establish remaining allowance;
+  a bounded page with a verified older boundary can still establish that window.
+  Lifetime history truncation is not itself a reason to discard a complete
+  current window or to infer cumulative delivery counts. Pausing the reviewer
+  alone does not recall already queued email. Schedule installation, manual
+  execution and actual SMTP/reply outcomes need separate evidence; no cadence
+  establishes continued availability, ownership or creator interest.
+
+### CO-015 — Routine discovery could invalidate active reviewed evidence
+
+- Severity: High
+- Status: Bulk-only preservation under existing row locks
+- Evidence: bulk saves preserve an existing creator's research while an
+  unexpired active draft or linked exact outreach action protects it. The check
+  runs after existing campaign/prospect identity and suppression locks/checks;
+  it adds no task/action row locks or recipient/body/digest writes. New records
+  and unprotected rows retain normal discovery behavior. The saved campaign
+  discovery summary exposes `protected_count` with an aggregate preservation
+  audit. Terminal/expired work
+  releases the pin; explicit single-creator refresh still invalidates changed
+  snapshots. Contact withdrawal, suppression, campaign changes, expiry and the
+  final SMTP fence remain effective.
+- Residual risk: preserved research can become outdated while a packet waits.
+  The pin extends no freshness window or approval deadline and does not certify
+  the current source. Operators can intentionally refresh/withdraw work when new
+  evidence requires it. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
+
+### CO-016 — Overdue reservations could burst after worker recovery
+
+- Severity: High
+- Status: Confirmed incident; deployed correction passed local PostgreSQL proofs
+- Evidence: seventeen actual SMTP acceptances occurred between November 2,
+  05:18:23 and 05:19:39 UTC despite the configured 900-second global gap,
+  1,800-second domain gap and three-per-hour policy. Existing reservations were
+  spaced, but the receipt boundary checked only that a slot was no longer in
+  the future. Multiple overdue slots could therefore execute together. The
+  prior local test/verifier checkpoint did not establish recovery pacing.
+- Correction: approval and the actual receipt boundary share a database gate.
+  Actual accepted/ambiguous history and unresolved sending enforce the stricter
+  frozen/current policy. A later safe slot durably requeues the same unstarted
+  task without a receipt, consumed claim attempt, changed copy or extended
+  expiry; an insufficient window refuses. Concurrent overdue work, unresolved
+  and completed receipts, policy changes, durable state and lease/approval
+  expiry after advisory-lock waits passed disposable PostgreSQL proof. The
+  combined career/creator integration also rechecks time-dependent scope after
+  that wait using plain reads of already-locked rows; creator-run/AI lifetime,
+  Gmail freshness, publication age and career-contact expiry wait cases passed.
+  See
+  [ADR-0034](../decisions/ADR-0034-actual-smtp-pacing-and-durable-deferral.md).
+- Residual risk: a queued action can have a terminal linked task. Recovery must
+  inspect task/receipt state rather than count every queued action as runnable;
+  actual SMTP acceptance still does not establish inbox placement. The corrected
+  gate has no new external SMTP pacing canary; the original burst remains a
+  recorded incident rather than evidence of compliant delivery cadence.
 
 ## Production blockers and operating limits
 

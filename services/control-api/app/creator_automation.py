@@ -88,7 +88,9 @@ def pending_reply_reason(connection: Any, campaign_id: Any) -> str | None:
     return None
 
 
-def validate_creator_automation(connection: Any, action: dict[str, Any]) -> str | None:
+def validate_creator_automation(
+    connection: Any, action: dict[str, Any], *, acquire_locks: bool = True,
+) -> str | None:
     marketing = action["private_context"].get("marketing")
     if isinstance(marketing, dict):
         reason = pending_reply_reason(connection, marketing.get("campaign_id"))
@@ -112,7 +114,8 @@ def validate_creator_automation(connection: Any, action: dict[str, Any]) -> str 
     ):
         return "Creator automation exact-action reservation is absent or changed"
     run = connection.execute(
-        "SELECT * FROM creator_automation_runs WHERE id = %s FOR SHARE",
+        ("SELECT * FROM creator_automation_runs WHERE id = %s FOR SHARE" if acquire_locks else
+         "SELECT * FROM creator_automation_runs WHERE id = %s"),
         (scope["run_id"],),
     ).fetchone()
     campaign = connection.execute(

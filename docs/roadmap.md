@@ -71,6 +71,9 @@
 - [x] Audited draft-only batches of up to five reviewed contacts, stable children/skips/resume, shared preparation reservations and cross-campaign channel/address deduplication
 - [x] Fair shortlist rotation from current issued reservation history before the candidate cap, preserving the ten-per-batch/thirty-per-day research limits
 - [x] Reusable repository-research skill and a source-linked comparison of related outreach systems
+- [x] Scoped hourly reviewer heartbeat, native daily discovery and compact API inspection; six-new-initial operating ceiling across two campaigns with individual exact review
+- [x] Bulk-discovery preservation for active draft/exact-message research, with aggregate protected counts and unchanged explicit-refresh invalidation
+- [x] Correct actual-boundary SMTP pacing after an observed recovery burst; concurrent actual-receipt/deferral, stricter-policy, expiry and lock-wait PostgreSQL proofs passed without changing exact approved copy
 - [x] Complete a real English/Polish grounded-model canary: five local drafts usable unchanged after complete-copy review
 - [ ] Evaluate relevance and manual-replacement needs on a representative reviewed holdout; the five-case canary is not a general accuracy or reply-rate benchmark
 - [x] Complete the reviewed two-message creator pilot after product-site availability and fresh exact review; record both real SMTP acceptances

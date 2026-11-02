@@ -3,6 +3,7 @@
 import os
 import re
 import time
+import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
@@ -22,7 +23,8 @@ from app.career_contact_store import CareerContactStore
 from app.career_contacts import guard_career_contact_action
 from app.career_models import CareerProfileCreate
 from app.creator_automation_store import CreatorAutomationStore
-from app.models import TaskCreate
+from app.email_pacing import EmailPacingPolicy
+from app.models import ApprovalDecision, TaskCreate
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 
@@ -91,6 +93,59 @@ def plan(store, contact):
         )
     except ActionPreparationError:
         return None
+
+
+def exercise_pacing_scope_expiry(dsn):
+    boundary_name = "career-contact-pacing-expiry"
+    paced = CareerContactStore(
+        make_conninfo(dsn, application_name=boundary_name),
+        email_pacing_policy=EmailPacingPolicy(60, 60, 3, 12, 0),
+    )
+    _, _, _, contact = create_fixture(paced)
+    with paced.connect() as connection:
+        connection.execute("UPDATE career_contacts SET expires_at=clock_timestamp()+"
+                           "interval '3 seconds' WHERE id=%s", (contact["id"],))
+    action = plan(paced, contact)
+    check(action is not None, "Could not prepare finite-contact pacing fixture")
+    paced.decide_task(action["task_id"], ApprovalDecision(
+        decision="approved", actor="contact-audit",
+    ))
+    task = paced.transition_to_running(action["task_id"], 120, "contact-audit")
+    fingerprint = hashlib.sha256(f"contact-expiry:{action['id']}".encode()).hexdigest()
+    with paced.connect() as blocker, ThreadPoolExecutor(max_workers=1) as pool:
+        blocker.execute("SELECT pg_advisory_xact_lock(%s,%s)", (1212502605, 1))
+        future = pool.submit(paced.begin_side_effect, task["id"], fingerprint, task["lease_id"])
+        try:
+            deadline, blocked = time.monotonic() + 2, False
+            while not future.done() and time.monotonic() < deadline:
+                blocker.execute("SELECT pg_stat_clear_snapshot()")
+                blocked = blocker.execute(
+                    "SELECT EXISTS (SELECT 1 FROM pg_stat_activity "
+                    "WHERE datname=current_database() AND application_name=%s "
+                    "AND pid<>pg_backend_pid() AND wait_event_type='Lock' "
+                    "AND wait_event='advisory') AS blocked", (boundary_name,),
+                ).fetchone()["blocked"]
+                if blocked:
+                    break
+                time.sleep(0.02)
+            check(blocked, "Contact boundary did not pass initial guard and wait for global pacing")
+            # The contact validity expires while all original bound rows are held.
+            time.sleep(3.1)
+        finally:
+            blocker.commit()
+        try:
+            future.result(timeout=5)
+        except SideEffectGuardError as error:
+            check("expired" in str(error), "Wrong post-pacing contact-scope refusal")
+        else:
+            raise AssertionError("Global pacing wait outlived contact authority but acquired a receipt")
+    with paced.connect() as connection:
+        check(not connection.execute("SELECT 1 FROM side_effect_receipts WHERE task_id=%s",
+                                     (task["id"],)).fetchone(),
+              "Expired contact acquired an SMTP receipt after global wait")
+        check(connection.execute("SELECT status FROM external_actions WHERE id=%s",
+                                 (action["id"],)).fetchone()["status"] == "queued",
+              "Contact-scope refusal changed the exact queued action")
 
 
 def exercise(dsn):
@@ -172,6 +227,9 @@ def exercise(dsn):
         else:
             raise AssertionError("Revoked contact reached final delivery boundary")
     groups.append("Committed revocation fences an already prepared action")
+
+    exercise_pacing_scope_expiry(dsn)
+    groups.append("Contact validity is rechecked after global receipt-pacing waits; no SMTP receipt")
 
     # Hold a real opt-out transaction open. Any ordinary/career send must wait
     # on the shared recipient lock, then observe committed suppression.

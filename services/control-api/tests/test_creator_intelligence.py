@@ -88,6 +88,52 @@ def test_polish_standalone_business_label_is_explicit_context():
     assert candidates[0]["evidence"] == "Biznes: creator@example.test"
 
 
+@pytest.mark.parametrize("description", [
+    "business@example.test", "partnership@example.test", "kontakt@example.test",
+    "collaboration@example.test", "wspolpraca@example.test", "biznes@example.test",
+    "Email: hello@business.example.test", "Contact: hello@partnership.example.test",
+    "hello@example.test business@example.test",
+    "business@example.test hello@example.test",
+    "business@example.test\nhello@example.test",
+    "hello@example.test\npartnership@example.test",
+    # The bounded excerpt may cut through another address; its remaining domain
+    # still cannot act as an explicit label for the current address.
+    "other@" + ("x" * 50 + ".") * 3 + "business.test hello@example.test",
+    "other@" + ("x" * 50 + ".") * 3 + "business.test\nhello@example.test",
+])
+def test_address_words_cannot_qualify_themselves_or_another_unlabeled_address(description):
+    assert public_contact_candidates([(description, PROFILE)], observed_at=NOW) == []
+
+
+@pytest.mark.parametrize("label", [
+    "Business inquiries", "Collaboration", "Sponsorship", "Partnerships",
+    "Współpraca", "Wspolpraca", "Biznes",
+])
+@pytest.mark.parametrize("separator", [": ", ":\n"])
+def test_explicit_business_words_outside_address_preserve_candidates_and_evidence(label, separator):
+    description = label + separator + "business@example.test"
+    candidates = public_contact_candidates([(description, PROFILE)], observed_at=NOW)
+    assert len(candidates) == 1
+    assert candidates[0]["email"] == "business@example.test"
+    assert candidates[0]["evidence"] == label + ": business@example.test"
+    assert candidates[0]["status"] == "unreviewed"
+
+
+@pytest.mark.parametrize("description", [
+    "No business: business@example.test",
+    "Nie przyjmuję współpracy: partnership@example.test",
+    "Business inquiries:\nSupport: business@example.test",
+    "Business enquiries: business@example.test\nhello@example.test",
+])
+def test_masked_addresses_do_not_remove_negative_or_previous_email_guards(description):
+    candidates = public_contact_candidates([(description, PROFILE)], observed_at=NOW)
+    assert all(candidate["email"] != "hello@example.test" for candidate in candidates)
+    if "\nhello@" not in description:
+        assert candidates == []
+    else:
+        assert [candidate["email"] for candidate in candidates] == ["business@example.test"]
+
+
 def test_contact_candidates_reject_unreviewed_sources_and_stay_bounded():
     description = "\n".join(f"Collaboration: creator{number}@example.test" for number in range(20))
     assert len(public_contact_candidates([(description, PROFILE)], observed_at=NOW)) == 5

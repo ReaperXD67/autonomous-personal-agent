@@ -108,6 +108,9 @@ def public_contact_candidates(
             continue
         # Preserve line boundaries while locating context; summaries do not retain raw text.
         text = html.unescape(description[:12000])
+        # Address words are not invitations. Mask all spans before bounded slicing so
+        # even a neighboring address cut by the excerpt cannot supply a business label.
+        business_text = EMAIL.sub(lambda address: " " * len(address.group()), text)
         for match in EMAIL.finditer(text):
             address = match.group().rstrip(".")
             if len(address) > 254 or ".." in address or address.startswith("."):
@@ -116,15 +119,25 @@ def public_contact_candidates(
                              text.rfind(";", 0, match.start())) + 1
             line_end = text.find("\n", match.end())
             line_end = len(text) if line_end < 0 else line_end
-            context = text[max(line_start, match.start() - 160):min(line_end, match.end() + 80)]
+            context_start = max(line_start, match.start() - 160)
+            context_end = min(line_end, match.end() + 80)
+            context = text[context_start:context_end]
+            business_context = business_text[context_start:context_end]
             # A label may occupy the immediately preceding line, but not another email.
-            if not BUSINESS_CONTEXT.search(_fold(context)):
-                previous = text[max(0, line_start - 120):line_start].strip()
-                previous = previous.rsplit("\n", 1)[-1]
+            if not BUSINESS_CONTEXT.search(_fold(business_context)):
+                previous_start = max(0, line_start - 120)
+                previous_window = text[previous_start:line_start].rstrip()
+                previous_end = previous_start + len(previous_window)
+                previous_start += previous_window.rfind("\n") + 1
+                previous = text[previous_start:previous_end].strip()
                 if "@" not in previous:
                     context = previous + " " + context
+                    business_context = (
+                        business_text[previous_start:previous_end] + " " + business_context
+                    )
             folded = _fold(context)
-            if not BUSINESS_CONTEXT.search(folded) or NEGATIVE_CONTEXT.search(folded):
+            if (not BUSINESS_CONTEXT.search(_fold(business_context))
+                    or NEGATIVE_CONTEXT.search(folded)):
                 continue
             key = address.casefold()
             if key not in candidates:

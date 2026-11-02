@@ -164,6 +164,7 @@ class Connection:
         pass
 
 
+@pytest.mark.parametrize("acquire_locks", [True, False])
 @pytest.mark.parametrize("mutation,expected", [
     ("revoke", "revoked"), ("source", "packet changed"), ("recipient", "packet changed"),
     ("sender", "SMTP sender"), ("resume", "Profile changed"),
@@ -173,10 +174,16 @@ class Connection:
     ("attachment", "no attachments"),
 ])
 def test_final_contact_fence_rechecks_revocation_material_and_time_after_row_locks(
-    mutation, expected,
+    mutation, expected, acquire_locks,
 ):
     connection = Connection(material())
-    guard_career_contact_action(connection, connection.action)
+    guard_career_contact_action(connection, connection.action, acquire_locks=acquire_locks)
+    statements = [query.upper() for query, _ in connection.statements]
+    if acquire_locks:
+        assert any("FOR SHARE" in query for query in statements)
+    else:
+        assert all("FOR SHARE" not in query and "FOR UPDATE" not in query
+                   and "PG_ADVISORY" not in query for query in statements)
     if mutation == "revoke":
         connection.contact["revoked_at"] = NOW
     elif mutation == "source":
@@ -203,7 +210,10 @@ def test_final_contact_fence_rechecks_revocation_material_and_time_after_row_loc
     elif mutation == "attachment":
         connection.action["private_context"]["body"] = "Please find my attached resume."
     with pytest.raises(SideEffectGuardError, match=expected):
-        guard_career_contact_action(connection, connection.action)
+        guard_career_contact_action(connection, connection.action, acquire_locks=acquire_locks)
+    if not acquire_locks:
+        assert all("FOR SHARE" not in query.upper() and "FOR UPDATE" not in query.upper()
+                   and "PG_ADVISORY" not in query.upper() for query, _ in connection.statements)
 
 
 def test_ordinary_and_career_email_both_honor_global_durable_suppression():

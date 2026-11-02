@@ -1,13 +1,18 @@
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock
+from uuid import uuid4
 
 import pytest
 from pydantic import ValidationError
 
-from app.application_browser import EXTERNAL_APPLICATION_HOSTS
+from app import career_autopilot
+from app.action_store import SideEffectGuardError
+from app.application_browser import EXTERNAL_APPLICATION_HOSTS, canonical_hash
 from app.career_autopilot import (
     allowed_url,
     eligibility_reason,
+    guard_autopilot_action,
     hiring_email,
     opportunity_hash,
     profile_hash,
@@ -58,6 +63,52 @@ def test_eligible_role_uses_current_content_not_previously_stored_score():
     assert "fit threshold" in eligibility_reason(run(), profile(), stale_score, now=NOW)
     restricted = {**opportunity(), "location": "Remote — United States", "score": 100}
     assert "fit threshold" in eligibility_reason(run(), profile(), restricted, now=NOW)
+
+
+@pytest.mark.parametrize("acquire_locks", [True, False])
+def test_post_lock_apply_recheck_preserves_expiry_without_acquiring_new_locks(
+    monkeypatch, acquire_locks,
+):
+    candidate = {**profile(), "id": uuid4()}
+    role = {**opportunity(), "id": uuid4(), "profile_id": candidate["id"]}
+    authorized = {**run(candidate), "id": uuid4()}
+    content = {"cover_letter": "Previously reviewed immutable synthetic draft."}
+    ledger = {"profile_id": candidate["id"], "run_id": authorized["id"],
+              "opportunity_id": role["id"], "opportunity_hash": opportunity_hash(role)}
+    action = {"id": uuid4(), "action_type": "career.application_submit",
+              "public_context": {"apply_url": URL}, "private_context": {
+                  "draft_id": str(uuid4()), "draft_sha256": canonical_hash(content),
+              }}
+    clock = [NOW]
+    statements = []
+
+    def execute(query, params=()):
+        statements.append(query.upper())
+        if "clock_timestamp()" in query:
+            value = {"now": clock[0]}
+        else:
+            values = {"career_autopilot_actions": ledger, "career_autopilot_runs": authorized,
+                      "career_profiles": candidate, "job_opportunities": role,
+                      "job_application_drafts": {"content": content}}
+            value = next(value for table, value in values.items() if f"FROM {table}" in query)
+        return Mock(fetchone=Mock(return_value=value))
+
+    connection = Mock(execute=execute)
+    lock = Mock()
+    monkeypatch.setattr(career_autopilot, "lock_profile", lock)
+    monkeypatch.setattr(career_autopilot, "application_quality_blocker", Mock(return_value=None))
+    assert guard_autopilot_action(connection, action, NOW, acquire_locks=acquire_locks) is None
+    clock[0] = NOW + timedelta(hours=2)
+    with pytest.raises(SideEffectGuardError, match="expired"):
+        guard_autopilot_action(connection, action, NOW, acquire_locks=acquire_locks)
+    if acquire_locks:
+        assert lock.call_count == 2
+        assert any("FOR UPDATE" in query for query in statements)
+        assert any("FOR SHARE" in query for query in statements)
+    else:
+        lock.assert_not_called()
+        assert all("FOR UPDATE" not in query and "FOR SHARE" not in query
+                   and "PG_ADVISORY" not in query for query in statements)
 
 
 @pytest.mark.parametrize("state", ["paused", "expired", "completed", "cancelled"])

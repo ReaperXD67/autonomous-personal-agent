@@ -11,6 +11,7 @@ from psycopg.types.json import Jsonb
 from app.action_models import ApplicationIdentity, ApplicationPlanCreate, EmailActionCreate
 from app.application_browser import canonical_hash, resolve_application_fields
 from app.career_store import CareerStore, OpportunityNotFoundError
+from app.email_pacing import EmailPacingPolicy, next_email_attempt_at, stricter_email_policy
 from app.models import TaskCreate
 from app.policy import RiskLevel
 
@@ -27,6 +28,12 @@ class ExternalActionNotFoundError(LookupError):
 
 class SideEffectGuardError(RuntimeError):
     pass
+
+
+class EmailPacingDeferred(RuntimeError):
+    def __init__(self, next_attempt_at: datetime):
+        self.next_attempt_at = next_attempt_at
+        super().__init__("Email deferred by durable send pacing")
 
 
 def guard_email_suppression(connection: Any, action: dict[str, Any]) -> None:
@@ -69,6 +76,33 @@ def guard_email_suppression(connection: Any, action: dict[str, Any]) -> None:
 
 
 class ActionStore(CareerStore):
+    def _defer_email_send(self, connection, row, next_attempt_at):
+        """Commit a pre-receipt deferral without spending an execution attempt."""
+        connection.execute(
+            "UPDATE outbound_email_schedule SET scheduled_for=%s "
+            "WHERE action_id=%s AND task_id=%s AND status='scheduled'",
+            (next_attempt_at, row["id"], row["task_id"]),
+        )
+        task = connection.execute(
+            """UPDATE agent_tasks SET status='queued', next_attempt_at=%s,
+                      attempt_count=GREATEST(attempt_count-1,0), started_at=NULL,
+                      lease_id=NULL, lease_expires_at=NULL,last_heartbeat_at=NULL,claimed_by=NULL
+               WHERE id=%s AND lease_id=%s AND status='running' RETURNING *""",
+            (next_attempt_at, row["task_id"], row["task_lease_id"]),
+        ).fetchone()
+        if task is None:
+            raise SideEffectGuardError("Email task lease changed before pacing deferral")
+        self._add_outbox(connection, task)
+        self._append_audit(
+            connection, correlation_id=task["correlation_id"], task_id=task["id"],
+            actor_type="worker", actor_id="action-worker", tool_name=task["kind"],
+            action="email.pacing_deferred", risk_level=task["risk_level"],
+            approval_status="approved", execution_status="queued",
+            result_metadata={"next_attempt_at": next_attempt_at.isoformat()},
+        )
+        connection.commit()
+        raise EmailPacingDeferred(next_attempt_at)
+
     def save_preflight(
         self, *, opportunity_id: UUID, task_id: UUID, result: dict[str, Any]
     ) -> dict[str, Any]:
@@ -481,7 +515,8 @@ class ActionStore(CareerStore):
                     raise SideEffectGuardError(
                         "Marketing prospect no longer exists"
                     )
-                error = outreach_context_error(prospect.pop("_campaign"), prospect, row)
+                campaign = prospect.pop("_campaign")
+                error = outreach_context_error(campaign, prospect, row)
                 if error:
                     raise SideEffectGuardError(error)
                 duplicate = outreach_duplicate_action(
@@ -505,6 +540,8 @@ class ActionStore(CareerStore):
                     f"Side effect already has a {receipt['status']} receipt; retry refused"
                 )
             schedule = None
+            actual_slots = []
+            unresolved_send = False
             if (
                 self._email_pacing_policy is not None
                 and row["action_type"] == "communications.email_send"
@@ -521,12 +558,36 @@ class ActionStore(CareerStore):
                     raise SideEffectGuardError(
                         "External email is missing its durable send schedule"
                     )
-            # Marketing locks its prospect before the shared recipient lock;
-            # preserve that order so a concurrent opt-out cannot deadlock here.
+            # Acquire recipient and career source locks before global pacing.
+            # Marketing already holds its prospect, preserving opt-out lock order.
             guard_email_suppression(connection, row)
             from app.career_contacts import guard_career_contact_action
 
             guard_career_contact_action(connection, row)
+            if schedule is not None:
+                # Match approval's task/action -> shared advisory order. Never lock
+                # another task/action while holding this global receipt-time gate.
+                connection.execute("SELECT pg_advisory_xact_lock(%s, %s)", (1212502605, 1))
+                reference = connection.execute(
+                    "SELECT clock_timestamp() AS value",
+                ).fetchone()["value"]
+                actual_slots, unresolved_send = self._email_send_slots(
+                    connection, reference, include_scheduled=False, exclude_action_id=row["id"],
+                )
+                if row.get("opportunity_id") is not None:
+                    # The bound career rows/keys were locked by the guards above.
+                    # Recheck their finite authority after a global pacing wait.
+                    guard_autopilot_action(
+                        connection, row, datetime.now(UTC), acquire_locks=False,
+                    )
+                    guard_career_contact_action(connection, row, acquire_locks=False)
+                if isinstance(marketing, dict):
+                    error = outreach_context_error(campaign, prospect, row)
+                    if error:
+                        raise SideEffectGuardError(error)
+                    error = validate_creator_automation(connection, row, acquire_locks=False)
+                    if error:
+                        raise SideEffectGuardError(error)
             # Read wall-clock time after every potentially blocking row lock.
             boundary_time = connection.execute(
                 "SELECT clock_timestamp() AS boundary_time"
@@ -538,13 +599,36 @@ class ActionStore(CareerStore):
                 raise SideEffectGuardError("External action task lease has expired")
             if row["expires_at"] <= boundary_time:
                 raise SideEffectGuardError("Approved external action has expired")
-            if schedule is not None and schedule["scheduled_for"] > boundary_time:
-                raise SideEffectGuardError("External email send window has not opened")
+            if schedule is not None:
+                policy = stricter_email_policy(self._email_pacing_policy, EmailPacingPolicy(**{
+                    name: schedule[name] for name in (
+                        "min_interval_seconds", "domain_min_interval_seconds", "hourly_limit",
+                        "daily_limit", "jitter_seconds",
+                    )
+                }))
+                next_attempt_at = next_email_attempt_at(
+                    now=boundary_time, action_id=row["id"],
+                    recipient=row["private_context"]["recipient"],
+                    scheduled_for=schedule["scheduled_for"], actual_slots=actual_slots,
+                    policy=policy,
+                )
+                if unresolved_send:
+                    # A paused or slow SMTP operation has no final acceptance time.
+                    # Keep other egress deferred until that receipt is resolved.
+                    next_attempt_at = max(next_attempt_at, boundary_time + timedelta(
+                        seconds=policy.min_interval_seconds,
+                    ))
+                if next_attempt_at > boundary_time:
+                    if next_attempt_at >= row["expires_at"]:
+                        raise SideEffectGuardError(
+                            "Safe email pacing has no send window before the approval expires"
+                        )
+                    self._defer_email_send(connection, row, next_attempt_at)
             connection.execute(
                 """
                 INSERT INTO side_effect_receipts (
-                    fingerprint, action_id, task_id, status
-                ) VALUES (%s, %s, %s, 'executing')
+                    fingerprint, action_id, task_id, status, started_at
+                ) VALUES (%s, %s, %s, 'executing', clock_timestamp())
                 """,
                 (fingerprint, row["id"], task_id),
             )
@@ -579,7 +663,7 @@ class ActionStore(CareerStore):
                 """
                 UPDATE external_actions
                 SET status = 'succeeded', external_reference = %s,
-                    executed_at = now(), last_error = NULL
+                    executed_at = clock_timestamp(), last_error = NULL
                 WHERE task_id = %s AND status = 'executing'
                 RETURNING *
                 """,
@@ -590,7 +674,7 @@ class ActionStore(CareerStore):
             receipt = connection.execute(
                 """
                 UPDATE side_effect_receipts
-                SET status = 'succeeded', external_reference = %s, completed_at = now()
+                SET status = 'succeeded', external_reference = %s, completed_at = clock_timestamp()
                 WHERE fingerprint = %s AND task_id = %s AND status = 'executing'
                 RETURNING task_id
                 """,
@@ -629,7 +713,7 @@ class ActionStore(CareerStore):
                 schedule = connection.execute(
                     """
                     UPDATE outbound_email_schedule
-                    SET status = 'accepted', completed_at = now()
+                    SET status = 'accepted', completed_at = clock_timestamp()
                     WHERE action_id = %s AND task_id = %s AND status = 'sending'
                     RETURNING action_id
                     """,
@@ -681,7 +765,7 @@ class ActionStore(CareerStore):
                 connection.execute(
                     """
                     UPDATE side_effect_receipts
-                    SET status = 'ambiguous', completed_at = now()
+                    SET status = 'ambiguous', completed_at = clock_timestamp()
                     WHERE task_id = %s
                     """,
                     (task_id,),
@@ -689,7 +773,7 @@ class ActionStore(CareerStore):
             connection.execute(
                 """
                 UPDATE outbound_email_schedule
-                SET status = %s, completed_at = now()
+                SET status = %s, completed_at = clock_timestamp()
                 WHERE action_id = %s AND task_id = %s
                   AND status IN ('scheduled', 'sending')
                 """,
