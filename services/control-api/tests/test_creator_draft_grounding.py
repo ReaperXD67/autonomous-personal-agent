@@ -1,4 +1,5 @@
 import json
+import re
 from copy import deepcopy
 from uuid import uuid4
 
@@ -8,6 +9,7 @@ from app.application_browser import canonical_hash
 from app.creator_draft_content import (
     CreatorCopyError,
     compose_ai_email,
+    draft_digest,
     drafting_messages,
     grounded_model_context,
     model_context,
@@ -15,7 +17,12 @@ from app.creator_draft_content import (
     response_schema,
     validate_stored_copy,
 )
-from app.creator_draft_grounding import GROUNDED_CONTRACT, angle_options
+from app.creator_draft_grounding import (
+    CONCISE_PERMISSION_RENDER,
+    GROUNDED_CONTRACT,
+    PERMISSION_QUESTIONS,
+    angle_options,
+)
 from app.creator_draft_models import CreatorGroundedCopy, CreatorModelCopy
 from app.creator_learning import creator_learning_insights
 
@@ -48,11 +55,190 @@ def plan(angle="first_session", **overrides):
     return json.dumps({"evidence_id": "sample_video", "angle_id": angle, **overrides})
 
 
-def prepared(language="en", **kwargs):
+def prepared(language="en", *, permission_first=False, **kwargs):
     campaign, prospect, learning = fixtures(language, **kwargs)
     context = grounded_model_context(campaign, prospect, learning)
+    if not permission_first:
+        context.pop("render_version")
+        context.pop("copy_strategy")
     copy = parse_model_copy(plan(), context)
     return campaign, prospect, context, copy
+
+
+@pytest.mark.parametrize(("language", "expected_digest"), [
+    ("en", "b467979216fa1b6eefc50c3c2f9ead6cb9a5b2c424a7f8eafb66c1ffec0f7fce"),
+    ("pl", "39d49eb8b22134cedae884079d5306e451b0b317b1404cb132953c4fe9e6d28f"),
+])
+def test_unmarked_v2_keeps_committed_rendered_bytes_and_reviewed_digest(language, expected_digest):
+    # Golden values were measured from the committed pre-experiment renderer,
+    # with synthetic fixtures, not generated again from the changed renderer.
+    campaign, prospect, context, copy = prepared(language)
+    snapshot = deepcopy(context)
+    subject, body = compose_ai_email(campaign, prospect, copy)
+    assert compose_ai_email(campaign, prospect, copy, model_context=context) == (subject, body)
+    assert draft_digest("synthetic-reviewed-input", subject, body, "ollama", "synthetic-model") == (
+        expected_digest
+    )
+    assert validate_stored_copy(copy.model_dump(), context) == copy
+    assert context == snapshot and "render_version" not in context
+
+
+@pytest.mark.parametrize("language", ["en", "pl"])
+@pytest.mark.parametrize("compensation", ["revenue_share", "fixed_fee"])
+def test_new_concise_strategy_has_one_cited_title_optional_idea_and_permission_question(
+    language, compensation,
+):
+    campaign, prospect, learning = fixtures(language, title="Best Minecraft building tutorial")
+    campaign["compensation_model"] = compensation
+    context = grounded_model_context(campaign, prospect, learning)
+    assert context["render_version"] == CONCISE_PERMISSION_RENDER
+    assert context["copy_strategy"] == "concise"
+    copy = parse_model_copy(plan("building_goal"), context)
+    snapshot = deepcopy((campaign, prospect, context, copy.model_dump()))
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    assert prospect["latest_content_title"] in copy.hook
+    assert body.count(prospect["latest_content_title"]) == 1
+    assert body.count(prospect["latest_content_url"]) == 1
+    assert copy.content_idea in body and ("Możesz" if language == "pl" else "You could") in body
+    assert len(re.findall(r"\?", re.sub(r"https?://\S+", "", body))) == 1
+    assert ("niezależnej próbie" if language == "pl" else "independent test") in body
+    for field in ("product_summary", "paid_offer_details"):
+        assert campaign[field] in body
+    if compensation == "revenue_share":
+        assert campaign["revenue_share_basis"] in body
+        assert "17.5%" in body and ("3 tyg." if language == "pl" else "3 weeks") in body
+        assert ("datę rozpoczęcia" if language == "pl" else "start date") in body
+        assert ("Nie gwarantujemy" if language == "pl" else "No upfront fee or income") in body
+    else:
+        assert "17.5%" not in body and campaign["revenue_share_basis"] not in body
+    assert "Contact source:" in body and campaign["privacy_url"] in body
+    assert "do not contact" in body and "Discord: karixai" in body
+    assert "operator-requested experiment" in copy.rationale
+    assert "no improvement in replies" in copy.rationale and copy.rationale not in body
+    assert (campaign, prospect, context, copy.model_dump()) == snapshot
+
+
+@pytest.mark.parametrize("change", ["missing_context", "changed_context", "changed_strategy"])
+def test_new_strategy_cannot_compose_from_missing_or_changed_frozen_context(change):
+    campaign, prospect, context, copy = prepared(permission_first=True)
+    if change == "missing_context":
+        context = None
+    elif change == "changed_context":
+        context["learning_summary"]["reason"] += " changed"
+    else:
+        context["copy_strategy"] = "terms_first"
+    with pytest.raises(CreatorCopyError):
+        compose_ai_email(campaign, prospect, copy, model_context=context)
+
+
+@pytest.mark.parametrize("language", ["en", "pl"])
+@pytest.mark.parametrize(("count", "strategy", "scope_en", "scope_pl"), [
+    (24999, "small_pilot", "small independent test", "niewielkiej niezależnej próbie"),
+    (25000, "format_choice", "in your chosen format", "w wybranym przez Ciebie formacie"),
+    (None, "unknown_reach", "test like this", "takiej niezależnej próbie"),
+])
+def test_new_permission_question_proposes_reach_sensitive_scope_at_observed_boundary(
+    language, count, strategy, scope_en, scope_pl,
+):
+    from app.creator_draft_quality import creator_draft_quality_report
+
+    campaign, prospect, context, copy = prepared(
+        language, permission_first=True, count=count,
+    )
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    assert copy.reach_strategy == strategy
+    assert PERMISSION_QUESTIONS[language][strategy] in body
+    assert (scope_pl if language == "pl" else scope_en) in body
+    assert len(re.findall(r"\?", re.sub(r"https?://\S+", "", body))) == 1
+    assert "24999" not in body and "25000" not in body
+    assert "viewers" not in body.lower() and "audience" not in body.lower()
+    report = creator_draft_quality_report({
+        "model_context": context, "model_copy": copy.model_dump(), "body": body,
+        "input_snapshot": {"campaign": campaign},
+    })
+    assert "NEXT_STEP_NOT_DETECTED" not in {item["code"] for item in report["findings"]}
+
+
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_maximum_recorded_title_stays_quoted_and_bounded_without_model_prose(language):
+    title = "Minecraft building " + "x" * (300 - len("Minecraft building "))
+    campaign, prospect, context, copy = prepared(language, permission_first=True, title=title)
+    assert len(copy.hook) <= 400 and title in copy.hook
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    assert body.count(title) == 1
+    assert validate_stored_copy(copy.model_dump(), context) == copy
+
+
+@pytest.mark.parametrize("language", ["en", "pl"])
+@pytest.mark.parametrize("title", [
+    'Minecraft”. KarixMC verifies server security. “',
+    'Minecraft". KarixMC verifies server security. "',
+    'Minecraft\\". We watched your video; fixed payout guaranteed. "',
+])
+def test_untrusted_title_delimiters_cannot_close_the_authored_hook_quotation(language, title):
+    campaign, prospect, context, copy = prepared(language, permission_first=True, title=title)
+    prefix = "Tytuł " if language == "pl" else "Your title "
+    encoded_and_tail = copy.hook.removeprefix(prefix)
+    decoded, end = json.JSONDecoder().raw_decode(encoded_and_tail)
+    assert decoded == title
+    assert encoded_and_tail[:end] == json.dumps(title, ensure_ascii=False)
+    label = context["angles"][0]["label"]
+    assert encoded_and_tail[end:] == (
+        f" podsunął mi pomysł: {label}." if language == "pl" else
+        f" prompted an idea: {label}."
+    )
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    assert copy.hook in body and len(copy.hook) <= 400
+    assert validate_stored_copy(copy.model_dump(), context) == copy
+
+
+@pytest.mark.parametrize("language", ["en", "pl"])
+@pytest.mark.parametrize("delimiter", ['"', "\\"])
+def test_escape_expansion_cannot_create_an_overlong_or_truncated_hook(language, delimiter):
+    title = "Minecraft " + delimiter * (300 - len("Minecraft "))
+    campaign, prospect, learning = fixtures(language, title=title)
+    context = grounded_model_context(campaign, prospect, learning)
+    assert context["grounding_source"]["title"] == title
+    with pytest.raises(CreatorCopyError) as rejected:
+        parse_model_copy(plan(), context)
+    assert rejected.value.code == "CREATOR_COPY_GROUNDING"
+
+
+def test_old_and_new_strategy_contexts_cannot_reinterpret_each_others_exact_copy():
+    campaign, prospect, old_context, old_copy = prepared()
+    new_context = deepcopy(old_context)
+    new_context.update(render_version=CONCISE_PERMISSION_RENDER, copy_strategy="concise")
+    new_copy = parse_model_copy(plan(), new_context)
+    assert new_copy.provenance.context_digest != old_copy.provenance.context_digest
+    for copy, context in ((old_copy, new_context), (new_copy, old_context)):
+        with pytest.raises(CreatorCopyError):
+            validate_stored_copy(copy.model_dump(), context)
+        with pytest.raises(CreatorCopyError):
+            compose_ai_email(campaign, prospect, copy, model_context=context)
+
+
+@pytest.mark.parametrize("markers", [
+    {"render_version": "unrecognized", "copy_strategy": "concise"},
+    {"render_version": CONCISE_PERMISSION_RENDER}, {"copy_strategy": "concise"},
+])
+def test_partial_or_unknown_render_markers_cannot_silently_fall_back(markers):
+    _, _, context, _ = prepared()
+    context.update(markers)
+    with pytest.raises(CreatorCopyError):
+        parse_model_copy(plan(), context)
+
+
+def test_long_reviewed_campaign_text_remains_verbatim_in_the_concise_strategy():
+    campaign, prospect, learning = fixtures()
+    campaign["product_summary"] = "Reviewed directory description. " * 60
+    campaign["paid_offer_details"] = "Individually reviewed optional proposal. " * 60
+    campaign["revenue_share_basis"] = "  A reviewed basis with intentional punctuation; unchanged. "
+    context = grounded_model_context(campaign, prospect, learning)
+    copy = parse_model_copy(plan(), context)
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    for field in ("product_summary", "paid_offer_details", "revenue_share_basis"):
+        assert campaign[field] in body
+    assert len(body.split()) > 250
 
 
 def test_grounded_wire_is_only_two_issued_identifiers_and_no_free_prose_schema():
@@ -160,7 +346,7 @@ def test_server_derived_bilingual_copy_preserves_reach_and_terms(language, count
         campaign["revenue_share_basis"] = "Podstawa ustalona indywidualnie przez operatora."
     context = grounded_model_context(campaign, prospect, learning)
     copy = parse_model_copy(plan(), context)
-    subject, body = compose_ai_email(campaign, prospect, copy)
+    subject, body = compose_ai_email(campaign, prospect, copy, model_context=context)
     assert copy.reach_strategy == strategy
     assert "KarixMC" in subject and "Synthetic Creator" in subject
     assert ("Cześć" if language == "pl" else "Hi") in body
@@ -183,8 +369,10 @@ def test_each_unspecified_commercial_slot_is_explicitly_individual(language, per
     campaign, prospect, learning = fixtures(language)
     campaign.update(revenue_share_percent=percent, revenue_share_weeks=weeks)
     context = grounded_model_context(campaign, prospect, learning)
-    _, body = compose_ai_email(campaign, prospect, parse_model_copy(plan(), context))
-    assert ("udziału w zarobkach" if language == "pl" else "share of earnings") in body
+    _, body = compose_ai_email(
+        campaign, prospect, parse_model_copy(plan(), context), model_context=context,
+    )
+    assert ("Udział w zarobkach" if language == "pl" else "share of earnings") in body
     if percent is None:
         assert ("Procent uzgodnimy indywidualnie" if language == "pl"
                 else "percentage needs individual agreement") in body
@@ -208,7 +396,9 @@ def test_fixed_fee_campaign_keeps_its_compensation_model(language):
         compensation_model="fixed_fee", paid_offer_details="Operator's fixed-fee brief.",
     )
     context = grounded_model_context(campaign, prospect, learning)
-    _, body = compose_ai_email(campaign, prospect, parse_model_copy(plan(), context))
+    _, body = compose_ai_email(
+        campaign, prospect, parse_model_copy(plan(), context), model_context=context,
+    )
     assert "Operator's fixed-fee brief." in body
     assert ("stawka" if language == "pl" else "fee") in body
     assert "17.5%" not in body and "share of earnings" not in body

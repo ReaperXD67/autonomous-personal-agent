@@ -3517,3 +3517,49 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   The publication scan found no matches for twelve configured credential values,
   186 private contact values or the two private campaign IDs. Full runtime tests
   and verification remain the CI gate before merge; live services were not restarted.
+
+## 2026-11-03 — Creator local recovery diagnostics and permission-first version
+
+- The prior local Creator invocation failed after about 180 seconds with a generic
+  unavailable diagnostic. Current inspection found cached Qwen3 8B weights, an
+  assigned NVIDIA device, no loaded model, no HTTP proxy and a successful internal
+  TCP connection. The historical request-phase/GPU cause remains unproved; these
+  prerequisites do not establish generation or recovery.
+- Fixed interrupted HTTP response reads escaping normal failure handling. Bounded
+  local timeout, connection, missing-model, busy, HTTP, malformed, oversized and
+  incomplete responses now use safe fixed diagnostics and terminal draft failure.
+  Complete stopped responses are required before parsing; no transport retry,
+  larger timeout, weaker schema or hidden prose fallback was introduced.
+- Added explicit per-draft auto/local-only selection, frozen in context and bound
+  to request idempotency/audit. Local-only skips hosted calls without changing
+  global configuration and retains preparation limits, leases and inference
+  accounting. A mode-changing replay conflicts. The draft API exposes the mode.
+- New contexts freeze the concise permission-first render version: one exact-title
+  hook, offered independent-test idea and discussion question, with proposed scope
+  informed by observed reach. Reviewed product/offer/basis text, commercial terms
+  and footer remain authoritative. Old unmarked v2/legacy bytes and digests are
+  preserved. No reply-rate improvement is inferred from zero reviewed feedback.
+- Added ADR-0036 and synchronized architecture, security, operations, roadmap and
+  README. Primary-source research retained the existing runtime and adapted small
+  state/rendering patterns; no upstream code, service or dependency was installed.
+  Live generation and resuming new approvals require a separate governed canary.
+- The first isolated full run passed all 1,631 unit tests but exposed a cold-start
+  readiness race: the socket-only temporary PostgreSQL initialization server
+  passed the old healthcheck before TCP accepted migrations. Require loopback TCP
+  readiness instead. The failed run's live-container fingerprints were unchanged;
+  its integration verifier did not pass. A fresh isolated run verifies the fix.
+- The second run passed unit tests and cold migration/startup, then exposed a
+  private harness issue: making its edge network internal prevented Docker Desktop
+  publishing the test API port. The corrected harness uses a separate ordinary
+  bridge like CI, with synthetic credentials and all external providers disabled.
+  The final isolated run passed Compose configuration, Ruff/all 1,641 tests,
+  `test.ps1`, the complete `verify.ps1`, PostgreSQL mode/idempotency/audit and
+  immutable-copy proofs, network-disabled UIs, SMTP-boundary pacing and queue
+  recovery. All fourteen changed non-documentation files match that frozen run.
+  Live container fingerprints remained identical; no live credential was copied.
+- Independent review also found a new-title quotation boundary issue. JSON quote
+  escaping and bilingual delimiter/escape-expansion regressions now prevent title
+  text looking like authored copy; unsafe expansion refuses without truncation.
+  The publication scan found zero matches for twelve configured credentials,
+  202 saved private contacts and the two campaign IDs. A real local canary and
+  operational delivery are still pending at this source-validation checkpoint.

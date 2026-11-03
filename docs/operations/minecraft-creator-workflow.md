@@ -208,6 +208,35 @@ selection contract; `CREATOR_DRAFT_MODEL_UNAVAILABLE` means no usable model
 response was available. Neither silently creates fallback copy or an email.
 Templates and manual writing remain explicit alternatives.
 
+New drafts freeze the concise permission-first render version. It quotes the
+selected public title once, offers one optional creator-controlled idea and asks
+whether an independent test is worth discussing. The product summary, paid-offer
+description and revenue basis remain verbatim; commercial terms and the standard
+footer remain deterministic. Long briefs can still make long emails. Earlier v2
+and legacy contexts retain their original rendering and digest. Silence is not
+reviewed feedback, and this strategy is an experiment rather than a proven reply
+improvement.
+
+The individual draft API accepts `inference_mode: "local_only"` alongside the
+ordinary actor and UUID idempotency key. This explicitly selects the configured
+local model, skipping all hosted inference, while retaining the same medium-risk
+task, lease checks, thirty/day and three/creator preparation limits and inference
+ledger. Omit it for existing automatic routing. Reusing a key with a different
+mode is refused; batch children retain automatic routing. Draft reads expose the
+mode for review. This is useful for a genuine local recovery canary without
+changing shared provider configuration. A ready draft still cannot send itself.
+
+Local inference retains its 180-second timeout, bounded response and v2 token
+cap. It requires a complete stopped response and records separate fixed timeout,
+connection, missing-model, busy, HTTP, malformed, oversized and incomplete-response
+codes in the inference ledger. A broken response read terminates the draft
+rather than leaving it apparently queued. There is no automatic transport retry
+or replacement prose. The public draft error remains model-unavailable; inspect
+the linked inference diagnostic for the narrower failure. A completed local-only
+task and its valid saved copy establish generation; container health does not.
+See [the recovery decision](../decisions/ADR-0036-creator-local-recovery-and-permission-strategy.md)
+and [upstream comparison](../research/creator-model-recovery-and-permission-outreach-2026-11.md).
+
 The draft review shows computed editorial findings and the complete-email word
 count before preparation. Older responses without a report display an explicit
 unavailable fallback. The authenticated draft API returns the full `quality_report`

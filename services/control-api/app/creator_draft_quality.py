@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from app.creator_draft_grounding import CONCISE_PERMISSION_RENDER, PERMISSION_QUESTIONS
 from app.creator_draft_language import (
     SUPPORTED_DRAFT_LANGUAGES,
     normalized_polish,
@@ -57,6 +58,8 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
     grounded = (context.get("drafting_contract") == "creator-grounded-plan-v2"
                 and _object(copy.get("provenance")).get("contract")
                 == "creator-grounded-plan-v2")
+    permission_first = (grounded and context.get("render_version") == CONCISE_PERMISSION_RENDER
+                        and context.get("copy_strategy") == "concise")
     body = _text(row.get("body"))
     hook, idea, rationale = (_text(copy.get(key)) for key in (
         "hook", "content_idea", "rationale",
@@ -81,6 +84,10 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
                  "identifier. Hermes rendered the wording from frozen source and reviewed "
                  "campaign text. Check the angle's relevance and the campaign claims.",
                  severity="info")
+        if permission_first:
+            note("CONCISE_PERMISSION_INTRO", "This draft uses the frozen concise permission-first "
+                 "strategy. The reviewed brief and terms remain intact; no reply-rate "
+                 "improvement has been established.", severity="info")
         if marker != generated:
             note("OUTPUT_LANGUAGE_UNRECOGNIZED", "The stored output-language marker is "
                  "unsupported. Review the original copy; the report uses legacy English labels.")
@@ -142,9 +149,12 @@ def creator_draft_quality_report(row: dict[str, Any]) -> dict[str, Any]:
         # The real composer places the citation after the hook in the same paragraph.
         lines = [line for line in body.splitlines() if not line.lstrip().startswith((
             "Public video reference:", "Publiczny tytuł:",
-        ))]
+        )) and not (permission_first and line.strip() == hook)]
         next_step = "\n".join(lines)
-        if not re.search(r"\b(?:would|could|are|do|can)\s+you\b[^\n?]{0,170}\?|"
+        permission_question = (PERMISSION_QUESTIONS[generated].get(copy.get("reach_strategy"))
+                               if permission_first else None)
+        if not (permission_question and permission_question in next_step) and not re.search(
+                         r"\b(?:would|could|are|do|can)\s+you\b[^\n?]{0,170}\?|"
                          r"\b(?:please|feel free to)\s+(?:reply|share|let (?:me|us) know)\b",
                          next_step, re.I) and not re.search(
                              r"\b(?:czy|chcesz|mozesz|moglbys|moglabys)\b[^\n?]{0,200}\?|"

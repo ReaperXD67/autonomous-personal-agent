@@ -1356,6 +1356,41 @@ no replacement packet or manual fallback was created. New AI introductions are
 held; monitoring continues. No interest/handoff, inbox-placement or general
 pacing guarantee is inferred. This checkpoint adds no runtime behavior.
 
+## Experiment 42 — Creator local recovery baseline and bounded strategy change
+
+Date: 2026-11-03.
+
+The recorded local Creator invocation ran from November 2, 19:06:52 through
+19:09:53 UTC and failed as unavailable without token usage. Its generic error
+cannot retrospectively establish whether loading, device execution, transport or
+another phase caused the timeout. At the November 3 maintenance inspection,
+Qwen3 8B was cached at 5.2 GB, no model was loaded, the RTX 4070 Laptop exposed
+8,188 MiB and Docker retained an NVIDIA device assignment. An internal worker TCP
+connection to Ollama succeeded in 0.009 seconds; no HTTP proxy was configured.
+These observations establish prerequisites, not successful inference.
+
+Targeted synthetic regressions exercised terminal response-read failures, fixed
+safe diagnostics, explicit local-only hosted non-use, immutable rendering and
+EN/PL terms. Synthetic small-creator copy with the same brief/terms/footer changed
+from 162 to 142 words in English and 141 to 128 in Polish. These are artificial
+length measurements, not creator feedback or evidence of improved replies. Old
+unmarked v2 EN/PL digest goldens remain unchanged. Complete integration tests and
+an audited real local-only draft remain separate gates before operational recovery
+can be claimed. No new live model call or outreach is inferred from these tests.
+
+The final isolated source run passed Ruff/all 1,641 tests and the complete native,
+PostgreSQL, browser, planner, delivery and recovery verifier. Its root/source
+comparison found all fourteen changed non-documentation files identical. All
+live container ID/image/start/restart fingerprints were preserved, with synthetic
+validation credentials and external model/mail/discovery providers disabled.
+The preceding failed runs are not successful integration evidence: one exposed
+socket-only PostgreSQL initialization readiness before TCP migration access; the
+second exposed a private Docker Desktop host-port publication issue under an
+extra internal-network override. TCP readiness and a separate ordinary test
+bridge resolved those respective cases. New quotation regressions also preserve
+the public title as escaped data or refuse overlong expansion. No actual local
+generation or creator response is claimed by the isolated verifier.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

@@ -676,3 +676,21 @@ strip private evidence. Facts and the eligibility-policy version bind Play grant
 requiring renewed scope after an upgrade. The current one-to-ten rolling-day ceiling
 does not relax fit, freshness, duplicate protection or unknown form answers. No new
 service, production dependency, inference route, credential or email sender is added.
+
+## 2026-11-03 — Creator local evaluation and immutable strategy version
+
+ADR-0036 adds a per-draft `auto|local_only` selection inside the existing
+medium-risk drafting task. Explicit local selection is frozen in context,
+idempotency and audit and skips hosted requests without changing shared provider
+settings. The same preparation allowance, owned lease and model ledger apply.
+Local read/transport/HTTP/incomplete-envelope failures now terminate through fixed
+safe diagnostics instead of escaping draft failure handling. There is no transport
+retry, new provider endpoint, service, schema or broader approval authority.
+
+New contexts freeze a concise permission-first rendering version with one public
+title hook and one discussion question. The reviewed brief, commercial terms and
+footer remain authoritative; earlier v2/legacy copy and digests remain compatible.
+The frozen context is passed explicitly at persistence, and model output remains
+issued evidence/angle IDs. This is a measured strategy experiment, not learning
+from silence or proof of creator interest. Recovery requires an actual completed
+local-only draft; health and cache inspection remain prerequisite evidence.

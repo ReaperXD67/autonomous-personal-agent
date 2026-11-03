@@ -72,7 +72,9 @@ understand what happened and take over at the right moment.
   refreshes up to ten saved creators and ranks their evidence without model calls.
 - **A grounded first approach:** a model selects an offered content angle from
   recorded title evidence; Hermes renders English/Polish copy, the exact source
-  and your reviewed brief. Queue up to five eligible drafts together, then
+  and your reviewed brief. New drafts freeze a concise, permission-first style
+  with one discussion question; earlier reviewed messages retain their wording.
+  Queue up to five eligible drafts together, then
   inspect each complete message before exact approval. Rates and commercial
   terms remain yours to agree.
 - **A clear stopping point:** one owner handoff after confirmed interest, with
@@ -108,7 +110,7 @@ understand what happened and take over at the right moment.
 | Application and reply tracker | Implemented; Gmail OAuth proof pending | Durable submission/reply/shortlist/interview/outcome timelines, a priority decision queue, conservative negation/conditional checks, and a read-only labeled Gmail adapter. Unconfigured Gmail is shown as unavailable; interview times are never invented |
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form/default-state signature, typed explicit consent, purpose-bound PDF résumé upload and durable receipt. Unknown documents, login and CAPTCHA stop for review; SmartRecruiters submission stays manual |
 | Email sender | Live SMTP and small pacing canary verified | Authenticated STARTTLS, owned-inbox delivery and four actual paced sends passed. Receipt and finite-authority checks durably defer unstarted work. See the [continuation evidence](docs/operations/creator-outreach-continuation.md#pausing-and-evidence) for the recovery incident, correction and limits |
-| Creator research and outreach | Reply monitoring active; new AI introductions held | Reviewed invitations reached SMTP acceptance. A subsequent draft failed because inference was unavailable; no substitute packet was created. See the [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch). SMTP acceptance does not establish inbox placement or interest |
+| Creator research and outreach | Reply monitoring active; recovery canary pending | New drafts freeze a concise permission-first strategy. Explicit local-only generation uses the same audited task and preparation limits; transport failures retain fixed diagnostics. The [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch) separates operational recovery, SMTP acceptance and actual interest |
 | API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Current issued reservation history rotates research through unattempted then oldest-attempted creators before contact/relevance tie-breakers. Thirty refreshes per rolling day; no model calls, contact authorization or sends |
 | Minecraft paid-promotion workflow | Local workflow and owned-inbox delivery verified | Revenue-share or fixed-fee proposals, owner email/Discord handoff, terminal conversation state, and campaign/contact snapshots checked before delivery. Actual creator reply/handoff proof remains pending |
 | Grounded creator introductions | English/Polish live canary verified | Models select issued evidence/angle IDs; Hermes renders copy and rederives its provenance. Five real local Qwen drafts were usable unchanged after complete-copy review; this small sample is not an accuracy or reply-rate guarantee. Legacy digests and individual exact approval remain |
@@ -123,7 +125,7 @@ understand what happened and take over at the right moment.
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
 | Queue/cache | Implemented | Password-protected Redis 8 with AOF persistence |
 | Hermes model hierarchy | Provider canaries verified; forced failover prepared | Managed OmniRoute `free/default` → OpenRouter `openrouter/free` → internal Qwen; OmniRoute and OpenRouter each passed harmless live requests |
-| Local inference | Verified; lazy lifecycle added | Pinned Ollama + Qwen3 8B returned `LOCAL_MODEL_OK` on the observed 8 GB NVIDIA GPU; normal startup keeps weights unloaded |
+| Local inference | Prior GPU canary verified; Creator recovery pending | Pinned Ollama + Qwen3 8B previously returned `LOCAL_MODEL_OK` on the observed 8 GB GPU. A subsequent Creator request timed out; the new local-only draft path must establish recovery with a real response. Health and cached weights alone are insufficient |
 | Free hosted routing | Verified live | Live benchmark/capability ranking, active-ZDR endpoint checks, a provider-valid four-model chain, no-training/ZDR defaults, zero-cost response attestation, PostgreSQL usage audit, daily headroom, and local continuity |
 | MCP policy architecture | Implemented | Curated registry, agent profiles, risk classes; no MCP server enabled by default |
 | Supply-chain CI | Implemented | Required dependency review, Trivy repository/image gates, immutable actions, SPDX runtime SBOM |

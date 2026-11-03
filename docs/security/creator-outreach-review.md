@@ -1,6 +1,6 @@
 # Creator outreach security review
 
-Review date: 2026-11-02
+Review date: 2026-11-03
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
@@ -126,6 +126,15 @@ a review of a configured mail provider's terms.
   and execution checks. Invalid selection and unavailable model response have
   separate fixed errors. No failed request silently acquires fallback prose,
   approval or sending authority.
+  New contexts freeze a separate concise permission-first rendering marker;
+  earlier unmarked v2 copy remains byte-for-byte compatible. Per-draft
+  `local_only` is a fixed model-route selection, not an endpoint or prompt
+  override. It skips hosted calls, binds idempotency/context/audit, and shares
+  existing preparation and inference accounting. The fixed internal Ollama
+  transport bypasses environment proxies. Failed local response reads,
+  timeouts, HTTP errors and incomplete envelopes terminate with fixed safe
+  codes; provider bodies and reasoning are not retained. Neither a local-only
+  canary nor the new style gains approval, contact or sending authority.
   The November 1 launch retained one AI message and twenty-three reviewed
   manual replacements. Those operator decisions motivated the smaller factual
   surface; they are not creator feedback, training or proof of improved replies.

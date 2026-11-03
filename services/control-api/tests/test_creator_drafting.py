@@ -455,6 +455,7 @@ def test_provider_outage_uses_accounted_local_and_never_exposes_error_body(monke
 def test_creator_local_thinking_is_bounded_and_only_final_copy_is_persisted(monkeypatch):
     task, _, database = setup()
     envelope = {
+        "done": True, "done_reason": "stop",
         "message": {"content": response(), "thinking": "PRIVATE_REASONING_MUST_NOT_ESCAPE"},
         "prompt_eval_count": 80, "eval_count": 120,
     }
@@ -483,6 +484,7 @@ def test_reasoning_without_final_json_never_becomes_saved_creator_copy(monkeypat
     transport = Mock()
     received = Mock()
     received.read.return_value = json.dumps({
+        "done": True, "done_reason": "stop",
         "message": {"content": "", "thinking": response()},
     }).encode()
     transport.open.return_value.__enter__ = Mock(return_value=received)

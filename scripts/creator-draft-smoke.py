@@ -454,22 +454,30 @@ def exercise(dsn):
     store = CreatorDraftStore(dsn)
     groups = []
     _, prospect = fixture(store)
-    request = CreatorDraftCreate(actor="creator-draft-smoke", idempotency_key=uuid4())
+    request = CreatorDraftCreate(
+        actor="creator-draft-smoke", idempotency_key=uuid4(), inference_mode="local_only",
+    )
     row = store.create_draft(prospect["id"], request)
     check(store.create_draft(prospect["id"], request)["id"] == row["id"], "Retry created duplicate")
+    check(row["inference_mode"] == "local_only", "Local-only mode not exposed for review")
+    blocked(lambda: store.create_draft(prospect["id"], request.model_copy(
+        update={"inference_mode": "auto"},
+    )), CreatorDraftConflictError, "Idempotency key")
     task = store.get_task(row["task_id"])
     check(task["risk_level"] == "medium" and task["status"] == "queued", "Wrong governed task")
     with store.connect() as connection:
         check(connection.execute("SELECT 1 FROM task_outbox WHERE task_id=%s",
                                  (task["id"],)).fetchone(), "Missing durable outbox")
         check(connection.execute("SELECT 1 FROM audit_events WHERE task_id=%s "
-                                 "AND action='creator_draft.created'",
+                                 "AND action='creator_draft.created' "
+                                 "AND input_metadata->>'inference_mode'='local_only'",
                                  (task["id"],)).fetchone(), "Missing creation audit")
     CreatorDraftView.model_validate(row)
-    groups.append("Idempotent draft request creates policy task, durable outbox and audit")
+    groups.append("Local-only mode is frozen, audited and idempotent; changed-mode replay is refused")
 
     claimed = claim(store, row)
     owned = store.get_draft_for_execution(row["id"], claimed["id"], claimed["lease_id"])
+    check(owned["model_context"]["inference_mode"] == "local_only", "Worker lost local-only mode")
     check(owned["model_context"].get("drafting_contract") == "creator-grounded-plan-v2",
           "New drafting did not freeze the grounded selection contract")
     save(store, row, claimed)

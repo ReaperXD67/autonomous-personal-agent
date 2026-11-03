@@ -14,6 +14,43 @@ from app.creator_draft_store import CreatorDraftStore
 from app.creator_learning import creator_learning_insights
 
 
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_permission_strategy_report_is_observable_not_a_response_prediction(language):
+    from test_creator_draft_grounding import prepared
+
+    from app.creator_draft_content import compose_ai_email
+
+    campaign, prospect, context, copy = prepared(language, permission_first=True)
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    report = creator_draft_quality_report({
+        "model_context": context, "model_copy": copy.model_dump(), "body": body,
+        "input_snapshot": {"campaign": campaign},
+    })
+    finding = next(item for item in report["findings"]
+                   if item["code"] == "CONCISE_PERMISSION_INTRO")
+    assert finding["severity"] == "info"
+    assert "no reply-rate improvement" in finding["message"]
+    assert "NEXT_STEP_NOT_DETECTED" not in {item["code"] for item in report["findings"]}
+    assert report["human_review_required"] is True and report["sending_authority"] is False
+
+
+def test_quoted_title_question_cannot_replace_the_permission_question():
+    from test_creator_draft_grounding import prepared
+
+    from app.creator_draft_content import compose_ai_email
+    from app.creator_draft_grounding import PERMISSION_QUESTIONS
+
+    campaign, prospect, context, copy = prepared(
+        permission_first=True, title="Would you try this Minecraft server?",
+    )
+    _, body = compose_ai_email(campaign, prospect, copy, model_context=context)
+    body = body.replace(PERMISSION_QUESTIONS["en"][copy.reach_strategy], "")
+    report = creator_draft_quality_report({
+        "model_context": context, "model_copy": copy.model_dump(), "body": body,
+    })
+    assert "NEXT_STEP_NOT_DETECTED" in {item["code"] for item in report["findings"]}
+
+
 @pytest.fixture
 def draft():
     title = "Which Minecraft survival server should you explore in 2026?"
