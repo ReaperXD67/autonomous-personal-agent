@@ -3596,3 +3596,30 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   changed source/test files matched the validated checkout; live containers were
   unchanged. The public diff contained no scanned configured credentials, private
   contacts or campaign IDs. CI and merged-source deployment remain the delivery gates.
+
+## 2026-11-03 — Live creator reply-metadata intake checkpoint
+
+- At 12:43 UTC (18:13 IST), both same-mailbox label monitors were fresh. Two
+  English-campaign reply-metadata records matched exact sender addresses and
+  outreach subjects of prior SMTP-accepted invitations. One existing record's
+  identity and creation time remained stable over repeated syncs. This is
+  observed intake/matching and limited stable-record evidence, not a general
+  incoming-reply replay canary or proof of creator intent.
+- Both records remain unreviewed. The current adapter exposes metadata and
+  provider snippets, with no full-body endpoint. A full-message browser review
+  stopped because its active page URL could not be verified; no unchanged-state
+  retry or bypass was attempted. The owner was asked for the full authored text
+  of both messages, with no answer at this checkpoint. No classification,
+  interest, handoff or negotiation was confirmed; no review mutation was made.
+- The reviewed thirty-invitation scope (the original twenty-eight plus two new
+  introductions) contained twenty-nine SMTP acceptances, zero runnable queued
+  tasks and one unchanged blocked item. That old dead-lettered work was not
+  replayed or replaced. Twelve earlier acceptances are a separate scope.
+- Updated the README and existing operational checkpoint using aggregate facts
+  only. No sender/creator identities, email subjects, message text, identifiers
+  or private contact handles are published. This documentation milestone adds
+  no code, runtime behavior or provider scope, and establishes no causal reply-
+  rate improvement. Compose configuration, all seventy-six local documentation
+  links, two checkpoint anchors, whitespace and the configured private-value
+  publication scan passed. Full CI and publication remain separate gates; no
+  runtime refresh is needed for this documentation-only checkpoint.

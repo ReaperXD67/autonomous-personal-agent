@@ -1424,6 +1424,22 @@ live container fingerprints remained unchanged. The earlier real canaries used
 the previous 180-second window; the subsequent change supplies additional
 response margin with otherwise unchanged transport/selection/approval behavior.
 
+### Live inbound metadata observation
+
+At November 3, 12:43 UTC (18:13 IST), two incoming English-campaign metadata
+records matched the exact sender addresses and normalized outreach subjects of
+the two earlier SMTP-accepted invitations. Both received timestamps followed
+their corresponding acceptances. The earlier record retained its stored
+identity and creation time across three complete same-mailbox label syncs;
+the later record first appeared in the latest snapshot. Both monitors were fresh.
+
+Both records remain unreviewed. The adapter exposes metadata and bounded
+provider snippets, not complete authored messages. Full text was requested from
+the owner; no review mutation, new approval or handoff was made at this checkpoint.
+These observations establish the sampled intake/matching and one stable-record
+case. They do not establish sender authenticity, full-message intent, general
+replay reliability, collaboration or a causal response-rate improvement.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

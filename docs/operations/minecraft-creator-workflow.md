@@ -403,8 +403,9 @@ With creator Gmail enabled, the scheduler can queue read-only syncs for campaign
 with successfully sent marketing outreach in the previous 180 days, no more often
 than once every five minutes. A sending grant is not required for that monitoring;
 expired grants are not renewed. A generic SMTP self-test is not a marketing
-outreach record and does not activate this rule. This is implemented scheduling
-behavior; actual reply ingestion still needs its own live proof.
+outreach record and does not activate this rule. Limited live metadata intake
+and matching are recorded in the [dated checkpoint](#verified-reviewed-launch);
+full authored-message review and owner handoff remain separate proofs.
 
 Choose **Check creator replies** and inspect the result. A configured flag is
 not operational proof. Complete a real labeled-reply canary with an inbox you own
@@ -422,7 +423,10 @@ excerpts need the operator's review. Without Gmail, record responses manually;
 Hermes does not claim to watch an unconnected inbox.
 Recognizable quoted/forwarded history and the outgoing opt-out instruction are
 excluded from direct opt-out detection. This remains conservative excerpt parsing;
-inspect the full message when context is incomplete.
+inspect the full authored message when context is incomplete. The current reader
+exposes metadata and provider snippets, with no full-body endpoint. If a verified
+review channel cannot supply the full text, leave the record unreviewed and ask
+the owner for it; do not classify interest or prepare a handoff from snippets.
 
 An invalid or expired OAuth refresh grant means reading is unavailable even when
 settings are present. Complete the [explicit renewal flow](gmail-setup.md#expiry-and-recovery),
@@ -440,11 +444,12 @@ exact AI draft and used twenty-three explicitly reviewed manual replacements.
 Those replacements are operator decisions, not creator feedback or evidence that
 the model learned from replies.
 
-At November 3, 2026, 09:10 UTC (14:40 IST), the reviewed scope comprised the
-original twenty-eight invitations plus two new ones: twenty-eight SMTP-accepted,
-one paced queued task and one unchanged dead-lettered blocked item. The latter
-had no established acceptance and was not replayed or replaced. The out-of-window
-regression draft remains held. Twelve earlier acceptances are separate.
+At November 3, 2026, 12:43 UTC (18:13 IST), the reviewed scope comprised thirty
+invitations (the original twenty-eight plus two new ones): twenty-nine
+SMTP-accepted, no runnable queued tasks and one unchanged dead-lettered blocked
+item. The latter had no established acceptance and was not replayed or replaced.
+The out-of-window regression draft remains held. Twelve earlier acceptances
+are separate.
 
 All four subsequent grounded v2 invitations, two English and two Polish, were
 SMTP-accepted with their individually reviewed copy unchanged. Each successive
@@ -460,8 +465,14 @@ people or qualified leads. Before/after reads confirmed that all four queued
 v2 bodies, digests and research snapshots remained unchanged. A six-GET manual
 review snapshot confirmed fresh monitoring for both campaigns and a complete
 current creation window. Scheduled hourly reviews have been observed since
-06:20 UTC. At the 19:57 UTC checkpoint both label monitors were fresh, with zero
-pending replies, confirmed creator interest or owner handoffs.
+November 2 at 06:20 UTC. At the current checkpoint both same-mailbox label
+monitors were fresh; the English campaign had two pending reply-metadata records.
+Their sender addresses and outreach subjects exactly matched prior SMTP-accepted
+invitations. One existing record retained its identity and creation time over
+repeated syncs. Both remain unreviewed, with only metadata and provider snippets
+available. The full authored text has been requested from the owner; no
+classification, interest, handoff or negotiation was confirmed. This is limited
+intake/matching evidence, not a general replay or response-rate canary.
 
 The November 2 unavailable-model failure was preserved, without a replacement
 packet or manual fallback. Following explicit maintenance, two separately
@@ -469,11 +480,8 @@ budgeted local-only Qwen drafts completed cold/warm in 170.384/2.642 seconds,
 each on its first invocation. GPU inspection showed all layers offloaded and
 100% GPU placement with an 8,192-token context. Complete-copy review retained
 both new English introductions unchanged at 212 and 204 words, including terms
-and footer. The availability hold was released. The first was SMTP-accepted;
-the second was reserved for 09:39:47 UTC (15:09:47 IST), within its existing
-approval expiry. That reservation is scheduled work, not delivery evidence.
-Both label monitors were fresh with no pending replies; no actual creator
-interest or handoff was established. The new strategy has no measured reply-rate
+and footer. The availability hold was released and both individually approved
+introductions reached SMTP acceptance. The new strategy has no measured reply-rate
 advantage. One Polish candidate was excluded because fresh activity research
 failed; old metadata was not promoted to a lead or padded into the batch.
 
@@ -482,8 +490,8 @@ and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The reposito
 default remains twelve/day. Keep the computer, Docker and the desktop app
 running; queued releases still depend on their expiry and final guards.
 Individual approval and SMTP acceptance are not inbox-placement or reply proof.
-Actual creator-reply matching/replay, owner handoff and Google's Testing-mode
-refresh-token longevity remain operating limits.
+Full authored-reply review, general replay behavior, owner handoff and Google's
+Testing-mode refresh-token longevity remain operating limits.
 
 The final recovery audit found seventeen actual SMTP acceptances between
 05:18:23 and 05:19:39 UTC on November 2. Those were real acceptance times, not
