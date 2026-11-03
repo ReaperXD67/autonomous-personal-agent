@@ -23,6 +23,9 @@ from app.settings import Settings
 from app.store import InvalidTaskStateError
 from app.worker import TaskInterruptedError
 
+LEGACY_LOCAL_RESPONSE_TIMEOUT_SECONDS = 180
+GROUNDED_LOCAL_RESPONSE_TIMEOUT_SECONDS = 300
+
 LOCAL_FAILURE_MESSAGES = {
     "CREATOR_LOCAL_UNAVAILABLE": "Local drafting model returned no valid response",
     "CREATOR_LOCAL_TIMEOUT": "Local drafting exceeded its bounded response timeout",
@@ -58,6 +61,8 @@ class _NoRedirects(HTTPRedirectHandler):
 
 def local_draft_completion(messages, model, *, context=None):
     grounded = bool(context and context.get("drafting_contract") == "creator-grounded-plan-v2")
+    response_timeout = (GROUNDED_LOCAL_RESPONSE_TIMEOUT_SECONDS if grounded
+                        else LEGACY_LOCAL_RESPONSE_TIMEOUT_SECONDS)
     request = Request(
         "http://ollama:11434/api/chat", method="POST",
         headers={"Content-Type": "application/json", "Accept": "application/json"},
@@ -69,7 +74,9 @@ def local_draft_completion(messages, model, *, context=None):
         }).encode("utf-8"),
     )
     try:
-        with build_opener(ProxyHandler({}), _NoRedirects()).open(request, timeout=180) as response:
+        with build_opener(ProxyHandler({}), _NoRedirects()).open(
+            request, timeout=response_timeout,
+        ) as response:
             body = response.read(65537)
         if len(body) > 65536:
             raise _local_failure("CREATOR_LOCAL_RESPONSE_TOO_LARGE")

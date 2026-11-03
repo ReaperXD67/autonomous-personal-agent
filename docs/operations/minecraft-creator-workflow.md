@@ -52,8 +52,8 @@ complete-copy, positive-reply and handoff review. Installation and actual run
 results are recorded in the journal; a schedule alone is not operational proof.
 The hourly heartbeat is active, with scheduled reviews observed since November
 2, 2026, 06:20 UTC. Both native daily scans and compact review reads were
-verified. Reply monitoring continues while new AI introductions are held after
-an unavailable-model failure; see the [dated checkpoint](#verified-reviewed-launch).
+verified. Genuine local generation released the model hold and reviewed outreach
+resumed; see the [dated checkpoint](#verified-reviewed-launch).
 
 ## Set up the campaign
 
@@ -226,8 +226,12 @@ mode is refused; batch children retain automatic routing. Draft reads expose the
 mode for review. This is useful for a genuine local recovery canary without
 changing shared provider configuration. A ready draft still cannot send itself.
 
-Local inference retains its 180-second timeout, bounded response and v2 token
-cap. It requires a complete stopped response and records separate fixed timeout,
+Grounded local inference has a fixed 300-second socket response timeout; legacy
+copy retains 180 seconds. A real cold request took 170.384 seconds versus 2.642
+seconds warm, motivating extra cold-start headroom. This is not a strict task
+wall-clock deadline; independent heartbeat renewal and post-inference expiry,
+context and cancellation checks remain. Response size, v2 tokens and invocation
+counts are unchanged. It requires a complete stopped response and records separate fixed timeout,
 connection, missing-model, busy, HTTP, malformed, oversized and incomplete-response
 codes in the inference ledger. A broken response read terminates the draft
 rather than leaving it apparently queued. There is no automatic transport retry
@@ -436,13 +440,11 @@ exact AI draft and used twenty-three explicitly reviewed manual replacements.
 Those replacements are operator decisions, not creator feedback or evidence that
 the model learned from replies.
 
-At November 2, 2026, 19:57 UTC (November 3, 01:27 IST), the exact original
-twenty-eight invitation IDs were matched against a complete API action page:
-twenty-seven were SMTP-accepted, none had runnable queued tasks and one existing
-action remained blocked by its dead-lettered task. That zero-receipt blocked
-work was unchanged, without replay or replacement. The out-of-window regression
-draft remains held rather than being treated as a current lead. Twelve earlier
-acceptances are separate.
+At November 3, 2026, 09:10 UTC (14:40 IST), the reviewed scope comprised the
+original twenty-eight invitations plus two new ones: twenty-eight SMTP-accepted,
+one paced queued task and one unchanged dead-lettered blocked item. The latter
+had no established acceptance and was not replayed or replaced. The out-of-window
+regression draft remains held. Twelve earlier acceptances are separate.
 
 All four subsequent grounded v2 invitations, two English and two Polish, were
 SMTP-accepted with their individually reviewed copy unchanged. Each successive
@@ -461,10 +463,19 @@ current creation window. Scheduled hourly reviews have been observed since
 06:20 UTC. At the 19:57 UTC checkpoint both label monitors were fresh, with zero
 pending replies, confirmed creator interest or owner handoffs.
 
-One newly qualified candidate was submitted for AI drafting at 19:06 UTC; the
-task failed at 19:09 UTC with `CREATOR_DRAFT_MODEL_UNAVAILABLE` and local inference
-unavailable. No new email packet or manual fallback was created. New AI
-introductions are held while reply monitoring continues.
+The November 2 unavailable-model failure was preserved, without a replacement
+packet or manual fallback. Following explicit maintenance, two separately
+budgeted local-only Qwen drafts completed cold/warm in 170.384/2.642 seconds,
+each on its first invocation. GPU inspection showed all layers offloaded and
+100% GPU placement with an 8,192-token context. Complete-copy review retained
+both new English introductions unchanged at 212 and 204 words, including terms
+and footer. The availability hold was released. The first was SMTP-accepted;
+the second was reserved for 09:39:47 UTC (15:09:47 IST), within its existing
+approval expiry. That reservation is scheduled work, not delivery evidence.
+Both label monitors were fresh with no pending replies; no actual creator
+interest or handoff was established. The new strategy has no measured reply-rate
+advantage. One Polish candidate was excluded because fresh activity research
+failed; old metadata was not promoted to a lead or padded into the batch.
 
 The local shared bound remains twenty-four/day, three/hour, 900-second global
 and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The repository

@@ -21,7 +21,11 @@ to idempotency, frozen context/provenance and audit. Both use the existing task,
 preparation budget and model ledger; neither grants sending authority.
 Local transport, timeout, HTTP and incomplete-envelope failures have fixed safe
 codes and terminate the failed draft. No response body enters diagnostics and
-no transport retry, new service or schema is added. See
+no transport retry, new service or schema is added. A measured 170-second cold
+completion and 2.6-second warm completion motivated a fixed 300-second grounded
+local socket response timeout; legacy stays at 180 seconds. This is not a strict
+task wall-clock deadline. Independent lease renewal and post-inference
+cancellation/context/expiry checks remain. See
 [ADR-0036](../decisions/ADR-0036-creator-local-recovery-and-permission-strategy.md).
 
 ```mermaid

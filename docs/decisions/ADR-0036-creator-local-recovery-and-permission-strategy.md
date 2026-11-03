@@ -34,8 +34,15 @@ Keep the existing drafting capability, workers, tables and inference ledger.
    local model at the fixed internal endpoint, bypassing environment HTTP proxies.
    Unknown modes refuse before egress.
    Preparation budgets, owned leases, immutable context and exact approval remain.
-2. Retain the 180-second deadline, response-size cap, v2 token cap and one bounded
-   invalid-selection correction. Do not retry transport failures. Classify fixed
+2. Use a fixed 300-second grounded local response timeout; retain 180 seconds for
+   legacy copy. The real cold canary took 170.384 seconds while a warm request
+   took 2.642 seconds, leaving too little cold-start headroom under the original
+   window. These are measurements, not proof of the historical failure cause.
+   This urllib socket timeout is not a strict task wall-clock deadline. Independent
+   heartbeat renewal and post-inference lease/cancellation/context/expiry checks
+   remain, with no approval extension. Retain the response-size cap, v2 token cap
+   and one separately accounted invalid-selection correction; two local attempts
+   can each use the response window. Do not retry transport failures. Classify fixed
    safe timeout, connection, missing-model, busy, HTTP, malformed, oversized and
    incomplete-response errors. Require `done=true` and `done_reason=stop` before
    parsing. Interrupted response reads fail the inference and draft normally;

@@ -3563,3 +3563,36 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   The publication scan found zero matches for twelve configured credentials,
   202 saved private contacts and the two campaign IDs. A real local canary and
   operational delivery are still pending at this source-validation checkpoint.
+
+## 2026-11-03 — Measured local recovery and cold-start headroom
+
+- PR #92 passed CI and was deployed from merged main. All 79 tracked app/static
+  files matched across the five app roles. The environment hash, named PostgreSQL/
+  Redis/Ollama volume mappings, visible Career configuration and visible run-core
+  fields were preserved. The public API omits hidden grant bindings, so no separate
+  comparison of those hidden values is claimed. No account or grant was changed.
+- A genuine separately budgeted local-only draft completed from an unloaded model
+  in 170,384 ms (700 prompt, 15 completion tokens). A second request with the model
+  still resident completed in 2,642 ms (601 prompt, 15 completion tokens). Both
+  used Qwen3 8B on their first local invocation, cost zero credits, produced valid
+  grounded plans and passed complete-copy review without rewriting. GPU inspection
+  reported 100% GPU placement and an 8,192-token context. The historical failed
+  record was preserved; current recovery does not prove its original cause.
+- The measured cold call left less than ten seconds under the previous response
+  timeout. Grounded Creator requests now use a fixed 300-second socket response
+  timeout; legacy remains 180. Independent lease heartbeats and post-inference
+  cancellation, context and expiry fences remain. There is no transport retry,
+  extra invocation, larger token/response allowance or approval extension. This
+  is response-time headroom, not a strict task wall-clock deadline.
+- Released the recorded availability hold after the genuine checks. Two reviewed
+  introductions were exactly prepared/compared and individually approved through
+  the API. The first reached SMTP acceptance; the second retained its paced slot
+  inside its real expiry. Both label monitors were fresh with no pending replies.
+  No creator interest, handoff, inbox placement or improved response rate is
+  inferred. A Polish research failure was held rather than padded into outreach.
+- The follow-up frozen source passed Ruff/all 1,641 tests, Compose configuration,
+  `test.ps1` and the complete isolated `verify.ps1`, with the same PostgreSQL,
+  network-disabled browser, planner, actual-pacing and recovery proofs. All three
+  changed source/test files matched the validated checkout; live containers were
+  unchanged. The public diff contained no scanned configured credentials, private
+  contacts or campaign IDs. CI and merged-source deployment remain the delivery gates.
