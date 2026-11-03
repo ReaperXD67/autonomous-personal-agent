@@ -5,7 +5,7 @@ Review date: 2026-11-03
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
 bounded draft adaptation, grounded selection/rendering, draft preparation
-batches, and local Gmail onboarding.
+batches, local Gmail onboarding, and the selected complete-reply evidence design.
 This is an implementation review, not legal advice or
 a review of a configured mail provider's terms.
 
@@ -301,14 +301,56 @@ a review of a configured mail provider's terms.
   gate has no new external SMTP pacing canary; the original burst remains a
   recorded incident rather than evidence of compliant delivery cadence.
 
+### CO-017 — Body retrieval could broaden mailbox access or overstate reply evidence
+
+- Severity: High
+- Status: Implemented; isolated privacy/scope/retry proofs passed, live retrieval pending
+- Selected controls: existing `marketing.gmail_sync` metadata matching precedes
+  at most three full-message reads inside its combined twenty-message budget.
+  Only pending exact matches in the configured mailbox/custom label qualify,
+  including existing metadata-only rows. Returned message/thread IDs, sender,
+  subject and received time must match the saved record; task/campaign fences
+  follow provider work. No OAuth expansion or mailbox write is introduced.
+- Campaign scope: `CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS` is an explicit JSON
+  allowlist of at most ten distinct campaign UUIDs, default `[]`. Automatic
+  hydration and explicit read requests enforce it; other campaigns remain
+  metadata-only. The readiness flag reports opt-in, not successful access.
+  Existing authenticated captured-history reads remain available after opt-out.
+- Content boundary: depth eight, sixty-four MIME nodes, 128 KiB decoded content,
+  24,000 text characters and fixed charsets bound parsing. Attachments and
+  embedded messages are excluded without attachment endpoint requests or
+  external fetches. Full responses may include attachment metadata/encoding;
+  attachment content is not decoded or stored. Malformed, missing, unsupported
+  or over-limit required text remains incomplete/unavailable. A snippet or
+  truncated body cannot be labeled complete.
+- Review boundary: full selected plaintext/digest/status are separate private
+  evidence. Overview and audit output omit bodies; authenticated detail is
+  rendered as text, never active HTML or executable instructions. Complete rows
+  remain stable; incomplete rows receive at most three attempts with a five-
+  minute cooldown. Semantic review requires the exact complete-body digest;
+  full text alone adds no positive decision, negotiation, handoff or send grant.
+- Failure hold: a known completed read failure newer than the last complete
+  sync blocks sending readiness and delegated authority. Only a later complete
+  sync establishes recovery; configured credentials or queued/running work do
+  not clear the hold. The dashboard displays a fixed warning without raw errors.
+- Residual risk: exact sender/subject correlation is not sender authentication.
+  A body can contain misleading statements, quoted history, signatures or hostile
+  instructions. Completeness and digest integrity do not establish correct
+  interpretation. Read-only OAuth remains mailbox-wide at Google, while the
+  application enforces the narrower selection. Required regression and live
+  evidence are listed in [ADR-0037](../decisions/ADR-0037-bounded-creator-full-reply-evidence.md).
+
 ## Production blockers and operating limits
 
 - A label-scoped read-only Gmail adapter and conservative reply suggestions are
   implemented. English/Polish hints exclude recognizable quote/forward history
   and distinguish direct objections from instructional mentions; negation,
   conditional interest and uncertain matches still require original-message
-  review. Same-mailbox renewal and a fresh governed runtime read passed; a real
-  incoming-reply matching/replay canary remains separate live proof.
+  review. Same-mailbox renewal and live metadata intake/matching passed; repeated
+  sync stability was observed for one existing record, not a general replay
+  canary. Complete-body hydration and digest-bound review passed isolated source,
+  scope, PostgreSQL and browser proofs; real body retrieval and reviewed handoff
+  still require live evidence before operational claims.
 - Business-contact discovery is limited to unreviewed candidates in official
   public descriptions; no gated About email extraction or general website crawl
   is present. Fit scores and research ideas are deterministic; optional AI

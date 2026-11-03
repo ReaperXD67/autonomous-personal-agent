@@ -3623,3 +3623,55 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   links, two checkpoint anchors, whitespace and the configured private-value
   publication scan passed. Full CI and publication remain separate gates; no
   runtime refresh is needed for this documentation-only checkpoint.
+
+## 2026-11-03 — Automatic complete creator-reply evidence
+
+- The owner requested automatic retrieval rather than copying reply text into
+  chat. Retained the existing read-only Gmail account, custom-label selection,
+  metadata correlation and governed `marketing.gmail_sync` capability. Added
+  bounded hydration of matched pending rows, including existing preview-only
+  records; neither classifier hints nor capture itself confirms interest.
+- Separate private text, completeness, identity-bound digest and attempt state
+  preserve original reply IDs, snippets, timestamps and review decisions. The
+  private detail API and escaped-text review UI use complete evidence; semantic
+  review requires its current digest. Routine overviews, task outputs and audit
+  metadata omit full bodies. Attachments, embedded mail and remote content are
+  excluded from extraction. Unsupported or oversized data stays incomplete.
+- Reads share the existing twenty-message budget, with at most three full reads
+  per pass. Three total attempts, a five-minute cooldown and owned-lease fences
+  bound explicit retries and abandoned-claim recovery. Metadata progress may
+  persist, but a failed body-read task cannot advance completed-sync freshness.
+  A known failure after the last complete read blocks operator readiness and
+  automatic/final delegated sending until a later complete read. Queuing another
+  attempt does not clear the hold. No send grant, negotiation, model route,
+  account or broader scope was added.
+- Primary-source comparison selected existing Gmail REST and Python standard
+  library primitives; the Google SDK was deferred. ADR-0037, architecture,
+  security, operations, README and roadmap describe the boundary and limits.
+- A read-only diagnosis using the existing onboarding helper confirmed the
+  old creator refresh grant was invalid without changing settings or printing
+  credentials. Same-mailbox, same-client read-only renewal was opened for owner
+  consent. Successful consent, live retrieval, review and handoff remain separate
+  operating checks; source and deployment validation are recorded after they run.
+- Narrow Ruff and the 49-case MIME, 146-case Creator and 107-case Gmail adapter
+  suites passed. All 25 isolated PostgreSQL scenario groups passed, including
+  existing-row hydration, digest refusal, retry exhaustion, stale-owner and
+  cancellation fences, and known-failure freshness recovery. Network-disabled
+  actual-source desktop/mobile review proofs passed. The first PG assertion used
+  the wrong expected safe exception type; the corrected full repeat passed.
+  Full frozen-source validation and CI remain publication gates.
+- The first frozen-source run passed all 1,734 tests and the complete verifier,
+  including the new UI and PostgreSQL proofs, while live fingerprints stayed
+  unchanged. Rollout review then added an explicit default-empty campaign UUID
+  allowlist: the installation has four campaigns, while this job authorizes two.
+  Both worker hydration and the read request refuse non-selected campaigns;
+  metadata reading and private saved history remain available. The six additional
+  scope regressions and 34-case settings suite passed. A second frozen-source
+  run validates that final boundary before publication.
+- The final scoped checkout passed Compose configuration, Ruff/all 1,750 tests,
+  `test.ps1`, the complete isolated `verify.ps1`, the 25-group Creator database
+  proof and network-disabled browser proofs. Live container fingerprints remained
+  unchanged; no live credential was copied into either validation run. All 130
+  local documentation links and the configured private-value publication scan
+  passed. Real retrieval remains unverified while OAuth renewal is incomplete;
+  CI and merged-source deployment remain separate publication gates.

@@ -476,7 +476,7 @@ def test_gmail_wrong_account_stops_before_listing_or_persistence():
     )
     store = Mock()
     task = {"payload": {"campaign_id": str(uuid4())}}
-    with patch("app.creator_automation_gmail.GmailReadClient") as client:
+    with patch("app.creator_automation_gmail.CreatorGmailReadClient") as client:
         client.return_value.mailbox.return_value = "different@example.test"
         with pytest.raises(GmailSyncError, match="does not match"):
             execute_creator_gmail_sync(task, store, settings)

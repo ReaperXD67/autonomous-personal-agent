@@ -41,6 +41,14 @@ const creatorRunBusy = new Set();
 const creatorPilotBusy = new Set();
 const creatorPilotRequestKeys = new Map();
 const creatorPilotLimits = new Map();
+let creatorMailReviewVersion = 0;
+let creatorMailDetailVersion = 0;
+let creatorMailReviewTimer = null;
+let creatorMailDetail = null;
+let creatorMailDetailLoading = false;
+let creatorMailReadBusy = false;
+let creatorMailPollRemaining = 0;
+const creatorMailSemanticReviews = new Set(["interested", "question", "declined_unpaid"]);
 let loadingMoreProspects = false;
 const exportingCampaigns = new Set();
 
@@ -222,6 +230,8 @@ function disconnect(showMessage = true) {
   selectedPlanId = null;
   resetCreatorDraftReview();
   $("#marketing-reply-dialog").close();
+  resetCreatorMailReview();
+  $("#creator-mail-review-dialog").close();
   $("#workflow-dialog").close();
   setConnection(false);
   renderAll();
@@ -1987,6 +1997,13 @@ function creatorAutomationPanel(campaign) {
   sync.disabled = !data.readiness?.gmail_configured || creatorRunBusy.has(campaign.id);
   controls.append(sync);
   panel.append(controls, node("p", "fine-print", data.readiness?.gmail_configured ? `Gmail label read configured · last sync ${formatDate(data.gmail_sync?.last_sync_at)} · ${data.pending_reply_count || 0} replies need review.` : "Creator Gmail is not configured. Record replies manually; no mailbox is being monitored."));
+  const lastFailure = Date.parse(data.gmail_sync?.last_failure_at || "");
+  const lastComplete = Date.parse(data.gmail_sync?.last_complete_at || "");
+  if (Number.isFinite(lastFailure) && (!Number.isFinite(lastComplete) || lastFailure > lastComplete)) {
+    const warning = node("p", "notice creator-gmail-failure", `Creator reply reading failed. New approvals are held until a complete sync succeeds. Check the existing Gmail connection. Last complete read: ${formatDate(data.gmail_sync?.last_complete_at)}.`);
+    warning.setAttribute("role", "status");
+    panel.append(warning);
+  }
   if (!data.readiness?.smtp_configured) panel.append(node("p", "notice", "Configure a sending transport in Email setup before authorizing a run."));
   return panel;
 }
@@ -2054,9 +2071,157 @@ async function creatorRunAction(campaignId, action) {
   finally { creatorRunBusy.delete(campaignId); renderCampaigns(); }
 }
 
-function openCreatorMailReview(campaignId, replyId) {
+function resetCreatorMailReview() {
+  creatorMailReviewVersion += 1;
+  creatorMailDetailVersion += 1;
+  clearTimeout(creatorMailReviewTimer);
+  creatorMailReviewTimer = null;
+  creatorMailDetail = null;
+  creatorMailDetailLoading = false;
+  creatorMailReadBusy = false;
+  creatorMailPollRemaining = 0;
+  const form = $("#creator-mail-review-form");
+  form.dataset.busy = "false";
+  form.removeAttribute("aria-busy");
+  $$('button[type="submit"]', form).forEach((submit) => {
+    submit.disabled = false;
+    if (submit.dataset.idleLabel) submit.textContent = submit.dataset.idleLabel;
+  });
+  form.elements.body_digest.value = "";
+  $("#creator-mail-body").textContent = "";
+  $("#creator-mail-authored").textContent = "";
+  $("#creator-mail-full-text").hidden = true;
+  $("#creator-mail-authored-view").hidden = true;
+  $("#creator-mail-evidence").setAttribute("aria-busy", "false");
+}
+
+function currentCreatorMailReview(version, campaignId, replyId) {
+  const form = $("#creator-mail-review-form");
+  return version === creatorMailReviewVersion && $("#creator-mail-review-dialog").open
+    && form.elements.campaign_id.value === campaignId && form.elements.reply_id.value === replyId;
+}
+
+function completeCreatorMailDetail(detail) {
+  return detail?.body_status === "complete" && detail.body_complete === true
+    && /^[0-9a-f]{64}$/.test(detail.body_digest || "")
+    && typeof detail.body_text === "string" && Boolean(detail.body_text.trim());
+}
+
+function updateCreatorMailControls() {
+  const form = $("#creator-mail-review-form");
+  const complete = completeCreatorMailDetail(creatorMailDetail) && !creatorMailDetailLoading;
+  form.elements.body_digest.value = complete ? creatorMailDetail.body_digest : "";
+  for (const option of form.elements.classification.options) {
+    if (creatorMailSemanticReviews.has(option.value)) option.disabled = !complete;
+  }
+  if (!complete && !creatorMailDetailLoading && creatorMailSemanticReviews.has(form.elements.classification.value)) {
+    form.elements.classification.value = "";
+  }
+  const read = $("#creator-mail-read");
+  const attempts = Number(creatorMailDetail?.body_attempt_count || 0);
+  const attemptedAt = Date.parse(creatorMailDetail?.body_attempted_at || "");
+  const coolingDown = Number.isFinite(attemptedAt) && Date.now() < attemptedAt + 300000;
+  read.disabled = creatorMailDetailLoading || creatorMailReadBusy || complete || attempts >= 3 || coolingDown;
+  read.textContent = creatorMailReadBusy ? "Queueing read…" : complete ? "Complete snapshot retained"
+    : attempts >= 3 ? "Read attempts exhausted" : attempts ? "Retry full reply read" : "Read full reply";
+  $("#creator-mail-refresh").disabled = creatorMailDetailLoading || creatorMailReadBusy;
+  $("#creator-mail-attempts").textContent = coolingDown
+    ? `Attempt ${attempts} of 3 · retry available after ${formatDate(new Date(attemptedAt + 300000).toISOString())}. Refresh detail to check progress.`
+    : `${attempts} of 3 read attempts used. The server enforces the five-minute retry interval.`;
+}
+
+function renderCreatorMailDetail() {
+  const detail = creatorMailDetail;
+  const complete = completeCreatorMailDetail(detail);
+  const statuses = { missing: "Preview only · full reply has not been read", reading: "Full reply read in progress",
+    unavailable: "Preview only · full reply is unavailable", oversize: "Preview only · reply exceeds the supported size",
+    unsupported: "Preview only · reply format is unsupported" };
+  $("#creator-mail-body-status").textContent = complete
+    ? "Complete message text available · review the author's meaning below"
+    : statuses[detail?.body_status] || "Preview only · complete reply evidence is unavailable";
+  $("#creator-mail-full-text").hidden = !complete;
+  $("#creator-mail-body").textContent = complete ? detail.body_text : "";
+  $("#creator-mail-authored-view").hidden = !complete || !detail.authored_text;
+  $("#creator-mail-authored").textContent = complete ? detail.authored_text || "" : "";
+  updateCreatorMailControls();
+}
+
+function scheduleCreatorMailDetail(version, campaignId, replyId) {
+  clearTimeout(creatorMailReviewTimer);
+  if (!currentCreatorMailReview(version, campaignId, replyId) || !creatorMailPollRemaining
+    || !["missing", "reading"].includes(creatorMailDetail?.body_status)) return;
+  creatorMailReviewTimer = setTimeout(() => {
+    creatorMailPollRemaining -= 1;
+    loadCreatorMailDetail(version, campaignId, replyId, true);
+  }, 1500);
+}
+
+async function loadCreatorMailDetail(version, campaignId, replyId, polling = false) {
+  if (!currentCreatorMailReview(version, campaignId, replyId)) return;
+  if (!polling) { clearTimeout(creatorMailReviewTimer); creatorMailPollRemaining = 0; }
+  const requestVersion = ++creatorMailDetailVersion;
+  creatorMailDetailLoading = true;
+  $("#creator-mail-evidence").setAttribute("aria-busy", "true");
+  $("#creator-mail-body-error").hidden = true;
+  $("#creator-mail-body-status").textContent = "Loading complete reply evidence…";
+  updateCreatorMailControls();
+  try {
+    const detail = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/replies/${encodeURIComponent(replyId)}`);
+    if (!currentCreatorMailReview(version, campaignId, replyId) || requestVersion !== creatorMailDetailVersion) return;
+    if (detail.id !== replyId || detail.campaign_id !== campaignId) throw new Error("Reply detail did not match the selected conversation. Refresh and try again.");
+    creatorMailDetail = detail;
+  } catch (error) {
+    if (!currentCreatorMailReview(version, campaignId, replyId) || requestVersion !== creatorMailDetailVersion) return;
+    creatorMailDetail = null;
+    creatorMailPollRemaining = 0;
+    const feedback = $("#creator-mail-body-error");
+    feedback.textContent = error.message || "Complete reply evidence could not be loaded. Your note is kept.";
+    feedback.hidden = false;
+  } finally {
+    if (currentCreatorMailReview(version, campaignId, replyId) && requestVersion === creatorMailDetailVersion) {
+      creatorMailDetailLoading = false;
+      $("#creator-mail-evidence").setAttribute("aria-busy", "false");
+      renderCreatorMailDetail();
+      scheduleCreatorMailDetail(version, campaignId, replyId);
+    }
+  }
+}
+
+async function readCreatorMailDetail() {
+  if (creatorMailReadBusy || creatorMailDetailLoading || completeCreatorMailDetail(creatorMailDetail)) return;
+  const form = $("#creator-mail-review-form");
+  const campaignId = form.elements.campaign_id.value, replyId = form.elements.reply_id.value;
+  const version = creatorMailReviewVersion;
+  if (!currentCreatorMailReview(version, campaignId, replyId)) return;
+  clearTimeout(creatorMailReviewTimer);
+  creatorMailReadBusy = true;
+  $("#creator-mail-body-error").hidden = true;
+  updateCreatorMailControls();
+  try {
+    const result = await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/replies/${encodeURIComponent(replyId)}/read`, {
+      method: "POST", body: JSON.stringify({ actor: "dashboard:marketing" }),
+    });
+    if (!currentCreatorMailReview(version, campaignId, replyId)) return;
+    creatorMailDetail = { ...creatorMailDetail, ...result.capture, body_text: "", body_complete: false };
+    creatorMailPollRemaining = 5;
+    await loadCreatorMailDetail(version, campaignId, replyId, true);
+  } catch (error) {
+    if (!currentCreatorMailReview(version, campaignId, replyId)) return;
+    const feedback = $("#creator-mail-body-error");
+    feedback.textContent = error.message || "The read was not queued. Refresh detail before retrying.";
+    feedback.hidden = false;
+  } finally {
+    if (currentCreatorMailReview(version, campaignId, replyId)) {
+      creatorMailReadBusy = false;
+      updateCreatorMailControls();
+    }
+  }
+}
+
+async function openCreatorMailReview(campaignId, replyId) {
   const reply = state.creatorAutomation[campaignId]?.pending_replies?.find((item) => item.id === replyId);
   if (!reply) return;
+  resetCreatorMailReview();
   const form = $("#creator-mail-review-form"); form.reset(); clearFormError(form);
   form.elements.campaign_id.value = campaignId; form.elements.reply_id.value = replyId;
   form.elements.prospect_id.replaceChildren(new Option("Choose the matching creator", ""));
@@ -2065,9 +2230,12 @@ function openCreatorMailReview(campaignId, replyId) {
   form.elements.prospect_id.value = reply.prospect_id || "";
   form.elements.prospect_id.required = true;
   const context = $("#creator-mail-review-context"); context.replaceChildren();
-  context.append(node("strong", "", reply.subject), node("p", "fine-print", `${reply.sender} · ${formatDate(reply.received_at)}`), node("p", "", reply.snippet), node("p", "notice", "This is a metadata excerpt, not the full email. Confirm the complete message in your mailbox before recording interest."));
+  context.append(node("strong", "", reply.subject), node("p", "fine-print", `${reply.sender} · ${formatDate(reply.received_at)}`), node("h3", "", "Provider preview · may omit content"), node("p", "", reply.snippet || "No preview available."));
   if (reply.suggested_feedback_tags?.length) context.append(node("p", "fine-print", `Possible feedback to check: ${reply.suggested_feedback_tags.map(titleCase).join(", ")}. Confirm only what the creator actually said below.`));
+  creatorMailDetail = reply;
+  renderCreatorMailDetail();
   $("#creator-mail-review-dialog").showModal();
+  return loadCreatorMailDetail(creatorMailReviewVersion, campaignId, replyId);
 }
 
 function canPrepareCreatorHandoff(prospect) {
@@ -2078,8 +2246,16 @@ function canPrepareCreatorHandoff(prospect) {
 
 async function saveCreatorMailReview(event) {
   const form = event.currentTarget;
-  await api(`/v1/marketing/campaigns/${form.elements.campaign_id.value}/replies/${form.elements.reply_id.value}/review`, { method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", prospect_id: form.elements.prospect_id.value || null, classification: form.elements.classification.value, note: form.elements.note.value.trim(), feedback_tags: reviewedFeedbackTags(form) }) });
-  $("#creator-mail-review-dialog").close(); toast("Reply review recorded"); await loadData({ quiet: true });
+  const version = creatorMailReviewVersion;
+  const campaignId = form.elements.campaign_id.value, replyId = form.elements.reply_id.value;
+  const semantic = creatorMailSemanticReviews.has(form.elements.classification.value);
+  if (semantic && (creatorMailDetailLoading || !completeCreatorMailDetail(creatorMailDetail)
+    || form.elements.body_digest.value !== creatorMailDetail.body_digest)) {
+    throw new Error("Load and read the complete reply before confirming its meaning.");
+  }
+  await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/replies/${encodeURIComponent(replyId)}/review`, { method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", prospect_id: form.elements.prospect_id.value || null, classification: form.elements.classification.value, note: form.elements.note.value.trim(), feedback_tags: reviewedFeedbackTags(form), body_digest: semantic ? form.elements.body_digest.value : null }) });
+  if (currentCreatorMailReview(version, campaignId, replyId)) { $("#creator-mail-review-dialog").close(); toast("Reply review recorded"); }
+  await loadData({ quiet: true });
 }
 
 function renderMarketingMetrics() {
@@ -3916,6 +4092,12 @@ document.addEventListener("click", async (event) => {
   if (action === "pause-creator-run") return creatorRunAction(id, "pause");
   if (action === "sync-creator-replies") return creatorRunAction(id, "sync");
   if (action === "review-creator-mail") return openCreatorMailReview(target.dataset.campaignId, id);
+  if (action === "close-creator-mail-review") return $("#creator-mail-review-dialog").close();
+  if (action === "read-creator-mail") return readCreatorMailDetail();
+  if (action === "refresh-creator-mail") {
+    const form = $("#creator-mail-review-form");
+    return loadCreatorMailDetail(creatorMailReviewVersion, form.elements.campaign_id.value, form.elements.reply_id.value);
+  }
   if (action === "reply-prospect") return openMarketingReply(state.prospects.find((item) => item.id === id));
   if (action === "outcome-prospect") return openMarketingOutcome(state.prospects.find((item) => item.id === id));
   if (action === "review-action") return showActionReview(id);
@@ -3982,8 +4164,19 @@ $("#career-play-form").elements.mode.addEventListener("change", () => {
 $("#campaign-form").addEventListener("submit", (event) => guardedSubmit(event, saveCampaign));
 $("#creator-run-form").addEventListener("submit", (event) => guardedSubmit(event, saveCreatorRun));
 $("#creator-run-form").addEventListener("input", (event) => { if (event.target.name !== "authorize_run") event.currentTarget.elements.authorize_run.checked = false; });
-$("#creator-mail-review-form").addEventListener("submit", (event) => guardedSubmit(event, saveCreatorMailReview));
+$("#creator-mail-review-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget, version = creatorMailReviewVersion;
+  const campaignId = form.elements.campaign_id.value, replyId = form.elements.reply_id.value;
+  if (!beginFormWork(form)) return;
+  try { await saveCreatorMailReview(event); }
+  catch (error) { if (currentCreatorMailReview(version, campaignId, replyId)) showFormError(form, error); }
+  finally { if (currentCreatorMailReview(version, campaignId, replyId)) endFormWork(form); }
+});
 $("#creator-mail-review-form").elements.classification.addEventListener("change", (event) => { $("#creator-mail-review-form").elements.prospect_id.required = event.target.value !== "ignore"; });
+$("#creator-mail-review-dialog").addEventListener("close", () => {
+  if (!$("#creator-mail-review-dialog").open) resetCreatorMailReview();
+});
 $("#prospect-form").addEventListener("submit", (event) => guardedSubmit(event, saveProspect));
 $("#marketing-outcome-form").addEventListener("submit", (event) => guardedSubmit(event, saveMarketingOutcome));
 $("#marketing-reply-form").addEventListener("submit", (event) => guardedSubmit(event, async (event) => {

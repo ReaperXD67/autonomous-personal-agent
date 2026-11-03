@@ -32,6 +32,13 @@
 .creator-mail-row { padding: 20px 0; border-bottom: 1px solid var(--line); max-width: 75ch; overflow-wrap: anywhere; }
 .creator-mail-row > p { line-height: 1.65; }
 .creator-run-context, .creator-mail-context { padding: 18px 0; margin-bottom: 20px; border-block: 1px solid var(--line); overflow-wrap: anywhere; }
+.creator-mail-context h3, .creator-mail-evidence h3 { font-size: 1rem; margin: 18px 0 10px; }
+.creator-mail-evidence { min-width: 0; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.creator-mail-evidence h4 { margin: 22px 0 10px; }
+.creator-mail-body { max-width: 100%; max-height: 42vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font: inherit; line-height: 1.65; }
+.creator-mail-read-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.creator-mail-read-actions button { min-height: 44px; }
+#creator-mail-review-dialog .dialog-close { width: 44px; height: 44px; }
 .creator-run-consent { margin: 24px 0 12px; }
 .checkbox-row { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
 .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 4px; accent-color: var(--lime); }

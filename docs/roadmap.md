@@ -83,6 +83,7 @@
 - [x] Renew the recorded creator OAuth connection and verify a fresh governed labeled read
 - [ ] Establish the appropriate Google publishing/verification or reconsent operation for continued reply monitoring
 - [x] Observe live labeled reply-metadata intake and exact sender/subject matching to prior accepted creator invitations
+- [x] Implement bounded full-text capture for matched creator replies, private saved-message detail and digest-bound semantic review
 - [ ] Verify complete authored-reply review, general incoming-reply replay and owner handoff with live canaries
 - [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
 

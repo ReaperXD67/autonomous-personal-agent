@@ -410,7 +410,9 @@ full authored-message review and owner handoff remain separate proofs.
 Choose **Check creator replies** and inspect the result. A configured flag is
 not operational proof. Complete a real labeled-reply canary with an inbox you own
 before relying on monitoring. The adapter validates mailbox identity, uses bounded
-pages and durable cursors, and does not fetch attachments or follow message links.
+pages and durable cursors. It makes no attachment-endpoint requests, does not
+decode/store attachments and never follows message links. Gmail's full-message
+JSON can still contain ignored inline attachment data within the response cap.
 OAuth grants mailbox-wide read access; the custom-label restriction is enforced
 by the application, not by Google OAuth. See Google's
 [message-list guide](https://developers.google.com/workspace/gmail/api/guides/list-messages)
@@ -423,10 +425,16 @@ excerpts need the operator's review. Without Gmail, record responses manually;
 Hermes does not claim to watch an unconnected inbox.
 Recognizable quoted/forwarded history and the outgoing opt-out instruction are
 excluded from direct opt-out detection. This remains conservative excerpt parsing;
-inspect the full authored message when context is incomplete. The current reader
-exposes metadata and provider snippets, with no full-body endpoint. If a verified
-review channel cannot supply the full text, leave the record unreviewed and ask
-the owner for it; do not classify interest or prepare a handoff from snippets.
+inspect the complete saved message when context is incomplete. The reader now
+captures bounded full text automatically for explicitly enabled campaigns'
+matched, still-labeled pending
+replies, including earlier preview-only records. Open **Review reply** to read the
+private detail; the ordinary overview contains no bodies. Complete semantic
+decisions carry the exact saved body digest. An authored-only view is a heuristic
+and cannot replace reading the quoted context. Missing or unsupported text stays
+unreviewed; **Read full reply** or the bounded retry route can request capture
+after a provider issue is resolved. No ordinary email copying is needed.
+See [complete-reply limits and API use](creator-outreach-continuation.md#complete-reply-evidence).
 
 An invalid or expired OAuth refresh grant means reading is unavailable even when
 settings are present. Complete the [explicit renewal flow](gmail-setup.md#expiry-and-recovery),

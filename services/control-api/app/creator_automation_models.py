@@ -28,6 +28,7 @@ class CreatorReplyReview(CreatorAutomationActor):
     ]
     note: str = Field(default="", max_length=3000)
     feedback_tags: list[CreatorFeedbackTag] = Field(default_factory=list, max_length=8)
+    body_digest: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
     @field_validator("feedback_tags")
     @classmethod

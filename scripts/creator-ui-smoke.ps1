@@ -19,6 +19,13 @@ try {
             --mount "type=bind,source=$proofPath,target=/proof" `
             --entrypoint python autonomous-personal-agent/action-worker:local -
     if ($LASTEXITCODE -ne 0) { throw 'Creator dashboard browser proof failed' }
+    Get-Content -Raw (Join-Path $PSScriptRoot 'creator-full-reply-ui-smoke.py') |
+        docker run --rm -i --network none --read-only --cap-drop ALL `
+            --security-opt no-new-privileges --tmpfs /tmp:size=256m `
+            --mount "type=bind,source=$webPath,target=/web,readonly" `
+            --mount "type=bind,source=$proofPath,target=/proof" `
+            --entrypoint python autonomous-personal-agent/action-worker:local -
+    if ($LASTEXITCODE -ne 0) { throw 'Creator full-reply browser proof failed' }
 }
 finally {
     Pop-Location

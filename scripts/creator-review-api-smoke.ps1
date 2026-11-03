@@ -22,6 +22,7 @@ $script:campaignIds = @($campaignA.ToString(), $campaignB.ToString())
 $script:historyFull = $false
 $script:readOnlyProbe = $false
 $script:windowMode = 'normal'
+$script:failureMode = 'none'
 
 function Assert-Rejected {
     param([scriptblock]$Action)
@@ -93,6 +94,13 @@ function Invoke-RestMethod {
         $wire = [pscustomobject]@{ readiness = @{ gmail_configured = $true }
             gmail_sync = @{ last_complete_at = [DateTimeOffset]::UtcNow.AddMinutes($age).ToString('o') }
             pending_reply_count = 12; pending_replies = @(1..12 | ForEach-Object { @{ id = $_; snippet = 'PRIVATE_REPLY' } }) }
+        if ($script:failureMode -ne 'none') {
+            $wire.gmail_sync.last_failure_at = switch ($script:failureMode) {
+                'newer' { [DateTimeOffset]::UtcNow.AddMinutes(-1).ToString('o') }
+                'older' { [DateTimeOffset]::UtcNow.AddMinutes(-3).ToString('o') }
+                'invalid' { 'ambiguous' }
+            }
+        }
         $parsed = ($wire | ConvertTo-Json -Depth 12) | ConvertFrom-Json
         if ($parsed.gmail_sync.last_complete_at -isnot [DateTime]) { throw 'Fixture did not exercise parsed ISO dates.' }
         return $parsed
@@ -181,6 +189,15 @@ try {
             throw 'Bounded creation-window coverage was inferred incorrectly.'
         }
     }
+    foreach ($failure in @('newer', 'older', 'invalid')) {
+        $script:failureMode = $failure
+        $snapshot = Get-CreatorReviewSnapshot -CampaignId @($campaignA, $campaignB)
+        if ($snapshot.campaigns[0].monitor_fresh -ne ($failure -eq 'older') -or
+            $snapshot.campaigns[0].monitor_failed -ne ($failure -ne 'older')) {
+            throw 'A newer failed read or ambiguous failure timestamp escaped the monitoring hold.'
+        }
+    }
+    $script:failureMode = 'none'
     [IO.File]::WriteAllText($fixtureEnv, "CONTROL_API_TOKEN=`"bad`n")
     Assert-Rejected { Invoke-CreatorControlApi -Path '/v1/marketing/campaigns' }
     [IO.File]::WriteAllText($fixtureEnv, "CONTROL_API_TOKEN=one`nCONTROL_API_TOKEN=two`n")

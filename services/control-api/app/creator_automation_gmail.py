@@ -1,4 +1,4 @@
-"""Read only the deployment-selected creator label; no mailbox writes or body fetches."""
+"""Read bounded metadata and selected full replies from the configured creator label."""
 
 from __future__ import annotations
 
@@ -8,12 +8,27 @@ from typing import Any
 from uuid import UUID
 
 from app.career_tracking import (
+    GMAIL_ID,
     MAX_GET,
     GmailReadClient,
     GmailResourceGoneError,
     GmailSyncError,
     normalize_message,
 )
+from app.creator_gmail_body import parse_gmail_body
+
+MAX_FULL_READS = 3
+
+
+class CreatorGmailReadClient(GmailReadClient):
+    """Creator-only extension; Career's message() remains metadata-only."""
+
+    def full_message(self, message_id: str) -> dict[str, Any]:
+        if not GMAIL_ID.fullmatch(message_id):
+            raise GmailSyncError("Creator Gmail message identifier is invalid")
+        return self._get(f"messages/{message_id}", {
+            "format": "full", "fields": "id,threadId,labelIds,snippet,internalDate,payload",
+        })
 
 
 def execute_creator_gmail_sync(
@@ -33,7 +48,7 @@ def execute_creator_gmail_sync(
     campaign_id = UUID(str(task["payload"]["campaign_id"]))
     store.get_campaign(campaign_id)
     checkpoint()
-    client = GmailReadClient(
+    client = CreatorGmailReadClient(
         settings.gmail_client_id, settings.gmail_client_secret, settings.gmail_refresh_token
     )
     mailbox = client.mailbox()
@@ -62,12 +77,61 @@ def execute_creator_gmail_sync(
             messages.append(message)
     pending = [item for item in remaining if item not in consumed]
     checkpoint()
-    result = store.save_gmail(task, state, messages, cursor=cursor, pending=pending)
+    result = store.save_gmail(
+        task, state, messages, cursor=cursor, pending=pending, mark_complete=False,
+    )
+    state = store.gmail_context(campaign_id, hashlib.sha256(mailbox.encode()).hexdigest(), label)
+    body_reads, body_complete, body_unavailable = 0, 0, 0
+    remaining_budget = MAX_GET - len(consumed)
+    capture_enabled = campaign_id in getattr(settings, "creator_gmail_full_reply_campaign_ids", [])
+    if capture_enabled and remaining_budget > 0:
+        checkpoint()
+        if client.mailbox() != mailbox or client.label_id(label) != label_id:
+            raise GmailSyncError("Creator Gmail mailbox or label changed before full reply reads")
+        body_limit = min(MAX_FULL_READS, remaining_budget)
+        candidates = store.body_capture_candidates(task, state, body_limit)
+        for candidate in candidates[:body_limit]:
+            checkpoint()
+            claim = store.claim_reply_body(task, state, candidate["id"])
+            if claim is None:
+                continue
+            body_reads += 1
+            message = None
+            try:
+                raw = client.full_message(claim["gmail_message_id"])
+                message = normalize_message(
+                    raw, expected_id=claim["gmail_message_id"], label_id=label_id, mailbox=mailbox,
+                )
+                keys = ("gmail_message_id", "gmail_thread_id", "sender", "subject", "received_at")
+                if message is None or any(message[key] != claim[key] for key in keys):
+                    capture = {"status": "unavailable", "text": "", "format": None,
+                               "error_code": "CREATOR_REPLY_BODY_IDENTITY_CHANGED"}
+                else:
+                    capture = parse_gmail_body(raw.get("payload"))
+            except GmailResourceGoneError:
+                capture = {"status": "unavailable", "text": "", "format": None,
+                           "error_code": "CREATOR_REPLY_BODY_UNAVAILABLE"}
+            except GmailSyncError:
+                checkpoint()
+                store.save_reply_body(task, state, claim, {
+                    "status": "unavailable", "text": "", "format": None,
+                    "error_code": "CREATOR_REPLY_BODY_UNAVAILABLE",
+                })
+                raise
+            checkpoint()
+            saved = store.save_reply_body(task, state, claim, capture, message)
+            body_complete += int(saved["body_status"] == "complete")
+            body_unavailable += int(saved["body_status"] != "complete")
+    checkpoint()
+    store.finalize_reply_sync(task, state)
     return {
         "handler": "marketing.gmail_sync",
         **result,
         "fetched": len(consumed),
         "pending": len(pending),
         "more_pages": bool(cursor),
+        "body_reads": body_reads,
+        "body_complete": body_complete,
+        "body_unavailable": body_unavailable,
         "mailbox_modified": False,
     }

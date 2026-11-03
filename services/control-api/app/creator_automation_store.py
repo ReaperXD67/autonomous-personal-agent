@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import re
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -11,6 +14,7 @@ from app.creator_automation import (
     correlate_creator_reply,
     creator_eligibility_reason,
     creator_key,
+    creator_mailbox_is_fresh,
     pending_reply_reason,
     run_block_reason,
 )
@@ -24,6 +28,52 @@ from app.marketing_store import (
 )
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate
 from app.store import InvalidTaskStateError
+
+BODY_VERSION = "creator-gmail-body-v1"
+BODY_FIELDS = (
+    "body_status", "body_format", "body_digest", "body_version", "body_attempt_count",
+    "body_attempted_at", "body_fetched_at", "body_error_code", "reviewed_body_digest",
+)
+BODY_FAILURE_CODES = {
+    "CREATOR_REPLY_BODY_UNAVAILABLE", "CREATOR_REPLY_BODY_IDENTITY_CHANGED",
+    "CREATOR_REPLY_BODY_CAPTURE_INELIGIBLE", "CREATOR_REPLY_BODY_OVERSIZE",
+    "CREATOR_REPLY_BODY_UNSUPPORTED", "CREATOR_REPLY_BODY_INVALID",
+}
+
+
+def reply_body_digest(reply: dict[str, Any]) -> str:
+    """Bind the complete representation to its original mailbox/message identity."""
+    material = {key: str(reply.get(key) or "") for key in (
+        "campaign_id", "gmail_message_id", "gmail_thread_id", "sender", "subject",
+        "body_text", "body_format", "body_version", "body_mailbox_key", "body_label_name",
+    )}
+    material["received_at"] = reply["received_at"].isoformat()
+    return hashlib.sha256(json.dumps(material, sort_keys=True, ensure_ascii=False,
+                                     separators=(",", ":")).encode()).hexdigest()
+
+
+def complete_reply_body(reply: dict[str, Any]) -> bool:
+    return bool(
+        reply.get("body_status") == "complete" and reply.get("body_text")
+        and reply.get("body_version") == BODY_VERSION
+        and reply.get("body_format") in {"plain", "html"}
+        and reply.get("body_digest") == reply_body_digest(reply)
+    )
+
+
+def reply_capture_summary(reply: dict[str, Any]) -> dict[str, Any]:
+    return {"id": reply["id"], **{key: reply.get(key) for key in BODY_FIELDS}}
+
+
+def authored_body_view(text: str) -> str:
+    """A case-preserving reading aid; the complete body remains the review evidence."""
+    marker = re.search(
+        r"(?im)(?:\bon\s+[^\n]{1,220}?\bwrote\s*:|"
+        r"\b(?:w dniu|dnia)\s+[^\n]{1,220}?\b(?:napisał|napisała|napisano)\s*:|"
+        r"^\s*>|^-{2,}\s*(?:original|forwarded|wiadomość oryginalna)\s*(?:message)?\s*-{2,})",
+        text,
+    )
+    return (text[:marker.start()] if marker else text).strip()
 
 
 def lock_automation(connection: Any) -> None:
@@ -175,7 +225,12 @@ class CreatorAutomationStore(MarketingStore):
                 (campaign_id,),
             ).fetchall()
             replies = connection.execute(
-                "SELECT * FROM creator_reply_messages WHERE campaign_id=%s AND needs_review "
+                "SELECT id,campaign_id,gmail_message_id,gmail_thread_id,sender,subject,snippet,"
+                "received_at,prospect_id,suggested_classification,match_reason,needs_review,"
+                "reviewed_by,reviewed_at,reviewed_classification,created_at,body_status,"
+                "body_format,body_digest,body_version,body_attempt_count,body_attempted_at,"
+                "body_fetched_at,body_error_code,reviewed_body_digest "
+                "FROM creator_reply_messages WHERE campaign_id=%s AND needs_review "
                 "ORDER BY received_at DESC LIMIT 100",
                 (campaign_id,),
             ).fetchall()
@@ -189,6 +244,16 @@ class CreatorAutomationStore(MarketingStore):
                 "WHERE campaign_id=%s",
                 (campaign_id,),
             ).fetchone()
+            failure = connection.execute(
+                "SELECT COALESCE(completed_at,dead_lettered_at) AS last_failure_at "
+                "FROM agent_tasks WHERE kind='marketing.gmail_sync' "
+                "AND status IN ('failed','dead_lettered') AND payload->>'campaign_id'=%s "
+                "AND COALESCE(completed_at,dead_lettered_at) IS NOT NULL "
+                "ORDER BY COALESCE(completed_at,dead_lettered_at) DESC LIMIT 1",
+                (str(campaign_id),),
+            ).fetchone()
+            sync = {"last_sync_at": None, "last_complete_at": None, **(sync or {}),
+                    "last_failure_at": failure["last_failure_at"] if failure else None}
         public = [self._public_run(run) for run in runs]
         for reply in replies:
             reply["suggested_feedback_tags"] = suggested_feedback_tags(reply["snippet"])
@@ -327,14 +392,7 @@ class CreatorAutomationStore(MarketingStore):
             reason = run_block_reason(run, campaign) or pending_reply_reason(
                 connection, campaign_id
             )
-            if (
-                run["monitor_gmail"]
-                and not connection.execute(
-                    "SELECT 1 FROM creator_gmail_sync_state WHERE campaign_id=%s "
-                    "AND last_complete_at>now()-interval '30 minutes'",
-                    (campaign_id,),
-                ).fetchone()
-            ):
+            if run["monitor_gmail"] and not creator_mailbox_is_fresh(connection, campaign_id):
                 reason = reason or "Waiting for a recent completed creator mailbox sync"
             if reason:
                 connection.execute(
@@ -620,24 +678,240 @@ class CreatorAutomationStore(MarketingStore):
         self.get_campaign(campaign_id)
         with self.connect() as connection:
             lock_automation(connection)
-            existing = connection.execute(
-                "SELECT * FROM agent_tasks WHERE kind='marketing.gmail_sync' "
-                "AND payload->>'campaign_id'=%s AND (status IN ('queued','running') "
-                "OR created_at>now()-interval '1 minute') ORDER BY created_at DESC LIMIT 1",
-                (str(campaign_id),),
-            ).fetchone()
-            task = existing or self._create_task_record(
-                connection,
-                TaskCreate(
-                    title="Read labeled creator replies",
-                    kind="marketing.gmail_sync",
-                    payload={"campaign_id": str(campaign_id)},
-                    requested_by=actor,
-                    idempotency_key=f"creator-mail:{campaign_id}:{uuid4()}",
-                ),
-            )
+            task = self._queue_reply_sync(connection, campaign_id, actor)
             connection.commit()
         return task
+
+    def _queue_reply_sync(self, connection, campaign_id, actor):
+        existing = connection.execute(
+            "SELECT * FROM agent_tasks WHERE kind='marketing.gmail_sync' "
+            "AND payload->>'campaign_id'=%s AND (status IN ('queued','running') "
+            "OR created_at>now()-interval '1 minute') ORDER BY created_at DESC LIMIT 1",
+            (str(campaign_id),),
+        ).fetchone()
+        return existing or self._create_task_record(connection, TaskCreate(
+            title="Read labeled creator replies", kind="marketing.gmail_sync",
+            payload={"campaign_id": str(campaign_id)}, requested_by=actor,
+            idempotency_key=f"creator-mail:{campaign_id}:{uuid4()}",
+        ))
+
+    def get_reply(self, campaign_id, reply_id):
+        self.get_campaign(campaign_id)
+        with self.connect() as connection:
+            reply = connection.execute(
+                "SELECT * FROM creator_reply_messages WHERE id=%s AND campaign_id=%s",
+                (reply_id, campaign_id),
+            ).fetchone()
+        if not reply:
+            raise MarketingOutreachError("Creator reply not found in this campaign")
+        body_valid = complete_reply_body(reply)
+        result = {key: value for key, value in reply.items() if key not in {
+            "body_text", "body_mailbox_key", "body_label_name", "body_capture_task_id",
+            "body_capture_lease_id",
+        }}
+        result.update(
+            body_text=reply["body_text"] if body_valid else "",
+            authored_text=authored_body_view(reply["body_text"]) if body_valid else "",
+            body_complete=body_valid, authored_view_is_heuristic=True,
+        )
+        return result
+
+    @staticmethod
+    def _body_capture_eligible(connection, reply):
+        if not reply["needs_review"] or not reply["prospect_id"]:
+            return False
+        prospect = connection.execute(
+            "SELECT contact_email,suppressed_at,status FROM marketing_prospects "
+            "WHERE id=%s AND campaign_id=%s FOR SHARE",
+            (reply["prospect_id"], reply["campaign_id"]),
+        ).fetchone()
+        if (not prospect or prospect["suppressed_at"] or prospect["status"] in {
+                "suppressed", "handed_off", "converted", "bounced",
+            } or not prospect["contact_email"]
+                or prospect["contact_email"].casefold() != reply["sender"].casefold()):
+            return False
+        sent = connection.execute(
+            "SELECT m.prospect_id,a.public_context->>'recipient' AS recipient,"
+            "a.public_context->>'subject' AS subject,a.executed_at AS sent_at "
+            "FROM marketing_outreach_messages m JOIN external_actions a ON a.id=m.action_id "
+            "WHERE m.prospect_id=%s AND a.status='succeeded' AND a.executed_at IS NOT NULL "
+            "ORDER BY a.executed_at DESC LIMIT 2000", (reply["prospect_id"],),
+        ).fetchall()
+        matched, _ = correlate_creator_reply(reply, sent)
+        return matched == reply["prospect_id"]
+
+    def queue_reply_body_read(self, campaign_id, reply_id, actor):
+        self.get_campaign(campaign_id)
+        with self.connect() as connection:
+            lock_automation(connection)
+            reply = connection.execute(
+                "SELECT * FROM creator_reply_messages WHERE id=%s AND campaign_id=%s FOR UPDATE",
+                (reply_id, campaign_id),
+            ).fetchone()
+            if not reply or not self._body_capture_eligible(connection, reply):
+                raise MarketingOutreachError("Read requires an unreviewed matched creator reply")
+            if reply["body_status"] == "complete":
+                raise MarketingOutreachError(
+                    "Complete creator reply snapshots cannot be recaptured",
+                )
+            timing = connection.execute(
+                "SELECT clock_timestamp() AS now, %s::timestamptz IS NULL OR "
+                "%s::timestamptz<=clock_timestamp()-interval '5 minutes' AS retry_due",
+                (reply["body_attempted_at"], reply["body_attempted_at"]),
+            ).fetchone()
+            if reply["body_attempt_count"] >= 3 or not timing["retry_due"]:
+                raise MarketingOutreachError(
+                    "Full reply reads allow three attempts, five minutes apart",
+                )
+            if reply["body_status"] == "reading" and connection.execute(
+                "SELECT 1 FROM agent_tasks WHERE id=%s AND status='running' "
+                "AND lease_id=%s AND cancellation_requested_at IS NULL "
+                "AND lease_expires_at>clock_timestamp()",
+                (reply["body_capture_task_id"], reply["body_capture_lease_id"]),
+            ).fetchone():
+                raise MarketingOutreachError("A governed full reply read is already running")
+            reply = connection.execute(
+                "UPDATE creator_reply_messages SET body_status='missing' WHERE id=%s RETURNING *",
+                (reply_id,),
+            ).fetchone()
+            task = self._queue_reply_sync(connection, campaign_id, actor)
+            self._audit_automation(connection, campaign_id, "creator.reply.read_requested", actor,
+                                   task_id=task["id"], reply_id=str(reply_id))
+            connection.commit()
+        return {"task": task, "capture": reply_capture_summary(reply)}
+
+    def _body_state(self, connection, task, state):
+        self._check_task(connection, task, "marketing.gmail_sync")
+        current = connection.execute(
+            "SELECT * FROM creator_gmail_sync_state WHERE campaign_id=%s FOR SHARE",
+            (state["campaign_id"],),
+        ).fetchone()
+        if (str(task["payload"]["campaign_id"]) != str(state["campaign_id"])
+                or not current or any(current[key] != state[key] for key in (
+                    "mailbox_key", "label_name", "revision",
+                ))):
+            raise MarketingOutreachError("Creator mailbox state changed before full reply capture")
+
+    def finalize_reply_sync(self, task, state):
+        with self.connect() as connection:
+            lock_automation(connection)
+            self._body_state(connection, task, state)
+            self._check_task(connection, task, "marketing.gmail_sync")
+            connection.execute(
+                "UPDATE creator_gmail_sync_state SET last_complete_at=CASE "
+                "WHEN page_token IS NULL AND pending_message_ids='[]'::jsonb "
+                "THEN clock_timestamp() ELSE last_complete_at END WHERE campaign_id=%s",
+                (state["campaign_id"],),
+            )
+            self._check_task(connection, task, "marketing.gmail_sync")
+            connection.commit()
+
+    def body_capture_candidates(self, task, state, limit):
+        with self.connect() as connection:
+            self._body_state(connection, task, state)
+            return connection.execute(
+                "SELECT r.id FROM creator_reply_messages r "
+                "JOIN marketing_prospects p ON p.id=r.prospect_id AND p.campaign_id=r.campaign_id "
+                "LEFT JOIN agent_tasks owner ON owner.id=r.body_capture_task_id "
+                "AND owner.lease_id=r.body_capture_lease_id AND owner.status='running' "
+                "AND owner.cancellation_requested_at IS NULL "
+                "AND owner.lease_expires_at>clock_timestamp() "
+                "WHERE r.campaign_id=%s AND r.needs_review "
+                "AND (r.body_status='missing' OR (r.body_status='reading' AND owner.id IS NULL)) "
+                "AND r.body_attempt_count<3 AND (r.body_attempted_at IS NULL OR "
+                "r.body_attempted_at<=clock_timestamp()-interval '5 minutes') "
+                "AND p.suppressed_at IS NULL AND p.status NOT IN "
+                "('suppressed','handed_off','converted','bounced') "
+                "AND lower(p.contact_email)=lower(r.sender) "
+                "ORDER BY r.received_at,r.id LIMIT %s",
+                (state["campaign_id"], min(3, max(0, limit))),
+            ).fetchall()
+
+    def claim_reply_body(self, task, state, reply_id):
+        with self.connect() as connection:
+            lock_automation(connection)
+            self._body_state(connection, task, state)
+            reply = connection.execute(
+                "SELECT * FROM creator_reply_messages WHERE id=%s AND campaign_id=%s FOR UPDATE",
+                (reply_id, state["campaign_id"]),
+            ).fetchone()
+            if (not reply or reply["body_status"] not in {"missing", "reading"}
+                    or reply["body_attempt_count"] >= 3
+                    or not self._body_capture_eligible(connection, reply)):
+                return None
+            if reply["body_status"] == "reading" and connection.execute(
+                "SELECT 1 FROM agent_tasks WHERE id=%s AND lease_id=%s AND status='running' "
+                "AND cancellation_requested_at IS NULL AND lease_expires_at>clock_timestamp()",
+                (reply["body_capture_task_id"], reply["body_capture_lease_id"]),
+            ).fetchone():
+                return None
+            reply = connection.execute(
+                "UPDATE creator_reply_messages SET body_status='reading',"
+                "body_attempt_count=body_attempt_count+1,body_attempted_at=clock_timestamp(),"
+                "body_capture_task_id=%s,body_capture_lease_id=%s "
+                "WHERE id=%s AND (body_attempted_at IS NULL OR "
+                "body_attempted_at<=clock_timestamp()-interval '5 minutes') RETURNING *",
+                (task["id"], task["lease_id"], reply_id),
+            ).fetchone()
+            self._check_task(connection, task, "marketing.gmail_sync")
+            connection.commit()
+            return reply
+
+    def save_reply_body(self, task, state, claim, result, message=None):
+        with self.connect() as connection:
+            lock_automation(connection)
+            self._body_state(connection, task, state)
+            reply = connection.execute(
+                "SELECT * FROM creator_reply_messages WHERE id=%s AND campaign_id=%s FOR UPDATE",
+                (claim["id"], state["campaign_id"]),
+            ).fetchone()
+            if (not reply or not reply["needs_review"] or reply["body_status"] != "reading"
+                    or reply["body_capture_task_id"] != task["id"]
+                    or reply["body_capture_lease_id"] != task["lease_id"]
+                    or reply["body_attempt_count"] != claim["body_attempt_count"]):
+                raise MarketingOutreachError("Full reply capture no longer owns its snapshot")
+            keys = ("gmail_message_id", "gmail_thread_id", "sender", "subject", "received_at")
+            if any(reply[key] != claim[key] for key in keys):
+                raise MarketingOutreachError("Creator reply identity changed before capture")
+            status = result["status"]
+            text, form, error = "", None, "CREATOR_REPLY_BODY_UNAVAILABLE"
+            if status == "complete":
+                if (not message or any(message[key] != reply[key] for key in keys)
+                        or not self._body_capture_eligible(connection, reply)):
+                    status, error = "unavailable", "CREATOR_REPLY_BODY_IDENTITY_CHANGED"
+                elif (not isinstance(result["text"], str) or not result["text"]
+                      or len(result["text"]) > 24000 or result["format"] not in {"plain", "html"}):
+                    raise MarketingOutreachError("Invalid complete creator reply representation")
+                else:
+                    text, form, error = result["text"], result["format"], None
+            elif status in {"unavailable", "oversize", "unsupported"}:
+                error = {"oversize": "CREATOR_REPLY_BODY_OVERSIZE",
+                         "unsupported": "CREATOR_REPLY_BODY_UNSUPPORTED"}.get(status, error)
+                if result.get("error_code") in BODY_FAILURE_CODES:
+                    error = result["error_code"]
+            else:
+                raise MarketingOutreachError("Unsupported creator reply body capture result")
+            evidence = {**reply, "body_text": text, "body_format": form,
+                        "body_version": BODY_VERSION, "body_mailbox_key": state["mailbox_key"],
+                        "body_label_name": state["label_name"]}
+            digest = reply_body_digest(evidence) if status == "complete" else None
+            self._check_task(connection, task, "marketing.gmail_sync")
+            updated = connection.execute(
+                "UPDATE creator_reply_messages SET body_status=%s,body_text=%s,body_format=%s,"
+                "body_digest=%s,body_version=%s,body_fetched_at=CASE WHEN %s='complete' "
+                "THEN clock_timestamp() ELSE NULL END,"
+                "body_error_code=%s,body_mailbox_key=%s,body_label_name=%s WHERE id=%s RETURNING *",
+                (status, text, form, digest, BODY_VERSION, status, error,
+                 state["mailbox_key"], state["label_name"], reply["id"]),
+            ).fetchone()
+            self._audit_automation(
+                connection, state["campaign_id"], "creator.reply.body_captured", "creator-worker",
+                task_id=task["id"], reply_id=str(reply["id"]), body_status=status,
+                body_digest=digest, body_attempt_count=updated["body_attempt_count"],
+            )
+            self._check_task(connection, task, "marketing.gmail_sync")
+            connection.commit()
+        return reply_capture_summary(updated)
 
     def gmail_context(self, campaign_id: UUID, mailbox_key: str, label: str) -> dict[str, Any]:
         self.get_campaign(campaign_id)
@@ -680,6 +954,7 @@ class CreatorAutomationStore(MarketingStore):
         *,
         cursor: str | None,
         pending: list[str],
+        mark_complete: bool = True,
     ) -> dict[str, int]:
         campaign_id = UUID(str(task["payload"]["campaign_id"]))
         with self.connect() as connection:
@@ -759,7 +1034,7 @@ class CreatorAutomationStore(MarketingStore):
                 "UPDATE creator_gmail_sync_state SET page_token=%s,pending_message_ids=%s, "
                 "revision=revision+1,last_sync_at=now(),last_complete_at=CASE WHEN %s "
                 "THEN now() ELSE last_complete_at END WHERE campaign_id=%s",
-                (cursor, Jsonb(pending), not cursor and not pending, campaign_id),
+                (cursor, Jsonb(pending), mark_complete and not cursor and not pending, campaign_id),
             )
             self._audit_automation(
                 connection,
@@ -813,6 +1088,10 @@ class CreatorAutomationStore(MarketingStore):
             if not reply["needs_review"]:
                 raise MarketingOutreachError("This creator reply was already reviewed")
             classification = request.classification
+            if classification in {"interested", "question", "declined_unpaid"} and (
+                not complete_reply_body(reply) or request.body_digest != reply["body_digest"]
+            ):
+                raise MarketingOutreachError("Review needs the complete current reply body digest")
             prospect_id = request.prospect_id or reply["prospect_id"]
             if classification == "ignore":
                 prospect_id = reply["prospect_id"]
@@ -866,9 +1145,11 @@ class CreatorAutomationStore(MarketingStore):
                 )
             updated = connection.execute(
                 "UPDATE creator_reply_messages SET needs_review=false,reviewed_by=%s, "
-                "reviewed_at=now(),reviewed_classification=%s,prospect_id=%s "
+                "reviewed_at=now(),reviewed_classification=%s,prospect_id=%s,"
+                "reviewed_body_digest=%s "
                 "WHERE id=%s RETURNING *",
-                (request.actor, classification, prospect_id, reply_id),
+                (request.actor, classification, prospect_id,
+                 reply["body_digest"] if complete_reply_body(reply) else None, reply_id),
             ).fetchone()
             self._audit_automation(
                 connection,
@@ -877,6 +1158,10 @@ class CreatorAutomationStore(MarketingStore):
                 request.actor,
                 reply_id=str(reply_id),
                 classification=classification,
+                body_digest=reply["body_digest"] if complete_reply_body(reply) else None,
             )
             connection.commit()
-        return updated
+        return {key: value for key, value in updated.items() if key not in {
+            "body_text", "body_mailbox_key", "body_label_name", "body_capture_task_id",
+            "body_capture_lease_id",
+        }}

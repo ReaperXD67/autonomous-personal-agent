@@ -1440,6 +1440,55 @@ These observations establish the sampled intake/matching and one stable-record
 case. They do not establish sender authenticity, full-message intent, general
 replay reliability, collaboration or a causal response-rate improvement.
 
+## Experiment 43 — Bounded automatic creator-reply evidence
+
+Date: 2026-11-03.
+
+The pure MIME parser passed 49 synthetic cases and Ruff. Focused Creator
+transport/lifecycle checks passed 146 tests; the shared Gmail adapter suite
+passed 107. These are overlapping suite scopes, not a combined test total.
+The latter verifies fixed, bounded refresh-grant diagnosis without retaining
+provider descriptions or mistaking unrelated HTTP 400 responses for expiry.
+
+An exact-source PostgreSQL proof used a new internal network, pinned cached
+image, synthetic credentials and no host ports or providers. All 25 Creator
+scenario groups passed, including four new capture/retry/crash/cancellation
+groups and a freshness-failure group. Two existing metadata-only records gained
+complete private evidence without changing their original identities, previews
+or review state. Complete snapshots refused recapture; missing/stale digests
+refused semantic review; stale owners could not overwrite reclaimed evidence.
+A newer failed sync blocked a still-recent complete read despite newer queued
+work; a later owned completion restored freshness while retaining failure history.
+
+The first narrow run reached the correct stale-owner rejection but expected the
+wrong exception type. Its assertion was corrected; the full repeated proof
+passed. Docker's default network pools were exhausted, so the isolated proof used
+an explicitly checked unused subnet. No existing network or volume was deleted;
+the created test instance was stopped and its evidence/volume retained.
+
+Network-disabled browser proofs exercised the actual dashboard sources: inert
+complete text beyond previews, incomplete-review refusal, exact digest payloads,
+inline conflicts, preserved notes, late-response isolation, canceled polling,
+mobile wrapping and failed-sync hold/recovery. Screenshots were inspected.
+
+A separate read-only check using the existing OAuth helper confirmed an invalid
+old refresh grant without changing settings or printing credentials. Renewal
+was opened for the recorded account/client/scope. Full source gates, live
+connection recovery, real body retrieval and any handoff are separate evidence;
+none is inferred from the synthetic results above.
+
+The first frozen-source run passed all 1,734 tests and the complete isolated
+verifier, preserving live container fingerprints. Final rollout review added
+default-empty explicit campaign UUID selection because the installed campaign
+set is larger than the authorized job. Focused Creator coverage then passed
+152 tests and settings coverage passed 34, including refusal of malformed,
+unbounded or duplicate campaign scope. The final frozen-source run subsequently
+passed Ruff/all 1,750 tests, Compose configuration, `test.ps1` and the complete
+isolated `verify.ps1`, including all 25 Creator database groups and the browser
+proofs. Live fingerprints remained unchanged and no live credentials were copied.
+CI and merged-source deployment remain publication gates; neither run establishes
+live Gmail access, actual reply interpretation or a sent handoff.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

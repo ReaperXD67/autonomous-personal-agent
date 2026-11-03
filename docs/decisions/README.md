@@ -39,3 +39,5 @@ history.
 - [ADR-0033](ADR-0033-preserve-active-creator-evidence-during-discovery.md): preserve active reviewed creator evidence during bulk discovery and keep continuation review explicit
 - [ADR-0034](ADR-0034-actual-smtp-pacing-and-durable-deferral.md): enforce pacing at the actual SMTP boundary and durably defer overdue work without spending a send attempt
 - [ADR-0035](ADR-0035-platform-discovery-and-qualification-review.md): bounded public YC discovery, paired platform references and deterministic mandatory-qualification gates
+- [ADR-0036](ADR-0036-creator-local-recovery-and-permission-strategy.md): audited local-only creator recovery, safe terminal inference diagnostics and immutable permission-first rendering
+- [ADR-0037](ADR-0037-bounded-creator-full-reply-evidence.md): bounded full reply hydration, private complete-text evidence and digest-bound semantic review

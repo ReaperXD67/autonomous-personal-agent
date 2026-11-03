@@ -88,6 +88,20 @@ def pending_reply_reason(connection: Any, campaign_id: Any) -> str | None:
     return None
 
 
+def creator_mailbox_is_fresh(connection: Any, campaign_id: Any) -> bool:
+    """A recent completed read cannot hide a later known failure."""
+    return bool(connection.execute(
+        "SELECT 1 FROM creator_gmail_sync_state s WHERE s.campaign_id=%s "
+        "AND s.last_complete_at>clock_timestamp()-interval '30 minutes' "
+        "AND NOT EXISTS (SELECT 1 FROM agent_tasks failure "
+        "WHERE failure.kind='marketing.gmail_sync' "
+        "AND failure.status IN ('failed','dead_lettered') "
+        "AND failure.payload->>'campaign_id'=s.campaign_id::text "
+        "AND COALESCE(failure.completed_at,failure.dead_lettered_at)>s.last_complete_at)",
+        (campaign_id,),
+    ).fetchone())
+
+
 def validate_creator_automation(
     connection: Any, action: dict[str, Any], *, acquire_locks: bool = True,
 ) -> str | None:
@@ -142,14 +156,8 @@ def validate_creator_automation(
             return reason
     if reservation["stage"] == "handoff" and not run["auto_handoff"]:
         return "Automatic owner handoff was not authorized"
-    if run["monitor_gmail"]:
-        fresh = connection.execute(
-            "SELECT 1 FROM creator_gmail_sync_state WHERE campaign_id = %s "
-            "AND last_complete_at > clock_timestamp() - interval '30 minutes'",
-            (run["campaign_id"],),
-        ).fetchone()
-        if not fresh:
-            return "Creator mailbox monitoring needs a recent completed sync"
+    if run["monitor_gmail"] and not creator_mailbox_is_fresh(connection, run["campaign_id"]):
+        return "Creator mailbox monitoring needs a recent completed sync"
     return None
 
 

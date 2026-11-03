@@ -79,6 +79,11 @@ understand what happened and take over at the right moment.
   terms remain yours to agree.
 - **A clear stopping point:** one owner handoff after confirmed interest, with
   email, Discord, or both. No automated negotiation or repeated reminders.
+- **Replies without copying emails:** the governed Gmail reader can capture
+  bounded complete text for explicitly enabled campaigns' matched creator replies,
+  including older previews. Other campaigns retain metadata-only reading.
+  Review uses the saved message and its digest; quoted history and classifier
+  hints never grant sending authority. OAuth must remain connected.
 - **Learning you can inspect:** reviewed objections, distinct-creator counts,
   three draft strategies, and reasons for each selection. Sparse data stays a
   hypothesis; there is no promise of replies, collaborations, or revenue.
@@ -119,7 +124,7 @@ understand what happened and take over at the right moment.
 | Creator draft quality report | Implemented; review UI verified | Draft review shows computed editorial findings and complete-email word count; API exposes the full report. No score, model call or approval; semantic accuracy, language, fit and terms still need review |
 | Feedback-driven copy | Implemented; synthetic evidence verified | Reviewed objection tags explain improvements; content-first, terms-first and concise variants adapt within fixed commercial terms. No model retraining or guaranteed results |
 | Bounded creator runs | Implemented; opt-in | Expiring authority for already-reviewed contacts, daily introduction limit, Pause, shared SMTP pacing, and optional automatic handoff after reviewed interest |
-| Creator reply inbox | Live metadata intake/matching verified; full review pending | The reader retains sender/subject metadata and provider snippets. Matched records remain unreviewed; snippets do not confirm intent. Full authored-message review and handoff remain pending; general replay behavior is not established by this checkpoint |
+| Creator reply inbox | Bounded full-text capture implemented; live proof pending | Explicit campaign opt-in, automatic capture for matched labeled replies, private complete-text review, digest-bound decisions and bounded retries. Previews remain distinct from complete evidence; OAuth renewal and a new live read are pending. No classifier can confirm interest or send a handoff |
 | Gmail onboarding | Creator read verified; isolated Career setup implemented | Desktop OAuth with PKCE, exact read-only scope, expected mailbox/custom label and atomic saves. A dedicated Career grant preserves Creator credentials; Career consent and ingestion still need a live canary. Explicit Creator renewal/read were verified. Testing-mode longevity remains a limit |
 | Approval policy | Implemented | High-risk and destructive tasks enter `pending_approval` |
 | Durable task/audit state | Implemented | PostgreSQL 17 + pgvector; state, audit, and outbox writes share transactions |
