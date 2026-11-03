@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -11,11 +12,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 from uuid import uuid4
 
 import psycopg
 from app.action_store import SideEffectGuardError
+from app.creator_automation import creator_mailbox_is_fresh
+from app.creator_automation_gmail import execute_creator_gmail_sync
 from app.creator_automation_models import CreatorAutomationStart, CreatorReplyReview
 from app.creator_automation_store import CreatorAutomationStore
 from app.creator_draft_content import parse_model_copy
@@ -103,6 +107,16 @@ def accept_fixture(store, action):
     store.begin_side_effect(claimed["id"], fingerprint, claimed["lease_id"])
     store.complete_side_effect(claimed["id"], fingerprint, "synthetic-no-SMTP")
     store.complete_task(claimed["id"], claimed["lease_id"], {"fixture": True})
+
+
+def capture_fixture_body(store, task, state, reply, text):
+    current = store.gmail_context(state["campaign_id"], state["mailbox_key"], state["label_name"])
+    claim = store.claim_reply_body(task, current, reply["id"])
+    check(claim, "Synthetic full-body capture did not acquire its owned claim")
+    store.save_reply_body(task, current, claim, {
+        "status": "complete", "text": text, "format": "plain", "error_code": None,
+    }, reply)
+    return store.get_reply(state["campaign_id"], reply["id"])
 
 
 def expect_boundary_block(store, action, text):
@@ -215,6 +229,238 @@ def exercise_pacing_time_guards(dsn):
     expect_pacing_wait_refusal(drafts, action, "research changed or expired")
 
 
+def exercise_reply_bodies(store):
+    groups = []
+    c, run, _ = campaign(store, count=2, cap=2)
+    store.execute(task_for(store, c["id"], run["id"]), sender="sender@example.test")
+    sent = actions(store, c["id"])
+    for action in sent:
+        accept_fixture(store, action)
+    task = task_for(store, c["id"], kind="marketing.gmail_sync")
+    mailbox, label = "operator@example.test", "Hermes/Creators"
+    mailbox_key = hashlib.sha256(mailbox.encode()).hexdigest()
+    state = store.gmail_context(c["id"], mailbox_key, label)
+    received = datetime.fromtimestamp(int(time.time() * 1000) / 1000, UTC)
+    messages = [{"gmail_message_id": f"body{i}", "gmail_thread_id": f"bodythread{i}",
+                 "sender": action["public_context"]["recipient"],
+                 "subject": "Re: " + action["public_context"]["subject"],
+                 "snippet": "A metadata preview for review", "received_at": received}
+                for i, action in enumerate(sent)]
+    store.save_gmail(task, state, messages, cursor=None, pending=[], mark_complete=False)
+    before = {row["gmail_message_id"]: row for row in store.overview(c["id"])["pending_replies"]}
+    check(store.gmail_context(c["id"], mailbox_key, label)["last_complete_at"] is None,
+          "Metadata progress incorrectly marked a full sync complete")
+    private_text = "Tak, chętnie porozmawiam.\nOn Tue, someone wrote:\nSynthetic quoted invitation"
+
+    def raw(message, *, different_sender=False):
+        return {"id": message["gmail_message_id"], "threadId": message["gmail_thread_id"],
+                "labelIds": ["BodyLabel"], "snippet": message["snippet"],
+                "internalDate": str(int(message["received_at"].timestamp() * 1000)),
+                "payload": {"mimeType": "text/plain", "headers": [
+                    {"name": "From", "value": ("other@example.test" if different_sender
+                                                else message["sender"])},
+                    {"name": "Subject", "value": message["subject"]}],
+                    "body": {"size": len(private_text.encode()), "data":
+                             base64.urlsafe_b64encode(private_text.encode()).decode().rstrip("=")}}}
+
+    client = Mock()
+    client.mailbox.return_value = mailbox
+    client.label_id.return_value = "BodyLabel"
+    client.list_messages.side_effect = lambda *_: ([m["gmail_message_id"] for m in messages], None)
+    client.full_message.side_effect = lambda message_id: raw(next(
+        message for message in messages if message["gmail_message_id"] == message_id))
+    settings = SimpleNamespace(
+        creator_gmail_enabled=True, creator_gmail_mailbox=mailbox,
+        gmail_creator_label=label, gmail_career_label="Hermes/Careers",
+        gmail_client_id=None, gmail_client_secret=None, gmail_refresh_token=None,
+        creator_gmail_full_reply_campaign_ids=[c["id"]],
+    )
+    with patch("app.creator_automation_gmail.CreatorGmailReadClient", return_value=client):
+        result = execute_creator_gmail_sync(task, store, settings)
+    check(result["body_complete"] == 2 and result["fetched"] == 0,
+          "Known metadata rows were skipped instead of backfilled")
+    client.message.assert_not_called()
+    summary = store.overview(c["id"])
+    check(summary["gmail_sync"]["last_complete_at"] is not None,
+          "Successful bounded body phase did not finalize monitoring")
+    for row in summary["pending_replies"]:
+        prior = before[row["gmail_message_id"]]
+        check(all(row[key] == prior[key] for key in (
+            "id", "created_at", "snippet", "received_at", "needs_review", "prospect_id",
+        )), "Backfill rewrote original reply evidence or review state")
+        check("body_text" not in row, "Routine overview leaked full body text")
+        detail = store.get_reply(c["id"], row["id"])
+        check(detail["body_complete"] and detail["body_text"] == private_text
+              and detail["authored_text"] == "Tak, chętnie porozmawiam.",
+              "Private complete/case-preserving reply view is incorrect")
+        try:
+            store.queue_reply_body_read(c["id"], row["id"], "synthetic-reader")
+        except MarketingOutreachError:
+            pass
+        else:
+            raise AssertionError("Complete body snapshot was recaptured")
+    check(private_text not in json.dumps(result), "Task output leaked body text")
+    with store.connect() as connection:
+        audit = connection.execute(
+            "SELECT input_metadata,result_metadata FROM audit_events WHERE task_id=%s",
+            (task["id"],),
+        ).fetchall()
+    check(private_text not in json.dumps(audit, default=str), "Audit leaked full body text")
+    detail = store.get_reply(c["id"], summary["pending_replies"][0]["id"])
+    for digest in (None, "0" * 64):
+        try:
+            store.review_reply(c["id"], detail["id"], CreatorReplyReview(
+                actor="synthetic-reader", classification="question", body_digest=digest,
+            ))
+        except MarketingOutreachError:
+            pass
+        else:
+            raise AssertionError("Semantic reply review accepted a missing or stale body digest")
+    reviewed = store.review_reply(c["id"], detail["id"], CreatorReplyReview(
+        actor="synthetic-reader", classification="question", body_digest=detail["body_digest"],
+    ))
+    check(reviewed["reviewed_body_digest"] == detail["body_digest"] and "body_text" not in reviewed,
+          "Review did not retain its exact body digest or leaked body text")
+    check(len(actions(store, c["id"])) == 2, "Reply capture/review created sending authority")
+    groups.append("Existing reply backfill preserves identity, private bodies and exact review digest")
+
+    messages.append({**messages[0], "gmail_message_id": "body-bad"})
+    state = store.gmail_context(c["id"], mailbox_key, label)
+    store.save_gmail(task, state, [messages[-1]], cursor=None, pending=[], mark_complete=False)
+    client.full_message.side_effect = lambda _: raw(messages[-1], different_sender=True)
+    for attempt in range(1, 4):
+        with patch("app.creator_automation_gmail.CreatorGmailReadClient", return_value=client):
+            execute_creator_gmail_sync(task, store, settings)
+        bad = next(row for row in store.overview(c["id"])["pending_replies"]
+                   if row["gmail_message_id"] == "body-bad")
+        check(bad["body_status"] == "unavailable" and bad["body_attempt_count"] == attempt,
+              "Changed full-message identity was not refused with a durable attempt")
+        check(not store.get_reply(c["id"], bad["id"])["body_text"], "Incomplete text leaked")
+        client.full_message.reset_mock()
+        with patch("app.creator_automation_gmail.CreatorGmailReadClient", return_value=client):
+            execute_creator_gmail_sync(task, store, settings)
+        client.full_message.assert_not_called()
+        try:
+            store.queue_reply_body_read(c["id"], bad["id"], "synthetic-reader")
+        except MarketingOutreachError:
+            pass
+        else:
+            raise AssertionError("Retry bypassed its five-minute cooldown")
+        with store.connect() as connection:
+            connection.execute("UPDATE creator_reply_messages SET body_attempted_at="
+                               "clock_timestamp()-interval '6 minutes' WHERE id=%s", (bad["id"],))
+            connection.commit()
+        if attempt < 3:
+            requested = store.queue_reply_body_read(c["id"], bad["id"], "synthetic-reader")
+            check(requested["task"]["kind"] == "marketing.gmail_sync",
+                  "Explicit retry bypassed the existing capability")
+    try:
+        store.queue_reply_body_read(c["id"], bad["id"], "synthetic-reader")
+    except MarketingOutreachError:
+        pass
+    else:
+        raise AssertionError("Explicit retry reset the three-attempt allowance")
+    groups.append("Identity failures stay incomplete; only bounded explicit read retries consume attempts")
+
+    messages.append({**messages[0], "gmail_message_id": "body-crash"})
+    state = store.gmail_context(c["id"], mailbox_key, label)
+    store.save_gmail(task, state, [messages[-1]], cursor=None, pending=[], mark_complete=False)
+    state = store.gmail_context(c["id"], mailbox_key, label)
+    crashed_row = next(row for row in store.overview(c["id"])["pending_replies"]
+                       if row["gmail_message_id"] == "body-crash")
+    abandoned = store.claim_reply_body(task, state, crashed_row["id"])
+    with store.connect() as connection:
+        connection.execute("UPDATE agent_tasks SET lease_expires_at=clock_timestamp()-"
+                           "interval '1 second' WHERE id=%s", (task["id"],))
+        connection.execute("UPDATE creator_reply_messages SET body_attempted_at="
+                           "clock_timestamp()-interval '6 minutes' WHERE id=%s", (crashed_row["id"],))
+        connection.commit()
+    replacement = task_for(store, c["id"], kind="marketing.gmail_sync")
+    candidates = store.body_capture_candidates(replacement, state, 3)
+    check(crashed_row["id"] in {row["id"] for row in candidates},
+          "An abandoned reading claim was permanently starved")
+    reclaimed = store.claim_reply_body(replacement, state, crashed_row["id"])
+    check(reclaimed["body_attempt_count"] == 2, "Crash recovery reset the attempt budget")
+    capture = {"status": "complete", "text": private_text, "format": "plain", "error_code": None}
+    store.save_reply_body(replacement, state, reclaimed, capture, messages[-1])
+    try:
+        store.save_reply_body(task, state, abandoned, capture, messages[-1])
+    except MarketingOutreachError as exc:
+        check("lease" in str(exc), "Abandoned owner was rejected for an unrelated reason")
+    else:
+        raise AssertionError("Abandoned owner overwrote a reclaimed complete snapshot")
+    check(store.get_reply(c["id"], crashed_row["id"])["body_complete"],
+          "Stale owner changed the reclaimed body")
+    groups.append("Expired reading claims recover within budget; abandoned owners cannot save")
+
+    messages.append({**messages[0], "gmail_message_id": "body-cancel"})
+    state = store.gmail_context(c["id"], mailbox_key, label)
+    store.save_gmail(replacement, state, [messages[-1]], cursor=None, pending=[], mark_complete=False)
+    state = store.gmail_context(c["id"], mailbox_key, label)
+    prior_complete = state["last_complete_at"]
+    cancelled_row = next(row for row in store.overview(c["id"])["pending_replies"]
+                         if row["gmail_message_id"] == "body-cancel")
+    cancelled_claim = store.claim_reply_body(replacement, state, cancelled_row["id"])
+    with store.connect() as connection:
+        connection.execute("UPDATE agent_tasks SET cancellation_requested_at=clock_timestamp() "
+                           "WHERE id=%s", (replacement["id"],))
+        connection.commit()
+    for operation in (
+        lambda: store.save_reply_body(replacement, state, cancelled_claim, capture, messages[-1]),
+        lambda: store.finalize_reply_sync(replacement, state),
+    ):
+        try:
+            operation()
+        except MarketingOutreachError as exc:
+            check("lease" in str(exc), "Cancelled capture was rejected for an unrelated reason")
+        else:
+            raise AssertionError("Cancelled capture persisted body or marked monitoring complete")
+    current = store.gmail_context(c["id"], mailbox_key, label)
+    check(current["last_complete_at"] == prior_complete
+          and not store.get_reply(c["id"], cancelled_row["id"])["body_text"],
+          "Failed capture changed full-body evidence or completion freshness")
+    groups.append("Cancelled capture cannot persist partial text or advance monitor completion")
+    return groups
+
+
+def exercise_mailbox_failure_hold(store):
+    c, _, _ = campaign(store)
+    state = store.gmail_context(c["id"], "b" * 64, "Hermes/Creators")
+    first = task_for(store, c["id"], kind="marketing.gmail_sync")
+    store.finalize_reply_sync(first, state)
+    store.complete_task(first["id"], first["lease_id"], {"fixture": True})
+    with store.connect() as connection:
+        check(creator_mailbox_is_fresh(connection, c["id"]), "Initial complete sync was not fresh")
+    failed = task_for(store, c["id"], kind="marketing.gmail_sync")
+    failed = store.fail_task(failed["id"], failed["lease_id"],
+                             "MARKETING_EXECUTION_FAILED", "Fixed synthetic Gmail failure")
+    check(failed["status"] in {"failed", "dead_lettered"}, "Synthetic sync did not fail terminally")
+    queued = store.create_task(TaskCreate(
+        title="Synthetic newer queued Gmail read", kind="marketing.gmail_sync",
+        payload={"campaign_id": str(c["id"])}, requested_by="creator-automation-smoke",
+    ))
+    check(queued["status"] == "queued", "Synthetic newer sync is not queued")
+    sync = store.overview(c["id"])["gmail_sync"]
+    check(sync["last_failure_at"] == failed["completed_at"]
+          and sync["last_failure_at"] > sync["last_complete_at"],
+          "Safe overview hid a failure behind recent success or newer queued work")
+    check("error_message" not in sync, "Overview exposed a raw sync failure")
+    with store.connect() as connection:
+        check(not creator_mailbox_is_fresh(connection, c["id"]),
+              "A known sync failure did not immediately block automatic Gmail freshness")
+    recovered = task_for(store, c["id"], kind="marketing.gmail_sync")
+    current = store.gmail_context(c["id"], "b" * 64, "Hermes/Creators")
+    store.finalize_reply_sync(recovered, current)
+    sync = store.overview(c["id"])["gmail_sync"]
+    check(sync["last_complete_at"] >= sync["last_failure_at"]
+          and sync["last_failure_at"] == failed["completed_at"],
+          "Completed recovery lost failure history or failed to supersede it")
+    with store.connect() as connection:
+        check(creator_mailbox_is_fresh(connection, c["id"]),
+              "A later owned complete sync did not restore freshness")
+    return "Known failed sync overrides fresh timestamp and queued work until owned complete recovery"
+
+
 def exercise(dsn):
     store = CreatorAutomationStore(dsn)
     groups = []
@@ -294,8 +540,10 @@ def exercise(dsn):
           "Unreviewed positive snippet authorized handoff")
     reply = store.overview(c["id"])["pending_replies"][0]
     check(reply["prospect_id"] == prospects[0]["id"], "Exact address/subject reply was not matched")
+    reply = capture_fixture_body(store, gmail_task, state, reply, message["snippet"])
     store.review_reply(c["id"], reply["id"], CreatorReplyReview(
         actor="creator-automation-smoke", prospect_id=prospects[0]["id"], classification="interested",
+        body_digest=reply["body_digest"],
     ))
     result = store.execute(automation_task, sender="sender@example.test")
     check(result["authorized"] == 1, "Reviewed interest did not authorize the bounded handoff")
@@ -481,9 +729,11 @@ def exercise(dsn):
           "Inbound evidence did not expose a reviewable feedback suggestion")
     check(store.campaign_results(c["id"])[0]["learning"]["recommended_variant"] is None,
           "Unreviewed third reply changed the learning recommendation")
+    reply = capture_fixture_body(store, gmail_task, state, reply, message["snippet"])
     store.review_reply(c["id"], reply["id"], CreatorReplyReview(
         actor="creator-learning-smoke", prospect_id=third["prospect_id"], classification="question",
         feedback_tags=["unclear_revenue_share"],
+        body_digest=reply["body_digest"],
     ))
     learning = store.campaign_results(c["id"])[0]["learning"]
     check(learning["recommended_variant"] == "terms_first"
@@ -501,7 +751,7 @@ def exercise(dsn):
           "Learning mutated commercial terms")
     groups.append("Reviewed manual/Gmail feedback explains future copy without altering terms/approval")
 
-    own, own_run, own_prospects = campaign(store)
+    own, own_run, _own_prospects = campaign(store)
     other, other_run, _ = campaign(store)
     for current, current_run in ((own, own_run), (other, other_run)):
         store.execute(task_for(store, current["id"], current_run["id"]),
@@ -611,6 +861,8 @@ def exercise(dsn):
     groups.append("Manual and Gmail opt-outs share writer-before-prospect lock order")
     exercise_pacing_time_guards(dsn)
     groups.append("Global pacing waits recheck creator run, Gmail/publication freshness and AI research TTL")
+    groups.extend(exercise_reply_bodies(store))
+    groups.append(exercise_mailbox_failure_hold(store))
     return groups
 
 

@@ -2,7 +2,7 @@ from datetime import UTC, datetime, timedelta
 from threading import Event
 from types import SimpleNamespace
 from unittest.mock import Mock
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from uuid import UUID, uuid4
 
 import pytest
@@ -315,6 +315,59 @@ def test_network_errors_do_not_retain_secret_bearing_causes(monkeypatch):
         tracking._google_json(Request("https://gmail.googleapis.com/gmail/v1/users/me/profile"))
     assert "TOKEN_SHOULD_NOT_ESCAPE" not in str(caught.value)
     assert caught.value.__suppress_context__
+
+
+@pytest.mark.parametrize(("endpoint", "status", "body", "renewal"), [
+    ("https://oauth2.googleapis.com/token", 400,
+     b'{"error":"invalid_grant","error_description":"TOKEN_SHOULD_NOT_ESCAPE"}', True),
+    ("https://oauth2.googleapis.com/token", 400,
+     b'{"error":"invalid_client","error_description":"TOKEN_SHOULD_NOT_ESCAPE"}', False),
+    ("https://oauth2.googleapis.com/token", 400, b"TOKEN_SHOULD_NOT_ESCAPE", False),
+    ("https://oauth2.googleapis.com/token", 400,
+     b'{"error":"invalid_client","error":"invalid_grant"}', False),
+    ("https://oauth2.googleapis.com/token", 400,
+     b'{"error":"invalid_grant","padding":"' + b"x" * 2048 + b'"}', False),
+    ("https://oauth2.googleapis.com/token", 401, b'{"error":"invalid_grant"}', False),
+    ("https://gmail.googleapis.com/gmail/v1/users/me/messages", 400,
+     b'{"error":"invalid_grant"}', False),
+])
+def test_only_exact_bounded_token_error_reports_renewal(
+    monkeypatch, endpoint, status, body, renewal,
+):
+    from io import BytesIO
+    from urllib.request import Request
+
+    opener = Mock()
+    opener.open.side_effect = HTTPError(
+        endpoint, status, "PRIVATE_PROVIDER_MESSAGE", {}, BytesIO(body),
+    )
+    monkeypatch.setattr(tracking, "build_opener", lambda *args: opener)
+    # Fixed endpoints with a mocked opener; never reaches Google.
+    request = Request(  # noqa: S310
+        endpoint, data=b"grant_type=refresh_token&client_id=fixture", method="POST",
+    )
+    with pytest.raises(GmailSyncError) as caught:
+        tracking._google_json(request)
+    text = str(caught.value)
+    assert ("token:invalid_grant:http400" in text) is renewal
+    assert "TOKEN_SHOULD_NOT_ESCAPE" not in text and "PRIVATE_PROVIDER_MESSAGE" not in text
+    assert caught.value.__suppress_context__
+
+
+def test_authorization_code_failure_does_not_claim_refresh_expiry(monkeypatch):
+    from io import BytesIO
+    from urllib.request import Request
+
+    endpoint = "https://oauth2.googleapis.com/token"
+    opener = Mock()
+    opener.open.side_effect = HTTPError(
+        endpoint, 400, "PRIVATE", {}, BytesIO(b'{"error":"invalid_grant"}'),
+    )
+    monkeypatch.setattr(tracking, "build_opener", lambda *args: opener)
+    with pytest.raises(GmailSyncError, match=r"HTTP 400 \(token\)"):
+        tracking._google_json(Request(
+            endpoint, data=b"grant_type=authorization_code", method="POST",
+        ))
 
 
 @pytest.mark.parametrize(("raw", "shape"), [

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from email.utils import parseaddr
 from functools import lru_cache
+from uuid import UUID
 
 from app.email_pacing import EmailPacingPolicy
 
@@ -32,6 +34,25 @@ def _model_priority_environment() -> tuple[str, ...]:
 def _trusted_hosts_environment() -> tuple[str, ...]:
     raw = os.getenv("TRUSTED_HOSTS", "localhost,127.0.0.1,testserver")
     return tuple(item.strip().lower() for item in raw.split(",") if item.strip())
+
+
+def _creator_reply_campaigns_environment() -> tuple[UUID, ...]:
+    try:
+        raw = os.getenv("CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS", "[]")
+        if len(raw) > 1024:
+            raise ValueError()
+        values = json.loads(raw)
+        if not isinstance(values, list) or len(values) > 10:
+            raise ValueError()
+        ids = tuple(UUID(value) for value in values if isinstance(value, str))
+        if (len(ids) != len(values) or len(set(ids)) != len(ids)
+                or any(not value.int for value in ids)):
+            raise ValueError()
+        return ids
+    except (ValueError, TypeError, AttributeError, RecursionError):
+        raise ConfigurationError(
+            "CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS must be a JSON array of up to ten distinct UUIDs"
+        ) from None
 
 
 class ConfigurationError(RuntimeError):
@@ -92,6 +113,7 @@ class Settings:
     creator_gmail_enabled: bool = False
     gmail_creator_label: str = "Hermes/Creators"
     creator_gmail_mailbox: str = ""
+    creator_gmail_full_reply_campaign_ids: tuple[UUID, ...] = ()
     career_email_transport: str = "disabled"
     career_email_sender: str = ""
 
@@ -172,6 +194,7 @@ class Settings:
             creator_gmail_enabled=_boolean_environment("CREATOR_GMAIL_ENABLED", False),
             gmail_creator_label=os.getenv("GMAIL_CREATOR_LABEL", "Hermes/Creators").strip(),
             creator_gmail_mailbox=os.getenv("CREATOR_GMAIL_MAILBOX", "").strip().casefold(),
+            creator_gmail_full_reply_campaign_ids=_creator_reply_campaigns_environment(),
             career_email_transport=os.getenv("CAREER_EMAIL_TRANSPORT", "disabled").strip(),
             career_email_sender=os.getenv("CAREER_EMAIL_SENDER", "").strip(),
         )
@@ -195,6 +218,15 @@ class Settings:
         if missing:
             raise ConfigurationError(f"Missing required settings: {', '.join(missing)}")
         career_gmail_credentials(self)
+        if (not isinstance(self.creator_gmail_full_reply_campaign_ids, tuple)
+                or len(self.creator_gmail_full_reply_campaign_ids) > 10
+                or any(not isinstance(value, UUID) or not value.int
+                       for value in self.creator_gmail_full_reply_campaign_ids)
+                or len(set(self.creator_gmail_full_reply_campaign_ids))
+                != len(self.creator_gmail_full_reply_campaign_ids)):
+            raise ConfigurationError(
+                "Full reply capture requires up to ten distinct campaign UUIDs"
+            )
         if self.api_token.startswith("CHANGE_ME"):
             raise ConfigurationError("CONTROL_API_TOKEN still contains a placeholder")
         if len(self.api_token) < 32:

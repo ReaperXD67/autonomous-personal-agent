@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from app.auth import require_api_token
 from app.creator_automation_models import (
@@ -35,6 +35,9 @@ def overview(request: Request, campaign_id: UUID) -> dict[str, Any]:
         "readiness": {
             "gmail_configured": settings.creator_gmail_enabled,
             "smtp_configured": settings.mail_transport != "disabled",
+            "full_reply_capture_enabled": campaign_id in getattr(
+                settings, "creator_gmail_full_reply_campaign_ids", [],
+            ),
         },
     }
 
@@ -81,4 +84,32 @@ def review(
     try:
         return request.app.state.creator_automation.review_reply(campaign_id, reply_id, payload)
     except MarketingOutreachError as exc:
+        raise _http_error(exc) from exc
+
+
+@router.get("/campaigns/{campaign_id}/replies/{reply_id}")
+def reply_detail(
+    request: Request, response: Response, campaign_id: UUID, reply_id: UUID,
+) -> dict[str, Any]:
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return request.app.state.creator_automation.get_reply(campaign_id, reply_id)
+    except (MarketingCampaignNotFoundError, MarketingOutreachError) as exc:
+        raise _http_error(exc) from exc
+
+
+@router.post("/campaigns/{campaign_id}/replies/{reply_id}/read", status_code=202)
+def read_reply(
+    request: Request, campaign_id: UUID, reply_id: UUID, payload: CreatorAutomationActor,
+) -> dict[str, Any]:
+    try:
+        settings = get_settings()
+        if not settings.creator_gmail_enabled:
+            raise MarketingOutreachError("Configure the read-only creator Gmail adapter first")
+        if campaign_id not in getattr(settings, "creator_gmail_full_reply_campaign_ids", []):
+            raise MarketingOutreachError("Full reply capture is not enabled for this campaign")
+        return request.app.state.creator_automation.queue_reply_body_read(
+            campaign_id, reply_id, payload.actor,
+        )
+    except (MarketingCampaignNotFoundError, MarketingOutreachError) as exc:
         raise _http_error(exc) from exc

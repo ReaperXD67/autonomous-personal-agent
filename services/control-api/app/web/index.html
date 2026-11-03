@@ -291,7 +291,39 @@
   <dialog id="audit-dialog" class="dialog detail-dialog"><form method="dialog"><button class="dialog-close" value="cancel" aria-label="Close">×</button><span class="tag">Audit trail</span><h2 id="audit-title">Task history</h2><div class="activity" id="audit-list"></div></form></dialog>
   <dialog id="workflow-dialog" class="dialog wide-dialog" aria-labelledby="workflow-detail-title"><div class="workflow-detail-body"><button class="dialog-close" type="button" data-action="close-workflow" aria-label="Close workflow details">×</button><span class="tag">Durable workflow</span><h2 id="workflow-detail-title">Workflow details</h2><div id="workflow-detail-content"></div></div></dialog>
   <dialog id="creator-run-dialog" class="dialog wide-dialog" aria-labelledby="creator-run-title"><form method="dialog" id="creator-run-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><h2 id="creator-run-title">Authorize a limited outreach run</h2><input type="hidden" name="campaign_id"><div id="creator-run-context" class="creator-run-context"></div><div class="form-grid"><label>First emails per rolling 24 hours<input name="max_initials_per_day" type="number" min="1" max="10" required value="3"><small>Shared sending limits and pacing still apply.</small></label><label>Authorization expires after<select name="expires_in_hours"><option value="24">24 hours</option><option value="48">48 hours</option><option value="72">3 days</option><option value="168">7 days</option></select></label><label class="checkbox-row span-2"><input name="auto_handoff" type="checkbox"> Also send my contact details once, after I confirm a creator's interest</label></div><p class="fine-print">Only operator-authorized contacts can receive the campaign's generated first email. Reply suggestions need your review. Questions remain manual. An accepted handoff ends this sequence.</p><label class="checkbox-row creator-run-consent"><input name="authorize_run" type="checkbox" required> I authorize these emails for this campaign within the selected limits and expiry.</label><p class="fine-print">Pause withdraws this run's sending authority. Messages already accepted by the mail server remain in history.</p><div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit">Authorize and start</button></div></form></dialog>
-  <dialog id="creator-mail-review-dialog" class="dialog wide-dialog" aria-labelledby="creator-mail-review-title"><form method="dialog" id="creator-mail-review-form"><button class="dialog-close" value="cancel" aria-label="Close">×</button><h2 id="creator-mail-review-title">Review a creator reply</h2><input type="hidden" name="campaign_id"><input type="hidden" name="reply_id"><div id="creator-mail-review-context" class="creator-mail-context"></div><label>Match to creator<select name="prospect_id" required></select></label><label>What does this reply mean?<select name="classification" required><option value="">Choose after reading the reply</option><option value="interested">Confirmed interest · ready for owner handoff</option><option value="question">Asked a question · answer manually</option><option value="declined_unpaid">Explicitly declined only because it was unpaid</option><option value="do_not_contact">No / do not contact · suppress permanently</option><option value="bounced">Bounced · suppress permanently</option><option value="ignore">Not a campaign reply · ignore</option></select></label><label>Review note <small>optional</small><textarea name="note" rows="2" maxlength="1000" placeholder="Record the evidence for your decision."></textarea></label><p class="fine-print">Confirm the sender, context, and meaning in your mailbox when the excerpt is incomplete. Confirmed interest can trigger a handoff only if your active run explicitly includes it.</p><div class="dialog-actions"><button class="text-button" value="cancel">Cancel</button><button class="button primary" type="submit">Record reviewed reply</button></div></form></dialog>
+  <dialog id="creator-mail-review-dialog" class="dialog wide-dialog" aria-labelledby="creator-mail-review-title">
+    <form method="dialog" id="creator-mail-review-form">
+      <button class="dialog-close" type="button" data-action="close-creator-mail-review" aria-label="Close">×</button>
+      <h2 id="creator-mail-review-title">Review a creator reply</h2>
+      <input type="hidden" name="campaign_id"><input type="hidden" name="reply_id"><input type="hidden" name="body_digest">
+      <div id="creator-mail-review-context" class="creator-mail-context"></div>
+      <section id="creator-mail-evidence" class="creator-mail-evidence" aria-labelledby="creator-mail-evidence-title" aria-busy="false">
+        <h3 id="creator-mail-evidence-title">Complete reply evidence</h3>
+        <p id="creator-mail-body-status" role="status" aria-live="polite">Loading complete reply evidence…</p>
+        <p id="creator-mail-body-error" class="notice" role="alert" hidden></p>
+        <div class="card-actions creator-mail-read-actions">
+          <button id="creator-mail-read" class="button" type="button" data-action="read-creator-mail">Read full reply</button>
+          <button id="creator-mail-refresh" class="text-button" type="button" data-action="refresh-creator-mail">Refresh detail</button>
+        </div>
+        <p id="creator-mail-attempts" class="fine-print"></p>
+        <div id="creator-mail-full-text" hidden>
+          <h4>Complete message text</h4>
+          <p id="creator-mail-quote-guide" class="fine-print">Read the creator's own words in context. The message may include quoted outreach, signatures or instructions; quoted wording is not a new statement of interest.</p>
+          <pre id="creator-mail-body" class="creator-mail-body" tabindex="0" aria-label="Complete email text" aria-describedby="creator-mail-quote-guide"></pre>
+          <details id="creator-mail-authored-view" hidden>
+            <summary>Authored-only estimate · heuristic</summary>
+            <p class="fine-print">This estimate may omit or misidentify quoted text. It does not prove completeness or intent; use the complete message above.</p>
+            <pre id="creator-mail-authored" class="creator-mail-body" tabindex="0" aria-label="Estimated authored reply text"></pre>
+          </details>
+        </div>
+      </section>
+      <label>Match to creator<select name="prospect_id" required></select></label>
+      <label>What does this reply mean?<select name="classification" aria-describedby="creator-mail-semantic-guide" required><option value="">Choose after reading the reply</option><option value="interested" disabled>Confirmed interest · ready for owner handoff</option><option value="question" disabled>Asked a question · answer manually</option><option value="declined_unpaid" disabled>Explicitly declined only because it was unpaid</option><option value="do_not_contact">No / do not contact · suppress permanently</option><option value="bounced">Bounced · suppress permanently</option><option value="ignore">Not a campaign reply · ignore</option></select></label>
+      <p id="creator-mail-semantic-guide" class="fine-print">Interest, questions and unpaid-only refusal require complete reply evidence. The saved decision is bound to the exact text you review. Confirmed interest can trigger a handoff only if your active run explicitly includes it.</p>
+      <label>Review note <small>optional</small><textarea name="note" rows="2" maxlength="1000" placeholder="Record the evidence for your decision."></textarea></label>
+      <div class="dialog-actions"><button class="text-button" type="button" data-action="close-creator-mail-review">Cancel</button><button class="button primary" type="submit">Record reviewed reply</button></div>
+    </form>
+  </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>

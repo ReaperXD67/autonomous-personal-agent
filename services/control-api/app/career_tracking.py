@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 from email.utils import parseaddr
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlencode, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 from uuid import UUID
 
@@ -57,6 +57,15 @@ class _NoRedirect(HTTPRedirectHandler):
         raise GmailSyncError("Gmail redirects are refused")
 
 
+def _unique_error_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    fields: dict[str, Any] = {}
+    for name, value in pairs:
+        if name in fields:
+            raise ValueError("Ambiguous Google error fields")
+        fields[name] = value
+    return fields
+
+
 def _google_json(request: Request, *, limit: int = 1024 * 1024) -> dict[str, Any]:
     parsed = urlparse(request.full_url)
     if parsed.scheme != "https" or parsed.netloc not in {
@@ -72,7 +81,27 @@ def _google_json(request: Request, *, limit: int = 1024 * 1024) -> dict[str, Any
     except HTTPError as exc:
         if exc.code == 404:
             raise GmailResourceGoneError("Gmail resource is no longer available") from None
-        raise GmailSyncError(f"Google request failed with HTTP {exc.code}") from None
+        operation = "token" if parsed.netloc == "oauth2.googleapis.com" else "gmail"
+        # Only the exact refresh endpoint's bounded, machine-readable error
+        # establishes that consent must be renewed. Never retain provider text.
+        if (operation == "token" and parsed.path == "/token"
+                and request.get_method() == "POST" and exc.code == 400):
+            try:
+                request_fields = parse_qs(
+                    request.data.decode("ascii"), strict_parsing=True,
+                ) if isinstance(request.data, bytes) and len(request.data) <= 32768 else {}
+                raw_error = exc.read(2049)
+                error = json.loads(raw_error, object_pairs_hook=_unique_error_fields) if (
+                    len(raw_error) <= 2048 and request_fields.get("grant_type") == ["refresh_token"]
+                ) else None
+            except (OSError, ValueError, UnicodeError, RecursionError):
+                error = None
+            if isinstance(error, dict) and error.get("error") == "invalid_grant":
+                raise GmailSyncError(
+                    "Google refresh grant is invalid; renew the same read-only mailbox connection "
+                    "(token:invalid_grant:http400)"
+                ) from None
+        raise GmailSyncError(f"Google request failed with HTTP {exc.code} ({operation})") from None
     except (URLError, OSError, TimeoutError):
         raise GmailSyncError("Google request failed; check worker configuration") from None
     if len(raw) > limit:

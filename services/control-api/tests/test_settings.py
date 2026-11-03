@@ -1,6 +1,35 @@
+from uuid import UUID
+
 import pytest
 
-from app.settings import ConfigurationError, Settings, career_gmail_credentials
+from app.settings import (
+    ConfigurationError,
+    Settings,
+    _creator_reply_campaigns_environment,
+    career_gmail_credentials,
+)
+
+
+@pytest.mark.parametrize("raw", [
+    "not-json", "{}", "null", '["not-a-uuid"]', '[7]', '[true]',
+    '["00000000-0000-0000-0000-000000000000"]',
+    '["00000000-0000-0000-0000-000000000001",'
+    '"00000000-0000-0000-0000-000000000001"]',
+    "[" + ",".join(f'"00000000-0000-0000-0000-{index:012d}"' for index in range(1, 12)) + "]",
+])
+def test_full_reply_campaign_allowlist_rejects_ambiguous_or_unbounded_scope(monkeypatch, raw):
+    monkeypatch.setenv("CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS", raw)
+    with pytest.raises(ConfigurationError) as caught:
+        _creator_reply_campaigns_environment()
+    assert raw not in str(caught.value)
+
+
+def test_full_reply_capture_defaults_off_and_preserves_explicit_campaigns(monkeypatch):
+    monkeypatch.delenv("CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS", raising=False)
+    assert _creator_reply_campaigns_environment() == ()
+    monkeypatch.setenv("CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS",
+                       '["00000000-0000-0000-0000-000000000001"]')
+    assert _creator_reply_campaigns_environment() == (UUID(int=1),)
 
 
 def make_settings(**overrides: object) -> Settings:

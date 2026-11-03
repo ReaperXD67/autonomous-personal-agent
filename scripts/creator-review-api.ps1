@@ -92,11 +92,16 @@ function Get-CreatorReviewSnapshot {
         $automation = Invoke-CreatorControlApi -Path "/v1/marketing/campaigns/$id/automation"
         $batch = Invoke-CreatorControlApi -Path "/v1/marketing/campaigns/$id/draft-batches"
         $completed = ConvertTo-CreatorReviewInstant $automation.gmail_sync.last_complete_at
+        $failed = ConvertTo-CreatorReviewInstant $automation.gmail_sync.last_failure_at
+        $failedAfterComplete = $null -ne $automation.gmail_sync.last_failure_at -and (
+            $null -eq $failed -or $null -eq $completed -or $failed -gt $completed)
         [pscustomobject]@{
             campaign_id = $id; monitor_configured = [bool]$automation.readiness.gmail_configured
             last_complete_at = $automation.gmail_sync.last_complete_at
+            last_failure_at = $automation.gmail_sync.last_failure_at
+            monitor_failed = [bool]$failedAfterComplete
             monitor_fresh = [bool]($automation.readiness.gmail_configured -and $null -ne $completed -and
-                $completed -le $now -and $completed -ge $now.AddMinutes(-30))
+                $completed -le $now -and $completed -ge $now.AddMinutes(-30) -and -not $failedAfterComplete)
             pending_reply_count = $automation.pending_reply_count
             pending_reply_ids = @($automation.pending_replies | Select-Object -First 10 -ExpandProperty id)
             batch_task_id = $batch.task.id; batch_status = $batch.task.status

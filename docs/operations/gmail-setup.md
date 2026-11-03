@@ -99,6 +99,13 @@ still stop setup.
 
 ## Verify before relying on monitoring
 
+Creator full-text capture is a separate, explicit campaign opt-in. Keep
+`CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS=[]` for metadata-only reading, or set a JSON
+array of up to ten distinct saved campaign UUIDs in ignored configuration after
+reviewing that scope. Connecting Gmail does not enable all campaigns' full bodies.
+The ordinary sync backfills matched pending replies only for selected IDs; this
+setting grants no sending authority. See the [complete-reply workflow](creator-outreach-continuation.md#complete-reply-evidence).
+
 After a successful setup, reload the services that use the settings:
 
 ```powershell

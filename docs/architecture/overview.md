@@ -176,12 +176,53 @@ exact approvals; only the isolated action worker sends. It checks campaign and
 contact snapshots, remaining run authority, reply state, and duplicate/suppression
 evidence before acquiring a receipt. Accepted handoffs terminate the sequence.
 Read-only creator Gmail uses a separate label and confirmed mailbox identity.
-The adapter fetches message metadata and provider snippets, not full bodies.
-An exact sender/subject match links a record to outreach but cannot establish
-authored intent. Positive-interest review requires the full authored text from
-a verified review channel; unavailable text leaves the record unreviewed and
-the handoff pending. No new service or inference route is introduced. See
+Metadata and provider snippets establish a possible exact outreach match, not
+authored intent. The selected complete-reply extension below removes the manual
+paste requirement for supported bodies while retaining review and handoff gates.
+No new service or inference route is introduced. See
 [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
+
+#### Complete creator-reply evidence
+
+[ADR-0037](../decisions/ADR-0037-bounded-creator-full-reply-evidence.md) is an
+implemented decision with isolated source and campaign-scope validation passed.
+Live mailbox retrieval remains a separate check. Full-body capture is default-off: the JSON
+`CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS` allowlist accepts at most ten distinct
+campaign UUIDs and defaults to `[]`. Both hydration and explicit read requests
+enforce membership; unrelated campaigns remain metadata-only. The readiness
+flag `full_reply_capture_enabled` reports this configuration, not successful
+mailbox access. Existing captured history remains available through private
+detail if future capture is disabled. The existing
+`marketing.gmail_sync` path keeps metadata matching first, then hydrates at most
+three pending exact matches within the combined twenty-message read budget,
+including known metadata-only rows. The same `gmail.readonly` identity and custom
+label are checked with message/thread/sender/subject/received-time bindings.
+A bounded MIME walker produces separate private plaintext, digest, status and
+attempt evidence; incomplete extraction cannot become a complete snippet.
+Three attempts and a five-minute cooldown bound incomplete-record read retries.
+A newer completed read failure blocks sending readiness and delegated authority
+until a later complete sync; queued/running work or configured credentials do not
+establish recovery.
+
+Only authenticated campaign/reply detail exposes body text; overview and audit
+outputs omit it. Semantic review requires the stored body digest. Parsing does
+not render HTML, decode/store attachments, request attachment endpoints or fetch
+links. Mail may still contain untrusted instructions and quoted history; a
+complete body does not automatically confirm interest or authorize a handoff.
+OAuth scope, worker credential compartment, PostgreSQL authority and exact
+sending approval remain unchanged. Implementation and live results must be
+recorded separately before claiming operational full-reply review.
+
+```mermaid
+flowchart LR
+    A["Governed labeled sync"] --> B{"Campaign opted in + exact outreach match?"}
+    B -->|"Yes"| C["Bounded text capture"]
+    B -->|"No"| P["Metadata only / review pending"]
+    C -->|"Incomplete"| P
+    C -->|"Complete"| D["Private PostgreSQL body + digest"]
+    D --> E["Digest-bound intent review"]
+    E -->|"Confirmed interest"| F["Existing handoff approval + paced SMTP"]
+```
 
 Creator personalized drafts are separate immutable product records in PostgreSQL. They
 retain input snapshots, sanitized prompt context, evidence, copy, model route,

@@ -702,3 +702,30 @@ heartbeat and return-time cancellation/context/expiry checks remain; this is not
 a new task-duration guarantee, retry or invocation allowance. The availability
 hold was released only after complete local generation and exact-copy review.
 Reviewed SMTP processing resumed without changing pacing or sending authority.
+
+## 2026-11-03 — Complete private creator-reply evidence
+
+ADR-0037 selects bounded body hydration within the existing read-only creator
+sync rather than another mailbox client or broader permission. Metadata matching
+remains first. Full-body capture requires explicit membership in the default-empty
+`CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS` JSON allowlist, bounded to ten distinct
+campaign UUIDs. Automatic hydration and explicit read requests enforce the same
+scope; unrelated campaigns retain metadata-only syncs. Disabling new capture
+preserves authenticated access to already captured history. Up to three full
+reads share the twenty-message budget and include
+known pending rows. Mailbox/label and message/thread/sender/subject/received-time
+bindings precede persistence, with task/campaign checks after provider work.
+
+PostgreSQL stores separate private selected plaintext, digest, completeness and
+attempt state without replacing original record identity, timestamps or review
+state. Bounded MIME/charset handling excludes attachments, embedded messages,
+active rendering and external fetches. Incomplete evidence cannot be silently
+truncated into a complete body. At most three attempts and a five-minute cooldown
+limit incomplete-record read retries. Overview/audit paths omit body content;
+authenticated detail and exact body-digest review keep evidence and decisions
+bound together. Source and campaign-scope checks passed the complete isolated
+verifier. A known read failure newer than the
+last complete sync blocks sending readiness and delegated authority until a
+later complete sync; queued/running work does not clear that hold.
+This boundary establishes no live retrieval or classification result. No service,
+dependency, credential scope, positive classifier or sending authority is added.
