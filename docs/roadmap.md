@@ -82,7 +82,8 @@
 - [x] Complete the reviewed two-message creator pilot after product-site availability and fresh exact review; record both real SMTP acceptances
 - [x] Renew the recorded creator OAuth connection and verify a fresh governed labeled read
 - [ ] Establish the appropriate Google publishing/verification or reconsent operation for continued reply monitoring
-- [ ] Verify actual labeled creator-reply matching/replay and owner handoff with live canaries
+- [x] Observe live labeled reply-metadata intake and exact sender/subject matching to prior accepted creator invitations
+- [ ] Verify complete authored-reply review, general incoming-reply replay and owner handoff with live canaries
 - [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
 
 - [ ] Telegram control with pairing and allowlist
@@ -99,7 +100,7 @@
 - [x] Paid-first Minecraft creator partnerships, optional revenue-share percentage/window proposals, owner email/Discord handoff, and terminal conversation state
 - [x] Finite creator sending grants for reviewed contacts, exact-action reservations, Pause/expiry, campaign/contact snapshot checks, and cross-campaign duplicate/suppression guards
 - [x] Dedicated read-only creator Gmail label adapter, conservative reply suggestions, operator review, durable cursors, and monitoring after send authority expires
-- [ ] Real creator Gmail reply/replay and owner-handoff canaries; attribution/revenue import, agreements, negotiation, and payments remain outside the agent
+- [ ] Complete creator Gmail authored-message review, replay and owner-handoff canaries; attribution/revenue import, agreements, negotiation, and payments remain outside the agent
 - [x] Deterministic multi-channel promotion kit with campaign-specific UTM attribution and secret-safe activation/status command
 - [x] Creator-specific no-egress smoke covering exact introduction delivery, campaign metrics, opt-out suppression, and test-credential isolation
 - [x] Fresh-job discovery/tracking from reviewed public sources

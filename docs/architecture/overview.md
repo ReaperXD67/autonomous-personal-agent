@@ -175,9 +175,13 @@ cursors. The research worker prepares generated messages and records delegated
 exact approvals; only the isolated action worker sends. It checks campaign and
 contact snapshots, remaining run authority, reply state, and duplicate/suppression
 evidence before acquiring a receipt. Accepted handoffs terminate the sequence.
-Read-only creator Gmail uses a separate label and confirmed mailbox identity;
-snippets cannot authorize positive interest. No new service or inference route
-is introduced. See [ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
+Read-only creator Gmail uses a separate label and confirmed mailbox identity.
+The adapter fetches message metadata and provider snippets, not full bodies.
+An exact sender/subject match links a record to outreach but cannot establish
+authored intent. Positive-interest review requires the full authored text from
+a verified review channel; unavailable text leaves the record unreviewed and
+the handoff pending. No new service or inference route is introduced. See
+[ADR-0025](../decisions/ADR-0025-creator-partnership-handoff.md).
 
 Creator personalized drafts are separate immutable product records in PostgreSQL. They
 retain input snapshots, sanitized prompt context, evidence, copy, model route,

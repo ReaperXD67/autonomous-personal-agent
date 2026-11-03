@@ -58,6 +58,11 @@ task through the app's Scheduled controls. See the
    the existing suppression path. Confirm actual interest before preparing one
    owner handoff; leave uncertain messages or negotiations for review. Do not
    invent an answer, a rate, a response or a creator-feedback outcome.
+   The current reader supplies metadata and provider snippets, with no full-body
+   endpoint. If the full authored text is unavailable through a verified review
+   channel, keep the record unreviewed and request that text from the owner.
+   Do not retry a blocked browser review without changed state or treat a
+   sender/subject match as confirmation of the author's intent.
 3. **Qualify new candidates from official metadata.** Use the gates below.
    Research precedes drafting: refreshing a creator after a draft or approval
    can invalidate its frozen context. Skip creators with active drafts, issued
@@ -188,13 +193,21 @@ schedule, healthy service, ready draft, exact approval, SMTP acceptance, inbox
 arrival and interested creator are distinct results. This workflow guarantees
 none of the latter outcomes and does not retrain its model from silence.
 
-At November 3, 2026, 09:10 UTC (14:40 IST), the original twenty-eight invitations
-plus two new introductions contained twenty-eight SMTP acceptances, one paced
-queued task and one unchanged blocked item with a dead-lettered task. The latter
-had no established acceptance and was not replayed or replaced. Both label
-monitors were fresh with no pending replies or established creator interest/
-owner handoff. The new scheduled slot fits its real approval expiry; it is not
-an additional delivery.
+At November 3, 2026, 12:43 UTC (18:13 IST), the reviewed thirty-invitation scope
+(the original twenty-eight plus two new introductions) contained twenty-nine
+SMTP acceptances, no runnable queued tasks and one unchanged blocked item with
+a dead-lettered task. The latter had no established acceptance and was not
+replayed or replaced. Twelve earlier acceptances are separate.
+
+Both same-mailbox label monitors were fresh. The English campaign had two
+pending reply-metadata records with exact sender-address and outreach-subject
+matches to prior SMTP-accepted invitations. One existing record retained its
+identity and creation time over repeated syncs. Both records remain unreviewed:
+only metadata and provider snippets are available, with no full-body endpoint.
+No classification, creator interest, handoff or negotiation was confirmed.
+The owner has been asked for both full authored messages; a response is pending.
+This verifies the observed intake/matching and one stable-record case, not a
+general replay canary or a causal response-rate improvement.
 
 The hourly reviewer is active, with scheduled cycles observed since 06:20 UTC.
 Earlier native daily scans preserved ten active records; before/after reads
