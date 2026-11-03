@@ -1391,6 +1391,39 @@ bridge resolved those respective cases. New quotation regressions also preserve
 the public title as escaped data or refuse overlong expansion. No actual local
 generation or creator response is claimed by the isolated verifier.
 
+### Real cold/warm generation and reviewed restart
+
+After PR #92 deployment, two normal audited local-only preparation tasks used
+cached Qwen3 8B. The first began unloaded and completed in 170,384 ms with
+700 prompt/15 completion tokens; the second began while resident and completed
+in 2,642 ms with 601/15 tokens. Each succeeded on its first local invocation,
+with zero recorded credits and no corrective generation or manual replacement.
+Runtime inspection reported 100% GPU placement, 6.2 GB resident size and an
+8,192-token context. These establish current generation; they do not establish
+the exact cause of the earlier generic unavailable failure.
+
+The cold timing leaves less than ten seconds of margin under 180 seconds.
+The follow-up keeps a fixed bound but gives grounded requests a 300-second
+socket response window; legacy remains 180. Targeted regressions exercise both
+routes and retain fixed error, size and single-transport-attempt assertions.
+Leases renew independently; cancellation/context/expiry are rechecked on return.
+This is not an end-to-end task wall-clock bound or a second transport attempt.
+
+Complete-copy review retained two new English messages unchanged at 212 and
+204 words including terms/footer. At November 3, 09:10 UTC (14:40 IST), one new
+exact-approved invitation was SMTP-accepted and one was queued for its paced
+09:39:47 UTC slot within its real expiry. The original twenty-eight-invitation
+batch remained twenty-seven accepted plus one unchanged blocked task; twelve
+earlier acceptances are separate. Both reply monitors were fresh with zero
+pending replies. No creator-interest, handoff, inbox-placement or causal
+reply-improvement claim follows from these observations.
+
+The headroom follow-up separately passed all 1,641 tests and the full isolated
+verifier. The three changed source/test files matched the frozen checkout;
+live container fingerprints remained unchanged. The earlier real canaries used
+the previous 180-second window; the subsequent change supplies additional
+response margin with otherwise unchanged transport/selection/approval behavior.
+
 ## Planned experiments
 
 - Compare `qwen3:8b` local latency and tool-call reliability against one remote

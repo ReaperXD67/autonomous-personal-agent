@@ -135,6 +135,11 @@ a review of a configured mail provider's terms.
   timeouts, HTTP errors and incomplete envelopes terminate with fixed safe
   codes; provider bodies and reasoning are not retained. Neither a local-only
   canary nor the new style gains approval, contact or sending authority.
+  Measured cold generation motivates a fixed 300-second grounded local response
+  timeout, with legacy remaining 180 seconds. It is not a hard task-duration
+  guarantee. Independent lease renewal and post-inference cancellation/context/
+  expiry checks remain; the longer response window adds no invocation, retry,
+  approval extension or email authority.
   The November 1 launch retained one AI message and twenty-three reviewed
   manual replacements. Those operator decisions motivated the smaller factual
   surface; they are not creator feedback, training or proof of improved replies.

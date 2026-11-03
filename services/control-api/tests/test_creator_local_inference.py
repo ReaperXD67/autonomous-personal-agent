@@ -44,6 +44,7 @@ def test_transport_disconnects_are_accounted_and_never_retried(monkeypatch, erro
     with pytest.raises(creator_drafting.CreatorDraftModelError) as caught:
         creator_drafting.execute_creator_draft_task(task, database, get_settings())
     assert opener.open.call_count == database.start_inference_invocation.call_count == 1
+    assert opener.open.call_args.kwargs["timeout"] == 300
     assert database.fail_inference_invocation.call_args.args[1] == code
     assert database.fail_draft.call_args.args[-1] == "CREATOR_DRAFT_MODEL_UNAVAILABLE"
     database.complete_inference_invocation.assert_not_called()
@@ -120,7 +121,7 @@ def test_bounded_invalid_envelopes_never_receive_a_copy_repair_or_save(monkeypat
     with pytest.raises(creator_drafting.CreatorDraftModelError) as caught:
         creator_drafting.execute_creator_draft_task(task, database, get_settings())
     received.read.assert_called_once_with(65537)
-    assert opener.open.call_args.kwargs["timeout"] == 180
+    assert opener.open.call_args.kwargs["timeout"] == 300
     assert opener.open.call_count == 1
     assert database.fail_inference_invocation.call_args.args[1] == code
     assert "PRIVATE_" not in str(caught.value) + repr(database.mock_calls)

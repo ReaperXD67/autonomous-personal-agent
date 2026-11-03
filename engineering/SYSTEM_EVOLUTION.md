@@ -694,3 +694,11 @@ The frozen context is passed explicitly at persistence, and model output remains
 issued evidence/angle IDs. This is a measured strategy experiment, not learning
 from silence or proof of creator interest. Recovery requires an actual completed
 local-only draft; health and cache inspection remain prerequisite evidence.
+
+Genuine cold/warm Creator checks subsequently completed in 170.384/2.642 seconds.
+That measured cold margin motivates a fixed 300-second grounded socket response
+timeout while retaining legacy 180 seconds. The existing independent lease
+heartbeat and return-time cancellation/context/expiry checks remain; this is not
+a new task-duration guarantee, retry or invocation allowance. The availability
+hold was released only after complete local generation and exact-copy review.
+Reviewed SMTP processing resumed without changing pacing or sending authority.

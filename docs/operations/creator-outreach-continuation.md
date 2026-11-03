@@ -182,18 +182,19 @@ through the existing control plane as appropriate; pausing a reviewer alone
 does not recall queued email. SMTP-accepted messages cannot be recalled. Keep
 the durable audit and suppression history.
 
-The engineering journal and Experiment 41 record the actual schedule
-installation, manual-cycle result, tests and delivery checkpoint. A configured
+The engineering journal and Experiments 41–42 record the actual schedule
+installation, reviewed cycles, recovery tests and delivery checkpoint. A configured
 schedule, healthy service, ready draft, exact approval, SMTP acceptance, inbox
 arrival and interested creator are distinct results. This workflow guarantees
 none of the latter outcomes and does not retrain its model from silence.
 
-At November 2, 2026, 19:57 UTC (November 3, 01:27 IST), the exact original
-twenty-eight invitation IDs matched a complete API action page: twenty-seven
-SMTP-accepted, zero runnable queued and one unchanged blocked action with a
-dead-lettered task. That blocked work had no receipt or established acceptance
-and was not replayed or replaced. Both label monitors were fresh with zero
-pending replies; no actual creator interest or owner handoff was established.
+At November 3, 2026, 09:10 UTC (14:40 IST), the original twenty-eight invitations
+plus two new introductions contained twenty-eight SMTP acceptances, one paced
+queued task and one unchanged blocked item with a dead-lettered task. The latter
+had no established acceptance and was not replayed or replaced. Both label
+monitors were fresh with no pending replies or established creator interest/
+owner handoff. The new scheduled slot fits its real approval expiry; it is not
+an additional delivery.
 
 The hourly reviewer is active, with scheduled cycles observed since 06:20 UTC.
 Earlier native daily scans preserved ten active records; before/after reads
@@ -203,11 +204,15 @@ with each successive acceptance more than 1,800 seconds apart.
 This is a small actual-send pacing canary, not a guarantee about future cadence,
 inbox placement or replies.
 
-A draft was requested for one qualified candidate at 19:06 UTC and failed at
-19:09 UTC with `CREATOR_DRAFT_MODEL_UNAVAILABLE`; local inference was unavailable.
-No new packet or manual fallback was created. New AI introductions are held;
-reply monitoring continues. Preserve the failed task rather than using another
-identity or replacement copy to conceal the failure.
+The November 2 unavailable-model failure was preserved. After explicit
+maintenance, genuine audited local-only cold/warm drafts completed in
+170.384/2.642 seconds and passed complete-copy review unchanged. This released
+the recorded availability hold and resumed individually approved outreach.
+Cold-start measurements motivated 300-second grounded response headroom;
+legacy remains 180 seconds, with the same budgets and no transport retry.
+Preserve the original failure and the separately budgeted recovery evidence.
+These tests establish current generation, not the exact historical cause or
+a guarantee that future local requests will succeed.
 
 The recovery audit found seventeen actual SMTP acceptances from 05:18:23 through
 05:19:39 UTC despite spaced reserved slots. The old due-time check did not

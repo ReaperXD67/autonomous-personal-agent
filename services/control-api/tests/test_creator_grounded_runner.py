@@ -38,6 +38,7 @@ def test_selector_uses_non_thinking_small_dynamic_schema_and_records_usage(monke
     monkeypatch.setattr(creator_drafting, "build_opener", Mock(return_value=transport))
     result = creator_drafting.execute_creator_draft_task(task, database, get_settings())
     request = transport.open.call_args.args[0]
+    assert transport.open.call_args.kwargs["timeout"] == 300
     payload = json.loads(request.data)
     assert payload["think"] is False
     assert payload["options"] == {"temperature": 0, "num_predict": 512}
