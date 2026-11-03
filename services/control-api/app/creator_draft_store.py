@@ -178,6 +178,7 @@ class CreatorDraftStore(MarketingStore):
         ).fetchone()
         result = {
             **row, "task_status": task["status"],
+            "inference_mode": row["model_context"].get("inference_mode", "auto"),
             "evidence": row["model_context"]["evidence"],
             "learning_summary": row["model_context"]["learning_summary"],
             "quality_report": creator_draft_quality_report(row),
@@ -208,7 +209,10 @@ class CreatorDraftStore(MarketingStore):
             connection, correlation_id=task["correlation_id"], task_id=row["task_id"],
             actor_type="worker", actor_id=actor, tool_name="marketing.creator_draft",
             action=action, risk_level="medium", approval_status="not_applicable",
-            execution_status=row["status"], input_metadata={"draft_id": str(row["id"])},
+            execution_status=row["status"], input_metadata={
+                "draft_id": str(row["id"]),
+                "inference_mode": row["model_context"].get("inference_mode", "auto"),
+            },
             result_metadata={"source": row["source"], "error_code": row["error_code"]},
         )
 
@@ -228,7 +232,9 @@ class CreatorDraftStore(MarketingStore):
         ).fetchone()
         if existing:
             if (existing["prospect_id"] != prospect_id
-                    or existing["requested_by"] != request.actor):
+                    or existing["requested_by"] != request.actor
+                    or existing["model_context"].get("inference_mode", "auto")
+                    != request.inference_mode):
                 raise CreatorDraftConflictError("Idempotency key belongs to another request")
             return existing
         campaign, prospect = self._context(connection, prospect_id, lock=True)
@@ -245,13 +251,16 @@ class CreatorDraftStore(MarketingStore):
             self._variant_metrics_in_connection(connection, campaign["id"], paid=True),
         )
         snapshot = draft_input_snapshot(campaign, prospect)
+        model_context = grounded_model_context(campaign, prospect, learning)
+        if request.inference_mode == "local_only":
+            model_context["inference_mode"] = "local_only"
         row = connection.execute(
             "INSERT INTO creator_email_drafts "
             "(campaign_id,prospect_id,requested_by,idempotency_key,input_snapshot,"
             "input_hash,model_context) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING *",
             (prospect["campaign_id"], prospect_id, request.actor, request.idempotency_key,
              Jsonb(snapshot), canonical_hash(snapshot),
-             Jsonb(grounded_model_context(campaign, prospect, learning))),
+             Jsonb(model_context)),
         ).fetchone()
         task = self._create_task_record(connection, TaskCreate(
             title="Draft a creator-specific introduction for review",
@@ -330,6 +339,7 @@ class CreatorDraftStore(MarketingStore):
             language = context_draft_language(row["model_context"])
             subject, body = compose_ai_email(
                 campaign, prospect, copy, output_language=language,
+                model_context=row["model_context"],
             )
             notes = [
                 ("Model selected issued evidence and an allowed angle; the server rendered "

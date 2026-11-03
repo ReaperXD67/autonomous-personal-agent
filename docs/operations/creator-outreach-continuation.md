@@ -79,6 +79,12 @@ task through the app's Scheduled controls. See the
    ceiling, any shared budget, unavailable model/provider or unresolved evidence.
    Failed and cancelled preparation reservations remain counted. Do not generate
    a replacement solely to hide failure or refresh a deadline.
+   After an explicitly authorized model-maintenance fix, a new, separately
+   budgeted `inference_mode: "local_only"` draft can prove local recovery through
+   the same API. Preserve the original failed task; do not reset its state or
+   disguise the evaluation as a retry. Inspect the saved copy, source/model and
+   completed inference before releasing a recorded availability hold. Routine
+   hourly cycles do not reconfigure providers or issue repeated recovery probes.
 5. **Review and approve exact copy.** Verify the cited source, selected angle,
    reviewed brief, individually negotiated revenue-share wording, sender,
    owner contact and mandatory footer. Use the stored digest; compare the

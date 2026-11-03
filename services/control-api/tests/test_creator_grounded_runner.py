@@ -28,6 +28,7 @@ def test_selector_uses_non_thinking_small_dynamic_schema_and_records_usage(monke
     task, row, database, plan = grounded_setup()
     received = Mock()
     received.read.return_value = json.dumps({
+        "done": True, "done_reason": "stop",
         "message": {"content": json.dumps(plan), "thinking": "PRIVATE_MODEL_REASONING"},
         "prompt_eval_count": 100, "eval_count": 20,
     }).encode()

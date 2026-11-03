@@ -58,6 +58,7 @@
 ## Phase 4 — personal workflows
 
 - [x] Minecraft paid-first/revenue-share proposals, bounded creator runs and owner email/Discord handoff
+- [x] Version-frozen concise creator introductions and explicit audited local-only draft evaluation with terminal transport diagnostics
 - [x] Reviewed creator feedback with explainable, bounded future-copy adaptation
 - [x] Policy-bound creator introductions with recorded video evidence, reviewed feedback, immutable copy and exact-digest individual review
 - [x] Native local Gmail OAuth onboarding with PKCE, expected mailbox/label checks, and atomic secret-safe setup

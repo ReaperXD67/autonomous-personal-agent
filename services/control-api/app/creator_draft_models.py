@@ -11,6 +11,7 @@ class CreatorDraftCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     actor: str = Field(min_length=1, max_length=120)
     idempotency_key: UUID
+    inference_mode: Literal["auto", "local_only"] = "auto"
 
 
 class CreatorDraftPrepare(BaseModel):
@@ -95,6 +96,7 @@ class CreatorDraftView(BaseModel):
     task_status: str
     source: str | None
     selected_model: str | None
+    inference_mode: Literal["auto", "local_only"] = "auto"
     error_code: str | None
     subject: str | None
     body: str | None

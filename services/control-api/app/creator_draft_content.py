@@ -321,10 +321,12 @@ def parse_model_copy(content: str, context: dict[str, Any]) -> CreatorModelCopy:
     return copy
 
 
-def compose_ai_email(campaign, prospect, copy: CreatorModelCopy, *, output_language="en"):
+def compose_ai_email(
+    campaign, prospect, copy: CreatorModelCopy, *, output_language="en", model_context=None,
+):
     if isinstance(copy, CreatorGroundedCopy):
         try:
-            return compose_grounded_email(campaign, prospect, copy)
+            return compose_grounded_email(campaign, prospect, copy, model_context=model_context)
         except GroundedCopyError as exc:
             raise CreatorCopyError(exc.code) from None
     if output_language == "pl":

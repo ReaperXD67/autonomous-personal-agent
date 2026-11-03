@@ -12,6 +12,34 @@ commercial envelope. Stored provenance binds the source, language, context and
 campaign. Revalidation rederives the copy rather than trusting stored prose.
 Legacy contexts retain their original free-copy parser and complete messages.
 Every personalized draft still requires individual exact-message review.
+New contexts additionally freeze `creator-concise-permission-v1`: an exact-title
+hook, optional offered idea and one discussion question, retaining the reviewed
+brief, compensation and footer. Missing render markers keep earlier v2 bytes.
+Explicit per-draft `inference_mode=local_only` skips hosted planning and inference
+without changing global routing; absent mode remains `auto`. The mode is bound
+to idempotency, frozen context/provenance and audit. Both use the existing task,
+preparation budget and model ledger; neither grants sending authority.
+Local transport, timeout, HTTP and incomplete-envelope failures have fixed safe
+codes and terminate the failed draft. No response body enters diagnostics and
+no transport retry, new service or schema is added. See
+[ADR-0036](../decisions/ADR-0036-creator-local-recovery-and-permission-strategy.md).
+
+```mermaid
+flowchart LR
+    R["Reviewed public evidence and business contact"] --> T["Audited draft task and budget"]
+    T --> M{"Frozen inference mode"}
+    M -->|auto| H["Approved hosted route"]
+    M -->|local_only| L["Configured local model"]
+    H -->|permitted fallback| L
+    H --> V["Validate issued evidence and angle IDs"]
+    L --> V
+    L -->|transport or incomplete response| F["Terminal failure and safe diagnostic"]
+    V --> C["Frozen version renders brief and terms"]
+    C --> A["Individual exact-copy approval"]
+    A --> S["Paced SMTP receipt boundary"]
+    S --> G["Labeled reply read and authored-intent review"]
+    G -->|confirmed interest| O["One owner handoff"]
+```
 Bulk discovery preserves research under the existing campaign/prospect locks
 while an unexpired active draft or exact outreach action protects it. The saved
 campaign discovery summary reports `protected_count`; it neither extends freshness nor changes

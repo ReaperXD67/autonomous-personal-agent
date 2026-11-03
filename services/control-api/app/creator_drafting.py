@@ -4,8 +4,9 @@ import json
 import threading
 import time
 from contextlib import suppress
+from http.client import HTTPException, IncompleteRead
 from urllib.error import HTTPError, URLError
-from urllib.request import HTTPRedirectHandler, Request, build_opener
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 from uuid import UUID
 
 from app.creator_draft_content import (
@@ -22,9 +23,28 @@ from app.settings import Settings
 from app.store import InvalidTaskStateError
 from app.worker import TaskInterruptedError
 
+LOCAL_FAILURE_MESSAGES = {
+    "CREATOR_LOCAL_UNAVAILABLE": "Local drafting model returned no valid response",
+    "CREATOR_LOCAL_TIMEOUT": "Local drafting exceeded its bounded response timeout",
+    "CREATOR_LOCAL_CONNECTION_FAILED": "Local drafting connection was unavailable or disconnected",
+    "CREATOR_LOCAL_MODEL_MISSING": "The configured local drafting model was not found",
+    "CREATOR_LOCAL_BUSY": "Local drafting endpoint could not accept this bounded request",
+    "CREATOR_LOCAL_HTTP_ERROR": "Local drafting endpoint returned an unsuccessful HTTP status",
+    "CREATOR_LOCAL_INVALID_RESPONSE": "Local drafting returned an invalid response envelope",
+    "CREATOR_LOCAL_INCOMPLETE_RESPONSE": "Local drafting did not finish a complete response",
+    "CREATOR_LOCAL_RESPONSE_TOO_LARGE": "Local drafting response exceeded the bounded size",
+    "CREATOR_LOCAL_REDIRECT_REFUSED": "Local drafting endpoint redirects are disabled",
+}
+
 
 class CreatorDraftModelError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, code: str = "CREATOR_LOCAL_UNAVAILABLE"):
+        self.code = code if code in LOCAL_FAILURE_MESSAGES else "CREATOR_LOCAL_UNAVAILABLE"
+        super().__init__(message)
+
+
+def _local_failure(code: str) -> CreatorDraftModelError:
+    return CreatorDraftModelError(LOCAL_FAILURE_MESSAGES[code], code=code)
 
 
 class CreatorDraftOutputError(CreatorDraftModelError):
@@ -33,7 +53,7 @@ class CreatorDraftOutputError(CreatorDraftModelError):
 
 class _NoRedirects(HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise CreatorDraftModelError("Local drafting endpoint redirects are disabled")
+        raise _local_failure("CREATOR_LOCAL_REDIRECT_REFUSED") from None
 
 
 def local_draft_completion(messages, model, *, context=None):
@@ -49,11 +69,15 @@ def local_draft_completion(messages, model, *, context=None):
         }).encode("utf-8"),
     )
     try:
-        with build_opener(_NoRedirects()).open(request, timeout=180) as response:
+        with build_opener(ProxyHandler({}), _NoRedirects()).open(request, timeout=180) as response:
             body = response.read(65537)
         if len(body) > 65536:
-            raise ValueError("Response too large")
+            raise _local_failure("CREATOR_LOCAL_RESPONSE_TOO_LARGE")
         envelope = json.loads(body)
+        if not isinstance(envelope, dict):
+            raise _local_failure("CREATOR_LOCAL_INVALID_RESPONSE")
+        if envelope.get("done") is not True or envelope.get("done_reason") != "stop":
+            raise _local_failure("CREATOR_LOCAL_INCOMPLETE_RESPONSE")
         # Ollama returns reasoning separately in message.thinking. Only final JSON
         # enters validation, persistence or logs; token accounting includes all work.
         content = envelope["message"]["content"]
@@ -65,8 +89,22 @@ def local_draft_completion(messages, model, *, context=None):
             "prompt_tokens": prompt, "completion_tokens": completion,
             "total_tokens": prompt + completion,
         }
-    except (HTTPError, URLError, TimeoutError, KeyError, TypeError, ValueError):
-        raise CreatorDraftModelError("Local drafting model returned no valid response") from None
+    except HTTPError as exc:
+        code = ("CREATOR_LOCAL_MODEL_MISSING" if exc.code == 404 else
+                "CREATOR_LOCAL_BUSY" if exc.code in {429, 503} else "CREATOR_LOCAL_HTTP_ERROR")
+        raise _local_failure(code) from None
+    except URLError as exc:
+        code = ("CREATOR_LOCAL_TIMEOUT" if isinstance(exc.reason, TimeoutError)
+                else "CREATOR_LOCAL_CONNECTION_FAILED")
+        raise _local_failure(code) from None
+    except TimeoutError:
+        raise _local_failure("CREATOR_LOCAL_TIMEOUT") from None
+    except IncompleteRead:
+        raise _local_failure("CREATOR_LOCAL_INCOMPLETE_RESPONSE") from None
+    except (OSError, HTTPException):
+        raise _local_failure("CREATOR_LOCAL_CONNECTION_FAILED") from None
+    except (KeyError, TypeError, ValueError, OverflowError, RecursionError):
+        raise _local_failure("CREATOR_LOCAL_INVALID_RESPONSE") from None
 
 
 def _checkpoint(task, row, database, interrupt):
@@ -77,10 +115,13 @@ def _checkpoint(task, row, database, interrupt):
 
 def _model_copy(task, row, database, runtime, client, interrupt):
     context = row["model_context"]
+    inference_mode = context.get("inference_mode", "auto")
+    if not isinstance(inference_mode, str) or inference_mode not in {"auto", "local_only"}:
+        raise CreatorDraftConflictError("Stored creator inference mode is unsupported")
     grounded = context.get("drafting_contract") == "creator-grounded-plan-v2"
     messages = drafting_messages(context)
     task_id = UUID(str(task["id"]))
-    if client is not None:
+    if client is not None and inference_mode == "auto":
         try:
             route = client.plan()
             remaining = route.models
@@ -170,8 +211,8 @@ def _model_copy(task, row, database, runtime, client, interrupt):
             if local_attempt == 1:
                 continue
             break
-        except CreatorDraftModelError:
-            database.fail_inference_invocation(invocation, "CREATOR_LOCAL_UNAVAILABLE")
+        except CreatorDraftModelError as exc:
+            database.fail_inference_invocation(invocation, exc.code)
             break
         database.complete_inference_invocation(
             invocation, selected_model=runtime.local_model, selected_provider="ollama",
@@ -182,7 +223,7 @@ def _model_copy(task, row, database, runtime, client, interrupt):
     error_type = CreatorDraftOutputError if grounded and repair_code else CreatorDraftModelError
     raise error_type(
         "No valid AI draft was produced; review research or choose the explicit template"
-    )
+    ) from None
 
 
 def execute_creator_draft_task(
