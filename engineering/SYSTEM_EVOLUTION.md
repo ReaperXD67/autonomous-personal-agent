@@ -757,3 +757,14 @@ fit, mandatory qualification, form, duplicate and final-receipt checks still dec
 whether a candidate can be submitted. The fresh role which exposed the gap was
 below the saved fit threshold and had unconfirmed mandatory enrollment; it was
 not treated as eligible merely because its publication date was known.
+
+## 2026-11-04 — Explicit response-draft recovery
+
+ADR-0040 retains failed response preparations and adds one linked recovery
+attempt rather than resetting task state or silently changing copy. PostgreSQL
+enforces a two-attempt lineage; creation and execution bind its parent and
+attempt. The child inherits the original expiry, uses the existing local-only
+worker and consumes shared preparation allowance. A five-minute cooldown and
+current source/contact/campaign/suppression checks precede explicit creation.
+Native sync and ordinary preparation only return existing work. No sender,
+approval, commercial-term, model-route or account authority changes.

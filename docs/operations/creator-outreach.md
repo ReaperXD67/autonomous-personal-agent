@@ -224,6 +224,17 @@ hold for recurring reviews. Do not mark a recipient opt-out, clear an unresolved
 reply, or re-authorize contact merely to release another email. Saved response
 drafts remain unsent until the owner separately resumes and reviews the next step.
 
+If an actual local model failure prevented copy, resolve the provider/resource
+issue before using **Retry after model recovery**. The server offers this only
+for an eligible original model-unavailable failure after a five-minute cooldown.
+`POST /v1/marketing/campaigns/{campaign_id}/replies/{reply_id}/drafts/{draft_id}/retry`
+accepts `actor` and the current complete `body_digest`. It returns the same linked
+second attempt on repeated requests. Both attempts consume preparation allowance;
+the original deadline stays unchanged. Active, ready, cancelled, invalid-output,
+changed or expired work cannot use this path. There is no third attempt or
+automatic retry. Inspect the original failure, new task and resulting full copy;
+a queued recovery is not proof of model availability.
+
 The action worker rechecks the owned unexpired lease, cancellation, exact frozen
 context, contact authorization, suppression, and reply state immediately before
 SMTP submission. A bounce or opt-out clears contact authorization and cannot be

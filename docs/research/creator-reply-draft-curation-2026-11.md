@@ -51,3 +51,18 @@ loading/recovery, stale-modal isolation, reviewed-history discoverability and
 mobile wrapping. Keep task/model results separate from live delivery evidence.
 This note establishes provenance and design intent; it claims no successful live
 curation, creator-interest guarantee or measured reply-rate improvement.
+
+## Explicit recovery after a real startup failure
+
+The first native local attempts failed during model loading with substantial
+observed host paging and CPU/disk pressure. GPU fit and container health did not
+establish a usable response. [Ollama troubleshooting](https://docs.ollama.com/troubleshooting)
+supports inspecting runtime/load diagnostics before changing providers or drivers.
+[Microsoft's WSL configuration guide](https://learn.microsoft.com/windows/wsl/wsl-config)
+describes shared resource and cache-reclaim behavior; a guest cache count must not
+be mistaken for resident host RAM or proof of the sole cause.
+
+Adapt the already-reviewed idempotent-resume pattern as one explicit linked
+recovery, preserving the failure, budget cost and original deadline. Ordinary
+sync does not repeat it. No orchestration dependency, model upgrade or automatic
+global resource setting is added. See [ADR-0040](../decisions/ADR-0040-explicit-creator-draft-recovery.md).

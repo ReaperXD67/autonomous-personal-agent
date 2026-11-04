@@ -22,6 +22,11 @@ budget includes introductions, reply drafts and outstanding batch reservations.
 The private review UI can display drafts for pending or already-reviewed replies.
 No reply draft creates an external action, classifies a message or restores a
 held contact's authorization. See [ADR-0038](../decisions/ADR-0038-local-creator-reply-curation.md).
+A terminal model-unavailable failure can have one explicitly requested recovery
+child. PostgreSQL binds lineage and counts both attempts; the original expiry
+is inherited. Native sync and ordinary preparation never create that child.
+Failed/active/ready states, current context and server-derived eligibility remain
+separate in the UI. See [ADR-0040](../decisions/ADR-0040-explicit-creator-draft-recovery.md).
 New contexts additionally freeze `creator-concise-permission-v1`: an exact-title
 hook, optional offered idea and one discussion question, retaining the reviewed
 brief, compensation and footer. Missing render markers keep earlier v2 bytes.
