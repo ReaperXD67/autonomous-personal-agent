@@ -152,6 +152,12 @@ owner facts are narrowly country-scoped and included with the policy version in
 the expiring profile digest. A positive report cannot prove eligibility or detect
 all unusual wording. See ADR-0035.
 
+Greenhouse `first_published` is accepted only as an explicit valid timezone-aware
+publication timestamp. Missing, malformed, naive or wrong-type values never turn
+an update into publication. A fresh update cannot replace old publication evidence;
+the normal age/future-date, qualification, form and receipt gates still apply.
+The adapter adds no request, endpoint, credential or submission authority. See ADR-0039.
+
 Workflow plans can invoke only foundation echo/wait, allowlisted career search,
 draft/preflight, and creator discovery. Each step derives risk from capability
 policy; caller risk can only increase it. Raw email send and application submit

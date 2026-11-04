@@ -41,3 +41,5 @@ history.
 - [ADR-0035](ADR-0035-platform-discovery-and-qualification-review.md): bounded public YC discovery, paired platform references and deterministic mandatory-qualification gates
 - [ADR-0036](ADR-0036-creator-local-recovery-and-permission-strategy.md): audited local-only creator recovery, safe terminal inference diagnostics and immutable permission-first rendering
 - [ADR-0037](ADR-0037-bounded-creator-full-reply-evidence.md): bounded full reply hydration, private complete-text evidence and digest-bound semantic review
+- [ADR-0038](ADR-0038-local-creator-reply-curation.md): governed local response drafts from complete reply evidence while retaining owner holds
+- [ADR-0039](ADR-0039-greenhouse-first-publication-evidence.md): use explicit Greenhouse publication evidence while keeping update timestamps outside automatic freshness

@@ -40,6 +40,10 @@ records remain research-only for automatic application purposes. Remotive is
 optional, retains original attribution, and reserves at most four public API
 requests per rolling day across all missions, with at least one minute spacing.
 
+ADR-0039 clarifies Greenhouse's separate optional `first_published` evidence.
+Only a valid timezone-aware publication timestamp may satisfy the existing
+posting-date gate; update-only records retain the boundary above.
+
 Gmail is a separate low-risk read capability. OAuth refresh credentials exist
 only in the research worker. The adapter requires Gmail read-only scope, checks
 mailbox identity against the application profile, and reads only the configured

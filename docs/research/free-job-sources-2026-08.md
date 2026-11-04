@@ -7,13 +7,18 @@ worker.
 |---|---|---|---|---|
 | Arbeitnow | Public job board API | `created_at` | enabled per mission | reviewed host, maximum 100 returned items, original listing retained |
 | Ashby | Public Job Posting API | `publishedAt`, `isListed` | exact employer board slug | reviewed API host; listing and apply URLs retained |
-| Greenhouse | Job Board API GET | `updated_at` | exact employer board slug | reviewed API host; absolute job URL retained |
+| Greenhouse | Job Board API GET | explicit `first_published` when present; otherwise `updated_at` is update evidence only | exact employer board slug | reviewed API host; absolute job URL retained; strict date provenance |
 | Lever | Public Postings API | `createdAt` | exact employer site slug | reviewed EU/global hosts; hosted apply URL retained |
 
 Arbeitnow describes its API as free and no-key and asks consumers to link back
 to listings. [Ashby documents its public posting endpoint](https://developers.ashbyhq.com/docs/public-job-posting-api)
 and exposes published time and apply URLs. [Greenhouse documents unauthenticated
-GET access](https://developer.greenhouse.io/job-board.html) for job board data.
+GET access](https://docs.greenhouse.io/job-board.html) for job board data and an
+explicit `first_published` field in its job contract. A November 2026 follow-up
+independently observed that optional field in public listing data. Hermes uses it
+only when it is a valid timezone-aware timestamp; missing or invalid publication
+data cannot inherit the update date's freshness. See
+[ADR-0039](../decisions/ADR-0039-greenhouse-first-publication-evidence.md).
 [Lever documents public postings and hosted apply URLs](https://github.com/lever/postings-api/blob/master/README.md).
 Remotive was evaluated but not enabled for the “fresh only” mission:
 its official public-API repository says public jobs are delayed by 24 hours and

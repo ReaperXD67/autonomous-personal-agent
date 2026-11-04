@@ -251,7 +251,24 @@ def fetch_greenhouse(board: str) -> list[dict[str, Any]]:
     for job in jobs[:500]:
         if not isinstance(job, dict):
             continue
-        published_at = _parse_datetime(job.get("updated_at"))
+        # Greenhouse documents first_published separately from updated_at. Only
+        # an explicit calendar timestamp with a timezone establishes publication;
+        # the shared parser also accepts epochs/naive dates for source history.
+        first_published = job.get("first_published")
+        published_at = None
+        if isinstance(first_published, str) and re.fullmatch(
+            r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?"
+            r"(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)", first_published,
+        ):
+            try:
+                published_at = datetime.fromisoformat(
+                    first_published.replace("Z", "+00:00"),
+                ).astimezone(UTC)
+            except (ValueError, OverflowError):
+                published_at = None
+        basis = "published" if published_at is not None else "updated"
+        if published_at is None:
+            published_at = _parse_datetime(job.get("updated_at"))
         source_url = str(job.get("absolute_url") or "")
         if published_at is None or not source_url.startswith("https://"):
             continue
@@ -268,7 +285,7 @@ def fetch_greenhouse(board: str) -> list[dict[str, Any]]:
                 "source_url": source_url,
                 "apply_url": source_url,
                 "published_at": published_at,
-                "published_at_basis": "updated",
+                "published_at_basis": basis,
             }
         )
     return normalized

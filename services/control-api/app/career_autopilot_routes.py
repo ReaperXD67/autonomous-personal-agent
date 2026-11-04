@@ -31,8 +31,11 @@ SOURCE_CATALOG = [
     {
         "id": "greenhouse",
         "name": "Greenhouse",
-        "status": "research_only",
-        "description": "Feed dates are updates; automatic applications need a posting date.",
+        "status": "supported",
+        "description": (
+            "Explicit first-publication dates can establish freshness; "
+            "update-only records require review. Inspected forms and eligibility checks apply."
+        ),
         "url": "https://boards.greenhouse.io/",
     },
     {
