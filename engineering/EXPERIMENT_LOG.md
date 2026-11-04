@@ -1561,6 +1561,36 @@ cooldown, third-attempt refusal and no-email/no-approval behavior passed. Live
 container fingerprints were preserved and the completed test containers stopped.
 These checks establish source behavior, not a successful new local model response.
 
+### Verified live local response preparation
+
+PR-98 passed remote CI. The merged source and additive migration 030 were deployed
+with eighty-five app/static files verified across five roles. Before/after visible
+Career configuration and twelve run-core records, environment across reload and
+durable volume mappings matched; hidden grant bindings are not exposed by the API.
+
+The existing fixed GPU setup check returned `LOCAL_MODEL_OK` in 207.781 seconds,
+with the same Ollama container and environment. This was a harmless operator
+canary without creator text, separate from the governed preparation invocations.
+Two explicitly requested recovery tasks then completed on local Qwen with current
+source digests and complete-copy review unchanged. Their task elapsed times were
+263.861 and 1.828 seconds, including startup/execution overhead. These are two
+English response cases, not a representative accuracy or latency benchmark.
+
+The first acknowledged an already supplied Discord identifier; the second
+acknowledged a promotion policy and requested a missing Discord route. Both
+retained the owner contact and unagreed scope/payment. API comparison confirmed
+the original failed draft fields and complete task records unchanged, one linked
+second attempt each, inherited expiry, withdrawn contact authorization and no
+sending authority. The original commercial-policy review remained pending.
+No scoped external action or email approval was added.
+
+The tasks completed at 07:48:29 and 07:48:31 UTC. A later one-time clean page-cache
+reclaim completed at 07:49:35, so it did not cause these results and was unnecessary
+for this recovery. It changed no service lifecycle, persistent configuration or
+volume contents. The observed pressure's sole historical cause remains unproved.
+No reply, commercial agreement, revenue or guaranteed future model startup is
+established by these private preparation results.
+
 ## 2026-11-02 — Career platform and eligibility verification
 
 The final isolated platform build passed Compose configuration, Ruff/all 1,552
