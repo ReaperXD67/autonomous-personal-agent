@@ -746,3 +746,14 @@ and contact authorization withdrawal. They do not become recipient opt-outs or
 automatic positive classifications. Read-only UI access for already-reviewed
 replies preserves discoverability without reopening their classification.
 No new service, dependency, mailbox scope or Discord account connection is added.
+
+## 2026-11-04 — Explicit Greenhouse publication evidence
+
+ADR-0039 corrects the existing adapter's unconditional update classification.
+Explicit valid timezone-aware `first_published` values now identify publication;
+update-only fallback remains research evidence. No extra provider read, runtime,
+service, dependency, schema or authority is introduced. Existing expiry/freshness,
+fit, mandatory qualification, form, duplicate and final-receipt checks still decide
+whether a candidate can be submitted. The fresh role which exposed the gap was
+below the saved fit threshold and had unconfirmed mandatory enrollment; it was
+not treated as eligible merely because its publication date was known.

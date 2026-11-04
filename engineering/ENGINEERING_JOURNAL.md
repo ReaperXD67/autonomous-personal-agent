@@ -3710,3 +3710,42 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   smoke passed; the latter used the configured hosted gateway and is not a
   local reply-generation canary. CI, deployment and actual response drafts are
   separate operating gates.
+
+## 2026-11-04 — Resume Career Apply and use explicit Greenhouse publication
+
+- The owner requested resuming suitable software/internship applications from the
+  last 72 hours and renewing an expired ten-per-day run. The authenticated Career
+  API renewed Apply for 24 hours with fit 75, the same five ATS hosts/answers and
+  no Career email. Existing résumé, identity, facts and source preferences were
+  preserved. The governed search read 1,546 normalized records with 70 of 71
+  sources successful, matched zero and made zero model calls. An independent
+  ledger/action/receipt audit confirmed zero Career applications or sends, with
+  no executing or ambiguous Career actions; queued searches were not submissions.
+- Bounded primary-source research found a fresh Karya research-engineering role.
+  Its private-profile score was 47 and required current enrollment was unverified,
+  so it was not submitted or used to loosen the fit/qualification gates. Four
+  other successful employer APIs returned 131 roles without a qualifying fresh
+  India software match; four additional reads failed and were not counted complete.
+- That research exposed the Greenhouse adapter's unconditional update-date basis.
+  ADR-0039 accepts the provider's separate explicit timezone-aware first_published
+  field while preserving update-only fallback as unverified history. Old/future,
+  absent, malformed, naive and wrong-type cases remain protected by date/age gates;
+  neither fit nor mandatory qualifications are bypassed. No extra source call,
+  destination, dependency, schema or credential is introduced. Dashboard/source
+  descriptions and current documentation now reflect that conditional capability.
+- Integrated Creator main 881ff596 and preserved migration 029, its modules and
+  owner-hold boundary before final checks. One system-evolution append conflict
+  was resolved retaining both decisions. An early test image captured two
+  pre-freeze lint issues; a fresh frozen image passed Ruff/all 1,781 tests.
+  The combined source subsequently passed Ruff/all 1,830 tests. Full verifier,
+  governed source canary and merged-source deployment are recorded after execution.
+- The combined source passed Compose configuration, `test.ps1`, the complete
+  isolated `verify.ps1` and diff checks, including all 27 Creator PostgreSQL
+  groups and actual-source browser proofs. A governed isolated discovery canary
+  then read twenty public Karya records and persisted the exact publication
+  `2026-11-02T11:50:48Z` with `published` provenance. This used an empty synthetic
+  résumé, preparation disabled and no Apply grant: zero model calls and zero
+  actions. It proves source normalization, not real-candidate eligibility or an
+  application. Isolated services were stopped afterward with their volumes
+  retained. Actual Career applications remain zero; live rollout remains a
+  coordinated merged-source operation.

@@ -1566,3 +1566,29 @@ provider compatibility; governed runtime verification is recorded separately.
 The final isolated fix build also passed Compose configuration, test.ps1,
 the complete verify.ps1 and git diff --check. Independent source review confirmed
 the existing origin/account/identity/date/request boundaries remain intact.
+
+## 2026-11-04 — Greenhouse publication evidence and resumed application audit
+
+The renewed native search returned 1,546 normalized listings, zero matches and
+zero model calls; 70/71 sources succeeded. Independent read-only audits found
+zero recorded applications, successful application receipts, linked Career email
+receipts or executing/ambiguous Career actions. These counts are separate from
+Creator outreach and do not imply a job application was submitted.
+
+The fresh Karya lead had explicit publication evidence but scored 47 against the
+saved minimum 75 and had unverified enrollment; it remained ineligible. Primary
+provider documentation and real API responses distinguish first_published from
+updated_at. New regression cases cover strict timestamp types, offset normalization,
+missing updates, old publication versus recent update, future dates, narrower run
+windows, the exact 72-hour boundary, and unchanged fit/enrollment blockers.
+A pre-freeze image failed two lint checks; the current frozen source passed all
+1,781 tests and the combined Creator/Career source passed all 1,830 with Ruff clean.
+The isolated full verifier and governed provider canary are separate final gates.
+The final combined build passed those gates: Compose configuration, `test.ps1`,
+the complete `verify.ps1` and diff checks, including 27 Creator database groups
+and actual-source browser proofs. The isolated governed Greenhouse search read
+twenty public Karya records and retained the exact `2026-11-02T11:50:48Z`
+publication with `published` provenance. The empty synthetic discovery profile
+had preparation disabled and no Apply grant; the task made zero model calls and
+created zero actions. This is source-contract proof, not a real-candidate fit or
+submission result. Isolated services were then stopped, retaining their volumes.

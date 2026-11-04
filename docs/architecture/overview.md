@@ -323,6 +323,13 @@ rows prevent duplicate issuance by concurrent scheduler workers.
 
 ## Quality attributes
 
+Greenhouse publication normalization prefers the provider's explicit timezone-aware
+`first_published` timestamp. Its update timestamp remains separate evidence when
+publication is absent or invalid, and cannot authorize automatic applications.
+Old/future publication values still pass through the normal hard freshness gate;
+fit and qualification decisions remain independent. See
+[ADR-0039](../decisions/ADR-0039-greenhouse-first-publication-evidence.md).
+
 Public YC discovery runs inside the existing career search task: fixed public
 origin, one bounded company page, ten detail attempts per company and twenty
 across a scan. Exact matching JSON-LD publication evidence is required. YC stays

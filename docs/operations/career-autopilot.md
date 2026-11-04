@@ -4,8 +4,11 @@ Create a private career mission with your actual resume text, identity, portfoli
 role titles, skills and allowed locations. All required keywords must match;
 remote jobs restricted to another country are not treated as worldwide jobs.
 Choose public employer boards under Sources. Remotive is optional, delayed by
-24 hours, and retains its original listing links. Greenhouse update timestamps
-do not establish when a job was posted.
+24 hours, and retains its original listing links. An explicit, valid timezone-aware
+Greenhouse `first_published` value can establish when a job was posted. Its
+`updated_at` value remains update evidence only. Missing, malformed or timezone-less
+publication values never promote an update into a posting date; old or future
+publication dates still fail the authorized freshness window.
 
 ### Import an employer board from a job link
 
