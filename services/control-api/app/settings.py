@@ -36,9 +36,11 @@ def _trusted_hosts_environment() -> tuple[str, ...]:
     return tuple(item.strip().lower() for item in raw.split(",") if item.strip())
 
 
-def _creator_reply_campaigns_environment() -> tuple[UUID, ...]:
+def _creator_reply_campaigns_environment(
+    name: str = "CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS",
+) -> tuple[UUID, ...]:
     try:
-        raw = os.getenv("CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS", "[]")
+        raw = os.getenv(name, "[]")
         if len(raw) > 1024:
             raise ValueError()
         values = json.loads(raw)
@@ -51,7 +53,7 @@ def _creator_reply_campaigns_environment() -> tuple[UUID, ...]:
         return ids
     except (ValueError, TypeError, AttributeError, RecursionError):
         raise ConfigurationError(
-            "CREATOR_GMAIL_FULL_REPLY_CAMPAIGN_IDS must be a JSON array of up to ten distinct UUIDs"
+            f"{name} must be a JSON array of up to ten distinct UUIDs"
         ) from None
 
 
@@ -114,6 +116,7 @@ class Settings:
     gmail_creator_label: str = "Hermes/Creators"
     creator_gmail_mailbox: str = ""
     creator_gmail_full_reply_campaign_ids: tuple[UUID, ...] = ()
+    creator_reply_draft_campaign_ids: tuple[UUID, ...] = ()
     career_email_transport: str = "disabled"
     career_email_sender: str = ""
 
@@ -195,6 +198,9 @@ class Settings:
             gmail_creator_label=os.getenv("GMAIL_CREATOR_LABEL", "Hermes/Creators").strip(),
             creator_gmail_mailbox=os.getenv("CREATOR_GMAIL_MAILBOX", "").strip().casefold(),
             creator_gmail_full_reply_campaign_ids=_creator_reply_campaigns_environment(),
+            creator_reply_draft_campaign_ids=_creator_reply_campaigns_environment(
+                "CREATOR_REPLY_DRAFT_CAMPAIGN_IDS",
+            ),
             career_email_transport=os.getenv("CAREER_EMAIL_TRANSPORT", "disabled").strip(),
             career_email_sender=os.getenv("CAREER_EMAIL_SENDER", "").strip(),
         )
@@ -218,6 +224,13 @@ class Settings:
         if missing:
             raise ConfigurationError(f"Missing required settings: {', '.join(missing)}")
         career_gmail_credentials(self)
+        if (not isinstance(self.creator_reply_draft_campaign_ids, tuple)
+                or len(self.creator_reply_draft_campaign_ids) > 10
+                or any(not isinstance(value, UUID) or not value.int
+                       for value in self.creator_reply_draft_campaign_ids)
+                or len(set(self.creator_reply_draft_campaign_ids))
+                != len(self.creator_reply_draft_campaign_ids)):
+            raise ConfigurationError("Reply curation requires up to ten distinct campaign UUIDs")
         if (not isinstance(self.creator_gmail_full_reply_campaign_ids, tuple)
                 or len(self.creator_gmail_full_reply_campaign_ids) > 10
                 or any(not isinstance(value, UUID) or not value.int

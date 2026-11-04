@@ -3675,3 +3675,38 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   local documentation links and the configured private-value publication scan
   passed. Real retrieval remains unverified while OAuth renewal is incomplete;
   CI and merged-source deployment remain separate publication gates.
+
+## 2026-11-04 — Draft-only Discord response curation and owner holds
+
+- The owner completed same-account, same-client, read-only Creator OAuth renewal.
+  Reloaded the previously validated merged API/job-worker source and verified all
+  eighty tracked app/static files across five roles. Visible Career profile/run
+  configuration, the environment across reload and durable volume mappings were
+  preserved. Subsequent complete governed label syncs captured two existing
+  matched replies without replacing their original identities or requiring paste.
+- Complete authored review confirmed one willingness to discuss on Discord; no
+  commercial agreement was inferred. The second reply stated a paid-promotion
+  policy that did not honestly fit an existing review category. It remains pending.
+  The owner then withheld both replies. Cancelled the sole prepared handoff task
+  and withdrew both contacts' sending authorization while retaining their source,
+  evidence and review history. Neither contact was suppressed as a recipient
+  opt-out, reclassified to unblock sending or sent a reply.
+- Added scoped local-only response preparation as a separate governed draft
+  capability. It binds complete private reply evidence, frozen context, model
+  selection and saved copy without SMTP preparation, semantic classification or
+  renewed contact authority. Introductions, reply drafts and batch reservations
+  share preparation accounting. ADR-0038 records the design and upstream
+  comparison; source validation and live generation are recorded after execution.
+- Focused suites and both independent reviews passed; a real PostgreSQL proof
+  caught and verified correction of a JSON-string/UUID campaign comparison.
+  The first full frozen-source checkout passed all 1,797 tests and the complete
+  isolated verifier. Final review then required native curation to wait for all
+  metadata pages, with a durable current-task completion check. The final
+  checkout passed all 1,799 tests, Ruff, Compose, `test.ps1`, the full isolated
+  `verify.ps1`, all 27 Creator PostgreSQL groups and network-disabled browser
+  proofs. Both runs preserved live container fingerprints and excluded live
+  provider credentials. Documentation links and the configured private-value
+  publication scan passed. `doctor.ps1 -Agent` and the existing harmless route
+  smoke passed; the latter used the configured hosted gateway and is not a
+  local reply-generation canary. CI, deployment and actual response drafts are
+  separate operating gates.

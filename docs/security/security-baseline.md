@@ -225,7 +225,7 @@ capability policy that authorizes its executor.
 
 Creator AI drafting derives medium risk from the capability allowlist and uses
 the existing research worker, model privacy policy and inference ledger.
-Sanitized public metadata and reviewed aggregate feedback reach the model;
+For introduction drafting, sanitized public metadata and reviewed aggregate feedback reach the model;
 recipient addresses, contact provenance and raw descriptions/replies do not.
 The model controls only constrained suggestions. Commercial terms, URLs,
 sender and footer are server-composed. Schema/lexical checks are not a truth
@@ -235,6 +235,18 @@ PostgreSQL stores immutable inputs and copy, idempotency, expiry and exact
 digests. Owned leases and current context are checked after blocking locks and
 before preparation. Creator-run grants cannot approve AI copy. The existing
 email boundary still enforces exact approval, suppression, duplicates and pacing.
+
+Reply curation is an explicit exception limited to local inference: complete
+saved inbound evidence can reach the configured local model only for campaigns
+in the separate default-empty `CREATOR_REPLY_DRAFT_CAMPAIGN_IDS` allowlist.
+There is no hosted fallback. The model selects issued response modes; it cannot
+write commercial terms, classify interest, prepare an SMTP action or approve it.
+Private frozen context/copy stay outside routine audit and task outputs. Issued
+task binding, body digest, cancellation, suppression and context are checked
+before and after inference; all preparations share the existing rolling budget.
+An owner hold withdraws sending authorization without falsifying recipient
+opt-out state. Curation may continue without contact authorization because it
+has no send path. See ADR-0038.
 
 API shortlist research derives low risk from the capability allowlist. A
 server-issued task reserves up to ten saved creators, with one active batch per

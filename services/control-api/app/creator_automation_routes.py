@@ -38,6 +38,9 @@ def overview(request: Request, campaign_id: UUID) -> dict[str, Any]:
             "full_reply_capture_enabled": campaign_id in getattr(
                 settings, "creator_gmail_full_reply_campaign_ids", [],
             ),
+            "reply_draft_enabled": campaign_id in getattr(
+                settings, "creator_reply_draft_campaign_ids", [],
+            ),
         },
     }
 

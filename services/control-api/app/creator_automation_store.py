@@ -254,6 +254,20 @@ class CreatorAutomationStore(MarketingStore):
             ).fetchone()
             sync = {"last_sync_at": None, "last_complete_at": None, **(sync or {}),
                     "last_failure_at": failure["last_failure_at"] if failure else None}
+            reply_drafts = connection.execute(
+                "SELECT d.id,d.reply_id,d.prospect_id,d.task_id,d.created_at,d.expires_at,"
+                "d.reply_body_digest,d.draft_digest,CASE WHEN d.status='queued' "
+                "AND t.status='cancelled' THEN 'cancelled' WHEN d.status='queued' "
+                "AND t.status IN ('failed','dead_lettered') THEN 'failed' "
+                "ELSE d.status END AS status,"
+                "(p.contact_authorized_at IS NOT NULL AND p.suppressed_at IS NULL AND NOT EXISTS "
+                "(SELECT 1 FROM creator_contact_suppressions s "
+                "WHERE s.email=lower(p.contact_email))) "
+                "AS contact_authorized,false AS sending_authority FROM creator_reply_drafts d "
+                "JOIN agent_tasks t ON t.id=d.task_id "
+                "JOIN marketing_prospects p ON p.id=d.prospect_id "
+                "WHERE d.campaign_id=%s ORDER BY d.created_at DESC,d.id LIMIT 30", (campaign_id,),
+            ).fetchall()
         public = [self._public_run(run) for run in runs]
         for reply in replies:
             reply["suggested_feedback_tags"] = suggested_feedback_tags(reply["snippet"])
@@ -263,7 +277,13 @@ class CreatorAutomationStore(MarketingStore):
             "pending_replies": replies,
             **counts,
             "gmail_sync": sync,
+            "reply_drafts": reply_drafts,
         }
+
+    def queue_reply_draft_curation(self, task, campaign_id):
+        from app.creator_reply_draft_store import CreatorReplyDraftStore
+
+        return CreatorReplyDraftStore(self._dsn).queue_automatic_reply_drafts(task, campaign_id)
 
     def schedule(self, *, gmail_enabled: bool) -> list[dict[str, Any]]:
         scheduled = []

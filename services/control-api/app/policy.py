@@ -23,6 +23,7 @@ CAPABILITY_RISK: dict[str, RiskLevel] = {
     "marketing.creator_pilot": RiskLevel.LOW,
     "marketing.creator_draft": RiskLevel.MEDIUM,
     "marketing.creator_draft_batch": RiskLevel.MEDIUM,
+    "marketing.creator_reply_draft": RiskLevel.MEDIUM,
     "marketing.creator_automation": RiskLevel.MEDIUM,
     "marketing.gmail_sync": RiskLevel.LOW,
     "communications.email_send": RiskLevel.HIGH,
@@ -59,5 +60,5 @@ def initial_status(risk_level: RiskLevel) -> str:
 def capability_max_attempts(kind: str) -> int:
     """Consequential side effects never retry after an ambiguous worker crash."""
     return 1 if kind in SIDE_EFFECT_CAPABILITIES or kind in {
-        "communications.smtp_check", "marketing.creator_pilot",
+        "communications.smtp_check", "marketing.creator_pilot", "marketing.creator_reply_draft",
     } else 3

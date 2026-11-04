@@ -39,6 +39,12 @@
 .creator-mail-read-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 .creator-mail-read-actions button { min-height: 44px; }
 #creator-mail-review-dialog .dialog-close { width: 44px; height: 44px; }
+.creator-mail-drafts { min-width: 0; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; }
+.creator-mail-drafts h3 { font-size: 1rem; margin: 18px 0 10px; }
+.creator-mail-draft { padding-block: 10px 18px; border-bottom: 1px solid var(--line); }
+.creator-mail-draft h4 { margin: 16px 0 10px; }
+.creator-mail-draft-subject { display: block; margin-top: 20px; }
+.creator-mail-draft-provenance { margin-top: 14px; }
 .creator-run-consent { margin: 24px 0 12px; }
 .checkbox-row { display: flex; gap: 10px; align-items: flex-start; line-height: 1.6; }
 .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 4px; accent-color: var(--lime); }

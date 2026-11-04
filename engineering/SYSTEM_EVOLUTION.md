@@ -729,3 +729,20 @@ last complete sync blocks sending readiness and delegated authority until a
 later complete sync; queued/running work does not clear that hold.
 This boundary establishes no live retrieval or classification result. No service,
 dependency, credential scope, positive classifier or sending authority is added.
+
+## 2026-11-04 — Complete reply evidence to local response drafts
+
+ADR-0038 adds one governed preparation capability, not an email execution path.
+Complete saved inbound text can enter only configured local inference for an
+explicit default-empty campaign UUID allowlist. The model selects offered modes;
+server rendering and evidence-bound private PostgreSQL records preserve the
+response, source digest and context. The preparation budget is shared with
+introductions and issued batch reservations. Completed label syncs can queue
+bounded deduplicated work, while generation failures do not become template
+fallbacks or automatic retries. Existing review and sending policy stay separate.
+
+Owner holds can retain unsent response drafts after pending action cancellation
+and contact authorization withdrawal. They do not become recipient opt-outs or
+automatic positive classifications. Read-only UI access for already-reviewed
+replies preserves discoverability without reopening their classification.
+No new service, dependency, mailbox scope or Discord account connection is added.

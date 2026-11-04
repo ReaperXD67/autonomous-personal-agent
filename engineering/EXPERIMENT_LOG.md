@@ -1497,6 +1497,40 @@ live Gmail access, actual reply interpretation or a sent handoff.
 - Evaluate Prime Agent only inside a disposable worktree/container with a fixed
   token/time/tool budget.
 
+## Experiment 44 — Live complete replies and draft-only response preparation
+
+On November 4, owner same-account consent completed through the existing helper.
+The saved grant retained the recorded Desktop client, exact read-only scope,
+mailbox and Creator label checks. The previously merged source was reloaded only
+for API/job-worker; eighty tracked app/static files matched across five roles.
+Visible Career configuration/run-core, environment across reload and durable
+volume mappings were preserved; hidden grant bindings are not exposed by the API.
+
+Two complete governed syncs succeeded at 05:48:25 and 05:48:31 UTC. The second
+captured two existing matched bodies in two full-message reads, with zero
+unavailable bodies and no mailbox writes. Complete authored review confirmed one
+willingness to talk on Discord, not commercial acceptance. A second commercial
+policy reply remains pending rather than being forced into an inaccurate
+category. After the owner's no-reply instruction, the prepared handoff and task
+were confirmed cancelled; both contacts retained their evidence but had null
+sending authorization and no opt-out suppression. No reply email was approved.
+
+These observations prove the sampled recovery and reading/review path. They do
+not establish general incoming replay, external handoff, collaboration, token
+longevity or a response-rate improvement. New response-curation source tests and
+real local generation remain separate checks until recorded below.
+
+The initial full frozen-source run passed all 1,797 tests and the complete
+isolated verifier. A final pagination correction added two regressions: unfinished
+message IDs or a next-page cursor cannot queue drafts; the store also requires
+current-task durable completion. The final frozen-source run passed all 1,799
+tests, Ruff, Compose, `test.ps1`, the complete isolated `verify.ps1`, 27 Creator
+PostgreSQL groups and actual-source network-disabled browser proofs. Both live
+container fingerprint comparisons passed, with synthetic provider configuration.
+The optional agent doctor and harmless configured gateway-route smoke passed;
+that hosted route check does not prove local response generation. Live curation
+and merged-source deployment remain separate checks.
+
 ## 2026-11-02 — Career platform and eligibility verification
 
 The final isolated platform build passed Compose configuration, Ruff/all 1,552

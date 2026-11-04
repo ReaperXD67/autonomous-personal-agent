@@ -317,7 +317,19 @@
           </details>
         </div>
       </section>
+      <section id="creator-mail-drafts" class="creator-mail-drafts" aria-labelledby="creator-mail-drafts-title" aria-busy="false">
+        <h3 id="creator-mail-drafts-title">Suggested response · draft only</h3>
+        <p class="fine-print">Prepared privately from the complete reply and campaign context. Curation does not send a message, classify the reply or authorize contact. Check the creator's meaning and commercial terms before any later action.</p>
+        <p id="creator-mail-draft-status" role="status" aria-live="polite"></p>
+        <p id="creator-mail-draft-error" class="notice" role="alert" hidden></p>
+        <div class="card-actions creator-mail-read-actions">
+          <button id="creator-mail-curate" class="button" type="button" data-action="curate-creator-mail">Curate response draft</button>
+          <button id="creator-mail-drafts-refresh" class="text-button" type="button" data-action="refresh-creator-mail-drafts">Refresh draft status</button>
+        </div>
+        <div id="creator-mail-draft-list"></div>
+      </section>
       <label>Match to creator<select name="prospect_id" required></select></label>
+      <p id="creator-mail-review-state" class="fine-print"></p>
       <label>What does this reply mean?<select name="classification" aria-describedby="creator-mail-semantic-guide" required><option value="">Choose after reading the reply</option><option value="interested" disabled>Confirmed interest · ready for owner handoff</option><option value="question" disabled>Asked a question · answer manually</option><option value="declined_unpaid" disabled>Explicitly declined only because it was unpaid</option><option value="do_not_contact">No / do not contact · suppress permanently</option><option value="bounced">Bounced · suppress permanently</option><option value="ignore">Not a campaign reply · ignore</option></select></label>
       <p id="creator-mail-semantic-guide" class="fine-print">Interest, questions and unpaid-only refusal require complete reply evidence. The saved decision is bound to the exact text you review. Confirmed interest can trigger a handoff only if your active run explicitly includes it.</p>
       <label>Review note <small>optional</small><textarea name="note" rows="2" maxlength="1000" placeholder="Record the evidence for your decision."></textarea></label>
