@@ -1,11 +1,12 @@
 # Creator outreach security review
 
-Review date: 2026-11-03
+Review date: 2026-11-04
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
 bounded draft adaptation, grounded selection/rendering, draft preparation
-batches, local Gmail onboarding, and the selected complete-reply evidence design.
+batches, local Gmail onboarding, complete-reply evidence and local draft-only
+response curation with owner conversation holds.
 This is an implementation review, not legal advice or
 a review of a configured mail provider's terms.
 
@@ -304,7 +305,7 @@ a review of a configured mail provider's terms.
 ### CO-017 — Body retrieval could broaden mailbox access or overstate reply evidence
 
 - Severity: High
-- Status: Implemented; isolated privacy/scope/retry proofs passed, live retrieval pending
+- Status: Implemented; isolated privacy/scope/retry proofs and two live complete reads passed
 - Selected controls: existing `marketing.gmail_sync` metadata matching precedes
   at most three full-message reads inside its combined twenty-message budget.
   Only pending exact matches in the configured mailbox/custom label qualify,
@@ -340,6 +341,33 @@ a review of a configured mail provider's terms.
   application enforces the narrower selection. Required regression and live
   evidence are listed in [ADR-0037](../decisions/ADR-0037-bounded-creator-full-reply-evidence.md).
 
+### CO-018 — Response curation could leak inbox text or bypass an owner hold
+
+- Severity: High
+- Status: Implemented; complete isolated source proof passed, live generation pending
+- Scope: separate default-empty `CREATOR_REPLY_DRAFT_CAMPAIGN_IDS` selection
+  gates both explicit requests and bounded automatic scheduling. Complete saved
+  body evidence is required; the prior successful outreach, campaign/contact
+  context, issued task/audit binding and owned lease are checked again after
+  inference. Suppression refuses generation; withdrawing sending authorization
+  does not erase evidence or prevent draft-only owner review.
+- Data and output: private evidence goes only to the fixed configured local
+  model, without a hosted fallback. The model selects issued response-mode IDs;
+  server rendering cannot promise agreed rates, earnings or accepted friend
+  requests. Full source and copy are private authenticated text. Routine overview,
+  task and audit output omit the content. Unsupported or adversarial evidence can
+  remain without a draft; no silent substituted copy is sent.
+- Authority: one medium-risk preparation capability, no SMTP action or semantic
+  review mutation. It cannot clear another reply, approve itself, renew an expired
+  run, restore contact authorization or bypass final sending guards. An owner
+  hold cancels pending work and withdraws authorization, distinct from recipient
+  suppression. Repeated syncs reuse evidence-bound preparations; failed/cancelled
+  drafts still consume the shared preparation allowance.
+- Residual risk: authored-text separation and mode selection are bounded
+  heuristics, not complete interpretation or sender authentication. Inspect the
+  complete source and saved copy. The feature neither connects a Discord account
+  nor sends a friend request. See [ADR-0038](../decisions/ADR-0038-local-creator-reply-curation.md).
+
 ## Production blockers and operating limits
 
 - A label-scoped read-only Gmail adapter and conservative reply suggestions are
@@ -349,8 +377,10 @@ a review of a configured mail provider's terms.
   review. Same-mailbox renewal and live metadata intake/matching passed; repeated
   sync stability was observed for one existing record, not a general replay
   canary. Complete-body hydration and digest-bound review passed isolated source,
-  scope, PostgreSQL and browser proofs; real body retrieval and reviewed handoff
-  still require live evidence before operational claims.
+  scope, PostgreSQL and browser proofs. Two complete real replies were retrieved
+  after owner same-account renewal. Authored review confirmed one willingness to
+  discuss; current owner holds prevent both replies. No externally delivered
+  handoff or agreed collaboration is established.
 - Business-contact discovery is limited to unreviewed candidates in official
   public descriptions; no gated About email extraction or general website crawl
   is present. Fit scores and research ideas are deterministic; optional AI

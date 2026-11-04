@@ -25,6 +25,12 @@ from app.creator_automation_store import CreatorAutomationStore
 from app.creator_draft_content import parse_model_copy
 from app.creator_draft_models import CreatorDraftCreate
 from app.creator_draft_store import CreatorDraftStore
+from app.creator_reply_content import parse_reply_model_copy, reply_response_schema
+from app.creator_reply_draft_models import CreatorReplyDraftCreate
+from app.creator_reply_draft_store import (
+    CreatorReplyDraftConflictError,
+    CreatorReplyDraftStore,
+)
 from app.email_pacing import EmailPacingPolicy
 from app.marketing_models import (
     MarketingCampaignCreate,
@@ -461,6 +467,128 @@ def exercise_mailbox_failure_hold(store):
     return "Known failed sync overrides fresh timestamp and queued work until owned complete recovery"
 
 
+def exercise_reply_draft_curation(store):
+    c, run, _ = campaign(store, count=2, cap=2)
+    store.execute(task_for(store, c["id"], run["id"]), sender="sender@example.test")
+    accepted = actions(store, c["id"])
+    for action in accepted:
+        accept_fixture(store, action)
+    sync_task = task_for(store, c["id"], kind="marketing.gmail_sync")
+    state = store.gmail_context(c["id"], "c" * 64, "Hermes/Creators")
+    replies = []
+    for index, action in enumerate(accepted):
+        current = store.gmail_context(c["id"], "c" * 64, "Hermes/Creators")
+        message = {"gmail_message_id": f"curation{index}", "gmail_thread_id": f"curation-thread{index}",
+                   "sender": action["public_context"]["recipient"],
+                   "subject": "Re: " + action["public_context"]["subject"],
+                   "snippet": "Synthetic curation preview", "received_at": datetime.now(UTC)}
+        store.save_gmail(sync_task, current, [message], cursor=None, pending=[])
+        reply = next(row for row in store.overview(c["id"])["pending_replies"]
+                     if row["gmail_message_id"] == message["gmail_message_id"])
+        detail = capture_fixture_body(store, sync_task, state, reply,
+                                      "Yes, happy to discuss. Please share your Discord contact.")
+        replies.append(detail)
+    store.review_reply(c["id"], replies[0]["id"], CreatorReplyReview(
+        actor="synthetic-reader", classification="interested", body_digest=replies[0]["body_digest"],
+    ))
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET contact_authorized_at=NULL,"
+                           "contact_authorized_by=NULL WHERE campaign_id=%s", (c["id"],))
+        before_actions = connection.execute("SELECT count(*) AS n FROM external_actions").fetchone()["n"]
+        before_approvals = connection.execute("SELECT count(*) AS n FROM task_approvals").fetchone()["n"]
+        connection.commit()
+    curator = CreatorReplyDraftStore(store._dsn)
+    queued = curator.queue_automatic_reply_drafts(sync_task, c["id"])
+    check(queued["created"] == 2, "Reviewed/held and unreviewed replies were not both curated")
+    check(curator.queue_automatic_reply_drafts(sync_task, c["id"])["created"] == 0,
+          "Repeated sync duplicated the same curation evidence")
+    first = curator.list_reply_drafts(c["id"], replies[0]["id"])[0]
+    second = curator.list_reply_drafts(c["id"], replies[1]["id"])[0]
+    check(not first["contact_authorized"] and not first["sending_authority"],
+          "Draft-only curation reauthorized a held contact")
+    same = curator.queue_reply_draft(c["id"], replies[0]["id"], CreatorReplyDraftCreate(
+        actor="synthetic-owner", body_digest=replies[0]["body_digest"],
+    ))
+    check(same["id"] == first["id"], "Operator request bypassed automatic evidence deduplication")
+    forged = store.create_task(TaskCreate(
+        title="Synthetic forged reply curation", kind="marketing.creator_reply_draft",
+        payload={"reply_draft_id": str(first["id"])}, requested_by="synthetic-forgery-proof",
+    ))
+    forged = store.transition_to_running(forged["id"], 300, "synthetic-forgery-proof")
+    try:
+        curator.get_reply_draft_for_execution(first["id"], forged["id"], forged["lease_id"])
+    except CreatorReplyDraftConflictError:
+        pass
+    else:
+        raise AssertionError("Generic task acquired a privileged reply draft snapshot")
+    task = store.transition_to_running(first["task_id"], 300, "synthetic-reply-worker")
+    check(task["max_attempts"] == 1, "Reply curation can repeat after a worker crash")
+    row = curator.get_reply_draft_for_execution(first["id"], task["id"], task["lease_id"])
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        reservations = list(executor.map(lambda _: curator.start_reply_inference_invocation(
+            draft_id=first["id"], task_id=task["id"], lease_id=task["lease_id"],
+            requested_model="synthetic-local-model",
+        ), range(2)))
+    check(sum(value is not None for value in reservations) == 1,
+          "Concurrent workers reserved more than one local reply invocation")
+    invocation = next(value for value in reservations if value is not None)
+    curator.complete_inference_invocation(
+        invocation, selected_model="synthetic-local-model", selected_provider="ollama",
+        prompt_tokens=1, completion_tokens=1, total_tokens=2, cost=0, latency_ms=1, fallback_attempt=1,
+    )
+    schema = reply_response_schema(row["model_context"])
+    plan = {key: value["enum"][0] for key, value in schema["properties"].items()}
+    copy = parse_reply_model_copy(json.dumps(plan), row["model_context"])
+    curator.save_reply_draft(draft_id=first["id"], task_id=task["id"], lease_id=task["lease_id"],
+                             copy=copy, selected_model="synthetic-local-model")
+    store.complete_task(task["id"], task["lease_id"], {"fixture": True, "sending_authority": False})
+    ready = curator.list_reply_drafts(c["id"], replies[0]["id"])[0]
+    check(ready["status"] == "ready" and ready["body"] and ready["context_current"]
+          and not ready["sending_authority"], "Private reply draft was not retained safely")
+    overview = store.overview(c["id"])
+    check(len(overview["reply_drafts"]) == 2
+          and all("body" not in item and "subject" not in item for item in overview["reply_drafts"]),
+          "Reviewed creator draft is undiscoverable or overview leaked private copy")
+    with store.connect() as connection:
+        check(connection.execute("SELECT count(*) AS n FROM external_actions").fetchone()["n"]
+              == before_actions, "Curation created an SMTP packet")
+        check(connection.execute("SELECT count(*) AS n FROM task_approvals").fetchone()["n"]
+              == before_approvals, "Curation approved an action")
+        audit = connection.execute("SELECT input_metadata,result_metadata FROM audit_events "
+                                   "WHERE task_id=%s", (first["task_id"],)).fetchall()
+        check(ready["body"] not in json.dumps(audit, default=str), "Curation audit leaked private copy")
+        for _ in range(2):
+            connection.execute("INSERT INTO creator_email_drafts(campaign_id,prospect_id,requested_by,"
+                               "idempotency_key,status,input_snapshot,input_hash,model_context) "
+                               "VALUES (%s,%s,'synthetic-budget',%s,'failed','{}',%s,'{}')",
+                               (c["id"], first["prospect_id"], uuid4(), uuid4().hex))
+        connection.execute("UPDATE marketing_campaigns SET sender_name='Changed synthetic sender' "
+                           "WHERE id=%s", (c["id"],))
+        connection.commit()
+        counts = CreatorDraftStore._draft_budget_counts(connection, first["prospect_id"])
+        check(counts["creator"] == 3, "Initial and reply preparation attempts do not share budget")
+    try:
+        curator.queue_reply_draft(c["id"], replies[0]["id"], CreatorReplyDraftCreate(
+            actor="synthetic-owner", body_digest=replies[0]["body_digest"],
+        ))
+    except CreatorReplyDraftConflictError as exc:
+        check("limit" in str(exc), "Shared budget refused for an unrelated reason")
+    else:
+        raise AssertionError("Reply curation ignored consumed initial/failed preparation budget")
+    second_task = store.transition_to_running(second["task_id"], 300, "synthetic-reply-worker")
+    try:
+        curator.get_reply_draft_for_execution(second["id"], second_task["id"], second_task["lease_id"])
+    except CreatorReplyDraftConflictError:
+        pass
+    else:
+        raise AssertionError("Changed campaign crossed frozen reply curation context")
+    stale = curator.list_reply_drafts(c["id"], replies[0]["id"])[0]
+    check(not stale["context_current"] and stale["body"] == ready["body"],
+          "Context mutation erased history or presented stale copy as current")
+    return ["Held reviewed/unreviewed reply drafts deduplicate, stay private and create no email authority",
+            "Reply task/audit/context fences, one local invocation and shared failed budgets are durable"]
+
+
 def exercise(dsn):
     store = CreatorAutomationStore(dsn)
     groups = []
@@ -863,6 +991,7 @@ def exercise(dsn):
     groups.append("Global pacing waits recheck creator run, Gmail/publication freshness and AI research TTL")
     groups.extend(exercise_reply_bodies(store))
     groups.append(exercise_mailbox_failure_hold(store))
+    groups.extend(exercise_reply_draft_curation(store))
     return groups
 
 

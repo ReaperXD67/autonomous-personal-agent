@@ -473,14 +473,15 @@ people or qualified leads. Before/after reads confirmed that all four queued
 v2 bodies, digests and research snapshots remained unchanged. A six-GET manual
 review snapshot confirmed fresh monitoring for both campaigns and a complete
 current creation window. Scheduled hourly reviews have been observed since
-November 2 at 06:20 UTC. At the current checkpoint both same-mailbox label
-monitors were fresh; the English campaign had two pending reply-metadata records.
-Their sender addresses and outreach subjects exactly matched prior SMTP-accepted
-invitations. One existing record retained its identity and creation time over
-repeated syncs. Both remain unreviewed, with only metadata and provider snippets
-available. The full authored text has been requested from the owner; no
-classification, interest, handoff or negotiation was confirmed. This is limited
-intake/matching evidence, not a general replay or response-rate canary.
+November 2 at 06:20 UTC. Following owner same-account renewal on November 4,
+complete governed syncs captured both previously matched replies in full.
+Authored review confirmed one willingness to talk on Discord; the other stated
+a commercial policy without agreeing to the offer. The latter remains pending
+review. The owner then held both conversations: the prepared handoff was
+cancelled and sending authorization withdrawn without opt-out suppression.
+Neither reply was emailed. No collaboration or commercial agreement is confirmed.
+This is limited retrieval/review evidence, not a general replay or response-rate
+canary.
 
 The November 2 unavailable-model failure was preserved, without a replacement
 packet or manual fallback. Following explicit maintenance, two separately
@@ -498,8 +499,9 @@ and 1,800-second same-domain gaps plus up to 180 seconds of jitter. The reposito
 default remains twelve/day. Keep the computer, Docker and the desktop app
 running; queued releases still depend on their expiry and final guards.
 Individual approval and SMTP acceptance are not inbox-placement or reply proof.
-Full authored-reply review, general replay behavior, owner handoff and Google's
-Testing-mode refresh-token longevity remain operating limits.
+General replay behavior, a delivered owner handoff and Google's Testing-mode
+refresh-token longevity remain operating limits. Owner conversation holds must
+be explicitly resumed before sending authorization is restored.
 
 The final recovery audit found seventeen actual SMTP acceptances between
 05:18:23 and 05:19:39 UTC on November 2. Those were real acceptance times, not

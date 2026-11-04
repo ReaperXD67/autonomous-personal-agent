@@ -4,6 +4,7 @@ Loads the actual web sources from /web. Every API response is synthetic; the
 action-worker container has no network and writes screenshots only to /proof.
 """
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -35,8 +36,9 @@ def main():
             "snippet": "Short provider preview only.",
             "received_at": "2026-11-03T12:00:00Z", "body_status": "missing",
             "body_attempt_count": 0,
+            "needs_review": reply_id != "reviewed",
         }
-        for reply_id in ["complete", "incomplete", "late", "other", "polling"]
+        for reply_id in ["complete", "incomplete", "late", "other", "polling", "reviewed"]
     }
 
     def detail(reply_id, complete=True):
@@ -52,6 +54,31 @@ def main():
     modes = {"incomplete": "incomplete", "late": "hold", "polling": "reading"}
     reads, reviews, get_counts, errors, held = [], [], {}, [], []
     read_conflict = [True]
+    draft_conflict = [True]
+    draft_posts, held_drafts = [], []
+    draft_records, draft_counts, draft_modes = {}, {}, {}
+    draft_body = (
+        "Thanks for explaining your promotion policy. Please contact our owner on Discord "
+        "at synthetic_owner to discuss whether the proposed earning-share model fits. "
+        "No fee or commercial term has been agreed.\n"
+        '<img src=x onerror="window.untrustedDraftExecuted=true">\n'
+        + "longdraftword" * 45
+    )
+
+    def reply_draft(reply_id, status="ready"):
+        return {
+            "id": f"synthetic-draft-{reply_id}", "reply_id": reply_id,
+            "campaign_id": campaign, "prospect_id": "synthetic-prospect",
+            "task_id": "synthetic-curation-task", "status": status,
+            "subject": "Synthetic response · not sent", "body": draft_body,
+            "source": "ollama", "selected_model": "synthetic-local-model",
+            "reply_body_digest": other_digest if reply_id == "other" else digest,
+            "input_hash": "c" * 64, "draft_digest": "d" * 64,
+            "created_at": datetime.now(UTC).isoformat(),
+            "expires_at": (datetime.now(UTC) + timedelta(hours=24)).isoformat(),
+            "sending_authority": False, "contact_authorized": False, "context_current": True,
+        }
+
     unexpected = []
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True, args=["--no-sandbox"])
@@ -71,6 +98,28 @@ def main():
                 if reply_id not in summaries:
                     unexpected.append(path)
                     route.abort()
+                    return
+                if suffix[-1] == "drafts" and route.request.method == "GET":
+                    draft_counts[reply_id] = draft_counts.get(reply_id, 0) + 1
+                    if draft_modes.get(reply_id) == "hold":
+                        held_drafts.append(route)
+                        return
+                    if draft_modes.get(reply_id) == "working" and draft_counts[reply_id] > 1:
+                        draft_records[reply_id] = [reply_draft(reply_id)]
+                        draft_modes[reply_id] = "ready"
+                    route.fulfill(json=draft_records.get(reply_id, []))
+                    return
+                if suffix[-1] == "draft" and route.request.method == "POST":
+                    draft_posts.append(route.request.post_data_json)
+                    if draft_conflict[0]:
+                        route.fulfill(status=409, json={
+                            "detail": "Synthetic source changed. Refresh reply evidence.",
+                        })
+                    else:
+                        draft_records[reply_id] = [reply_draft(reply_id, status="queued")]
+                        draft_modes[reply_id] = "working"
+                        draft_counts[reply_id] = 0
+                        route.fulfill(status=202, json=draft_records[reply_id][0])
                     return
                 if suffix[-1] == "review" and route.request.method == "POST":
                     reviews.append({"reply_id": reply_id, **route.request.post_data_json})
@@ -122,7 +171,8 @@ def main():
           state.browserSession = true;
           state.csrfToken = 'synthetic-only';
           setConnection(true);
-          state.creatorAutomation = {[campaign]: {pending_replies: Object.values(summaries)}};
+          state.creatorAutomation = {[campaign]: {pending_replies:
+            Object.values(summaries).filter(reply => reply.needs_review)}};
           state.prospects = [{id: 'synthetic-prospect', campaign_id: campaign,
             display_name: 'Synthetic creator', contact_email: 'creator@example.test'}];
         }""", {"campaign": campaign, "summaries": summaries})
@@ -295,11 +345,116 @@ def main():
         page.keyboard.press("Escape")
         expect(dialog).not_to_be_visible()
         expect(hidden_digest).to_have_value("")
+        # Curation stays separately opted in and draft-only, even when current
+        # contact authority is withdrawn. No review decision is inferred.
+        page.set_viewport_size({"width": 1440, "height": 1080})
+        open_reply("complete")
+        expect(hidden_digest).to_have_value(digest)
+        curate = page.locator("#creator-mail-curate")
+        expect(curate).to_be_disabled()
+        expect(curate).to_have_text("Reply drafting is off")
+        page.evaluate("""campaign => {
+          state.creatorAutomation[campaign].readiness.reply_draft_enabled = true;
+          updateCreatorMailDraftControls();
+        }""", campaign)
+        expect(curate).to_be_enabled()
+        note.fill("Keep both conversations on hold.")
+        curate.click()
+        expect(page.locator("#creator-mail-draft-error")).to_contain_text("source changed")
+        expect(note).to_have_value("Keep both conversations on hold.")
+        draft_conflict[0] = False
+        review_count = len(reviews)
+        curate.click()
+        expect(page.locator("#creator-mail-draft-list pre")).to_have_text(draft_body, timeout=8000)
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text("Sending remains on hold")
+        expect(curate).to_be_disabled()
+        assert draft_posts == [{"actor": "dashboard:marketing", "body_digest": digest}] * 2
+        page.evaluate("void curateCreatorMailDraft()")
+        assert len(draft_posts) == 2, "Current draft must not queue a duplicate"
+        # The source body may stay identical while frozen campaign context
+        # changes. Server context validity, not the body hash alone, controls
+        # whether another governed curation request is available.
+        draft_records["complete"][0]["context_current"] = False
+        page.locator("#creator-mail-drafts-refresh").click()
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text(
+            "source or campaign context has changed"
+        )
+        expect(curate).to_be_enabled()
+        draft_records["complete"][0]["context_current"] = True
+        page.locator("#creator-mail-drafts-refresh").click()
+        expect(curate).to_be_disabled()
+        assert len(reviews) == review_count
+        expect(classification).to_have_value("")
+        assert not page.locator("#creator-mail-draft-list img").count()
+        assert page.evaluate("window.untrustedDraftExecuted === undefined")
+        page.locator("#creator-mail-draft-list summary").click()
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text(
+            f"Reply body digest: {digest}"
+        )
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text("Source: ollama")
+        assert page.locator("#creator-mail-drafts button").count() == 2
+        page.locator("#creator-mail-drafts").evaluate(
+            "element => element.scrollIntoView({block:'start'})"
+        )
+        page.screenshot(path="/proof/creator-reply-draft-desktop.png")
+        page.set_viewport_size({"width": 375, "height": 812})
+        assert dialog.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
+        draft_copy = page.locator("#creator-mail-draft-list pre")
+        assert draft_copy.evaluate("element => element.scrollWidth <= element.clientWidth + 1")
+        page.locator("#creator-mail-drafts").evaluate(
+            "element => element.scrollIntoView({block:'start'})"
+        )
+        page.screenshot(path="/proof/creator-reply-draft-mobile.png")
+        close_reply()
+
+        # A delayed draft-list response cannot attach another conversation's
+        # copy or source digest after the operator changes the modal selection.
+        modes["late"] = "complete"
+        draft_modes["late"] = "hold"
+        draft_records["other"] = [reply_draft("other")]
+        draft_records["other"][0]["body"] = "OTHER PRIVATE RESPONSE DRAFT"
+        open_reply("late")
+        expect(page.locator("#creator-mail-drafts")).to_have_attribute("aria-busy", "true")
+        assert len(held_drafts) == 1
+        close_reply()
+        open_reply("other")
+        expect(page.locator("#creator-mail-draft-list pre")).to_have_text(
+            "OTHER PRIVATE RESPONSE DRAFT"
+        )
+        held_drafts.pop().fulfill(json=[reply_draft("late")])
+        page.wait_for_timeout(100)
+        expect(page.locator("#creator-mail-draft-list pre")).to_have_text(
+            "OTHER PRIVATE RESPONSE DRAFT"
+        )
+        close_reply()
+
+        # Reviewed replies are discoverable through metadata-only saved-draft
+        # rows, even though they are absent from the pending-review shortlist.
+        draft_records["reviewed"] = [reply_draft("reviewed")]
+        page.evaluate("""({campaign, draft}) => {
+          state.campaigns = [{id:campaign, name:'Synthetic campaign'}];
+          state.creatorAutomation[campaign].reply_drafts = [draft];
+          renderCreatorWork(); switchView('campaigns');
+        }""", {"campaign": campaign, "draft": {
+            key: value for key, value in draft_records["reviewed"][0].items()
+            if key not in {"subject", "body", "selected_model", "source", "input_hash"}
+        }})
+        page.get_by_role("button", name="Inspect response draft", exact=True).click()
+        expect(body_view).to_have_text(body)
+        expect(page.locator("#creator-mail-draft-list pre")).to_have_text(draft_body)
+        expect(classification).to_be_disabled()
+        expect(form.get_by_role("button", name="Reply already reviewed")).to_be_disabled()
+        modes["reviewed"] = "error"
+        page.locator("#creator-mail-refresh").click()
+        expect(page.locator("#creator-mail-body-error")).to_contain_text("unavailable")
+        expect(classification).to_be_disabled()
+        assert len(reviews) == review_count
+        close_reply()
         assert not unexpected, unexpected
         assert not errors, errors
         browser.close()
     print("Creator full-reply UI proof passed: plaintext, digest review, retries, "
-          "modal isolation, mobile.")
+          "modal isolation, private draft-only curation, reviewed history, mobile.")
 
 
 if __name__ == "__main__":

@@ -128,7 +128,10 @@ class CreatorDraftStore(MarketingStore):
     def _draft_budget_counts(cls, connection, prospect_id=None, *, reservation_key=None):
         counts = connection.execute(
             "SELECT count(*) AS total, count(*) FILTER (WHERE prospect_id=%s) AS creator "
-            "FROM creator_email_drafts WHERE created_at > now()-interval '24 hours'",
+            "FROM (SELECT prospect_id FROM creator_email_drafts "
+            "WHERE created_at>now()-interval '24 hours' UNION ALL "
+            "SELECT prospect_id FROM creator_reply_drafts "
+            "WHERE created_at>now()-interval '24 hours') preparations",
             (prospect_id,),
         ).fetchone()
         reservations = cls._draft_reservations(connection)

@@ -124,6 +124,11 @@ def execute_creator_gmail_sync(
             body_unavailable += int(saved["body_status"] != "complete")
     checkpoint()
     store.finalize_reply_sync(task, state)
+    reply_drafts = {"created": 0, "existing": 0, "skipped": 0}
+    if (not pending and not cursor
+            and campaign_id in getattr(settings, "creator_reply_draft_campaign_ids", [])):
+        checkpoint()
+        reply_drafts = store.queue_reply_draft_curation(task, campaign_id)
     return {
         "handler": "marketing.gmail_sync",
         **result,
@@ -133,5 +138,8 @@ def execute_creator_gmail_sync(
         "body_reads": body_reads,
         "body_complete": body_complete,
         "body_unavailable": body_unavailable,
+        "reply_drafts_created": reply_drafts["created"],
+        "reply_drafts_existing": reply_drafts["existing"],
+        "reply_drafts_skipped": reply_drafts["skipped"],
         "mailbox_modified": False,
     }

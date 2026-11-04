@@ -12,6 +12,16 @@ commercial envelope. Stored provenance binds the source, language, context and
 campaign. Revalidation rederives the copy rather than trusting stored prose.
 Legacy contexts retain their original free-copy parser and complete messages.
 Every personalized draft still requires individual exact-message review.
+Reply curation is a separate draft-only path. A completed labeled sync can queue
+up to three `marketing.creator_reply_draft` tasks for explicitly enabled campaigns
+in `CREATOR_REPLY_DRAFT_CAMPAIGN_IDS` (default `[]`). Complete private reply text
+reaches only local inference; an issued response-mode selection is validated and
+rendered into saved English/Polish copy. PostgreSQL binds the body digest,
+campaign/contact snapshot, task and model invocation. The shared preparation
+budget includes introductions, reply drafts and outstanding batch reservations.
+The private review UI can display drafts for pending or already-reviewed replies.
+No reply draft creates an external action, classifies a message or restores a
+held contact's authorization. See [ADR-0038](../decisions/ADR-0038-local-creator-reply-curation.md).
 New contexts additionally freeze `creator-concise-permission-v1`: an exact-title
 hook, optional offered idea and one discussion question, retaining the reviewed
 brief, compensation and footer. Missing render markers keep earlier v2 bytes.
@@ -42,7 +52,9 @@ flowchart LR
     C --> A["Individual exact-copy approval"]
     A --> S["Paced SMTP receipt boundary"]
     S --> G["Labeled reply read and authored-intent review"]
-    G -->|confirmed interest| O["One owner handoff"]
+    G -->|confirmed interest and owner permission| O["One reviewed owner handoff"]
+    G -->|explicit curation scope| Q["Local mode selection and private response draft"]
+    Q --> P["Owner review; no sending authority"]
 ```
 Bulk discovery preserves research under the existing campaign/prospect locks
 while an unexpired active draft or exact outreach action protects it. The saved

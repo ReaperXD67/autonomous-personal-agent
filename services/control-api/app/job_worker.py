@@ -42,6 +42,8 @@ from app.creator_draft_store import CreatorDraftStore
 from app.creator_drafting import execute_creator_draft_task
 from app.creator_pilot_runner import execute_creator_pilot
 from app.creator_pilot_store import CreatorPilotStore
+from app.creator_reply_draft_store import CreatorReplyDraftStore
+from app.creator_reply_drafting import execute_creator_reply_draft_task
 from app.inference import OpenRouterError, OpenRouterFreeClient, OpenRouterPlan
 from app.logging_config import configure_logging
 from app.marketing import fetch_youtube_creators, fetch_youtube_prospect
@@ -117,6 +119,11 @@ def execute_career_task(
         return execute_creator_draft_task(
             task, CreatorDraftStore(settings.database_url), settings,
             client=openrouter_client, interrupt=interrupt,
+        )
+
+    if task["kind"] == "marketing.creator_reply_draft":
+        return execute_creator_reply_draft_task(
+            task, CreatorReplyDraftStore(settings.database_url), settings, interrupt=interrupt,
         )
 
     if task["kind"] == "marketing.creator_pilot":

@@ -191,7 +191,7 @@ and task audit, including messages outside the most recent list page.
    excludes it from template A/B learning. It retains the same sequence,
    suppression, digest, expiry, and approval requirements. Paid-offer terms
    remain generated from the reviewed campaign packet.
-2. Record the reply manually. If it is a question, select **Asked a question**,
+2. Review the complete saved reply. If it is a question, select **Asked a question**,
    then **Write manual answer**. Write only verified facts; the system adds the
    provenance/opt-out footer and creates another exact approval.
 3. Record an ordinary or ambiguous “no” as **No / do not contact**. That address
@@ -199,6 +199,30 @@ and task audit, including messages outside the most recent list page.
 4. Choose **Declined only because it was unpaid** only when the creator actually
    communicated that specific condition. It unlocks one final paid-option
    draft. The message says it is final and does not imply an agreed fee or scope.
+
+For draft-only Discord next steps, explicitly enable selected campaign UUIDs in
+`CREATOR_REPLY_DRAFT_CAMPAIGN_IDS` (JSON array, default `[]`, at most ten). This is
+separate from complete-body capture. Following a successful sync, Hermes queues
+up to three supported response drafts from the newest thirty complete replies
+using the local model; no hosted route
+receives inbound text. Inspect **Response draft** in the reply review and the
+saved-draft list, including already-reviewed replies. A supplied Discord handle
+can be acknowledged; a missing handle/invite can be requested without claiming
+that terms or a friend request are accepted.
+
+The authenticated `GET /v1/marketing/campaigns/{campaign_id}/replies/{reply_id}/drafts`
+returns saved private drafts. `POST` to the sibling `/draft` route accepts `actor`
+and the current complete `body_digest` and reuses existing evidence-bound work.
+The capability shares introduction preparation limits and does not send or
+prepare an approval. Unclear sources or model failures remain visible rather
+than falling back to substituted copy. Do not regenerate merely to hide a failed
+attempt. Current contact authorization and **Draft only** are displayed separately.
+
+If the owner holds a conversation, cancel its pending task and withdraw contact
+authorization while preserving its source fields. Keep the private identity-bound
+hold for recurring reviews. Do not mark a recipient opt-out, clear an unresolved
+reply, or re-authorize contact merely to release another email. Saved response
+drafts remain unsent until the owner separately resumes and reviews the next step.
 
 The action worker rechecks the owned unexpired lease, cancellation, exact frozen
 context, contact authorization, suppression, and reply state immediately before

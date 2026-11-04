@@ -14,6 +14,7 @@ terms and the individual review screens.
 | Reviewer heartbeat | Hourly in the Codex desktop app, continuing until the user pauses it; use the two campaign IDs saved privately during setup, never guessed IDs or name-only matching |
 | Official YouTube discovery | Hermes's native daily schedule for those campaigns; reuse existing fresh dossiers before asking for another discovery or refresh |
 | Reply reading | Hermes's existing read-only labeled Gmail scheduler, no more often than every five minutes for campaigns with qualifying recent outreach |
+| Response curation | Separate explicit campaign opt-in; local-only private drafts after complete sync, at most three new preparations per pass within the shared budget; no sending or classification |
 | New introductions | At most six per rolling 24 hours across both campaigns combined; aim for three English and three Polish, without filling weak or ambiguous slots |
 | Shared limits | Existing SMTP 24/day, three/hour, global/domain gaps and jitter; creator preparation and shortlist refresh each retain their thirty-per-rolling-day allowance |
 | Message review | Source/contact review, complete exact-copy review and an individual API approval for every personalized email |
@@ -67,6 +68,21 @@ task through the app's Scheduled controls. See the
    the bounded read request rather than asking the owner to paste ordinary mail.
    Unsupported content or a still-disconnected account needs owner attention;
    neither a sender/subject match nor a hint confirms intent.
+   An owner instruction to hold a conversation overrides every handoff step.
+   Cancel its pending task through `/v1/tasks/{task_id}/cancel`, withdraw contact
+   authorization while retaining exact provenance, and record the identity-bound
+   hold in private scope. Do not re-authorize it during recurring reviews or
+   record an owner hold as a recipient opt-out. Existing complete evidence and
+   truthful classifications remain intact. Draft-only curation may continue;
+   a draft does not clear pending review or restore sending authority.
+   With `CREATOR_REPLY_DRAFT_CAMPAIGN_IDS` explicitly configured, inspect saved
+   `/replies/{reply_id}/drafts` first. The native sync can queue supported local
+   response drafts, including already-reviewed replies. If an explicit request
+   is necessary, use the sibling `/draft` endpoint with `actor` and current
+   `body_digest`; it reuses evidence-bound work. Never create replacement work
+   just to escape a failed/cancelled task, expiry or preparation limit. Review the
+   source, full saved copy, context-current flag, local source/model and owner
+   hold. No draft from this path is an exact SMTP packet or a send approval.
 3. **Qualify new candidates from official metadata.** Use the gates below.
    Research precedes drafting: refreshing a creator after a draft or approval
    can invalidate its frozen context. Skip creators with active drafts, issued
@@ -244,15 +260,17 @@ SMTP acceptances, no runnable queued tasks and one unchanged blocked item with
 a dead-lettered task. The latter had no established acceptance and was not
 replayed or replaced. Twelve earlier acceptances are separate.
 
-Both same-mailbox label monitors were fresh. The English campaign had two
-pending reply-metadata records with exact sender-address and outreach-subject
-matches to prior SMTP-accepted invitations. One existing record retained its
-identity and creation time over repeated syncs. Both records remain unreviewed:
-only metadata and provider snippets are available, with no full-body endpoint.
-No classification, creator interest, handoff or negotiation was confirmed.
-The owner has been asked for both full authored messages; a response is pending.
-This verifies the observed intake/matching and one stable-record case, not a
-general replay canary or a causal response-rate improvement.
+On November 4, same-account read-only renewal and subsequent complete governed
+syncs recovered monitoring. Both previously matched replies were captured in full,
+preserving their original records. Complete authored review confirmed one
+willingness to talk on Discord; the other stated a paid-promotion policy without
+accepting the current offer. That commercial reply remains unreviewed because
+none of the existing semantic categories accurately describes it. A prepared
+handoff was cancelled when the owner requested no replies to either contact;
+both contacts' sending authorization was withdrawn without suppression. No
+reply email, booked collaboration, commercial agreement or payment is established.
+These are limited live retrieval/review observations, not a general replay canary
+or a causal response-rate improvement.
 
 The hourly reviewer is active, with scheduled cycles observed since 06:20 UTC.
 Earlier native daily scans preserved ten active records; before/after reads

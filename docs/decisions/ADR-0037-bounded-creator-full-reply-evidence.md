@@ -1,7 +1,7 @@
 # ADR-0037 — Bounded complete creator-reply evidence
 
 - Date: 2026-11-03
-- Status: Accepted; isolated source/scope validation passed, live retrieval pending
+- Status: Accepted; isolated validation and two live complete-message reads passed
 - Extends: ADR-0025 and the existing read-only creator Gmail boundary
 
 ## Context
