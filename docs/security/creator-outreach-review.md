@@ -344,7 +344,7 @@ a review of a configured mail provider's terms.
 ### CO-018 — Response curation could leak inbox text or bypass an owner hold
 
 - Severity: High
-- Status: Implemented; complete isolated source proof passed, live generation pending
+- Status: Implemented; complete isolated proof and two live local response drafts passed
 - Scope: separate default-empty `CREATOR_REPLY_DRAFT_CAMPAIGN_IDS` selection
   gates both explicit requests and bounded automatic scheduling. Complete saved
   body evidence is required; the prior successful outreach, campaign/contact
@@ -371,7 +371,7 @@ a review of a configured mail provider's terms.
 ### CO-019 — Recovery could erase failure or repeatedly spend preparation budget
 
 - Severity: Medium
-- Status: Implemented; full isolated validation passed, real recovery pending
+- Status: Implemented; full isolated validation and two real linked recoveries passed
 - Controls: one explicit linked second preparation for an original terminal
   local model-unavailable failure, backed by a failed local invocation. Preserve
   original task, copy absence, audit and deadline; inherit that deadline and

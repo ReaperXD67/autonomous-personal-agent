@@ -3776,3 +3776,22 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   fingerprints remained unchanged. Finished validation containers were stopped,
   retaining evidence/volumes. Documentation links and the configured private-value
   publication scan passed. Real model recovery remains unverified at this gate.
+- PR-98 passed remote CI and merged as cb6167bf. Applied only migration 030 and
+  refreshed five app roles in a quiet window from the identical validated source.
+  All eighty-five app/static files matched; visible Career profile and twelve
+  run-core records, including the current owner-authorized run, environment and
+  durable volume mappings were preserved. No model/driver/account setting changed.
+- After completed test stacks stopped and host load settled, the existing fixed
+  GPU setup canary returned its expected response in 207.781 seconds without
+  replacing the Ollama container or changing the environment. One explicit linked
+  recovery per held reply then produced two complete local Qwen response drafts.
+  Complete-copy review retained both unchanged: supplied Discord details were
+  acknowledged, a missing business route requested and terms left unagreed.
+  Original failed durable fields/tasks and deadlines remained unchanged; both
+  contacts remained unauthorized with zero new scoped email actions or approvals.
+  The commercial-policy reply remains pending semantic review.
+- Task durations were 263.861 and 1.828 seconds. Both completed before a later
+  one-time clean page-cache reclaim in Docker's WSL VM. That reclaim was
+  unnecessary for the observed recovery and is not credited as its cause; it
+  stopped no service and changed no persistent setting or volume data. Current
+  generation is verified, not a guarantee about future startup or collaboration.

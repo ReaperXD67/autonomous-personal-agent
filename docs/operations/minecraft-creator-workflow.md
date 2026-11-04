@@ -483,6 +483,17 @@ Neither reply was emailed. No collaboration or commercial agreement is confirmed
 This is limited retrieval/review evidence, not a general replay or response-rate
 canary.
 
+The native complete sync subsequently queued both held conversations for local
+response curation. After two preserved model-startup failures, the fixed harmless
+GPU setup canary returned its expected response. Two explicitly linked recovery
+tasks then produced complete English response drafts, reviewed unchanged. One
+acknowledged a supplied Discord ID; the other acknowledged a stated promotion
+policy and requested the missing business Discord route. Both retained the saved
+owner contact and left scope/payment unagreed. Original failed drafts/tasks and
+deadlines remained unchanged. Both contacts stayed unauthorized and no new email
+action or approval was created. These are private draft-preparation results;
+the owner still holds outgoing replies.
+
 The November 2 unavailable-model failure was preserved, without a replacement
 packet or manual fallback. Following explicit maintenance, two separately
 budgeted local-only Qwen drafts completed cold/warm in 170.384/2.642 seconds,
