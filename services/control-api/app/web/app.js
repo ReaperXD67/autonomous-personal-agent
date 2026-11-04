@@ -54,6 +54,7 @@ let creatorMailDraftTimer = null;
 let creatorMailDrafts = [];
 let creatorMailDraftLoading = false;
 let creatorMailDraftBusy = false;
+let creatorMailRetryDraftId = null;
 let creatorMailDraftPollRemaining = 0;
 const creatorMailSemanticReviews = new Set(["interested", "question", "declined_unpaid"]);
 let loadingMoreProspects = false;
@@ -2111,6 +2112,7 @@ function resetCreatorMailReview() {
   creatorMailDrafts = [];
   creatorMailDraftLoading = false;
   creatorMailDraftBusy = false;
+  creatorMailRetryDraftId = null;
   creatorMailDraftPollRemaining = 0;
   const form = $("#creator-mail-review-form");
   form.dataset.busy = "false";
@@ -2206,6 +2208,13 @@ function updateCreatorMailDraftControls() {
   curate.textContent = creatorMailDraftBusy ? "Queueing draft…" : !enabled ? "Reply drafting is off"
     : existing?.status === "queued" ? "Response drafting is queued" : existing ? "Current draft retained" : "Curate response draft";
   $("#creator-mail-drafts-refresh").disabled = creatorMailDraftLoading || creatorMailDraftBusy;
+  $$('[data-action="retry-creator-mail-draft"]', $("#creator-mail-drafts")).forEach((retry) => {
+    const draft = creatorMailDrafts.find((item) => item.id === retry.dataset.id);
+    retry.disabled = !enabled || creatorMailDraftLoading || creatorMailDraftBusy || creatorMailDetailLoading
+      || !completeCreatorMailDetail(creatorMailDetail) || draft?.retry_eligible !== true
+      || draft.reply_body_digest !== creatorMailDetail.body_digest;
+    retry.textContent = creatorMailRetryDraftId === draft?.id ? "Queueing recovery…" : "Retry after model recovery";
+  });
 }
 
 function renderCreatorMailDrafts() {
@@ -2218,12 +2227,13 @@ function renderCreatorMailDrafts() {
   creatorMailDrafts.slice(0, 3).forEach((draft) => {
     const card = node("article", "creator-mail-draft");
     card.append(node("h4", "", `${titleCase(draft.status)} · draft only, not sent`));
+    card.append(node("p", "fine-print", `Attempt ${draft.attempt_number || 1} of 2${draft.retry_of_id ? " · recovery linked to the retained first attempt" : " · original preparation"}.`));
     card.append(node("p", "notice", draft.contact_authorized === false
       ? "Contact authorization is withdrawn. Sending remains on hold. This private draft grants no sending authority."
       : draft.contact_authorized === true ? "Private draft only. Sending requires separate authority and review."
         : "Contact authorization is not confirmed. Sending remains on hold."));
     card.append(node("p", "fine-print", `Source: ${draft.source || "not recorded"} · model: ${draft.selected_model || "not recorded"} · created ${formatDate(draft.created_at)} · expires ${formatDate(draft.expires_at)}`));
-    if (draft.context_current === false) card.append(node("p", "notice", "Retained history: the source or campaign context has changed. A new governed draft is required."));
+    if (draft.context_current === false && ["queued", "ready"].includes(draft.status)) card.append(node("p", "notice", "Retained history: the source or campaign context has changed. A new governed draft is required."));
     else if (draft.reply_body_digest !== creatorMailDetail?.body_digest) card.append(node("p", "notice", "Retained history: this draft does not match the loaded complete reply. Refresh the evidence before using it."));
     else if (!(Date.parse(draft.expires_at) > Date.now())) card.append(node("p", "notice", "This draft has expired and is retained only for inspection."));
     if (draft.status === "ready") {
@@ -2234,11 +2244,21 @@ function renderCreatorMailDrafts() {
     } else card.append(node("p", "fine-print", draft.status === "queued"
       ? "The governed local drafting task is queued or working. Refresh draft status to check progress."
       : "A usable response was not prepared. Review the task before requesting another draft."));
+    if (draft.status === "failed") {
+      card.append(node("p", "fine-print", "The failed preparation remains in history. Routine sync and the normal draft request do not retry it."));
+      if (draft.retry_available_at && !draft.retry_eligible) card.append(node("p", "fine-print", `Recovery cannot be requested before ${formatDate(draft.retry_available_at)}; other eligibility checks still apply.`));
+    }
+    if (draft.retry_eligible === true) {
+      card.append(node("p", "fine-print", "After recovering the local model, you may request one linked preparation attempt. Sending remains on hold."));
+      const retry = button("Retry after model recovery", "button", "retry-creator-mail-draft", draft.id);
+      card.append(retry);
+    }
     const provenance = node("details", "creator-mail-draft-provenance");
     provenance.append(node("summary", "", "Source and draft integrity"),
       node("p", "fine-print", `Reply body digest: ${draft.reply_body_digest || "not recorded"}`),
       node("p", "fine-print", `Draft digest: ${draft.draft_digest || "not recorded"}`),
       node("p", "fine-print", `Input hash: ${draft.input_hash || "not recorded"}`));
+    if (draft.retry_of_id) provenance.append(node("p", "fine-print", `Previous attempt: ${draft.retry_of_id}`));
     card.append(provenance); list.append(card);
   });
   if (creatorMailDrafts.length > 3) list.append(node("p", "fine-print", `Showing the newest three of ${creatorMailDrafts.length} saved drafts.`));
@@ -2304,6 +2324,39 @@ async function curateCreatorMailDraft() {
   } finally {
     if (currentCreatorMailReview(version, campaignId, replyId)) {
       creatorMailDraftBusy = false; updateCreatorMailDraftControls();
+    }
+  }
+}
+
+async function retryCreatorMailDraft(failedId) {
+  const failed = creatorMailDrafts.find((draft) => draft.id === failedId);
+  if (creatorMailDraftBusy || creatorMailDraftLoading || creatorMailDetailLoading
+    || !completeCreatorMailDetail(creatorMailDetail) || failed?.retry_eligible !== true
+    || failed.reply_body_digest !== creatorMailDetail.body_digest) return;
+  const form = $("#creator-mail-review-form");
+  const campaignId = form.elements.campaign_id.value, replyId = form.elements.reply_id.value;
+  const version = creatorMailReviewVersion;
+  if (!currentCreatorMailReview(version, campaignId, replyId)
+    || state.creatorAutomation[campaignId]?.readiness?.reply_draft_enabled !== true) return;
+  clearTimeout(creatorMailDraftTimer);
+  creatorMailDraftBusy = true; creatorMailRetryDraftId = failedId;
+  $("#creator-mail-draft-error").hidden = true;
+  updateCreatorMailDraftControls();
+  try {
+    await api(`/v1/marketing/campaigns/${encodeURIComponent(campaignId)}/replies/${encodeURIComponent(replyId)}/drafts/${encodeURIComponent(failedId)}/retry`, {
+      method: "POST", body: JSON.stringify({ actor: "dashboard:marketing", body_digest: creatorMailDetail.body_digest }),
+    });
+    if (!currentCreatorMailReview(version, campaignId, replyId)) return;
+    creatorMailDraftPollRemaining = 5;
+    await loadCreatorMailDrafts(version, campaignId, replyId, true);
+  } catch (error) {
+    if (!currentCreatorMailReview(version, campaignId, replyId)) return;
+    $("#creator-mail-draft-error").textContent = error.message || "Recovery could not be queued. The earlier failure is retained.";
+    $("#creator-mail-draft-error").hidden = false;
+  } finally {
+    if (currentCreatorMailReview(version, campaignId, replyId)) {
+      creatorMailDraftBusy = false; creatorMailRetryDraftId = null;
+      updateCreatorMailDraftControls();
     }
   }
 }
@@ -4278,6 +4331,7 @@ document.addEventListener("click", async (event) => {
   if (action === "close-creator-mail-review") return $("#creator-mail-review-dialog").close();
   if (action === "read-creator-mail") return readCreatorMailDetail();
   if (action === "curate-creator-mail") return curateCreatorMailDraft();
+  if (action === "retry-creator-mail-draft") return retryCreatorMailDraft(id);
   if (action === "refresh-creator-mail-drafts") {
     const form = $("#creator-mail-review-form");
     return loadCreatorMailDrafts(creatorMailReviewVersion, form.elements.campaign_id.value, form.elements.reply_id.value);

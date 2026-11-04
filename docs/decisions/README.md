@@ -43,3 +43,4 @@ history.
 - [ADR-0037](ADR-0037-bounded-creator-full-reply-evidence.md): bounded full reply hydration, private complete-text evidence and digest-bound semantic review
 - [ADR-0038](ADR-0038-local-creator-reply-curation.md): governed local response drafts from complete reply evidence while retaining owner holds
 - [ADR-0039](ADR-0039-greenhouse-first-publication-evidence.md): use explicit Greenhouse publication evidence while keeping update timestamps outside automatic freshness
+- [ADR-0040](ADR-0040-explicit-creator-draft-recovery.md): one explicit linked recovery for a model-failed response draft, retaining original evidence, deadline and shared budgets

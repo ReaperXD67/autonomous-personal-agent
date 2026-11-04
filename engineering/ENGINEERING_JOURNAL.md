@@ -3749,3 +3749,30 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   application. Isolated services were stopped afterward with their volumes
   retained. Actual Career applications remain zero; live rollout remains a
   coordinated merged-source operation.
+
+## 2026-11-04 — Preserve local startup failures and bound response recovery
+
+- PR-96 passed CI and was deployed from merged source. All eighty-five app/static
+  files matched across five roles; visible Career configuration and the renewed
+  run, environment across reload and durable volume mappings were preserved.
+  A native complete labeled sync automatically queued both held conversations,
+  with no email actions, approvals or contact reauthorization.
+- Both local requests timed out during model loading without producing copy.
+  Diagnostic logs showed complete GPU-layer fit, no recorded OOM/driver reset,
+  and severe host CPU/page-in/disk pressure. The sole cause is not established.
+  Failed drafts, tasks and local invocation records remain intact. Finished
+  isolated test stacks were stopped; no model, global WSL, account, driver or
+  timeout setting was changed and no response was replaced manually.
+- Added an explicit linked once-only recovery for eligible model failures,
+  retaining the original deadline and counting both preparations. Native/default
+  endpoints never initiate recovery. Schema lineage, task/audit binding,
+  cooldown, current evidence and shared budgets retain the existing guards.
+  Source checks and genuine model recovery are recorded separately after they run.
+- Integrated merged Career source 317ce001 without discarding either journal or
+  system-evolution entry. The final combined frozen checkout passed Ruff/all
+  1,863 tests, Compose, `test.ps1`, the complete isolated `verify.ps1`, all 28
+  Creator PostgreSQL groups and network-disabled browser proofs, including
+  explicit recovery lineage and unchanged private evidence. Live container
+  fingerprints remained unchanged. Finished validation containers were stopped,
+  retaining evidence/volumes. Documentation links and the configured private-value
+  publication scan passed. Real model recovery remains unverified at this gate.

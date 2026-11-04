@@ -33,5 +33,10 @@ class CreatorReplyDraftView(BaseModel):
     expires_at: datetime
     contact_authorized: bool
     context_current: bool
+    attempt_number: int = Field(default=1, ge=1, le=2)
+    retry_of_id: UUID | None = None
+    retry_eligible: bool = False
+    retry_available_at: datetime | None = None
+    retry_block_reason: str | None = None
     sending_authority: Literal[False] = False
     send_hold_reason: str

@@ -86,6 +86,7 @@
 - [x] Implement bounded full-text capture for matched creator replies, private saved-message detail and digest-bound semantic review
 - [x] Verify complete live matched-reply retrieval and authored-intent review without manual email pasting
 - [x] Opt-in local-only response curation with complete-body binding, shared preparation budgets and private unsent drafts independent of sending authorization
+- [x] Explicit once-only linked recovery for model-failed response drafts, preserving failed evidence, shared budgets and the original deadline
 - [ ] Verify general incoming-reply replay and an externally delivered owner handoff; current owner reply holds remain authoritative
 - [ ] Revenue attribution and payout reporting (commercial terms remain owner-managed)
 

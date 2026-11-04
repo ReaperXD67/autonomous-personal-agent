@@ -1531,6 +1531,36 @@ The optional agent doctor and harmless configured gateway-route smoke passed;
 that hosted route check does not prove local response generation. Live curation
 and merged-source deployment remain separate checks.
 
+### Live startup result and bounded recovery
+
+The merged source passed CI and its deployment/source/preservation checks.
+One native complete sync then queued two response drafts automatically. Both
+original local requests ended at the bounded startup timeout with no saved copy.
+The first invocation started at 06:44:44 UTC. Ollama logged GPU-discovery delay,
+all 37 layers fitting the GPU and a 4,643.78 MiB model buffer, followed by load
+timeout. No recorded OOM kill, driver reset or running orphan loader was found.
+
+Read-only samples observed host CPU 93–98%, roughly 66–79 thousand page-ins/sec,
+disk queue 11–14 and about 1.13 GiB available physical RAM. Later readings improved
+but remained volatile. Guest file cache dominated WSL memory; it cannot be equated
+with resident host RAM. Other host activity was present, so attribution to a
+single workload is unproved. No global reset, cache flush, model configuration,
+credential or timeout change was made. Completed isolated test stacks were stopped.
+
+These are failed model-startup observations, not successful generation or copy
+quality evidence. Both conversation holds, original failures and budget costs
+remain. An explicit once-only linked recovery is a separate governed preparation;
+its request alone does not establish provider recovery.
+
+The recovery source was integrated with merged Career 317ce001. Its final frozen
+checkout passed Ruff/all 1,863 tests, Compose configuration, `test.ps1`, the full
+isolated `verify.ps1`, 28 Creator PostgreSQL groups and actual-source network-
+disabled browser proofs. Original failed row/task/invocation/audit/expiry remained
+unchanged under concurrent linked recovery; shared failed/cancelled counts,
+cooldown, third-attempt refusal and no-email/no-approval behavior passed. Live
+container fingerprints were preserved and the completed test containers stopped.
+These checks establish source behavior, not a successful new local model response.
+
 ## 2026-11-02 — Career platform and eligibility verification
 
 The final isolated platform build passed Compose configuration, Ruff/all 1,552

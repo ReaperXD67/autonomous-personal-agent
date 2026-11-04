@@ -38,7 +38,9 @@ def main():
             "body_attempt_count": 0,
             "needs_review": reply_id != "reviewed",
         }
-        for reply_id in ["complete", "incomplete", "late", "other", "polling", "reviewed"]
+        for reply_id in [
+            "complete", "incomplete", "late", "other", "polling", "reviewed", "recovery",
+        ]
     }
 
     def detail(reply_id, complete=True):
@@ -55,6 +57,8 @@ def main():
     reads, reviews, get_counts, errors, held = [], [], {}, [], []
     read_conflict = [True]
     draft_conflict = [True]
+    retry_conflict = [True]
+    retry_posts = []
     draft_posts, held_drafts = [], []
     draft_records, draft_counts, draft_modes = {}, {}, {}
     draft_body = (
@@ -77,6 +81,8 @@ def main():
             "created_at": datetime.now(UTC).isoformat(),
             "expires_at": (datetime.now(UTC) + timedelta(hours=24)).isoformat(),
             "sending_authority": False, "contact_authorized": False, "context_current": True,
+            "attempt_number": 1, "retry_of_id": None, "retry_eligible": False,
+            "retry_available_at": None, "retry_block_reason": None,
         }
 
     unexpected = []
@@ -107,7 +113,27 @@ def main():
                     if draft_modes.get(reply_id) == "working" and draft_counts[reply_id] > 1:
                         draft_records[reply_id] = [reply_draft(reply_id)]
                         draft_modes[reply_id] = "ready"
+                    if draft_modes.get(reply_id) == "recovering" and draft_counts[reply_id] > 1:
+                        draft_records[reply_id][0]["status"] = "ready"
+                        draft_modes[reply_id] = "recovered"
                     route.fulfill(json=draft_records.get(reply_id, []))
+                    return
+                if suffix[-1] == "retry" and route.request.method == "POST":
+                    retry_posts.append({"failed_id": suffix[-2], **route.request.post_data_json})
+                    if retry_conflict[0]:
+                        route.fulfill(status=409, json={
+                            "detail": "Synthetic recovery is not ready.",
+                        })
+                    else:
+                        original = draft_records[reply_id][0]
+                        original["retry_eligible"] = False
+                        recovered = {**reply_draft(reply_id, status="queued"),
+                                     "id": "synthetic-recovery-attempt", "attempt_number": 2,
+                                     "retry_of_id": original["id"]}
+                        draft_records[reply_id] = [recovered, original]
+                        draft_modes[reply_id] = "recovering"
+                        draft_counts[reply_id] = 0
+                        route.fulfill(status=202, json=recovered)
                     return
                 if suffix[-1] == "draft" and route.request.method == "POST":
                     draft_posts.append(route.request.post_data_json)
@@ -450,11 +476,62 @@ def main():
         expect(classification).to_be_disabled()
         assert len(reviews) == review_count
         close_reply()
+
+        # A retained local-model failure never retries merely because the modal
+        # opens, a cooldown passes or saved status is refreshed. Only the exact
+        # server eligibility projection reveals an explicit recovery action.
+        original_failure = reply_draft("recovery", status="failed")
+        original_failure.update({
+            "source": None, "selected_model": None,
+            "error_code": "CREATOR_REPLY_DRAFT_MODEL_UNAVAILABLE",
+            "retry_available_at": (datetime.now(UTC) - timedelta(minutes=1)).isoformat(),
+            "retry_block_reason": "recovery_not_eligible",
+        })
+        draft_records["recovery"] = [original_failure]
+        open_reply("recovery")
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text("Attempt 1 of 2")
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text(
+            "normal draft request do not retry"
+        )
+        retry = page.get_by_role("button", name="Retry after model recovery", exact=True)
+        expect(retry).to_have_count(0)
+        page.locator("#creator-mail-drafts-refresh").click()
+        expect(page.locator("#creator-mail-drafts")).to_have_attribute("aria-busy", "false")
+        expect(retry).to_have_count(0)
+        assert not retry_posts
+        original_failure["retry_eligible"] = True
+        original_failure["retry_block_reason"] = None
+        page.locator("#creator-mail-drafts-refresh").click()
+        expect(retry).to_be_enabled()
+        note.fill("Owner still holds this conversation.")
+        retry.click()
+        expect(page.locator("#creator-mail-draft-error")).to_contain_text("not ready")
+        expect(note).to_have_value("Owner still holds this conversation.")
+        retry_conflict[0] = False
+        retry.click()
+        expect(page.locator("#creator-mail-draft-list pre")).to_have_text(draft_body, timeout=8000)
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text("Attempt 2 of 2")
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text("Attempt 1 of 2")
+        expect(page.locator("#creator-mail-draft-list")).to_contain_text("retained first attempt")
+        expect(page.locator("#creator-mail-draft-list h4")).to_have_text([
+            "Ready · draft only, not sent", "Failed · draft only, not sent",
+        ])
+        expect(retry).to_have_count(0)
+        expect(note).to_have_value("Owner still holds this conversation.")
+        assert retry_posts == [{
+            "failed_id": original_failure["id"], "actor": "dashboard:marketing",
+            "body_digest": digest,
+        }] * 2
+        assert len(reviews) == review_count
+        expect(classification).to_have_value("")
+        assert all(not item["sending_authority"] for item in draft_records["recovery"])
+        close_reply()
         assert not unexpected, unexpected
         assert not errors, errors
         browser.close()
     print("Creator full-reply UI proof passed: plaintext, digest review, retries, "
-          "modal isolation, private draft-only curation, reviewed history, mobile.")
+          "modal isolation, private draft-only curation, explicit recovery lineage, "
+          "reviewed history, mobile.")
 
 
 if __name__ == "__main__":

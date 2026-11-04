@@ -368,6 +368,25 @@ a review of a configured mail provider's terms.
   complete source and saved copy. The feature neither connects a Discord account
   nor sends a friend request. See [ADR-0038](../decisions/ADR-0038-local-creator-reply-curation.md).
 
+### CO-019 — Recovery could erase failure or repeatedly spend preparation budget
+
+- Severity: Medium
+- Status: Implemented; full isolated validation passed, real recovery pending
+- Controls: one explicit linked second preparation for an original terminal
+  local model-unavailable failure, backed by a failed local invocation. Preserve
+  original task, copy absence, audit and deadline; inherit that deadline and
+  count both attempts in shared limits. Current source/contact/campaign binding,
+  suppression, five-minute cooldown and database lineage uniqueness are checked.
+  Ordinary/native preparation cannot initiate recovery. Cancelled, ready,
+  invalid-output, changed or expired work and third attempts refuse.
+- Authority: this remains private drafting, with one invocation per task and no
+  email action, review mutation, hosted fallback or restored contact permission.
+  The UI uses server eligibility and an explicit request, never status polling,
+  to create recovery. A requested retry does not prove the provider is working.
+- Residual risk: resource pressure or provider faults may recur. Actual model
+  output and complete-copy review are needed before releasing an availability
+  hold. See [ADR-0040](../decisions/ADR-0040-explicit-creator-draft-recovery.md).
+
 ## Production blockers and operating limits
 
 - A label-scoped read-only Gmail adapter and conservative reply suggestions are

@@ -39,7 +39,7 @@ from app.marketing_models import (
     MarketingProspectCreate,
 )
 from app.marketing_store import MarketingOutreachError
-from app.models import ApprovalDecision, TaskCreate
+from app.models import ApprovalDecision, TaskCancellation, TaskCreate
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
 from psycopg.types.json import Jsonb
@@ -589,6 +589,109 @@ def exercise_reply_draft_curation(store):
             "Reply task/audit/context fences, one local invocation and shared failed budgets are durable"]
 
 
+def exercise_reply_draft_recovery(store):
+    c, run, _ = campaign(store)
+    store.execute(task_for(store, c["id"], run["id"]), sender="sender@example.test")
+    action = actions(store, c["id"])[0]
+    accept_fixture(store, action)
+    sync_task = task_for(store, c["id"], kind="marketing.gmail_sync")
+    state = store.gmail_context(c["id"], "a" * 64, "Hermes/Creators")
+    message = {"gmail_message_id": "recovery-source", "gmail_thread_id": "recovery-thread",
+               "sender": action["public_context"]["recipient"],
+               "subject": "Re: " + action["public_context"]["subject"],
+               "snippet": "Synthetic recovery preview", "received_at": datetime.now(UTC)}
+    store.save_gmail(sync_task, state, [message], cursor=None, pending=[])
+    reply = store.overview(c["id"])["pending_replies"][0]
+    detail = capture_fixture_body(store, sync_task, state, reply,
+                                  "Please share your Discord contact to discuss.")
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET contact_authorized_at=NULL,"
+                           "contact_authorized_by=NULL WHERE campaign_id=%s", (c["id"],))
+        connection.commit()
+    curator = CreatorReplyDraftStore(store._dsn)
+    request = CreatorReplyDraftCreate(actor="synthetic-owner", body_digest=detail["body_digest"])
+    original = curator.queue_reply_draft(c["id"], reply["id"], request)
+    task = store.transition_to_running(original["task_id"], 300, "synthetic-recovery-worker")
+    invocation = curator.start_reply_inference_invocation(
+        draft_id=original["id"], task_id=task["id"], lease_id=task["lease_id"],
+        requested_model="synthetic-local-model",
+    )
+    curator.fail_inference_invocation(invocation, "CREATOR_LOCAL_TIMEOUT")
+    curator.fail_reply_draft(original["id"], task["id"], task["lease_id"],
+                             "CREATOR_REPLY_DRAFT_MODEL_UNAVAILABLE")
+    store.fail_task(task["id"], task["lease_id"], "MARKETING_EXECUTION_FAILED", "Synthetic timeout")
+    scope = SimpleNamespace(creator_reply_draft_campaign_ids=[c["id"]])
+    with patch("app.creator_reply_draft_store.get_settings", return_value=scope):
+        try:
+            curator.queue_reply_draft_retry(c["id"], reply["id"], original["id"], request)
+        except CreatorReplyDraftConflictError as exc:
+            check("cooldown" in str(exc), "Recovery cooldown refused for an unrelated reason")
+        else:
+            raise AssertionError("A fresh model failure bypassed the recovery cooldown")
+        with store.connect() as connection:
+            # Simulate elapsed time and a pre-migration creation audit before recording the baseline.
+            failure_at = datetime.now(UTC) - timedelta(minutes=6)
+            connection.execute("UPDATE agent_tasks SET completed_at=%s WHERE id=%s",
+                               (failure_at, task["id"]))
+            connection.execute("UPDATE inference_invocations SET completed_at=%s WHERE id=%s",
+                               (failure_at, invocation))
+            connection.execute("UPDATE audit_events SET input_metadata=input_metadata-"
+                               "'attempt_number'-'retry_of_id' WHERE task_id=%s AND action=%s",
+                               (task["id"], "creator.reply_draft.created"))
+            connection.commit()
+
+        def source_evidence():
+            with store.connect() as connection:
+                return [connection.execute(query, (identity,)).fetchall() for query, identity in (
+                    ("SELECT * FROM creator_reply_drafts WHERE id=%s", original["id"]),
+                    ("SELECT * FROM agent_tasks WHERE id=%s", task["id"]),
+                    ("SELECT * FROM inference_invocations WHERE id=%s", invocation),
+                    ("SELECT * FROM audit_events WHERE task_id=%s ORDER BY occurred_at,id", task["id"]),
+                )]
+
+        before = source_evidence()
+        retained = curator.list_reply_drafts(c["id"], reply["id"])[0]
+        check(retained["context_current"] and retained["retry_eligible"]
+              and retained["status"] == "failed", "Model failure misstated unchanged source context")
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            results = list(executor.map(lambda _: curator.queue_reply_draft_retry(
+                c["id"], reply["id"], original["id"], request,
+            ), range(2)))
+        child = results[0]
+        check(child["id"] == results[1]["id"] and child["attempt_number"] == 2
+              and child["retry_of_id"] == original["id"], "Concurrent recovery duplicated lineage")
+        check(child["expires_at"] == original["expires_at"]
+              and child["input_hash"] == original["input_hash"] and not child["sending_authority"]
+              and not child["contact_authorized"], "Recovery changed expiry/context or contact authority")
+        check(curator.queue_reply_draft(c["id"], reply["id"], request)["id"] == child["id"]
+              and curator.queue_automatic_reply_drafts(sync_task, c["id"])["created"] == 0,
+              "Default/native curation created a hidden recovery attempt")
+        try:
+            curator.queue_reply_draft_retry(c["id"], reply["id"], child["id"], request)
+        except CreatorReplyDraftConflictError:
+            pass
+        else:
+            raise AssertionError("A recovery child created a third attempt")
+        running = store.transition_to_running(child["task_id"], 300, "synthetic-recovery-worker")
+        curator.get_reply_draft_for_execution(child["id"], running["id"], running["lease_id"])
+        recovery_invocation = curator.start_reply_inference_invocation(
+            draft_id=child["id"], task_id=running["id"], lease_id=running["lease_id"],
+            requested_model="synthetic-local-model",
+        )
+        check(recovery_invocation and recovery_invocation != invocation,
+              "Recovery reused or reset the original invocation")
+        curator.fail_inference_invocation(recovery_invocation, "CREATOR_REPLY_DRAFT_INTERRUPTED")
+        store.cancel_task(running["id"], TaskCancellation(actor="synthetic-owner"))
+        store.finalize_cancellation(running["id"], running["lease_id"])
+        with store.connect() as connection:
+            counts = CreatorDraftStore._draft_budget_counts(connection, original["prospect_id"])
+        check(counts["creator"] == 2, "Failed/cancelled recovery attempts escaped shared preparation budget")
+        check(source_evidence() == before, "Recovery mutated original task/draft/ledger/audit evidence")
+        check(len(actions(store, c["id"])) == 1,
+              "Draft-only recovery created an email action")
+    return "Explicit model-failure recovery is linked, idempotent, budgeted and preserves original evidence"
+
+
 def exercise(dsn):
     store = CreatorAutomationStore(dsn)
     groups = []
@@ -992,6 +1095,7 @@ def exercise(dsn):
     groups.extend(exercise_reply_bodies(store))
     groups.append(exercise_mailbox_failure_hold(store))
     groups.extend(exercise_reply_draft_curation(store))
+    groups.append(exercise_reply_draft_recovery(store))
     return groups
 
 
