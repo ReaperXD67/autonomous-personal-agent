@@ -70,6 +70,9 @@ understand what happened and take over at the right moment.
   dated contact observations, and explicit gaps instead of guessed addresses.
   Discovery and shortlist research use the official YouTube API. A small batch
   refreshes up to ten saved creators and ranks their evidence without model calls.
+  Recent date-ordered searches share the existing request allowance with broader
+  relevance searches. The shortlist binds new drafting citations and language
+  to a verified recent Minecraft upload when one qualifies.
 - **A grounded first approach:** a model selects an offered content angle from
   recorded title evidence; Hermes renders English/Polish copy, the exact source
   and your reviewed brief. New drafts freeze a concise, permission-first style

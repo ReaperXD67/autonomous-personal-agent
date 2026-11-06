@@ -1,5 +1,17 @@
 # System evolution
 
+## 2026-11-06 — Recent creator evidence before drafting
+
+ADR-0041 adds independent recent/date and broader/relevance search lanes inside
+the existing request ceiling and durable reservation path. Current video
+metadata establishes sample ownership, public/non-upcoming state and the actual
+publication window. Explicit shortlist research can promote a qualifying recent
+Minecraft upload before normalization so citation and language share its source.
+The worker, PostgreSQL authority, contact review, exact approvals, protected
+evidence and existing owner holds retain their boundaries. The design adds no
+service, schema, provider or credential. Search coverage remains bounded and
+visible rather than implying a complete inventory of creators.
+
 ## 2026-11-02 — Evidence-backed career operations
 
 ADR-0031 records an upstream-informed adaptation using original components.

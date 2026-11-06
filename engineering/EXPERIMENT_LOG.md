@@ -1652,3 +1652,29 @@ publication with `published` provenance. The empty synthetic discovery profile
 had preparation disabled and no Apply grant; the task made zero model calls and
 created zero actions. This is source-contract proof, not a real-candidate fit or
 submission result. Isolated services were then stopped, retaining their volumes.
+
+## 2026-11-06 — Current creator samples under bounded search
+
+The revised recent/date and relevance pagination, authoritative video checks,
+canonical pilot-source promotion, exact age cutoff and selected-source contact
+supersession passed Ruff and 203 focused tests in a network-disabled container.
+The complete frozen source passed all 1,908 tests and the isolated full verifier,
+including actual-source desktop/mobile browser checks and PostgreSQL reservation,
+approval, suppression, duplicate, expiry and protected-evidence cases. No test
+used live provider credentials, contacted a creator or established a reply-rate
+effect.
+
+The initial verifier attempt ended at startup health after a long execution gap.
+The same frozen patch subsequently passed full verification with the isolated
+services healthy, retaining the original failure record. Production container
+fingerprints were preserved in both runs. Live discovery and delivery outcomes
+are separate measurements recorded after their governed execution.
+
+Clean CI passed the complete lifecycle verifier but rejected APT 2.6.1 for
+CVE-2026-109518. After the exact APT/libapt 2.6.2 security update, the rebuilt
+image passed APT dependency checking, Ruff and all 1,908 tests without network
+access. An initial ad hoc invocation failed collection because synthetic
+database/Redis settings were omitted; the corrected invocation passed. No
+image-scan exception was introduced; patched CI remains a separate release gate.
+The action image's corresponding Ubuntu APT/libapt update also passed its
+package dependency check. Final combined Ruff/all 1,908 tests passed again.

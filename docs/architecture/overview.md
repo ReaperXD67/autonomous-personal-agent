@@ -1,7 +1,16 @@
 # Architecture overview
 
 Creator partnerships use the existing marketing and exact-action layers. The
-pure `creator_learning` component reads reviewed outcome tags and accepted-send
+discovery worker divides its existing search allowance between independent
+recent/date and broader/relevance pagination lanes. Current video metadata
+checks ownership, public/non-upcoming state and the lane's actual publication
+window before using a sample as current evidence. Explicit shortlist research
+can promote its newest qualifying verified Minecraft upload before normalization, so drafting title,
+URL, publication and language share that source. The same bounded requests,
+task/audit ownership and approved-evidence protection apply. See
+[ADR-0041](../decisions/ADR-0041-recent-creator-evidence.md).
+
+The pure `creator_learning` component reads reviewed outcome tags and accepted-send
 counts to select fixed draft strategies. PostgreSQL stores the evidence and
 selection reason; Gmail snippets are suggestions until reviewed. Adaptation
 cannot change commercial terms, scope, limits, approvals, or prepared packets.
@@ -45,6 +54,9 @@ cancellation/context/expiry checks remain. See
 
 ```mermaid
 flowchart LR
+    D["Bounded recent + relevance searches"] --> V0["Current video identity and publication checks"]
+    U["Three-upload shortlist"] --> V0
+    V0 --> R
     R["Reviewed public evidence and business contact"] --> T["Audited draft task and budget"]
     T --> M{"Frozen inference mode"}
     M -->|auto| H["Approved hosted route"]

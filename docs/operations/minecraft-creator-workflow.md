@@ -89,6 +89,13 @@ selection from the campaign's saved pool and checks up to three recent uploads
 per creator, then ranks fit and shows source evidence, publication dates,
 contact-review needs and gaps.
 
+When one of those verified uploads is Minecraft content within the smaller of
+ninety days and the campaign window, its newest qualifying title, URL and actual
+publication become the canonical sample before language and contact projection.
+New drafts can therefore cite that current upload. A recent unrelated video
+does not renew an older Minecraft sample. Selected-video metadata is rechecked
+inside the same bounded research calls before it is saved.
+
 This step uses no model tokens, authorizes no contact and sends no email. The
 global refresh allowance is thirty creators per rolling day. An upload's
 publication date remains separate from the time research ran; declared country

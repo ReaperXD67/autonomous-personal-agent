@@ -37,8 +37,13 @@ SMTP worker, task payloads, audit metadata, and dashboard.
 YouTube currently documents a dedicated `search.list` bucket of 100 calls per
 day, with each search costing one unit in that bucket, and a maximum of 50
 results per request. Hermes uses no more than three queries, 25 results per
-page and one to three pages per query (default one), cycling across queries
-before deeper pages. It schedules no faster than daily and retains the 30-task
+page and one to three pages per query (default one). Every query starts with
+a date-ordered sample within the smaller of ninety days and the saved campaign
+window. A second slot starts an independent relevance lane; remaining slots
+continue within the same total allowance. One-page queries have recent coverage
+only. Current video metadata must verify ownership, public/non-upcoming state
+and publication within that lane's window. Search remains a bounded sample.
+It schedules no faster than daily and retains the 30-task
 cap. A PostgreSQL ledger separately reserves at most 90 search requests in any
 rolling 24 hours across campaigns, and at most nine per task, before requests
 leave the worker. Failed requests and interrupted reservations retain their cost.
