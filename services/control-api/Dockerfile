@@ -2,11 +2,12 @@ FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e1
 
 FROM python:3.13.14-slim-bookworm@sha256:67a1e1f215ccda113cfc024e8639049257e88f273898f595b61476d128d387e8 AS python_base
 # Targeted security updates verified in the signed Debian Bookworm repository.
-# CVE-2026-84782: retain the reviewed base digest and patch its OpenSSL pair.
+# Retain the reviewed base digest; patch OpenSSL and CVE-2026-109518 in APT.
 RUN apt-get update && \
     apt-get install --yes --no-install-recommends --only-upgrade \
         libpcre2-8-0=10.42-1+deb12u2 perl-base=5.36.0-7+deb12u4 \
-        libssl3=3.0.22-1~deb12u2 openssl=3.0.22-1~deb12u2 && \
+        libssl3=3.0.22-1~deb12u2 openssl=3.0.22-1~deb12u2 \
+        apt=2.6.2 libapt-pkg6.0=2.6.2 && \
     rm -rf /var/lib/apt/lists/*
 
 FROM python_base AS dependencies

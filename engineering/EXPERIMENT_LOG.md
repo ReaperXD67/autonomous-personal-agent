@@ -1669,3 +1669,10 @@ The same frozen patch subsequently passed full verification with the isolated
 services healthy, retaining the original failure record. Production container
 fingerprints were preserved in both runs. Live discovery and delivery outcomes
 are separate measurements recorded after their governed execution.
+
+Clean CI passed the complete lifecycle verifier but rejected APT 2.6.1 for
+CVE-2026-109518. After the exact APT/libapt 2.6.2 security update, the rebuilt
+image passed APT dependency checking, Ruff and all 1,908 tests without network
+access. An initial ad hoc invocation failed collection because synthetic
+database/Redis settings were omitted; the corrected invocation passed. No
+image-scan exception was introduced; patched CI remains a separate release gate.

@@ -184,6 +184,25 @@ establish application compatibility. The final rebuilt runtime passed lint/all
 955 tests and the full native, PostgreSQL, browser UI, delivery and recovery
 verifier. The unfiltered clean-CI image scan remains a required release gate.
 
+## November 2026 Debian APT update
+
+The November 6 clean runtime scan identified fixable HIGH
+[CVE-2026-109518](https://security-tracker.debian.org/tracker/CVE-2026-109518)
+in APT 2.6.1. Debian identifies Bookworm 2.6.2 as fixed; its
+[signed security upload](https://tracker.debian.org/news/1819486/accepted-apt-262-source-into-oldstable-security/)
+was accepted on November 4. Signed repository metadata on the exact pinned
+Python base supplied `apt=2.6.2` and `libapt-pkg6.0=2.6.2`.
+
+The existing targeted security installation now upgrades those two packages.
+The Python release/digest, locked dependencies and vulnerability gates remain
+unchanged. The rebuilt image reports both exact versions and passes APT's
+dependency check; Ruff and all 1,908 tests pass with synthetic configuration
+and networking disabled. The initial ad hoc check omitted synthetic database
+and Redis settings and failed collection; the corrected invocation passed.
+The preceding complete lifecycle verifier passed locally and in CI before the
+image scan failed. The patched clean-CI verifier and image scans remain release
+gates; no vulnerability ignore or check bypass was added.
+
 ## Review rule
 
 Do not dismiss a future alert without either:

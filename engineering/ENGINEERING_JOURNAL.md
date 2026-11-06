@@ -3825,3 +3825,12 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   verifier from a healthy isolated stack. Both runs preserved production
   container fingerprints and excluded live credentials/providers. Finished
   validation services were stopped with volumes and evidence retained.
+- PR-100's clean CI passed lint/tests, the complete lifecycle verifier and
+  repository/dependency checks, then rejected the image for Debian APT
+  CVE-2026-109518. Verified the official advisory and signed Bookworm metadata,
+  then added exact APT/libapt 2.6.2 upgrades to the existing targeted security
+  installation without changing the base digest or bypassing the scanner.
+  The rebuilt image passed its package dependency check, Ruff and all 1,908
+  tests with synthetic settings and no network. The first ad hoc test invocation
+  omitted required synthetic database/Redis settings; corrected configuration
+  passed. The patched remote lifecycle and image scans remain release gates.
