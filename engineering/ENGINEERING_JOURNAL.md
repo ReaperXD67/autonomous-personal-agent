@@ -3839,3 +3839,38 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   2.8.4ubuntu0.1 upgrades. Both build-only APT invocations disable download
   retries while installing the fix, addressing the advisory's retry prerequisite.
   No base digest, runtime setting, dependency lock or scan exception changed.
+
+## 2026-11-06 — Reserve reviewed creator research targets
+
+- PR-100 passed clean CI, including the complete lifecycle verifier, both image
+  scans and SBOM generation, and merged into main. Refreshed only five app roles
+  after a quiet task check. All eighty-five tracked app/static files matched in
+  each role; environment hashes, durable mount mappings, visible Career profile
+  configuration and twelve run-core records were preserved. The Career Apply
+  grant remained expired. Both creator conversation holds, complete reply
+  evidence, review states and saved response copies remained unchanged.
+- One governed Polish discovery rerun used nine search requests: five date-first
+  and four relevance requests. It reviewed 137 unique channels and saved one new
+  prospect plus twenty-eight updates, with no provider/enrichment failures. New
+  unsent recent matches lacked an eligible public business contact, so discovery
+  granted no authorization and created no email packet. Reply monitoring retained
+  two complete existing conversations: willingness to discuss and a pending
+  commercial-policy reply. Neither establishes an agreed collaboration.
+- Added optional explicit IDs to the existing pilot-research request so one
+  reviewed promising creator can be checked without padding an automatic batch
+  with excluded leads. Ordered membership binds idempotency; any blocked target
+  refuses the entire selection. Existing global identity, draft/reservation,
+  suppression and conversation protections are checked before research and save,
+  including new contact observations. Shared budgets and sending authority remain
+  unchanged. Validation and live use are separate gates, recorded after execution.
+- Independent review corrected equivalent profile-host aliases, suppression
+  checks after identity waits and batch/fresh-contact lock ordering. Final Ruff
+  and eighty-six focused tests passed; the frozen source passed all 1,939 tests
+  and the complete isolated verifier, including seventeen research PostgreSQL
+  groups and actual-source network-disabled browser proofs. The first new
+  database fixture requested cancellation of a running task without acknowledging
+  it and encountered the correct active-reservation refusal; the fixture now
+  finalizes cancellation before testing another boundary. Its failure record is
+  retained. Corrected full validation preserved live container fingerprints and
+  excluded production credentials/providers. Ninety-seven local documentation
+  links and the thirteen-file private-value publication scan passed.

@@ -403,6 +403,17 @@ invalidation remain separate. Search and the first three uploads are bounded
 samples, and published metadata does not prove content suitability or interest.
 See [ADR-0041](../decisions/ADR-0041-recent-creator-evidence.md).
 
+### CO-021 — Targeted research must not refresh occupied identities
+
+Optional explicit shortlist IDs stay inside the existing issued pilot task and
+shared reservation accounting. Selection is all-or-nothing and idempotency binds
+the requested ordered IDs. Cross-campaign canonical identity and known contact
+matches refuse suppression, conversations, protected draft/packet evidence and
+issued reservations. Eligibility is checked before research and again before
+saving, including fresh contact observations. Omitted IDs retain automatic
+selection. Neither path grants contact authorization or email approval.
+See [ADR-0042](../decisions/ADR-0042-explicit-creator-research-selection.md).
+
 ## Production blockers and operating limits
 
 - A label-scoped read-only Gmail adapter and conservative reply suggestions are

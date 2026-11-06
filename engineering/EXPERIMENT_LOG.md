@@ -1678,3 +1678,27 @@ database/Redis settings were omitted; the corrected invocation passed. No
 image-scan exception was introduced; patched CI remains a separate release gate.
 The action image's corresponding Ubuntu APT/libapt update also passed its
 package dependency check. Final combined Ruff/all 1,908 tests passed again.
+
+Clean patched CI subsequently passed the complete lifecycle verifier, both image
+scans and both SBOM steps. Deployed app source matched all eighty-five tracked
+files across five roles with environment, durable mounts and visible Career
+profile/run-core state preserved.
+
+The governed live Polish discovery rerun used nine requests (five fresh and four
+relevance), observed 208 results/137 unique channels and selected twenty-nine
+records: one new and twenty-eight updates. It recorded no request/enrichment
+failures, while all three queries reached the configured page cap. Five unsent
+records with recent canonical samples had no eligible public business contact;
+the copyright-only contact on another record was not treated as a business
+invitation. No new email or contact authorization resulted from that scan.
+These are discovery/qualification measurements, not a reply-rate experiment.
+
+Explicit shortlist selection passed Ruff and eighty-six focused tests, then all
+1,939 tests and the complete isolated verifier. Seventeen research PostgreSQL
+groups include exact membership/idempotency, atomic refusals, global aliases,
+protected evidence, shared reservations and fresh-contact save conflicts.
+Source review also checked transaction-wide sender lock ordering. A first
+database run stopped because its new fixture had requested but not finalized
+cancellation of a running task; corrected fixture cleanup passed the full run.
+Both runs retained evidence and preserved production container fingerprints.
+No live provider, model, creator email or collaboration was part of validation.

@@ -95,6 +95,13 @@ task through the app's Scheduled controls. See the
    single-creator refresh still invalidates a changed frozen context. Protection
    ends with the relevant expiry/terminal state and does not delay opt-outs or
    other final send guards. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
+   When a reviewed creator needs its recent uploads checked, use the existing
+   `pilot-research` API with explicit `prospect_ids` and the matching count. This
+   reserves only the selected identities within the shared research allowance;
+   it does not run the automatic selector over excluded leads. An HTTP 409
+   refuses the whole selection: reread current work and defer rather than
+   dropping blocked IDs silently or issuing repeated scans. Explicit selection
+   does not relax this loop's three-new-candidate ceiling or any contact gate.
 4. **Prepare within remaining allowance.** Request individual drafts for the
    exact prequalified creator IDs when the campaign's broader server-selected
    batch could include sources outside this runbook's additional ninety-day
