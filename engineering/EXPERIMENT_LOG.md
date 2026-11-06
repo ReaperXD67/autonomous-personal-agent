@@ -1676,3 +1676,5 @@ image passed APT dependency checking, Ruff and all 1,908 tests without network
 access. An initial ad hoc invocation failed collection because synthetic
 database/Redis settings were omitted; the corrected invocation passed. No
 image-scan exception was introduced; patched CI remains a separate release gate.
+The action image's corresponding Ubuntu APT/libapt update also passed its
+package dependency check. Final combined Ruff/all 1,908 tests passed again.

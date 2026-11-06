@@ -3834,3 +3834,8 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   tests with synthetic settings and no network. The first ad hoc test invocation
   omitted required synthetic database/Redis settings; corrected configuration
   passed. The patched remote lifecycle and image scans remain release gates.
+- The pinned action image also contained the affected APT family (2.8.3).
+  Verified Ubuntu USN-8996-1 and signed Noble metadata; added exact APT/libapt
+  2.8.4ubuntu0.1 upgrades. Both build-only APT invocations disable download
+  retries while installing the fix, addressing the advisory's retry prerequisite.
+  No base digest, runtime setting, dependency lock or scan exception changed.
