@@ -87,6 +87,192 @@ def cancel(store, task):
     ))
 
 
+def explicit_request(*prospects, key=None):
+    return CreatorPilotCreate(
+        actor="creator-pilot-smoke", idempotency_key=key or uuid4(),
+        prospect_ids=[row["id"] for row in prospects],
+    )
+
+
+def reservation_counts(store):
+    with store.connect() as connection:
+        return connection.execute(
+            "SELECT (SELECT count(*) FROM agent_tasks) AS tasks,"
+            "(SELECT count(*) FROM task_outbox) AS outbox,"
+            "(SELECT count(*) FROM audit_events WHERE action='creator.pilot.created') AS audits",
+        ).fetchone()
+
+
+def exercise_explicit(store):
+    groups = []
+    campaign, prospects = fixture(store, 3)
+    ordered = [prospects[2], prospects[0]]
+    request = explicit_request(*ordered)
+    task = store.create_pilot(campaign["id"], request)
+    check(task["payload"]["prospect_ids"] == list(map(str, request.prospect_ids))
+          and task["payload"]["requested_prospect_ids"] == list(map(str, request.prospect_ids))
+          and task["payload"]["requested_limit"] == 2,
+          "Explicit selection changed membership, order or inferred limit")
+    before = reservation_counts(store)
+    check(store.create_pilot(campaign["id"], request)["id"] == task["id"],
+          "Explicit retry changed task identity")
+    blocked(lambda: store.create_pilot(campaign["id"], explicit_request(
+        *reversed(ordered), key=request.idempotency_key)), MarketingOutreachError, "Idempotency")
+    check(reservation_counts(store) == before, "Explicit retry issued extra reservation state")
+    owned = claim(store, task)
+    _, _, member = store.pilot_context(owned["id"], owned["lease_id"], ordered[0]["id"])
+    check(member["id"] == ordered[0]["id"], "Explicit member did not resolve at execution")
+    blocked(lambda: store.pilot_context(owned["id"], owned["lease_id"], prospects[1]["id"]),
+            InvalidTaskStateError, "not reserved")
+    # A second campaign cannot research the same canonical creator while this slot is active.
+    alias_campaign, aliases = fixture(store)
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET external_id=%s WHERE id=%s",
+                           (ordered[0]["external_id"], aliases[0]["id"]))
+    blocked(lambda: store.create_pilot(alias_campaign["id"], explicit_request(*aliases)),
+            MarketingOutreachError, "active research reservation")
+    cancel(store, task)
+    store.finalize_cancellation(owned["id"], owned["lease_id"])
+    groups.append("Explicit IDs retain ordered membership and idempotency across active aliases")
+
+    foreign_campaign, foreign = fixture(store, authorize=True)
+    before = reservation_counts(store)
+    for identity in (foreign[0]["id"], uuid4()):
+        mixed = CreatorPilotCreate(actor="creator-pilot-smoke", idempotency_key=uuid4(),
+                                   prospect_ids=[prospects[1]["id"], identity])
+        blocked(lambda: store.create_pilot(campaign["id"], mixed),
+                MarketingOutreachError, "missing or outside")
+        check(reservation_counts(store) == before,
+              "Invalid explicit membership partially reserved a task, audit or outbox")
+    groups.append("Missing and foreign explicit IDs fail atomically before reservation")
+
+    protected = foreign[0]
+    guard_campaign, guarded = fixture(store, 3)
+    email = protected["contact_email"]
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET external_id=%s WHERE id=%s",
+                           (protected["external_id"], guarded[0]["id"]))
+        connection.execute("UPDATE marketing_prospects SET profile_url=%s WHERE id=%s",
+                           (protected["profile_url"].replace("youtube.com", "YOUTUBE.COM") + "/",
+                            guarded[1]["id"]))
+        connection.execute("UPDATE marketing_prospects SET intelligence=intelligence || %s "
+                           "WHERE id=%s", (Jsonb({"contact_candidates": [{"email": email.upper()}]}),
+                                          guarded[2]["id"]))
+    before = reservation_counts(store)
+    blocked(lambda: store.create_pilot(guard_campaign["id"], explicit_request(*guarded[:2])),
+            MarketingOutreachError, "share a creator or business identity")
+    check(reservation_counts(store) == before, "Aliased explicit selection reserved partial work")
+
+    action_id = uuid4()
+    with store.connect() as connection:
+        connection.execute(
+            "INSERT INTO external_actions(id,action_type,status,target_display,public_context,"
+            "private_context,context_hash,idempotency_key,expires_at) "
+            "VALUES(%s,'communications.email_send','succeeded','Synthetic conversation',%s,%s,%s,%s,"
+            "now()+interval '1 hour')",
+            (action_id, Jsonb({}), Jsonb({"recipient": email}), "0" * 64, str(uuid4())),
+        )
+        connection.execute(
+            "INSERT INTO marketing_outreach_messages(prospect_id,action_id,stage,variant,selection_reason) "
+            "VALUES(%s,%s,'initial','synthetic','Disposable protection fixture')",
+            (protected["id"], action_id),
+        )
+    for target in guarded:
+        before = reservation_counts(store)
+        blocked(lambda: store.create_pilot(guard_campaign["id"], explicit_request(target)),
+                MarketingOutreachError, "outreach conversation")
+        check(reservation_counts(store) == before, "Conversation collision reserved new work")
+    with store.connect() as connection:
+        connection.execute("DELETE FROM marketing_outreach_messages WHERE action_id=%s", (action_id,))
+        connection.execute("DELETE FROM external_actions WHERE id=%s", (action_id,))
+    groups.append("Global canonical channel, normalized profile and candidate address protect conversations")
+
+    draft_task = store.create_task(TaskCreate(title="Synthetic protected draft",
+                                             kind="marketing.creator_draft", payload={},
+                                             requested_by="creator-pilot-smoke"))
+    with store.connect() as connection:
+        draft_id = connection.execute(
+            "INSERT INTO creator_email_drafts(campaign_id,prospect_id,task_id,requested_by,"
+            "idempotency_key,input_snapshot,input_hash,model_context) "
+            "VALUES(%s,%s,%s,'creator-pilot-smoke',%s,%s,%s,%s) RETURNING id",
+            (foreign_campaign["id"], protected["id"], draft_task["id"], uuid4(),
+             Jsonb({}), "0" * 64, Jsonb({})),
+        ).fetchone()["id"]
+    before = reservation_counts(store)
+    for target in guarded:
+        blocked(lambda: store.create_pilot(guard_campaign["id"], explicit_request(target)),
+                MarketingOutreachError, "protected draft evidence")
+    check(reservation_counts(store) == before, "Protected drafts consumed research reservations")
+    with store.connect() as connection:
+        connection.execute("DELETE FROM creator_email_drafts WHERE id=%s", (draft_id,))
+    cancel(store, draft_task)
+    payload = {"items": [{"prospect_id": str(protected["id"]),
+                          "child_idempotency_key": str(uuid4()), "input_hash": "0" * 64}]}
+    parent = store.create_task(TaskCreate(title="Synthetic reserved draft batch",
+                                         kind="marketing.creator_draft_batch", payload=payload,
+                                         requested_by="creator-pilot-smoke"))
+    with store.connect() as connection:
+        store._append_audit(
+            connection, correlation_id=parent["correlation_id"], task_id=parent["id"],
+            actor_type="user", actor_id="creator-pilot-smoke", tool_name=parent["kind"],
+            action="creator.draft_batch.created", risk_level="low", approval_status="not_required",
+            execution_status="queued", input_metadata={"payload_hash": canonical_hash(payload)},
+        )
+    cancel(store, parent)
+    before = reservation_counts(store)
+    for target in guarded:
+        blocked(lambda: store.create_pilot(guard_campaign["id"], explicit_request(target)),
+                MarketingOutreachError, "draft reservation")
+    check(reservation_counts(store) == before, "Draft batch collisions consumed research reservations")
+    groups.append("Global identity aliases protect active drafts and stopped issued batch reservations")
+
+    suppression_campaign, suppression = fixture(store)
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET intelligence=intelligence || %s WHERE id=%s",
+                           (Jsonb({"contact_candidates": [{"email": email}]}), suppression[0]["id"]))
+        connection.execute("INSERT INTO creator_contact_suppressions(email,reason) VALUES(%s,%s)",
+                           (email, "Synthetic global candidate suppression"))
+    before = reservation_counts(store)
+    blocked(lambda: store.create_pilot(suppression_campaign["id"], explicit_request(*suppression)),
+            MarketingOutreachError, "suppressed")
+    check(reservation_counts(store) == before, "Suppressed contact consumed a research reservation")
+    with store.connect() as connection:
+        connection.execute("DELETE FROM creator_contact_suppressions WHERE email=%s", (email,))
+    groups.append("Suppression applies to an unselected public candidate business address")
+
+    save_campaign, save_rows = fixture(store)
+    saved = save_rows[0]
+    owned = claim(store, store.create_pilot(save_campaign["id"], explicit_request(saved)))
+    research = {"audience_size": 12345, "latest_content_title": "Minecraft refreshed fixture",
+                "latest_content_url": "https://www.youtube.com/watch?v=abcdefghijk",
+                "latest_content_published_at": None, "relevance_score": 80,
+                "relevance_reasons": ["Synthetic Minecraft evidence"],
+                "intelligence": {"topics": ["Minecraft"],
+                                 "contact_candidates": [{"email": email}]}}
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET suppressed_at=now() WHERE id=%s",
+                           (saved["id"],))
+    blocked(lambda: store.save_pilot_research(owned["id"], owned["lease_id"], saved["id"], research),
+            InvalidTaskStateError, "eligibility changed")
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET suppressed_at=NULL WHERE id=%s",
+                           (saved["id"],))
+    blocked(lambda: store.save_pilot_research(owned["id"], owned["lease_id"], saved["id"], research),
+            InvalidTaskStateError, "draft reservation")
+    with store.connect() as connection:
+        row = connection.execute("SELECT audience_size,intelligence FROM marketing_prospects WHERE id=%s",
+                                 (saved["id"],)).fetchone()
+        check(row["audience_size"] == saved["audience_size"]
+              and row["intelligence"] == saved["intelligence"],
+              "Refused save changed creator evidence")
+        check(not connection.execute("SELECT 1 FROM audit_events WHERE task_id=%s "
+                                     "AND action='creator.pilot.researched'", (owned["id"],)).fetchone(),
+              "Refused save recorded successful research")
+    cancel(store, owned)
+    groups.append("Save checkpoints reject changed eligibility and newly colliding contact evidence atomically")
+    return groups
+
+
 def exercise(dsn):
     store = CreatorPilotStore(dsn)
     groups = []
@@ -315,6 +501,8 @@ def exercise(dsn):
           "Bounded selection starved the eligible creator beyond the old 500-row prefix")
     cancel(store, next_large)
     groups.append("A 501-creator pool advances past the former high-relevance candidate prefix")
+
+    groups.extend(exercise_explicit(store))
 
     budget_campaign, _ = fixture(store, 10)
     with store.connect() as connection:

@@ -72,7 +72,8 @@ understand what happened and take over at the right moment.
   refreshes up to ten saved creators and ranks their evidence without model calls.
   Recent date-ordered searches share the existing request allowance with broader
   relevance searches. The shortlist binds new drafting citations and language
-  to a verified recent Minecraft upload when one qualifies.
+  to a verified recent Minecraft upload when one qualifies. Operators can reserve
+  an exact research shortlist through the same API and shared allowance.
 - **A grounded first approach:** a model selects an offered content angle from
   recorded title evidence; Hermes renders English/Polish copy, the exact source
   and your reviewed brief. New drafts freeze a concise, permission-first style
@@ -122,7 +123,7 @@ understand what happened and take over at the right moment.
 | Isolated application adapter | Verified with local fixture | Disposable Playwright container, reviewed ATS hosts, exact form/default-state signature, typed explicit consent, purpose-bound PDF résumé upload and durable receipt. Unknown documents, login and CAPTCHA stop for review; SmartRecruiters submission stays manual |
 | Email sender | Live SMTP and small pacing canary verified | Authenticated STARTTLS, owned-inbox delivery and four actual paced sends passed. Receipt and finite-authority checks durably defer unstarted work. See the [continuation evidence](docs/operations/creator-outreach-continuation.md#pausing-and-evidence) for the recovery incident, correction and limits |
 | Creator research and outreach | Local introductions and complete reply reading verified | Genuine local-only introductions passed complete-copy review. Complete matched replies were retrieved and reviewed; willingness to discuss is distinct from an agreed collaboration. Exact approval and budgets remain. See the [dated delivery checkpoint](docs/operations/minecraft-creator-workflow.md#verified-reviewed-launch) |
-| API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Current issued reservation history rotates research through unattempted then oldest-attempted creators before contact/relevance tie-breakers. Thirty refreshes per rolling day; no model calls, contact authorization or sends |
+| API creator shortlist | Implemented; bounded research | Up to ten saved creators and three recent uploads each. Automatic rotation or explicit reviewed IDs use the same thirty-refresh rolling allowance. Explicit selection refuses blocked identities without substitution; no model calls, contact authorization or sends |
 | Minecraft paid-promotion workflow | Delivery and reply review verified; external handoff held | Revenue-share or fixed-fee proposals, owner email/Discord handoff and campaign/contact snapshots checked before delivery. One reply confirmed willingness to discuss; current owner holds prevent replies. No collaboration or payment is agreed |
 | Grounded creator introductions | English/Polish live canary verified | Models select issued evidence/angle IDs; Hermes renders copy and rederives its provenance. Five real local Qwen drafts were usable unchanged after complete-copy review; this small sample is not an accuracy or reply-rate guarantee. Legacy digests and individual exact approval remain |
 | Creator draft preparation queue | Database and UI flow verified | Up to five eligible reviewed contacts per batch, three by default; durable reservations share the 30/day and 3/prospect preparation limits. Stable children, skips, cancellation and cross-campaign identity deduplication; a batch creates no email approval or sending authority |

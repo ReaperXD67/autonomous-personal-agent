@@ -405,3 +405,11 @@ immediate; no new service, dependency or host authority is introduced. See
 - **Recoverability:** Redis is reconstructible; checksummed PostgreSQL dumps pass
   a disposable restore drill through application code.
 - **Extensibility:** new workers and tools integrate through task/policy boundaries.
+
+Creator pilot research accepts either the existing automatic rotation or an
+explicit ordered set of saved prospect IDs through the same issued task. Explicit
+selection refuses an ineligible or occupied identity without replacement, binds
+the IDs into idempotency/audit, and repeats global identity and protected-evidence
+checks at execution and save. It shares the existing research allowance and
+grants no contact or sending authority. See
+[ADR-0042](../decisions/ADR-0042-explicit-creator-research-selection.md).

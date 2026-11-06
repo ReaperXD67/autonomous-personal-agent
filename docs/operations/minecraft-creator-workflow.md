@@ -112,6 +112,23 @@ task-payload audit, current targeting snapshot and exact profile URL. Changed,
 unissued or expired history cannot change current priority. Cancelled or failed
 reservations still count as attempts and consume the existing budget.
 
+For an operator-reviewed selection, the existing
+`POST /v1/marketing/campaigns/{campaign_id}/pilot-research` API also accepts
+`prospect_ids`: one to ten distinct saved creator UUIDs, with `actor` and a new
+`idempotency_key`. Omit `limit` to use the list length, or supply that exact count.
+The dashboard's automatic selector is unchanged. The API reserves only those
+identities in their requested order; a missing, out-of-campaign, suppressed,
+contacted or occupied identity refuses the entire request with HTTP 409 rather
+than replacing it. Canonical channel/profile and known-address matches across
+campaigns protect conversations, current drafts and issued reservations.
+
+Idempotent replay binds the original ordered selection. Checkpoints and saving
+repeat current eligibility checks, including newly observed contact addresses,
+so research cannot overwrite evidence protected while a provider read was in
+flight. Explicit selection shares the same ten-creator cap, thirty-per-rolling-day
+accounting and one-active-batch rule. It grants no contact or sending authority.
+See [ADR-0042](../decisions/ADR-0042-explicit-creator-research-selection.md).
+
 The shortlist
 requires a dated Minecraft publication within the campaign's age limit, capped
 at ninety days, an observed subscriber count inside its range, current explicit

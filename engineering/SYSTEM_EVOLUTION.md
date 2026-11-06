@@ -780,3 +780,14 @@ worker and consumes shared preparation allowance. A five-minute cooldown and
 current source/contact/campaign/suppression checks precede explicit creation.
 Native sync and ordinary preparation only return existing work. No sender,
 approval, commercial-term, model-route or account authority changes.
+
+## 2026-11-06 — Explicit bounded creator research selection
+
+ADR-0042 adds optional ordered saved creator IDs to the existing issued pilot
+task. Omitted IDs retain automatic rotation. Explicit selections are atomic,
+bind idempotency to exact membership and use the same ten-creator cap and
+thirty-creator rolling allowance. Global canonical/profile/known-address guards
+preserve conversations, active draft evidence and issued reservations at
+creation, checkpoints and save, including freshly observed addresses. This
+changes research selection, with no new service, schema, provider route,
+commercial term or contact/send authority.
