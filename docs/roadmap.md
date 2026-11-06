@@ -73,6 +73,7 @@
 - [x] Grounded v2 evidence/angle selection with server-authored EN/PL proposals, frozen provenance and complete stored-copy rederivation; legacy contexts/digests preserved
 - [x] Audited draft-only batches of up to five reviewed contacts, stable children/skips/resume, shared preparation reservations and cross-campaign channel/address deduplication
 - [x] Fair shortlist rotation from current issued reservation history before the candidate cap, preserving the ten-per-batch/thirty-per-day research limits
+- [x] Bounded recent/date discovery alongside independent relevance pagination, with authoritative video checks and canonical recent Minecraft evidence for shortlist drafting
 - [x] Reusable repository-research skill and a source-linked comparison of related outreach systems
 - [x] Scoped hourly reviewer heartbeat, native daily discovery and compact API inspection; six-new-initial operating ceiling across two campaigns with individual exact review
 - [x] Bulk-discovery preservation for active draft/exact-message research, with aggregate protected counts and unchanged explicit-refresh invalidation

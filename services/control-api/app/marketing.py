@@ -17,7 +17,9 @@ from app.creator_intelligence import (
     CHANNEL_ID,
     VIDEO_ID,
     build_creator_intelligence,
+    content_topics,
     fit_breakdown,
+    plain_text,
     public_video_id,
     public_youtube_identity,
 )
@@ -295,6 +297,8 @@ def _enrich_videos(
     research_stats: dict[str, int] | None = None,
     checkpoint: Callable[[], None] | None = None,
     propagate_errors: bool = False,
+    publication_reference: datetime | None = None,
+    expected_video: dict[str, Any] | None = None,
 ) -> None:
     read = request_json or _read_youtube_json
     by_video = {
@@ -307,7 +311,8 @@ def _enrich_videos(
             checkpoint()
         try:
             payload = read("/youtube/v3/videos", {
-                "part": "snippet,statistics", "id": ",".join(batch), "key": api_key,
+                "part": "snippet,statistics,status" if publication_reference
+                else "snippet,statistics", "id": ",".join(batch), "key": api_key,
             })
             if not isinstance(payload.get("items"), list):
                 raise ValueError("YouTube video metadata returned an unexpected result list")
@@ -329,6 +334,32 @@ def _enrich_videos(
                 continue
             snippet = video.get("snippet")
             prospect = by_video[video_id]
+            if publication_reference is not None:
+                snippet = snippet if isinstance(snippet, dict) else {}
+                status = video.get("status")
+                status = status if isinstance(status, dict) else {}
+                published = _parse_youtube_datetime(snippet.get("publishedAt"))
+                title = plain_text(snippet.get("title"), 500)
+                invalid = (
+                    snippet.get("channelId") != prospect["channel_id"]
+                    or status.get("privacyStatus") != "public"
+                    or snippet.get("liveBroadcastContent") == "upcoming"
+                    or not title or published is None or published > publication_reference
+                    or published < prospect["minimum_published_at"]
+                )
+                if expected_video is not None:
+                    invalid = invalid or (
+                        title != expected_video["title"]
+                        or published != _parse_youtube_datetime(expected_video["published_at"])
+                        or "Minecraft" not in content_topics(title)
+                    )
+                if invalid:
+                    prospect["video_rejected"] = True
+                    if expected_video is not None:
+                        raise RuntimeError(
+                            "Selected public Minecraft video changed during research"
+                        )
+                    continue
             if not isinstance(snippet, dict):
                 continue
             if snippet.get("channelId") != prospect["channel_id"]:
@@ -351,6 +382,17 @@ def _enrich_videos(
                 "like_count": _public_count(statistics.get("likeCount")),
                 "comment_count": _public_count(statistics.get("commentCount")),
             })
+            if publication_reference is not None:
+                prospect["latest_content_title"] = title
+    if publication_reference is not None:
+        for prospect in by_video.values():
+            if not prospect.get("video_enriched"):
+                prospect.update({
+                    "latest_content_url": None, "latest_content_title": None,
+                    "latest_content_published_at": None,
+                })
+                if expected_video is not None:
+                    raise RuntimeError("Selected public Minecraft video could not be reverified")
 
 
 def _normalize_researched_prospect(
@@ -386,6 +428,7 @@ def fetch_youtube_creators(
         raise RuntimeError("YouTube discovery requires a restricted API key")
     reference = now or datetime.now(UTC)
     published_after = reference - timedelta(days=campaign["max_video_age_days"])
+    fresh_after = reference - timedelta(days=min(90, campaign["max_video_age_days"]))
     discovered: dict[str, dict[str, Any]] = {}
 
     results_per_page = min(MAX_RESULTS_PER_PAGE, max(1, int(campaign["results_per_query"])))
@@ -402,6 +445,9 @@ def fetch_youtube_creators(
         "pagination_errors": 0, "search_budget_exhausted": 0,
         "quota_exhausted": 0, "rate_limited": 0,
         "channel_requests": 0, "video_requests": 0, "enrichment_failures": 0,
+        "fresh_search_requests": 0, "fresh_search_pages": 0,
+        "relevance_search_requests": 0, "relevance_search_pages": 0,
+        "fresh_queries_started": 0, "relevance_queries_started": 0,
     }
 
     def read(path: str, parameters: dict[str, str | int]) -> dict[str, Any]:
@@ -418,12 +464,25 @@ def fetch_youtube_creators(
             research_stats["rate_limited"] = int(exc.rate_limited)
             raise
 
-    # Give every query its first page before spending budget on another page.
-    pending: list[tuple[str, str | None, set[str]]] = [(query, None, set()) for query in queries]
+    # The existing per-query allowance is shared by two independent lanes. Every
+    # query gets its fresh first page; a second slot starts broad relevance.
+    # Any third slot follows the fresh token, or relevance if fresh is exhausted.
+    lanes = ("fresh", "relevance") if pages_per_query >= 2 else ("fresh",)
+    states = [{"query": query, "pages": 0, "lanes": {
+        lane: {"started": False, "token": None, "seen": set(), "done": False,
+               "error": False} for lane in lanes
+    }} for query in queries]
     stop_search = False
     for page_index in range(pages_per_query):
-        next_pages = []
-        for query, token, seen_tokens in pending:
+        made_request = False
+        for state in states:
+            available = [lane for lane in lanes if not state["lanes"][lane]["done"]]
+            if not available:
+                continue
+            lane = ("relevance" if page_index == 1 and "relevance" in available
+                    else available[0])
+            cursor = state["lanes"][lane]
+            query, token = state["query"], cursor["token"]
             if checkpoint is not None:
                 checkpoint()
             if reserve_search_request is not None and not reserve_search_request():
@@ -432,10 +491,16 @@ def fetch_youtube_creators(
                 break
             if page_index == 0:
                 research_stats["queries_started"] += 1
+            if not cursor["started"]:
+                research_stats[f"{lane}_queries_started"] += 1
+                cursor["started"] = True
+            research_stats[f"{lane}_search_requests"] += 1
             parameters: dict[str, str | int] = {
                 "part": "snippet", "type": "video", "q": query,
-                "publishedAfter": published_after.isoformat().replace("+00:00", "Z"),
-                "safeSearch": "strict", "order": "relevance", "maxResults": results_per_page,
+                "publishedAfter": (fresh_after if lane == "fresh" else published_after)
+                .isoformat().replace("+00:00", "Z"),
+                "safeSearch": "strict", "order": "date" if lane == "fresh" else "relevance",
+                "maxResults": results_per_page,
                 "relevanceLanguage": campaign["relevance_language"], "key": api_key,
             }
             if campaign.get("region_code"):
@@ -451,6 +516,9 @@ def fetch_youtube_creators(
                 stop_search = True
                 break
             research_stats["search_pages"] += 1
+            research_stats[f"{lane}_search_pages"] += 1
+            state["pages"] += 1
+            made_request = True
             for item in search["items"][:results_per_page]:
                 research_stats["search_results"] += 1
                 snippet = item.get("snippet") if isinstance(item, dict) else None
@@ -476,22 +544,31 @@ def fetch_youtube_creators(
                         snippet.get("publishedAt")
                     ),
                     "discovery_query": query,
+                    "minimum_published_at": fresh_after if lane == "fresh" else published_after,
                 }
             next_token = search.get("nextPageToken")
             if next_token is None or next_token == "":
-                research_stats["queries_exhausted"] += 1
+                cursor["done"] = True
             elif (not isinstance(next_token, str) or len(next_token) > 1024
                   or not all(33 <= ord(char) <= 126 for char in next_token)
-                  or next_token in seen_tokens):
+                  or next_token in cursor["seen"]):
                 research_stats["pagination_errors"] += 1
-            elif page_index + 1 == pages_per_query:
-                research_stats["queries_page_limited"] += 1
+                cursor.update({"done": True, "error": True})
             else:
-                seen_tokens.add(next_token)
-                next_pages.append((query, next_token, seen_tokens))
-        if stop_search or not next_pages:
+                cursor["seen"].add(next_token)
+                cursor["token"] = next_token
+        if stop_search or not made_request:
             break
-        pending = next_pages
+    research_stats["queries_exhausted"] = sum(
+        all(cursor["done"] and not cursor["error"] for cursor in state["lanes"].values())
+        for state in states
+    )
+    research_stats["queries_page_limited"] = sum(
+        state["pages"] == pages_per_query
+        and any(cursor["token"] is not None and not cursor["done"]
+                for cursor in state["lanes"].values())
+        for state in states
+    )
 
     channel_ids = list(discovered)
     for start in range(0, len(channel_ids), 50):
@@ -526,7 +603,13 @@ def fetch_youtube_creators(
 
     if not research_stats["quota_exhausted"] and not research_stats["rate_limited"]:
         _enrich_videos(api_key, discovered, request_json=read, research_stats=research_stats,
-                       checkpoint=checkpoint)
+                       checkpoint=checkpoint, publication_reference=reference)
+    # Search snippets cannot establish an authoritative publication when quota or
+    # enrichment failure prevents the matching videos read.
+    for item in discovered.values():
+        if not item.get("video_enriched"):
+            item.update({"latest_content_title": None, "latest_content_url": None,
+                         "latest_content_published_at": None})
     normalized = [
         _normalize_researched_prospect(campaign, item, reference) for item in discovered.values()
     ]
@@ -537,6 +620,7 @@ def fetch_youtube_creators(
         "channels_enriched": sum(bool(item.get("channel_enriched"))
                                  for item in discovered.values()),
         "videos_enriched": sum(bool(item.get("video_enriched")) for item in discovered.values()),
+        "videos_rejected": sum(bool(item.get("video_rejected")) for item in discovered.values()),
         "reviewed": len(normalized), "selected": 0, "excluded": 0,
         "country_known": 0, "country_matches": 0, "language_known": 0, "language_matches": 0,
         "excluded_country_unknown": 0, "excluded_country_mismatch": 0,
@@ -617,19 +701,39 @@ def fetch_youtube_prospect(
         "previous_sample": previous_sample, "direct_refresh": True, "discovery_query": None,
     }
     _apply_channel(channel, item)
-    _enrich_videos(api_key, {channel["id"]: item}, checkpoint=checkpoint,
-                   propagate_errors=include_recent_activity)
-    research = _normalize_researched_prospect(campaign, item, reference)
+    activity, contacts, selected_video = None, [], None
     if include_recent_activity:
-        from app.creator_pilot import recent_uploads
+        from app.creator_pilot import newest_recent_minecraft_upload, recent_uploads
 
         activity, contacts = recent_uploads(
             api_key, channel, now=reference, checkpoint=checkpoint or (lambda: None),
         )
+        selected_video = newest_recent_minecraft_upload(campaign, activity, now=reference)
+        if selected_video is not None:
+            item.update({
+                "video_id": public_video_id(selected_video["url"]),
+                "latest_content_title": selected_video["title"],
+                "latest_content_url": selected_video["url"],
+                "latest_content_published_at": _parse_youtube_datetime(
+                    selected_video["published_at"]
+                ),
+                "minimum_published_at": reference - timedelta(
+                    days=min(90, campaign["max_video_age_days"])
+                ),
+            })
+    _enrich_videos(api_key, {channel["id"]: item}, checkpoint=checkpoint,
+                   propagate_errors=include_recent_activity,
+                   publication_reference=reference if selected_video is not None else None,
+                   expected_video=selected_video)
+    research = _normalize_researched_prospect(campaign, item, reference)
+    if include_recent_activity:
         research["intelligence"]["activity"] = activity
         current = research["intelligence"]["contact_candidates"]
         seen = {candidate["email"].casefold() for candidate in current}
         for candidate in contacts:
+            # The final canonical-video read supersedes its earlier description.
+            if selected_video is not None and candidate["source_url"] == selected_video["url"]:
+                continue
             if candidate["email"].casefold() not in seen and len(current) < 5:
                 current.append(candidate)
                 seen.add(candidate["email"].casefold())

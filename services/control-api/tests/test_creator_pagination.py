@@ -1,6 +1,6 @@
 import io
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.error import HTTPError
 
 import pytest
@@ -43,7 +43,7 @@ def metadata(path, parameters):
             "statistics": {"subscriberCount": "12000"},
         } for identity in ids]}
     return {"items": [{
-        "id": identity, "snippet": {
+        "id": identity, "status": {"privacyStatus": "public"}, "snippet": {
             "channelId": channel_id(int(identity)), "title": "Minecraft SMP server",
             "publishedAt": NOW.isoformat(), "defaultAudioLanguage": "pl",
         },
@@ -57,9 +57,11 @@ def test_pages_are_fair_across_queries_and_follow_tokens_even_after_short_page(m
         if not path.endswith("search"):
             return metadata(path, parameters)
         query, token = parameters["q"], parameters.get("pageToken")
-        searches.append((query, token))
+        order = parameters["order"]
+        searches.append((query, order, token))
         number = {None: 0, "next-1": 1, "next-2": 2}[token]
-        index = number if query == "Minecraft A" else number + 2
+        index = number + (10 if order == "relevance" else 0)
+        index += 0 if query == "Minecraft A" else 2
         page = {"items": [search_item(index)], "pageInfo": {"totalResults": 1_000_000}}
         if number < 2:
             page["nextPageToken"] = f"next-{number + 1}"
@@ -71,13 +73,15 @@ def test_pages_are_fair_across_queries_and_follow_tokens_even_after_short_page(m
         **CAMPAIGN, "discovery_queries": ["Minecraft A", "Minecraft B"],
         "search_pages_per_query": 3,
     }, now=NOW, selection_stats=stats)
-    assert searches == [(query, token) for token in (None, "next-1", "next-2")
+    assert searches == [(query, order, token) for order, token in
+                        (("date", None), ("relevance", None), ("date", "next-1"))
                         for query in ("Minecraft A", "Minecraft B")]
-    assert len(found) == 5 and stats["duplicate_channels"] == 1
+    assert len(found) == 6 and stats["duplicate_channels"] == 0
     assert stats["search_requests"] == stats["search_pages"] == stats["search_results"] == 6
-    assert stats["queries_exhausted"] == 2 and stats["queries_incomplete"] == 0
-    assert stats["channels_enriched"] == stats["videos_enriched"] == 5
-    assert stats["queries_page_limited"] == 0
+    assert stats["queries_exhausted"] == 0 and stats["queries_incomplete"] == 2
+    assert stats["channels_enriched"] == stats["videos_enriched"] == 6
+    assert stats["queries_page_limited"] == 2
+    assert stats["fresh_search_requests"] == 4 and stats["relevance_search_requests"] == 2
     assert all(type(value) is int for value in stats.values())
     assert all("contact_email" not in item and "contact_authorized_at" not in item
                for item in found)
@@ -131,6 +135,58 @@ def test_duplicate_queries_spend_once_and_default_remains_one_page(monkeypatch):
     assert calls == ["/youtube/v3/search"]
     assert stats["query_count"] == stats["search_requests"] == stats["queries_page_limited"] == 1
     assert stats["queries_exhausted"] == 0
+    assert stats["fresh_search_requests"] == 1 and stats["relevance_search_requests"] == 0
+
+
+@pytest.mark.parametrize("campaign_age", [30, 365])
+def test_fresh_lane_is_first_bounded_and_keeps_broader_relevance_scope(monkeypatch, campaign_age):
+    calls = []
+
+    def read(path, parameters):
+        calls.append((path, dict(parameters)))
+        if not path.endswith("search"):
+            return metadata(path, parameters)
+        index = 0 if parameters["order"] == "date" else 1
+        return {"items": [search_item(index)], "nextPageToken": "lane-token"}
+
+    monkeypatch.setattr(marketing, "_read_youtube_json", read)
+    campaign = {**CAMPAIGN, "max_video_age_days": campaign_age, "search_pages_per_query": 3}
+    snapshot = dict(campaign)
+    stats = {}
+    found = fetch_youtube_creators("key", campaign, now=NOW, selection_stats=stats)
+    searches = [parameters for path, parameters in calls if path.endswith("search")]
+    assert [(item["order"], item.get("pageToken")) for item in searches] == [
+        ("date", None), ("relevance", None), ("date", "lane-token"),
+    ]
+    assert searches[0]["publishedAfter"] == (
+        NOW - timedelta(days=min(90, campaign_age))
+    ).isoformat().replace("+00:00", "Z")
+    assert searches[1]["publishedAfter"] == (
+        NOW - timedelta(days=campaign_age)
+    ).isoformat().replace("+00:00", "Z")
+    assert searches[2]["publishedAfter"] == searches[0]["publishedAfter"]
+    assert all(item["safeSearch"] == "strict" and item["relevanceLanguage"] == "pl"
+               and item["regionCode"] == "PL" for item in searches)
+    assert stats["search_requests"] == stats["search_request_limit"] == 3
+    assert stats["fresh_search_requests"] == 2 and stats["relevance_search_requests"] == 1
+    assert len(found) == 2 and stats["duplicate_channels"] == 1
+    assert campaign == snapshot
+
+
+def test_exhausted_fresh_lane_uses_relevance_cursor_without_reusing_fresh_token(monkeypatch):
+    searches = []
+
+    def read(path, parameters):
+        searches.append((parameters["order"], parameters.get("pageToken")))
+        return {"items": [], **({"nextPageToken": "relevance-only"}
+                                 if parameters["order"] == "relevance" else {})}
+
+    monkeypatch.setattr(marketing, "_read_youtube_json", read)
+    stats = {}
+    assert fetch_youtube_creators("key", {**CAMPAIGN, "search_pages_per_query": 3},
+                                  now=NOW, selection_stats=stats) == []
+    assert searches == [("date", None), ("relevance", None), ("relevance", "relevance-only")]
+    assert stats["pagination_errors"] == 1 and stats["queries_incomplete"] == 1
 
 
 @pytest.mark.parametrize("token", ["bad\nvalue", "x" * 1025, ["not a string"], "ą"])
@@ -145,8 +201,8 @@ def test_invalid_page_tokens_stop_safely_without_persisting_them(monkeypatch, to
     stats = {}
     assert fetch_youtube_creators("key", {**CAMPAIGN, "search_pages_per_query": 3},
                                   selection_stats=stats) == []
-    assert calls == ["/youtube/v3/search"]
-    assert stats["pagination_errors"] == stats["queries_incomplete"] == 1
+    assert calls == ["/youtube/v3/search"] * 2
+    assert stats["pagination_errors"] == 2 and stats["queries_incomplete"] == 1
     assert all(type(value) is int for value in stats.values())
 
 
@@ -163,8 +219,8 @@ def test_repeated_page_token_stops_before_cycle_and_counts_duplicate_channels(mo
     stats = {}
     found = fetch_youtube_creators("key", {**CAMPAIGN, "search_pages_per_query": 3},
                                    now=NOW, selection_stats=stats)
-    assert calls == [None, "same-token"] and len(found) == 1
-    assert stats["pagination_errors"] == stats["duplicate_channels"] == 1
+    assert calls == [None, None, "same-token"] and len(found) == 1
+    assert stats["pagination_errors"] == 1 and stats["duplicate_channels"] == 2
     assert stats["queries_exhausted"] == 0
 
 
@@ -175,6 +231,19 @@ def test_denied_initial_reservation_makes_no_network_call(monkeypatch):
                                   reserve_search_request=lambda: False) == []
     assert stats["search_budget_exhausted"] == 1
     assert stats["search_requests"] == stats["queries_started"] == 0
+    assert stats["queries_incomplete"] == 1
+    assert stats["queries_page_limited"] == 0
+
+
+def test_provider_failure_does_not_claim_more_pages_are_available(monkeypatch):
+    def read(path, parameters):
+        raise RuntimeError("Provider unavailable")
+
+    monkeypatch.setattr(marketing, "_read_youtube_json", read)
+    stats = {}
+    assert fetch_youtube_creators("key", CAMPAIGN, now=NOW, selection_stats=stats) == []
+    assert stats["search_requests"] == stats["search_failures"] == 1
+    assert stats["search_pages"] == stats["queries_page_limited"] == 0
     assert stats["queries_incomplete"] == 1
 
 
@@ -204,6 +273,7 @@ def test_shared_budget_stop_preserves_already_observed_strict_poland_prospects(m
     assert len(found) == 2 and stats["search_requests"] == 2
     assert stats["search_budget_exhausted"] == 1 and stats["quota_exhausted"] == 0
     assert stats["queries_incomplete"] == 3
+    assert stats["queries_page_limited"] == 0
     assert all(item["intelligence"]["geography"]["country_code"] == "PL" for item in found)
 
 

@@ -161,6 +161,17 @@ does not prove unseen video contents, a genuine business owner, willingness to
 collaborate, server safety or product availability. The reviewed brief and
 creator's independent verdict remain necessary.
 
+Discovery now starts each query with a date-ordered sample within the smaller
+of ninety days and the saved campaign window. Additional allowance introduces
+an independent relevance lane and bounded continuation. Both lanes share the
+original request ceiling. A one-page query has only recent coverage. Review the
+reported coverage and exclusions before concluding that research is complete.
+Current video metadata must establish public ownership, non-upcoming state and
+the actual publication window. Explicit shortlist research can select a recent
+verified Minecraft upload as the canonical drafting citation and language source.
+Its existing three-upload and thirty-creator research limits still apply.
+See [ADR-0041](../decisions/ADR-0041-recent-creator-evidence.md).
+
 ## Compact local inspection
 
 From the repository root, the helper defines functions without sending a

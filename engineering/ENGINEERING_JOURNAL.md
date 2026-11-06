@@ -3795,3 +3795,33 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   unnecessary for the observed recovery and is not credited as its cause; it
   stopped no service and changed no persistent setting or volume data. Current
   generation is verified, not a guarantee about future startup or collaboration.
+
+## 2026-11-06 — Improve recent creator discovery and evidence binding
+
+- The owner requested further improvement, a governed rerun, GitHub publication
+  and an update on replies. The initial compact review established current
+  complete label syncs, one previously reviewed willingness to discuss and one
+  pending commercial-policy reply. Existing owner holds on both conversations
+  remain authoritative. No new collaboration, commercial agreement or reply
+  delivery was inferred.
+- Primary-source research compared the official search/video/uploads contracts
+  and a pinned Apache-2.0 Google API client. Adapted the documented request and
+  identity semantics in the existing adapter, with no new dependency or service.
+  ADR-0041 records recent/date and broader/relevance lanes under the same search
+  allowance and current-video validation. The explicit shortlist also binds
+  new canonical drafting evidence to a qualifying verified recent Minecraft
+  upload before language/contact normalization.
+- Source validation, deployment and the live rerun are separate gates. Their
+  actual results will be recorded after execution. Contact review, exact copy,
+  shared budgets, SMTP pacing and both owner conversation holds remain in force.
+- Independent review caught selected-source contact supersession and misleading
+  page-limit diagnostics, plus a fallback-contact compatibility case. Corrections
+  passed Ruff and 203 focused tests. The final frozen source passed all 1,908
+  tests, Compose and the complete isolated verifier, including 28 Creator
+  automation, 21 draft, 11 pilot and 12 research PostgreSQL scenario groups and
+  network-disabled browser proofs. The first verifier attempt timed out with
+  startup health still reported as starting after a long execution gap. Its
+  failure remains recorded; the unchanged frozen source then passed the full
+  verifier from a healthy isolated stack. Both runs preserved production
+  container fingerprints and excluded live credentials/providers. Finished
+  validation services were stopped with volumes and evidence retained.

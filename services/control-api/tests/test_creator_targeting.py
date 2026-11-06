@@ -50,6 +50,7 @@ def provider(monkeypatch, countries, *, audio=None, metadata=None, titles=None):
             } for index, country in enumerate(countries)]}
         return {"items": [{
             "id": f"{index:011}",
+            "status": {"privacyStatus": "public"},
             "snippet": {
                 "channelId": channel_id(index), "title": titles[index] if titles else
                 "Minecraft server SMP", "publishedAt": NOW.isoformat(),

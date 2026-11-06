@@ -45,11 +45,71 @@ def channel_item() -> dict:
 def video_item() -> dict:
     return {
         "id": VIDEO,
+        "status": {"privacyStatus": "public"},
         "snippet": {"channelId": CHANNEL, "title": "Minecraft SMP server",
                     "description": "A full description\nBusiness inquiries: creator@example.test",
                     "publishedAt": "2026-09-10T00:00:00Z"},
         "statistics": {"viewCount": "4100", "likeCount": "210"},
     }
+
+
+@pytest.mark.parametrize("change", [
+    "private", "upcoming", "future", "old", "owner", "missing", "snippet", "status", "title",
+])
+def test_discovery_requires_authoritative_public_video_inside_its_search_window(
+    monkeypatch, change,
+):
+    item = video_item()
+    if change == "private":
+        item["status"]["privacyStatus"] = "private"
+    elif change == "upcoming":
+        item["snippet"]["liveBroadcastContent"] = "upcoming"
+    elif change in {"future", "old"}:
+        item["snippet"]["publishedAt"] = (
+            NOW + timedelta(seconds=1) if change == "future" else
+            NOW - timedelta(days=90, microseconds=1)
+        ).isoformat()
+    elif change == "owner":
+        item["snippet"]["channelId"] = "UC" + "z" * 22
+    elif change in {"snippet", "status"}:
+        item.pop(change)
+    elif change == "title":
+        item["snippet"]["title"] = ""
+
+    def read(path, parameters):
+        if path.endswith("search"):
+            return {"items": [search_item()]}
+        if path.endswith("channels"):
+            return {"items": [channel_item()]}
+        assert parameters["part"] == "snippet,statistics,status"
+        return {"items": [] if change == "missing" else [item]}
+
+    monkeypatch.setattr(marketing, "_read_youtube_json", read)
+    result = fetch_youtube_creators("key", CAMPAIGN, now=NOW)[0]
+    assert result["latest_content_url"] is None
+    assert result["latest_content_title"] is None
+    assert result["latest_content_published_at"] is None
+    assert result["intelligence"]["recent_videos"] == []
+    assert result["intelligence"]["enrichment_status"] == "partial"
+
+
+def test_broader_relevance_can_retain_actual_old_sample_without_calling_it_fresh(monkeypatch):
+    searches = []
+    old = NOW - timedelta(days=100)
+    item = video_item()
+    item["snippet"]["publishedAt"] = old.isoformat()
+
+    def read(path, parameters):
+        if path.endswith("search"):
+            searches.append(parameters["order"])
+            return {"items": [] if parameters["order"] == "date" else [search_item()]}
+        return {"items": [channel_item() if path.endswith("channels") else item]}
+
+    monkeypatch.setattr(marketing, "_read_youtube_json", read)
+    result = fetch_youtube_creators("key", {**CAMPAIGN, "search_pages_per_query": 2}, now=NOW)[0]
+    assert searches == ["date", "relevance"]
+    assert result["latest_content_published_at"] == old
+    assert result["intelligence"]["recent_videos"][0]["published_at"] == old.isoformat()
 
 
 def test_public_emails_have_local_business_evidence_provenance_and_no_authority():

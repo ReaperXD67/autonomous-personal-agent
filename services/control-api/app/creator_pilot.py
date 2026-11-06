@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from app.creator_intelligence import (
@@ -67,14 +67,18 @@ def recent_uploads(api_key, channel, *, now, checkpoint):
     contacts = []
     seen = set()
     for item in _youtube_items(payload, MAX_UPLOADS):
-        snippet = item.get("snippet") or {}
+        snippet = item.get("snippet")
+        status = item.get("status")
+        if not isinstance(snippet, dict) or not isinstance(status, dict):
+            continue
         video_id = item.get("id")
         published = _parse_youtube_datetime(snippet.get("publishedAt"))
+        title = plain_text(snippet.get("title"), 500)
         if (video_id not in ids or video_id in seen
                 or snippet.get("channelId") != channel["id"]
-                or (item.get("status") or {}).get("privacyStatus") != "public"
+                or status.get("privacyStatus") != "public"
                 or snippet.get("liveBroadcastContent") == "upcoming"
-                or published is None or published > now):
+                or not title or published is None or published > now):
             continue
         seen.add(video_id)
         url = f"https://www.youtube.com/watch?v={video_id}"
@@ -85,7 +89,7 @@ def recent_uploads(api_key, channel, *, now, checkpoint):
                 language_source = field
                 break
         result["videos"].append({
-            "title": plain_text(snippet.get("title"), 500),
+            "title": title,
             "url": url, "published_at": published.isoformat(),
             "topics": content_topics(plain_text(snippet.get("title"), 500) + " "
                                      + plain_text(snippet.get("description"), 6000)),
@@ -96,6 +100,20 @@ def recent_uploads(api_key, channel, *, now, checkpoint):
         ))
     result["videos"].sort(key=lambda item: item["published_at"], reverse=True)
     return result, contacts
+
+
+def newest_recent_minecraft_upload(campaign, activity, *, now):
+    """Choose only current verified activity inside the stricter publication window."""
+    cutoff = now - timedelta(days=min(90, campaign["max_video_age_days"]))
+    eligible = [
+        video for video in activity.get("videos", [])
+        if "Minecraft" in video.get("topics", [])
+        and "Minecraft" in content_topics(plain_text(video.get("title"), 500))
+        and (published := _parse_youtube_datetime(video.get("published_at"))) is not None
+        and cutoff <= published <= now
+    ]
+    return max(eligible, key=lambda video: _parse_youtube_datetime(video["published_at"]),
+               default=None)
 
 
 def safe_excerpt(value):
@@ -111,7 +129,9 @@ def rank_prospect(campaign, prospect, *, now=None, error=False):
     videos = activity.get("videos") or []
     latest = videos[0] if videos else {}
     dated_matches = [
-        video for video in videos if "Minecraft" in video.get("topics", [])
+        video for video in videos
+        if "Minecraft" in video.get("topics", [])
+        and "Minecraft" in content_topics(plain_text(video.get("title"), 500))
     ]
     # The saved matching sample remains useful even if it is outside the first three.
     if intelligence.get("enrichment_status") == "complete":
@@ -119,6 +139,7 @@ def rank_prospect(campaign, prospect, *, now=None, error=False):
             video for video in intelligence.get("recent_videos", [])
             if video.get("metadata_status") == "observed_this_run"
             and "Minecraft" in video.get("topics", [])
+            and "Minecraft" in content_topics(plain_text(video.get("title"), 500))
         )
     dates = [
         date for item in dated_matches
@@ -130,7 +151,8 @@ def rank_prospect(campaign, prospect, *, now=None, error=False):
     in_range = (isinstance(audience, int)
                 and campaign["min_subscribers"] <= audience <= campaign["max_subscribers"])
     age_limit = min(90, campaign["max_video_age_days"])
-    recent = matching_date is not None and (now - matching_date).days <= age_limit
+    recent = (matching_date is not None
+              and now - timedelta(days=age_limit) <= matching_date <= now)
     candidates = [
         candidate for candidate in intelligence.get("contact_candidates", [])
         if candidate.get("observed_at") == intelligence.get("researched_at")

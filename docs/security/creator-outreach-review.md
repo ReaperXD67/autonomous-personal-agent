@@ -1,6 +1,6 @@
 # Creator outreach security review
 
-Review date: 2026-11-04
+Review date: 2026-11-06
 
 Scope: YouTube creator discovery, public-contact qualification, outreach
 sequencing, exact SMTP action planning, reply/result recording, suppression, and
@@ -386,6 +386,22 @@ a review of a configured mail provider's terms.
 - Residual risk: resource pressure or provider faults may recur. Actual model
   output and complete-copy review are needed before releasing an availability
   hold. See [ADR-0040](../decisions/ADR-0040-explicit-creator-draft-recovery.md).
+
+### CO-020 — Search freshness could disagree with current drafting evidence
+
+Discovery separates date and relevance pagination while retaining the same
+durable search reservations and total request ceiling. Returned video metadata
+must bind the exact channel, public/non-upcoming state and actual publication
+window before treating a sample as current evidence. Explicit shortlist research
+can promote a verified recent upload whose title identifies Minecraft before
+language, contact and draft-evidence projection. The final reread supplies
+contact candidates for the selected source, preventing an earlier removed
+address from being merged back.
+A contradictory reread fails that research. Recent unrelated uploads do not
+renew an old matching sample. Approved-packet protection and explicit-refresh
+invalidation remain separate. Search and the first three uploads are bounded
+samples, and published metadata does not prove content suitability or interest.
+See [ADR-0041](../decisions/ADR-0041-recent-creator-evidence.md).
 
 ## Production blockers and operating limits
 
