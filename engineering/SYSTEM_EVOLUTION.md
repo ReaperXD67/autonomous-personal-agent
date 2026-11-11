@@ -807,3 +807,16 @@ preserve conversations, active draft evidence and issued reservations at
 creation, checkpoints and save, including freshly observed addresses. This
 changes research selection, with no new service, schema, provider route,
 commercial term or contact/send authority.
+
+## 2026-11-11 — Owner deferral for a finite set of reviewed introductions
+
+ADR-0045 separates an owner's decision to park a complete commercial reply from
+its semantic classification and contact permissions. A PostgreSQL record binds
+that reply's digest and conversation identity to at most three named new creator
+identities, the campaign/stop epoch, mailbox/label and an original deadline of at
+most 24 hours. New exact AI initial packets freeze that record's ID/hash. The
+existing approval and final receipt paths enforce its current validity; a new
+reply or revoked/expired/changed authority stops sending without rewriting copy.
+Private drafting remains separate. The exception grants no delegated/template
+authority, response, handoff, negotiation, new account or faster cadence. No
+service or dependency is added; migration 032 extends authoritative policy state.

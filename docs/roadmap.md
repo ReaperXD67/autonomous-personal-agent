@@ -68,6 +68,7 @@
 - [x] API-only bounded creator shortlist refresh with deterministic ranking, dated upload evidence and explicit review gaps
 - [x] Read-only creator draft editorial report with observable markers, explicit review limits and synthetic no-egress evaluation cases
 - [x] English/Polish creator reply and objection hints with quoted-history, negation and conditional safeguards
+- [x] Explicit digest-bound owner deferral for one complete pending reply, limited to three new individually reviewed AI introductions and a 24-hour deadline; no review/contact mutation or delegated exception
 - [x] Explicit same-mailbox creator OAuth renewal for confirmed invalid refresh grants, preserving account/client/scope checks
 - [x] Frozen English/Polish draft generation with reviewed verbatim briefs, legacy-English compatibility and unchanged exact-message approval
 - [x] Grounded v2 evidence/angle selection with server-authored EN/PL proposals, frozen provenance and complete stored-copy rederivation; legacy contexts/digests preserved

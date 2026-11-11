@@ -416,6 +416,24 @@ See [ADR-0042](../decisions/ADR-0042-explicit-creator-research-selection.md).
 
 ## Production blockers and operating limits
 
+### CO-022 — A reply deferral must not become broad sending authority
+
+An authenticated owner decision binds one complete pending reply and its current
+digest to one to three explicit new creator IDs, a reason, actor and deadline of
+at most 24 hours. The record freezes campaign/stop epoch, contact identity and
+mailbox/label context. It does not classify the reply, clear `needs_review`, edit
+evidence, authorize contacts or alter a held response draft.
+
+Only a newly prepared, individually approved AI initial packet can bind the
+exact deferral ID and scope hash. Existing packets cannot acquire a later grant.
+The approval and locked receipt paths reject revoked, expired, changed or missing
+authority, a new pending reply, a changed source digest, an occupied/held identity
+or an unverified model/action binding. Pacing and Gmail freshness still apply,
+including after lock waits. Delegated runs, template mail and handoffs remain
+blocked by pending review. Creation and revocation are audited; private reply
+text and recipient details are absent from audit metadata. See
+[ADR-0045](../decisions/ADR-0045-bounded-owner-reply-deferral.md).
+
 ### Owner stop and managed promotion instructions
 
 A finite-run Pause is narrower than a campaign owner stop. The independent

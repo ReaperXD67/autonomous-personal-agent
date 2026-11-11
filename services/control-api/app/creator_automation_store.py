@@ -21,6 +21,7 @@ from app.creator_automation import (
 from app.creator_automation_models import CreatorAutomationStart, CreatorReplyReview
 from app.creator_learning import suggested_feedback_tags
 from app.creator_outreach_stop import CreatorOutreachStopMixin, outreach_stop_reason
+from app.creator_reply_deferral import CreatorReplyDeferralMixin
 from app.marketing_models import MarketingEmailPlanCreate
 from app.marketing_store import (
     MarketingCampaignNotFoundError,
@@ -81,7 +82,7 @@ def lock_automation(connection: Any) -> None:
     connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('creator-automation', 0))")
 
 
-class CreatorAutomationStore(CreatorOutreachStopMixin, MarketingStore):
+class CreatorAutomationStore(CreatorReplyDeferralMixin, CreatorOutreachStopMixin, MarketingStore):
     def _audit_automation(
         self,
         connection: Any,
@@ -285,6 +286,7 @@ class CreatorAutomationStore(CreatorOutreachStopMixin, MarketingStore):
             **counts,
             "gmail_sync": sync,
             "reply_drafts": reply_drafts,
+            "reply_deferral_count": self.reply_deferral_count(campaign_id),
         }
 
     def queue_reply_draft_curation(self, task, campaign_id):
