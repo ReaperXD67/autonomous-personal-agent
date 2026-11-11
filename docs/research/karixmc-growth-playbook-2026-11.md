@@ -103,6 +103,38 @@ milestones. Keep bank details, authentication screens, player identifiers,
 private replies, usernames without permission and administrative tools out of
 the recording.
 
+### Signature visual draft: three doors, one first try
+
+**Unpublished production brief.** This is an eye-catching treatment for the
+first-attempt concept, not an implemented product feature or a completed test.
+It uses original Minecraft footage and a real website capture; no paid tools,
+new reward promise or artificial crowd is required. The owner must have rights
+to the recording and approve the final artifact before publication.
+
+| Beat | Capture and edit | On-screen draft |
+|---|---|---|
+| Hook | In an owner-controlled demo, frame three simple hand-built doors. A player chooses one. | EN: “Three doors. One first try.” PL: “Troje drzwi. Jedna pierwsza próba.” |
+| Reveal | Match the selected door's rectangle to an actual demo card on the current website. Label this as an edit; the doorway is a visual metaphor. | Show the genuine demo label and product name. |
+| Proof | Retain the original joining attempt without hiding a failed or slow step. If the full attempt exceeds the short, link the complete recording or label the excerpt accurately. | Explain the real step being attempted. Use an elapsed timer only from genuine timestamps. |
+| Outcome | Show the actual result and one useful observation, including a failure if that is what happened. | State the tested version/date and the observed outcome. |
+| Invitation | End on a clean capture of the existing directory. | EN: “Explore the demo directory.” PL: “Zobacz katalog światów demo.” |
+
+Draft caption, usable only after the corresponding real footage exists:
+
+> **EN:** Three demo worlds. One honest first attempt. We are building KarixMC
+> and documenting the first-session experience, including the steps that need
+> work. These are our demo worlds. Explore the directory: karixmc.pl.
+
+> **PL:** Trzy światy demonstracyjne. Jedna pierwsza próba. Rozwijamy KarixMC
+> i pokazujemy pierwsze wejście, także kroki wymagające poprawy. To nasze światy
+> demo. Zobacz katalog: karixmc.pl.
+
+Use the door reveal to earn attention, then let the real attempt supply the
+evidence. Keep the existing reward-policy review gate. The edit must not imply
+that choosing a door, website-assisted teleportation or an instant join is a
+KarixMC feature. Do not add a sharing requirement, fake urgency or a purchased
+soundtrack. Owner-recorded audio or properly licensed material is sufficient.
+
 ## Distribution choices and their boundaries
 
 | Channel | Organic material that fits | Evidence or permission before release |

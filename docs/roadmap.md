@@ -78,7 +78,7 @@
 - [x] Durable creator campaign stop and task cancellation, with an epoch fence at preparation, approval and final egress; explicit resumption cannot revive old approvals
 - [x] Reviewed organic promotion skill package and bounded networkless namespace installer for the pinned Hermes runtime
 - [x] Zero-spend organic promotion playbook with sourced channel rules, creative outlines, evidence gaps and activation/retention experiment definitions
-- [ ] Verify live stop/cancellation and managed skill discovery on the existing runtime without restoring creator sending; offline intent and packaged source are separate from live state
+- [x] Verify live campaign stops, zero runnable email tasks and managed skill discovery on the existing runtime while retaining the owner mailing hold and stopped execution workers
 - [x] Reusable repository-research skill and a source-linked comparison of related outreach systems
 - [x] Scoped hourly reviewer heartbeat, native daily discovery and compact API inspection; six-new-initial operating ceiling across two campaigns with individual exact review
 - [x] Bulk-discovery preservation for active draft/exact-message research, with aggregate protected counts and unchanged explicit-refresh invalidation
