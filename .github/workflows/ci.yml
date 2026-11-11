@@ -32,6 +32,9 @@ jobs:
       - name: Validate Compose model
         run: docker compose config --quiet
 
+      - name: Check package DNS on the hosted runner
+        run: bash scripts/ci-package-dns.sh
+
       - name: Build test and runtime images
         run: docker compose build test control-api worker dispatcher action-worker
 

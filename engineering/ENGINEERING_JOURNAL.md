@@ -3982,3 +3982,11 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   image, package pin or confirmed GitHub-wide incident was established. Added
   failure-only runner/base DNS diagnostics to distinguish the next occurrence;
   package versions, image digests, network isolation and release gates remain.
+- Those diagnostics established failed Ubuntu lookups on both the GitHub runner
+  and a fresh pinned container while Debian resolved. Added a one-attempt repair
+  restricted to disposable GitHub-hosted Linux jobs: test real package DNS, use
+  documented per-interface Cloudflare resolvers only on failure, flush negative
+  caches and require both runner/container checks before building. Public
+  dependency DNS queries may use Cloudflare; no production resolver, Docker
+  networking, TLS/DNSSEC, archive IP or package-verification setting is changed.
+  Recovery is a subsequent CI observation, not established by this script.
