@@ -83,11 +83,16 @@ def run_block_reason(
     return None
 
 
-def pending_reply_reason(connection: Any, campaign_id: Any) -> str | None:
+def pending_reply_reason(connection: Any, campaign_id: Any, action=None) -> str | None:
     if connection.execute(
         "SELECT 1 FROM creator_reply_messages WHERE campaign_id = %s AND needs_review LIMIT 1",
         (campaign_id,),
     ).fetchone():
+        if action is not None:
+            from app.creator_reply_deferral import deferred_pending_reply_allowed
+
+            if deferred_pending_reply_allowed(connection, campaign_id, action):
+                return None
         return "Review new creator replies before automatic outreach continues"
     return None
 
@@ -111,9 +116,15 @@ def validate_creator_automation(
 ) -> str | None:
     marketing = action["private_context"].get("marketing")
     if isinstance(marketing, dict):
-        reason = pending_reply_reason(connection, marketing.get("campaign_id"))
+        reason = pending_reply_reason(connection, marketing.get("campaign_id"), action)
         if reason:
             return reason
+        # A resolved pending queue cannot silently replace a packet's frozen scope.
+        if marketing.get("reply_deferral_id"):
+            from app.creator_reply_deferral import approval_reply_deferral_reason
+
+            if reason := approval_reply_deferral_reason(connection, action):
+                return reason
     scope = action["private_context"].get("creator_automation")
     if scope is None:
         return None

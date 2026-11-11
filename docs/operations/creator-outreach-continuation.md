@@ -258,6 +258,49 @@ regressions. They use temporary fixture configuration and mocked HTTP, not
 Google, SMTP delivery or a real campaign. A successful compact live read and
 an actual reviewed cycle remain separate operating evidence.
 
+### Deferring one complete reply
+
+Use this only after the owner explicitly authorizes parking a particular complete
+reply while permitting a finite set of new introductions. A general instruction
+to resume mailing does not grant this exception. Read the complete source and
+current digest through the bound detail API first. Keep the reply pending and
+retain every named contact hold; do not select an inaccurate semantic category.
+
+`GET /v1/marketing/campaigns/{campaign_id}/replies/{reply_id}/deferrals` inspects
+existing authority. Creation uses `POST` on that same route with:
+
+```json
+{
+  "actor": "owner:review",
+  "idempotency_key": "AN-ISSUED-UUID",
+  "body_digest": "THE-CURRENT-COMPLETE-BODY-SHA256",
+  "prospect_ids": ["ONE-TO-THREE-REVIEWED-NEW-CREATOR-UUIDS"],
+  "reason": "The owner's specific reason for retaining this complete reply pending",
+  "expires_in_hours": 24,
+  "confirmation": "defer this reply for reviewed new initials"
+}
+```
+
+Use actual validated values in private operator configuration. The server
+requires exactly one matched complete pending reply, authorized new target
+contacts and current mailbox evidence. An HTTP 409 requires inspection, not a
+new idempotency key or another campaign. Creating a private AI draft remains
+separate from preparing its email. Only a newly prepared exact AI initial packet
+can freeze the issued deferral ID/hash; existing packets receive no new authority.
+
+Review each complete message and prepared recipient/subject/body normally.
+Approve only when its reserved slot fits both the original email approval and
+the bound deferral. Gmail freshness, source/identity, suppression, budgets and
+actual SMTP pacing still apply. The exception cannot send a held reply, handoff,
+template or delegated initial. A new pending reply, changed source or expired/
+revoked deferral blocks the packet at the approval and final receipt boundaries.
+
+`POST /v1/marketing/campaigns/{campaign_id}/replies/{reply_id}/deferrals/{deferral_id}/revoke`
+with `actor` withdraws the exception without changing the pending reply. Retain
+the original record and audit. Replacing it cannot revive an older prepared
+packet; do not clone a draft or extend its deadline to escape a refusal.
+See [ADR-0045](../decisions/ADR-0045-bounded-owner-reply-deferral.md).
+
 ## Pausing and evidence
 
 Pause the recurring task when the user requests it. If the user asks to stop

@@ -11,6 +11,7 @@ from app.creator_automation_models import (
     CreatorAutomationStart,
     CreatorOutreachResume,
     CreatorOutreachStop,
+    CreatorReplyDeferralCreate,
     CreatorReplyReview,
 )
 from app.marketing_store import MarketingCampaignNotFoundError, MarketingOutreachError
@@ -100,6 +101,40 @@ def sync(request: Request, campaign_id: UUID, payload: CreatorAutomationActor) -
         if not get_settings().creator_gmail_enabled:
             raise MarketingOutreachError("Configure the read-only creator Gmail adapter first")
         return request.app.state.creator_automation.queue_reply_sync(campaign_id, payload.actor)
+    except (MarketingCampaignNotFoundError, MarketingOutreachError) as exc:
+        raise _http_error(exc) from exc
+
+
+@router.get("/campaigns/{campaign_id}/replies/{reply_id}/deferrals")
+def list_reply_deferrals(request: Request, response: Response, campaign_id: UUID, reply_id: UUID):
+    response.headers["Cache-Control"] = "no-store"
+    try:
+        return request.app.state.creator_automation.list_reply_deferrals(campaign_id, reply_id)
+    except (MarketingCampaignNotFoundError, MarketingOutreachError) as exc:
+        raise _http_error(exc) from exc
+
+
+@router.post("/campaigns/{campaign_id}/replies/{reply_id}/deferrals", status_code=201)
+def create_reply_deferral(
+    request: Request, campaign_id: UUID, reply_id: UUID, payload: CreatorReplyDeferralCreate,
+):
+    try:
+        return request.app.state.creator_automation.create_reply_deferral(
+            campaign_id, reply_id, payload,
+        )
+    except (MarketingCampaignNotFoundError, MarketingOutreachError) as exc:
+        raise _http_error(exc) from exc
+
+
+@router.post("/campaigns/{campaign_id}/replies/{reply_id}/deferrals/{deferral_id}/revoke")
+def revoke_reply_deferral(
+    request: Request, campaign_id: UUID, reply_id: UUID, deferral_id: UUID,
+    payload: CreatorAutomationActor,
+):
+    try:
+        return request.app.state.creator_automation.revoke_reply_deferral(
+            campaign_id, reply_id, deferral_id, payload.actor,
+        )
     except (MarketingCampaignNotFoundError, MarketingOutreachError) as exc:
         raise _http_error(exc) from exc
 

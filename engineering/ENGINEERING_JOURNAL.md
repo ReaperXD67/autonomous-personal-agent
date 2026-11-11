@@ -3935,3 +3935,58 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   worldwide introduction copies remained unchanged. The installation did not
   start the Hermes gateway or any execution worker, invoke a model, publish a
   post, connect an account or purchase an ad.
+
+## 2026-11-11 — Bounded pending-reply deferral and renewed organic launch
+
+- After a later explicit mailing-resume instruction, renewed the same Creator
+  mailbox's existing read-only grant through owner consent. Subsequent complete
+  governed label reads restored freshness; the isolated Career configuration
+  and both reply-capture/curation allowlists were preserved. Global campaign
+  resumption retained epoch one, inactive discovery and revoked old packets.
+  One newly qualified Polish invitation was individually reviewed and later
+  SMTP-accepted. Neither that receipt nor a public invite preview establishes
+  inbox arrival, a new community member or an agreed collaboration.
+- The owner then explicitly permitted parking the existing complete commercial
+  reply for three new English introductions while retaining both named contact
+  holds. Migration 032 and authenticated create/read/revoke routes bind that
+  digest, source identity, current mailbox/label, campaign/epoch, target contacts
+  and original deadline to a finite policy record. Only newly prepared exact AI
+  initials can freeze its ID/hash. No review, contact authorization, held copy,
+  compensation, delegated grant or SMTP limit is changed by the exception.
+- Independent review and disposable PostgreSQL proofs caught inconsistent
+  preparation before a deferral existed, a reserved slot outside its deadline
+  and authority expiry during preparation writes. Preparation, approval and the
+  locked receipt now recheck the same immutable binding after waits. The focused
+  proof covers revocation/replacement, new or changed replies, genuine model
+  provenance, held/occupied identities and source preservation. All 449 focused
+  tests and sixteen disposable PostgreSQL groups passed. The frozen source then
+  passed Ruff, all 2,005 tests plus nine subtests and the complete isolated
+  lifecycle verifier. Validation used synthetic credentials and preserved live
+  container fingerprints. Live deferral use remains a separate operating gate.
+- Three current English sources passed complete inventory, language, business
+  address and duplicate review. Their individual local-only Qwen preparations
+  succeeded, and complete-copy review plus independent deterministic rederivation
+  passed thirty checks without changing subject, body or digest. These were
+  private drafts at this checkpoint, not email approvals or SMTP receipts.
+- Prepared factual free directory forms and a dated crawl/metadata audit. The
+  supplied help invite matches the public website's guild but has a finite
+  expiry. The site has no robots or sitemap endpoint at the observed URLs; the
+  available older sibling checkout does not establish production ownership.
+  Unapplied metadata examples are private references, not a website deployment,
+  search-index submission or acquired-user result. Listing terms and actual
+  account authority remain action-time gates for external publication.
+- The first two PR-106 attempts failed before tests because the runner's
+  Playwright build could not resolve both configured Ubuntu package hosts;
+  parallel Debian access succeeded. A bounded local check of the exact pinned
+  base resolved those names and fetched both signed repository indexes. No bad
+  image, package pin or confirmed GitHub-wide incident was established. Added
+  failure-only runner/base DNS diagnostics to distinguish the next occurrence;
+  package versions, image digests, network isolation and release gates remain.
+- Those diagnostics established failed Ubuntu lookups on both the GitHub runner
+  and a fresh pinned container while Debian resolved. Added a one-attempt repair
+  restricted to disposable GitHub-hosted Linux jobs: test real package DNS, use
+  documented per-interface Cloudflare resolvers only on failure, flush negative
+  caches and require both runner/container checks before building. Public
+  dependency DNS queries may use Cloudflare; no production resolver, Docker
+  networking, TLS/DNSSEC, archive IP or package-verification setting is changed.
+  Recovery is a subsequent CI observation, not established by this script.

@@ -32,6 +32,7 @@ try {
     & (Join-Path $PSScriptRoot 'creator-research-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-automation-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-outreach-stop-smoke.ps1')
+    & (Join-Path $PSScriptRoot 'creator-reply-deferral-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-draft-smoke.ps1')
     & (Join-Path $PSScriptRoot 'creator-pilot-smoke.ps1')
     & (Join-Path $PSScriptRoot 'career-autopilot-smoke.ps1')

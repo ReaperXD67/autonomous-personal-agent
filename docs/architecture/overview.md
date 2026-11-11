@@ -1,5 +1,14 @@
 # Architecture overview
 
+An explicit owner reply deferral can exempt one complete pending reply from the
+gate for at most three named new AI introductions and 24 hours. Migration 032
+stores its source digest, identity/contact bindings, mailbox/label, campaign hash,
+stop epoch, actor, reason and deadline in PostgreSQL. New exact packets freeze the
+deferral ID and scope hash; preparation, approval and the final receipt re-read
+that same authority. Pending evidence and contact permissions remain unchanged.
+Templates, delegated runs and handoffs retain the ordinary pending-reply block.
+See [ADR-0045](../decisions/ADR-0045-bounded-owner-reply-deferral.md).
+
 Creator campaigns have an independent PostgreSQL owner-stop flag and epoch.
 Stopping a campaign commits the egress fence before cancelling its task backlog,
 disables discovery and pauses delegated grants. Preparation, approval and the

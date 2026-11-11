@@ -445,7 +445,13 @@ class Database:
 
             if reason := action_outreach_stop_reason(connection, action):
                 raise InvalidTaskStateError(reason)
+            from app.creator_reply_deferral import approval_reply_deferral_reason
+
+            if reason := approval_reply_deferral_reason(connection, action):
+                raise InvalidTaskStateError(reason)
             scheduled_for = self._reserve_email_schedule(connection, task, action)
+            if reason := approval_reply_deferral_reason(connection, action, scheduled_for):
+                raise InvalidTaskStateError(reason)
 
         next_status = "queued" if request.decision == "approved" else "rejected"
         approved_by = request.actor if request.decision == "approved" else None

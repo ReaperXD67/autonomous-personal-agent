@@ -1083,6 +1083,22 @@ class MarketingStore(ActionStore):
                     ai_draft["input_snapshot"]["research"]
                 )
                 private_context["marketing"]["ai_draft_digest"] = ai_draft["draft_digest"]
+            from app.creator_reply_deferral import (
+                BOUND_REASON,
+                deferred_pending_reply_allowed,
+                prepare_reply_deferral,
+            )
+
+            reply_deferral = prepare_reply_deferral(
+                connection, campaign, prospect, request.stage, ai_draft,
+            )
+            if reply_deferral is not None:
+                private_context["marketing"]["reply_deferral_id"] = str(reply_deferral["id"])
+                private_context["marketing"]["reply_deferral_hash"] = reply_deferral["scope_hash"]
+                public_context["marketing"]["reply_deferral_id"] = str(reply_deferral["id"])
+                public_context["marketing"]["reply_deferral_expires_at"] = (
+                    reply_deferral["expires_at"].isoformat()
+                )
             if automation_context is not None:
                 private_context["creator_automation"] = dict(automation_context)
             action = self._create_external_action(
@@ -1138,6 +1154,10 @@ class MarketingStore(ActionStore):
                     "variant": variant,
                 },
             )
+            if reply_deferral is not None and not deferred_pending_reply_allowed(
+                connection, campaign["id"], action,
+            ):
+                raise MarketingOutreachError(BOUND_REASON)
             connection.commit()
         return action
 
