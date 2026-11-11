@@ -3975,3 +3975,10 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   Unapplied metadata examples are private references, not a website deployment,
   search-index submission or acquired-user result. Listing terms and actual
   account authority remain action-time gates for external publication.
+- The first two PR-106 attempts failed before tests because the runner's
+  Playwright build could not resolve both configured Ubuntu package hosts;
+  parallel Debian access succeeded. A bounded local check of the exact pinned
+  base resolved those names and fetched both signed repository indexes. No bad
+  image, package pin or confirmed GitHub-wide incident was established. Added
+  failure-only runner/base DNS diagnostics to distinguish the next occurrence;
+  package versions, image digests, network isolation and release gates remain.

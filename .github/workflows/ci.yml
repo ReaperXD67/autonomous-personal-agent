@@ -35,6 +35,30 @@ jobs:
       - name: Build test and runtime images
         run: docker compose build test control-api worker dispatcher action-worker
 
+      - name: Diagnose package DNS after a failed build
+        if: failure()
+        run: |
+          python3 - <<'PY'
+          import json, socket
+          for host in ("azure.archive.ubuntu.com", "security.ubuntu.com", "deb.debian.org"):
+              try:
+                  addresses = sorted({row[4][0] for row in socket.getaddrinfo(host, 80)})
+                  print(json.dumps({"surface": "runner", "host": host, "addresses": addresses}))
+              except OSError as exc:
+                  print(json.dumps({"surface": "runner", "host": host, "error": type(exc).__name__}))
+          PY
+          docker run --rm -i --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+            --entrypoint python3 \
+            mcr.microsoft.com/playwright/python:v1.63.0-noble@sha256:72bd171a9ffc2b4b59532aaa6210e21014d07093120dc25528870c0b840da1f0 - <<'PY'
+          import json, socket
+          for host in ("azure.archive.ubuntu.com", "security.ubuntu.com", "deb.debian.org"):
+              try:
+                  addresses = sorted({row[4][0] for row in socket.getaddrinfo(host, 80)})
+                  print(json.dumps({"surface": "pinned_base", "host": host, "addresses": addresses}))
+              except OSError as exc:
+                  print(json.dumps({"surface": "pinned_base", "host": host, "error": type(exc).__name__}))
+          PY
+
       - name: Run lint and tests
         run: docker compose --profile tools run --rm test
 
