@@ -3879,9 +3879,11 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
 
 - The owner stopped recurring creator mailing and explicitly requested queued
   email cancellation before any runtime recovery. The desktop reviewer was
-  already deleted. The live Docker engine/control API remained offline during
-  this work, so the saved stop instruction is not reported as a live PostgreSQL
-  cancellation or a completed runtime installation. No sending worker started.
+  already deleted. The live Docker engine/control API were initially offline,
+  so initial saved intent was not reported as a database cancellation. After
+  owner readiness, existing execution workers were stopped and kept stopped
+  during the controlled deployment; the startup's existing workers were not
+  treated as fresh permission to mail.
 - Found that finite-run Pause does not revoke independently approved packets.
   Migration 031 and authenticated stop/resume routes add a campaign stop and
   epoch fence, pause grants/discovery and cancel scoped pending tasks. Exact
@@ -3901,7 +3903,7 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   currency wording raises an unresolved Minecraft guideline/architecture fit
   question; the playbook retains that review gate without declaring a violation
   or altering the product or commercial terms. No marketing lift was measured.
-- Docker stayed stopped. Exact locked dependencies and CPython 3.13.15 ran in a
+- While Docker was stopped, locked dependencies and CPython 3.13.15 ran in a
   networkless Bubblewrap Linux test container: Ruff and all 1,966 tests passed,
   including Linux symlink cases. A separate networkless PostgreSQL 17.11 /
   pgvector 0.8.1 fixture passed seven new stop scenarios, 28 existing automation,
@@ -3909,5 +3911,27 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   Synthetic fixtures and disposable databases made no SMTP, model, mailbox or
   creator request. The new smoke first rejected an invalid fixture-only pacing
   limit; correcting it to the existing schema bounds passed without an app
-  change. Compose and PowerShell syntax checks passed. Complete Docker lifecycle
-  and image checks remain CI gates before merge; live application is separate.
+  change. Compose and PowerShell syntax checks passed. PR-104 then passed the
+  complete Docker verifier, dependency/repository checks, both image scans and
+  both SBOM steps before merging to main.
+- Backed up the live database locally, applied the migration and deployed the
+  validated control source. Both scoped stops committed at epoch one, with no
+  runnable queued email tasks or active grants. The complete 49-email action
+  page contained no runnable email task; no new SMTP acceptance occurred. Old
+  queued/dead-lettered history was preserved rather than replayed. All 86 app
+  source files matched the rebuilt control/action images, and five corresponding
+  execution/control roles use those images with execution left stopped.
+- Compose's stopped-worker creation also recreated its PostgreSQL dependency,
+  briefly taking the database offline. Verified the unchanged persistent mount,
+  unchanged environment file and critical settings against the previously
+  working control connection before restoring it. Both durable stops persisted
+  after that actual database restart. The initial raw environment-array hash
+  differed, so no claim of identical raw container environment serialization is
+  made. No volume, credential or durable profile was deleted or reset.
+- Seeded only the owned promotion namespace through a networkless one-shot,
+  preserving all 561 checked pre-existing profile/configuration and skill files.
+  The pinned Hermes CLI natively listed all eight skills. Complete held reply
+  responses, private draft responses, contact authorization and the three
+  worldwide introduction copies remained unchanged. The installation did not
+  start the Hermes gateway or any execution worker, invoke a model, publish a
+  post, connect an account or purchase an ad.

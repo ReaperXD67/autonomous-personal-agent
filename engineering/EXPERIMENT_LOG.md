@@ -1727,3 +1727,19 @@ Disposable databases were removed and the fixture server stopped. No live
 database, account, SMTP, model or browser operation was exercised. The complete
 Docker verifier and image scans remain separate CI gates, and no live queued
 email cancellation or Hermes profile seeding is inferred from these tests.
+
+Separate live operating checks followed owner runtime readiness. Both campaign
+stops were read back at epoch one with inactive discovery and no running grant;
+the complete 49-email action page contained no runnable task. Both flags survived
+an actual database-container recreation/restart using the preserved durable
+volume. There was no new email preparation, approval or SMTP acceptance.
+Both response-draft API payloads, held reply bodies/reviews and the three unsent
+worldwide frozen introductions compared unchanged before/after deployment.
+
+The networkless managed installer returned `installed` in the existing profile.
+The pinned native skill listing found all eight names; 561 checked pre-existing
+configuration/profile and skill files retained their SHA-256 hashes. All 86
+tracked app files matched the rebuilt images. These are stop/preservation and
+installation observations, not model-generation, growth or collaboration tests.
+The complete PR-104 Docker lifecycle verifier, image scans and SBOM checks also
+passed before merge. Execution workers remain stopped under the owner hold.

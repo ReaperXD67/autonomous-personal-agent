@@ -61,6 +61,13 @@ request or service restart; the trusted control plane still governs execution.
 The pack is intended for zero-cash organic work. Virality and conversion gains
 remain hypotheses until measured.
 
+The November 11 live installation verified all eight skills through the pinned
+runtime's native `hermes skills list`, with networking disabled. All 561 checked
+pre-existing profile/configuration and skill files retained their hashes. Only
+the managed namespace was installed; the existing private configuration was
+not recopied. This proves installation and discovery, not a model response or
+marketing results. The gateway and sending workers remained stopped.
+
 The [selection and provenance record](skills/PROVENANCE.md) pins the inspected
 upstream sources and license decisions. Selected MIT planning patterns were
 adapted into concise original procedures, retaining the notice. The full
