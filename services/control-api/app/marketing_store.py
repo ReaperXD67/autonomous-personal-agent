@@ -894,6 +894,10 @@ class MarketingStore(ActionStore):
             ).fetchone()
             if context is None:
                 raise MarketingProspectNotFoundError(str(prospect_id))
+            from app.creator_outreach_stop import outreach_stop_reason
+
+            if reason := outreach_stop_reason(context["_campaign"]):
+                raise MarketingOutreachError(reason)
             if contact_is_suppressed(connection, context["contact_email"]):
                 raise MarketingOutreachError("This contact is durably suppressed across campaigns")
             if context["suppressed_at"] is not None or context["status"] in {
@@ -1066,6 +1070,7 @@ class MarketingStore(ActionStore):
                 **public_context,
                 "marketing": {
                     **public_context["marketing"],
+                    "outreach_epoch": campaign.get("outreach_epoch", 0),
                     "campaign_snapshot": campaign_outreach_snapshot(campaign),
                     "campaign_hash": campaign_outreach_hash(campaign),
                     "contact_snapshot": contact_outreach_snapshot(prospect),

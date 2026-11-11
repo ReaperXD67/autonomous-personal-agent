@@ -9,6 +9,8 @@ from app.auth import require_api_token
 from app.creator_automation_models import (
     CreatorAutomationActor,
     CreatorAutomationStart,
+    CreatorOutreachResume,
+    CreatorOutreachStop,
     CreatorReplyReview,
 )
 from app.marketing_store import MarketingCampaignNotFoundError, MarketingOutreachError
@@ -66,6 +68,28 @@ def start(request: Request, campaign_id: UUID, payload: CreatorAutomationStart) 
 def pause(request: Request, campaign_id: UUID, payload: CreatorAutomationActor) -> dict[str, bool]:
     try:
         return request.app.state.creator_automation.pause(campaign_id, payload.actor)
+    except MarketingCampaignNotFoundError as exc:
+        raise _http_error(exc) from exc
+
+
+@router.post("/campaigns/{campaign_id}/outreach/stop")
+def stop_outreach(
+    request: Request, campaign_id: UUID, payload: CreatorOutreachStop,
+) -> dict[str, Any]:
+    try:
+        return request.app.state.creator_automation.stop_outreach(
+            campaign_id, payload.actor, payload.reason,
+        )
+    except MarketingCampaignNotFoundError as exc:
+        raise _http_error(exc) from exc
+
+
+@router.post("/campaigns/{campaign_id}/outreach/resume")
+def resume_outreach(
+    request: Request, campaign_id: UUID, payload: CreatorOutreachResume,
+) -> dict[str, Any]:
+    try:
+        return request.app.state.creator_automation.resume_outreach(campaign_id, payload.actor)
     except MarketingCampaignNotFoundError as exc:
         raise _http_error(exc) from exc
 

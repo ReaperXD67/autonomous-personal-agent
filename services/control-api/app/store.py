@@ -441,6 +441,10 @@ class Database:
 
         scheduled_for = None
         if request.decision == "approved" and action is not None:
+            from app.creator_outreach_stop import action_outreach_stop_reason
+
+            if reason := action_outreach_stop_reason(connection, action):
+                raise InvalidTaskStateError(reason)
             scheduled_for = self._reserve_email_schedule(connection, task, action)
 
         next_status = "queued" if request.decision == "approved" else "rejected"

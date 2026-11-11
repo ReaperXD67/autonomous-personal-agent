@@ -266,6 +266,45 @@ through the existing control plane as appropriate; pausing a reviewer alone
 does not recall queued email. SMTP-accepted messages cannot be recalled. Keep
 the durable audit and suppression history.
 
+### Stopping all creator mail
+
+Deleting the desktop schedule stops that reviewer; it does not revoke previously
+approved emails. Use the durable campaign stop for every selected campaign:
+
+```powershell
+./scripts/stop-creator-outreach.ps1 -CampaignId $savedCampaignIds -Actor 'owner:stop'
+./scripts/stop-creator-outreach.ps1 -CampaignId $savedCampaignIds -Actor 'owner:stop' -StatusOnly
+```
+
+`$savedCampaignIds` must contain the already-reviewed private IDs. The helper
+uses only the existing authenticated control API. Its `/outreach/stop` route
+commits the PostgreSQL stop and epoch fence, disables daily discovery, pauses
+delegated runs and cancels pending/queued scoped email tasks. Running tasks
+receive cancellation requests. Inspect returned in-flight and ambiguous counts;
+a previously entered SMTP operation cannot be recalled. Existing receipts,
+contacts, suppression, replies, review states and unsent drafts remain intact.
+
+The stop is checked independently of finite run grants at preparation, exact
+approval and final egress. Redis replay or interrupted cleanup cannot revive
+old authority. A later authenticated `/outreach/resume` requires an explicit
+`confirmation: "start mailing now"`; it does not restore old packets, grants or
+discovery, and it does not release individual contact or draft-only holds.
+Ordinary campaign edits cannot clear the stop. See
+[ADR-0043](../decisions/ADR-0043-durable-creator-outreach-stop.md).
+
+If the control API/database is offline, retain the owner instruction privately
+and report cancellation as unverified. Do not restart an old sending worker to
+inspect its queue. Recovery must hold execution workers stopped, apply the
+validated migration/control source, commit and verify each stop/cancellation,
+then deploy the corresponding guarded execution source before any future worker
+startup. An old image does not gain the new checks merely because the database
+has new fields. No recovery or deployment implies permission to start mailing.
+
+Organic research and private campaign planning can proceed only within their
+current owner scope. The [growth playbook](../research/karixmc-growth-playbook-2026-11.md)
+and [managed skills](../../services/hermes/README.md) grant no publishing,
+account, spending or email authority.
+
 The engineering journal and Experiments 41–42 record the actual schedule
 installation, reviewed cycles, recovery tests and delivery checkpoint. A configured
 schedule, healthy service, ready draft, exact approval, SMTP acceptance, inbox
@@ -290,7 +329,9 @@ reply email, booked collaboration, commercial agreement or payment is establishe
 These are limited live retrieval/review observations, not a general replay canary
 or a causal response-rate improvement.
 
-The hourly reviewer is active, with scheduled cycles observed since 06:20 UTC.
+The hourly reviewer was observed with scheduled cycles beginning at 06:20 UTC.
+That historical observation does not establish current scheduling or permission;
+the current owner's stop/resume instruction governs continuation.
 Earlier native daily scans preserved ten active records; before/after reads
 kept all four v2 bodies, digests and research snapshots unchanged. Those four
 individually approved invitations were subsequently SMTP-accepted unchanged,

@@ -1,5 +1,19 @@
 # Architecture overview
 
+Creator campaigns have an independent PostgreSQL owner-stop flag and epoch.
+Stopping a campaign commits the egress fence before cancelling its task backlog,
+disables discovery and pauses delegated grants. Preparation, approval and the
+locked final receipt boundary reject stopped or pre-stop authority; later resume
+cannot replay an old exact packet. Career authority is separate. See
+[ADR-0043](../decisions/ADR-0043-durable-creator-outreach-stop.md).
+
+The optional pinned Hermes runtime also receives a small reviewed organic
+promotion skill namespace through its existing networkless config initializer.
+A manifest and content hashes bind the copied files; scoped staged replacement
+preserves private agent state. Skills produce planning artifacts and grant no
+tools, accounts or egress. See
+[ADR-0044](../decisions/ADR-0044-reviewed-hermes-promotion-skills.md).
+
 Creator partnerships use the existing marketing and exact-action layers. The
 discovery worker divides its existing search allowance between independent
 recent/date and broader/relevance pagination lanes. Current video metadata

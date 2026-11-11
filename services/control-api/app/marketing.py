@@ -86,6 +86,10 @@ def outreach_context_error(
     """Recheck an approved packet against rows locked at the SMTP boundary."""
     private = action["private_context"]
     marketing = private["marketing"]
+    from app.creator_outreach_stop import outreach_stop_reason
+
+    if reason := outreach_stop_reason(campaign, marketing):
+        return reason
     if (
         prospect.get("suppressed_at") is not None
         or prospect.get("contact_authorized_at") is None

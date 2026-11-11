@@ -200,6 +200,11 @@ class MarketingCampaignView(MarketingCampaignFields):
     created_by: str
     created_at: datetime
     updated_at: datetime
+    outreach_paused: bool = False
+    outreach_epoch: int = 0
+    outreach_stopped_at: datetime | None = None
+    outreach_stopped_by: str | None = None
+    outreach_stop_reason: str | None = None
 
 
 class MarketingPromotionAsset(BaseModel):

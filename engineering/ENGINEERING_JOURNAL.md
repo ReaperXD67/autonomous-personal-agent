@@ -3874,3 +3874,40 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   retained. Corrected full validation preserved live container fingerprints and
   excluded production credentials/providers. Ninety-seven local documentation
   links and the thirteen-file private-value publication scan passed.
+
+## 2026-11-11 — Durable owner stop and organic promotion preparation
+
+- The owner stopped recurring creator mailing and explicitly requested queued
+  email cancellation before any runtime recovery. The desktop reviewer was
+  already deleted. The live Docker engine/control API remained offline during
+  this work, so the saved stop instruction is not reported as a live PostgreSQL
+  cancellation or a completed runtime installation. No sending worker started.
+- Found that finite-run Pause does not revoke independently approved packets.
+  Migration 031 and authenticated stop/resume routes add a campaign stop and
+  epoch fence, pause grants/discovery and cancel scoped pending tasks. Exact
+  preparation, approval and the final locked send boundary reject stopped or
+  stale authority. Explicit resume cannot restore old packets or grants.
+  Independent review caught cleanup racing a fresh post-resume packet; epoch-
+  bound cleanup and a real PostgreSQL regression preserve that new authority.
+- Researched maintained marketing skills and the pinned Hermes loader. Adapted
+  selected MIT procedures into eight small organic planning/review skills with
+  source commits and notices. The existing networkless config initializer seeds
+  a verified owned namespace while preserving private state. Staging/rollback
+  directories stay outside recursive skill discovery. No tool, account, paid
+  provider, posting or email permission is added.
+- Prepared a sourced zero-spend growth playbook with six creative concepts,
+  EN/PL production outlines, channel-fit rules and activation/return metrics.
+  Public homepage claims were observed, not tested end to end. Cross-server
+  currency wording raises an unresolved Minecraft guideline/architecture fit
+  question; the playbook retains that review gate without declaring a violation
+  or altering the product or commercial terms. No marketing lift was measured.
+- Docker stayed stopped. Exact locked dependencies and CPython 3.13.15 ran in a
+  networkless Bubblewrap Linux test container: Ruff and all 1,966 tests passed,
+  including Linux symlink cases. A separate networkless PostgreSQL 17.11 /
+  pgvector 0.8.1 fixture passed seven new stop scenarios, 28 existing automation,
+  21 drafting and 17 research groups, plus action-delivery boundary regressions.
+  Synthetic fixtures and disposable databases made no SMTP, model, mailbox or
+  creator request. The new smoke first rejected an invalid fixture-only pacing
+  limit; correcting it to the existing schema bounds passed without an app
+  change. Compose and PowerShell syntax checks passed. Complete Docker lifecycle
+  and image checks remain CI gates before merge; live application is separate.
