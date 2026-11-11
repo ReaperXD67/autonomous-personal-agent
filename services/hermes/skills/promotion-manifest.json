@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "pack_id": "hermes-promotion",
+  "pack_version": "1.0.0",
+  "observed_at": "2026-11-11",
+  "upstream_marketing_ref": "3e729622e3de0c82abdb906190d91f9018045872",
+  "hermes_runtime_ref": "3c27eb6234bf91b8ceee9e9071591b31e9b148cb",
+  "files": {
+    "community-fit/SKILL.md": "781b94ee03750f68ba0abeb6a6cf805d77a9e204d9e89afcbd0b847756c45755",
+    "content-repurpose/SKILL.md": "936a704762a2963c71c998dee8af63bf52bd079828d9201fe1f88c8ebd70d4cc",
+    "creator-fit/SKILL.md": "7319111db34111ff9da40ddcd028dc2d1f8fd57fe024ac6636c4bf012f4a1789",
+    "experiment-design/SKILL.md": "aabebdbf7d4ab3c53dd706fa9bed427bf2b48a684cd4959763d87db096a60f0d",
+    "landing-review/SKILL.md": "6a2a4ad94a33d02db50bc1fdbc6add74b48ff8eef16ed26f697cdf1b29cb5f1c",
+    "LICENSE": "5c6dd15e7b7172d2572671882c36d5fccddd489b5aa75583e5725786a039fd7c",
+    "NOTICE.md": "3f73e7b9bbdcada46bd81c7c0241d07077cf86e232e476df20fd51b2cec5a791",
+    "organic-campaigns/SKILL.md": "071a400e6baac8fa7d95350cd2136299216aedd5f9f3d0568f2cbb6fcfeb3319",
+    "promotion-brief/SKILL.md": "6cffd4cf599047c53f2c5c1c217acce5bb90b71f314d164c56b3cca43c2c1dd0",
+    "promotion-release-review/SKILL.md": "8d45a34e3cbacdc68de70ccc16198deb3680803dc5fc6410aee60d8f4f5dca6a"
+  }
+}

@@ -21,6 +21,14 @@ class CreatorAutomationActor(BaseModel):
     actor: str = Field(min_length=1, max_length=120)
 
 
+class CreatorOutreachStop(CreatorAutomationActor):
+    reason: str = Field(default="Creator mailing stopped by owner", min_length=1, max_length=1000)
+
+
+class CreatorOutreachResume(CreatorAutomationActor):
+    confirmation: Literal["start mailing now"]
+
+
 class CreatorReplyReview(CreatorAutomationActor):
     prospect_id: UUID | None = None
     classification: Literal[

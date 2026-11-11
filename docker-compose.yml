@@ -467,10 +467,20 @@ services:
       - no-new-privileges:true
     network_mode: none
     entrypoint: ["/bin/sh", "-ec"]
-    command: ["umask 077; cp /managed/config.yaml /opt/data/config.yaml; chmod 0600 /opt/data/config.yaml"]
+    command:
+      - >-
+        umask 077;
+        python3 /managed/install-managed-skills.py
+        --source /managed/skills/promotion
+        --manifest /managed/skills/promotion-manifest.json
+        --skills-root /opt/data/skills;
+        cp /managed/config.yaml /opt/data/config.yaml;
+        chmod 0600 /opt/data/config.yaml
     volumes:
       - hermes_data:/opt/data
       - ./services/hermes/config.example.yaml:/managed/config.yaml:ro
+      - ./services/hermes/install-managed-skills.py:/managed/install-managed-skills.py:ro
+      - ./services/hermes/skills:/managed/skills:ro
     logging: *json-logging
 
   hermes:

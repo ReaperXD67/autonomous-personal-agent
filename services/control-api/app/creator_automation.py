@@ -68,6 +68,10 @@ def run_block_reason(
     run: dict[str, Any], campaign: dict[str, Any], now: datetime | None = None
 ) -> str | None:
     now = now or datetime.now(UTC)
+    from app.creator_outreach_stop import outreach_stop_reason
+
+    if reason := outreach_stop_reason(campaign):
+        return reason
     if run["state"] != "running":
         return "Creator automation is paused or blocked"
     if run["expires_at"] <= now:

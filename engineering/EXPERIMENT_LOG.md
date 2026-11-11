@@ -1702,3 +1702,28 @@ database run stopped because its new fixture had requested but not finalized
 cancellation of a running task; corrected fixture cleanup passed the full run.
 Both runs retained evidence and preserved production container fingerprints.
 No live provider, model, creator email or collaboration was part of validation.
+
+## 2026-11-11 — Creator owner-stop and managed skill verification
+
+The live Docker engine stayed stopped. An isolated networkless Bubblewrap Linux
+test container used the repository's frozen dependency lock and existing managed
+CPython 3.13.15. Ruff and all 1,966 tests passed with nine subtest checks; all
+eleven managed-skill tests ran, including symlink refusal. No Windows project
+dependencies were installed. This is not the production container-image proof.
+
+Built PostgreSQL 17.11 from its official SHA-256-verified source and pgvector
+0.8.1 from commit `778dacf20c07caf904557a88705142631818d8cb` inside the isolated
+validation container. Unix-socket-only fixture execution passed seven new
+owner-stop groups: scoped cancellation/claimed tasks, interrupted cleanup with a
+fresh store, epoch rejection after resume, concurrent resume during cleanup,
+existing receipt preservation, approval/pacing-lock serialization and migration
+replay. Existing automation (28 groups), drafting (21), research (17) and action-
+delivery regressions passed in the same isolated database runtime.
+
+The first new stop fixture used pacing values outside existing database bounds;
+PostgreSQL correctly rejected it. A fixture-only change to 60-second minimum
+gaps, ten/hour and fifty/day passed; production policy and limits were unchanged.
+Disposable databases were removed and the fixture server stopped. No live
+database, account, SMTP, model or browser operation was exercised. The complete
+Docker verifier and image scans remain separate CI gates, and no live queued
+email cancellation or Hermes profile seeding is inferred from these tests.

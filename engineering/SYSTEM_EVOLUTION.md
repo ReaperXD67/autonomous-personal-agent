@@ -1,5 +1,21 @@
 # System evolution
 
+## 2026-11-11 — Durable creator stop and reviewed promotion skills
+
+ADR-0043 separates campaign-wide owner stop from finite delegated-run Pause.
+PostgreSQL holds a stop flag and monotonically increasing authority epoch.
+The stop commits before task cancellation so interrupted cleanup remains safe;
+preparation, exact approval and final receipt guards reject stale authority.
+The existing task lifecycle owns cancellation and audit. Explicit resume cannot
+restore old packets, grants or discovery. No Career authority changes.
+
+ADR-0044 seeds eight reviewed organic planning skills through the existing
+networkless Hermes config initializer. Bounded manifest verification and an
+owned namespace separate packaged instructions from private agent state.
+No new service, provider dependency, account or external-action capability is
+introduced. Packaging, live seeding, model execution and marketing outcomes
+remain distinct validation claims.
+
 ## 2026-11-06 — Recent creator evidence before drafting
 
 ADR-0041 adds independent recent/date and broader/relevance search lanes inside

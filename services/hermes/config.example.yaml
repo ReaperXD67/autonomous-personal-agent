@@ -37,3 +37,7 @@ memory:
 
 # MCP remains disabled until a reviewed profile is deliberately rendered.
 mcp_servers: {}
+
+# hermes-config seeds eight reviewed organic planning skills into the owned
+# /opt/data/skills/hermes-promotion namespace. Skills add instructions only;
+# they do not provision tools, credentials, sending authority or public posting.

@@ -75,6 +75,10 @@
 - [x] Fair shortlist rotation from current issued reservation history before the candidate cap, preserving the ten-per-batch/thirty-per-day research limits
 - [x] Bounded recent/date discovery alongside independent relevance pagination, with authoritative video checks and canonical recent Minecraft evidence for shortlist drafting
 - [x] Explicit reviewed shortlist IDs under the existing research budget, with all-or-nothing global identity and active-evidence guards
+- [x] Durable creator campaign stop and task cancellation, with an epoch fence at preparation, approval and final egress; explicit resumption cannot revive old approvals
+- [x] Reviewed organic promotion skill package and bounded networkless namespace installer for the pinned Hermes runtime
+- [x] Zero-spend organic promotion playbook with sourced channel rules, creative outlines, evidence gaps and activation/retention experiment definitions
+- [ ] Verify live stop/cancellation and managed skill discovery on the existing runtime without restoring creator sending; offline intent and packaged source are separate from live state
 - [x] Reusable repository-research skill and a source-linked comparison of related outreach systems
 - [x] Scoped hourly reviewer heartbeat, native daily discovery and compact API inspection; six-new-initial operating ceiling across two campaigns with individual exact review
 - [x] Bulk-discovery preservation for active draft/exact-message research, with aggregate protected counts and unchanged explicit-refresh invalidation

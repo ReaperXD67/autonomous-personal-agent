@@ -416,6 +416,24 @@ See [ADR-0042](../decisions/ADR-0042-explicit-creator-research-selection.md).
 
 ## Production blockers and operating limits
 
+### Owner stop and managed promotion instructions
+
+A finite-run Pause is narrower than a campaign owner stop. The independent
+PostgreSQL stop/epoch rejects exact and delegated creator authority at approval
+and the final locked receipt boundary. Cleanup cancels scoped pending tasks;
+its interruption cannot clear the stop. Explicit resumption does not revive
+pre-stop approvals or restore grants/discovery. Already-entered SMTP and
+ambiguous receipts remain separate outcomes. Old deployed images require a
+controlled no-egress upgrade; offline local intent is not a committed live stop.
+See [ADR-0043](../decisions/ADR-0043-durable-creator-outreach-stop.md).
+
+The managed organic promotion pack contains reviewed instructions, not provider
+clients or executable skills. Its networkless installer verifies bounded file
+hashes and paths, rejects symlinks and collisions, owns only its namespace and
+preserves private skills/memory. Installing or invoking a skill does not restore
+sending, create an account, authorize posting or establish product/policy claims.
+See [ADR-0044](../decisions/ADR-0044-reviewed-hermes-promotion-skills.md).
+
 - A label-scoped read-only Gmail adapter and conservative reply suggestions are
   implemented. English/Polish hints exclude recognizable quote/forward history
   and distinguish direct objections from instructional mentions; negation,

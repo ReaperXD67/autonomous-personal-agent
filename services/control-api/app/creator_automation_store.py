@@ -20,6 +20,7 @@ from app.creator_automation import (
 )
 from app.creator_automation_models import CreatorAutomationStart, CreatorReplyReview
 from app.creator_learning import suggested_feedback_tags
+from app.creator_outreach_stop import CreatorOutreachStopMixin, outreach_stop_reason
 from app.marketing_models import MarketingEmailPlanCreate
 from app.marketing_store import (
     MarketingCampaignNotFoundError,
@@ -80,7 +81,7 @@ def lock_automation(connection: Any) -> None:
     connection.execute("SELECT pg_advisory_xact_lock(hashtextextended('creator-automation', 0))")
 
 
-class CreatorAutomationStore(MarketingStore):
+class CreatorAutomationStore(CreatorOutreachStopMixin, MarketingStore):
     def _audit_automation(
         self,
         connection: Any,
@@ -122,6 +123,8 @@ class CreatorAutomationStore(MarketingStore):
             ).fetchone()
             if campaign is None:
                 raise MarketingCampaignNotFoundError(str(campaign_id))
+            if reason := outreach_stop_reason(campaign):
+                raise MarketingOutreachError(reason)
             if (
                 campaign.get("outreach_mode") != "paid"
                 or not campaign["paid_offer_enabled"]
@@ -214,7 +217,7 @@ class CreatorAutomationStore(MarketingStore):
         return {key: value for key, value in run.items() if key != "campaign_hash"}
 
     def overview(self, campaign_id: UUID) -> dict[str, Any]:
-        self.get_campaign(campaign_id)
+        campaign = self.get_campaign(campaign_id)
         with self.connect() as connection:
             runs = connection.execute(
                 """SELECT r.*, (SELECT count(*) FROM creator_automation_actions a
@@ -272,6 +275,10 @@ class CreatorAutomationStore(MarketingStore):
         for reply in replies:
             reply["suggested_feedback_tags"] = suggested_feedback_tags(reply["snippet"])
         return {
+            "outreach_stop": {key: campaign.get(key) for key in (
+                "outreach_paused", "outreach_epoch", "outreach_stopped_at",
+                "outreach_stopped_by", "outreach_stop_reason",
+            )},
             "run": public[0] if public else None,
             "runs": public,
             "pending_replies": replies,
