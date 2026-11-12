@@ -1,5 +1,22 @@
 # System evolution
 
+## 2026-11-12 — Global history at the bulk discovery save boundary
+
+ADR-0046 strengthens only routine bulk persistence. PostgreSQL's retained
+creator attempts, conversations, responses and issued reservations pin their
+known channel/profile/business identity components across campaigns, even after
+expiry or failure. Frozen contact snapshots retain previously used addresses.
+The guard runs before new-row insertion as well as refresh; it preserves all
+stored fields and reports aggregate skipped/preserved input counts.
+
+Existing pilot/draft-budget and automation locks precede own campaign/prospect
+rows and a sorted shared sender-key union. A fresh history read follows waits;
+an expanded union is skipped instead of acquiring new out-of-order locks. No
+foreign prospect/task/action row locks, schema, service, dependency, provider or
+authority change is added. The explicit research eligibility helper and
+intentional snapshot invalidation remain separate. Unknown unbound aliases and
+official metadata retrieval before the save fence remain explicit limitations.
+
 ## 2026-11-11 — Durable creator stop and reviewed promotion skills
 
 ADR-0043 separates campaign-wide owner stop from finite delegated-run Pause.

@@ -366,7 +366,16 @@ class MarketingStore(ActionStore):
         inserted = 0
         updated = 0
         protected = 0
+        from app.creator_discovery_history import (
+            load_history,
+            lock_history_writers,
+            sender_lock_keys,
+        )
+
         with self.connect() as connection:
+            # Bulk-only fence. Use writers' existing lock order before any rows;
+            # explicit research retains _discovery_evidence_protected semantics.
+            lock_history_writers(connection)
             campaign = connection.execute(
                 "SELECT id, updated_at FROM marketing_campaigns WHERE id = %s FOR UPDATE",
                 (campaign_id,),
@@ -376,24 +385,41 @@ class MarketingStore(ActionStore):
             if (expected_campaign_updated_at is not None
                     and campaign["updated_at"] != expected_campaign_updated_at):
                 raise MarketingOutreachError("Campaign changed during discovery; scan again")
+            # Own candidate rows only, in one stable order, before the sender's
+            # identity locks. Never row-lock aliases in another campaign.
+            existing_rows = connection.execute(
+                "SELECT p.* FROM marketing_prospects p WHERE p.campaign_id=%s "
+                "AND EXISTS (SELECT 1 FROM jsonb_to_recordset(%s::jsonb) "
+                "AS incoming(platform text,external_id text) WHERE "
+                "incoming.platform=p.platform AND incoming.external_id=p.external_id) "
+                "ORDER BY p.id FOR UPDATE",
+                (campaign_id, Jsonb([
+                    {"platform": item["platform"], "external_id": item["external_id"]}
+                    for item in prospects
+                ])),
+            ).fetchall()
+            existing_by_identity = {(row["platform"], row["external_id"]): row
+                                    for row in existing_rows}
+            before_wait = load_history(connection).with_observations(prospects)
+            locked = set()
             for prospect in prospects:
-                existing = connection.execute(
-                    """
-                    SELECT id, profile_url, suppressed_at, status, intelligence
-                    FROM marketing_prospects
-                    WHERE campaign_id = %s AND platform = %s AND external_id = %s
-                    FOR UPDATE
-                    """,
-                    (campaign_id, prospect["platform"], prospect["external_id"]),
-                ).fetchone()
+                existing = existing_by_identity.get((prospect["platform"], prospect["external_id"]))
+                locked.update(sender_lock_keys(before_wait.keys(prospect, existing)))
+            for key in sorted(locked):
+                connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", (key,))
+            # READ COMMITTED re-read after waits sees committed conversations and
+            # frozen recipients. If known aliases grew, skip rather than lock a
+            # newly discovered lower-sorting identity and risk an inversion.
+            history = load_history(connection).with_observations(prospects)
+            for prospect in prospects:
+                existing = existing_by_identity.get((prospect["platform"], prospect["external_id"]))
                 if existing is not None and (
                     existing["profile_url"] != prospect["profile_url"] or existing["suppressed_at"]
                     or existing["status"] in {"suppressed", "bounced"}
                 ):
                     continue
-                if existing is not None and self._discovery_evidence_protected(
-                    connection, existing["id"],
-                ):
+                if (not sender_lock_keys(history.keys(prospect, existing)) <= locked
+                        or history.protected(prospect, existing)):
                     protected += 1
                     continue
                 intelligence = merge_contact_history(
@@ -423,6 +449,7 @@ class MarketingStore(ActionStore):
                     WHERE marketing_prospects.suppressed_at IS NULL
                       AND marketing_prospects.status NOT IN ('suppressed', 'bounced')
                       AND marketing_prospects.profile_url = EXCLUDED.profile_url
+                    RETURNING *
                     """,
                     (
                         campaign_id,
@@ -446,6 +473,8 @@ class MarketingStore(ActionStore):
                     inserted += 1
                 else:
                     updated += 1
+                stored = saved.fetchone()
+                existing_by_identity[(prospect["platform"], prospect["external_id"])] = stored
             connection.execute(
                 "UPDATE marketing_campaigns SET last_scan_at = now(), "
                 "last_discovery_summary = %s WHERE id = %s",

@@ -322,6 +322,13 @@ engine. Choose
 based on the sampled video, subscriber evidence and reviewed feedback. Inspect
 the sources and full email before preparing its exact approval packet.
 
+Routine bulk discovery preserves known creator work across campaigns: drafts,
+conversations and issued reservations stay protected after failure or expiry,
+including known channel, profile and business-address aliases. Genuinely new
+leads can still be saved. Preservation changes no permission, freshness or send
+deadline; explicit reviewed research retains its separate invalidation rules.
+See [the history boundary](docs/decisions/ADR-0046-global-creator-discovery-history.md).
+
 For Polish AI copy, select preferred or strict Polish language targeting and
 write the product summary, paid-offer wording and any revenue basis in reviewed
 Polish. These fields are inserted verbatim; generation does not translate them.

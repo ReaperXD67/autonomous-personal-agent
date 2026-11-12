@@ -3990,3 +3990,41 @@ tracking. The user selected a 72-hour posting window and Gmail as the first mail
   dependency DNS queries may use Cloudflare; no production resolver, Docker
   networking, TLS/DNSSEC, archive IP or package-verification setting is changed.
   Recovery is a subsequent CI observation, not established by this script.
+
+## 2026-11-12 — Preserve global creator history during bulk discovery
+
+- A read-only operating audit found inactive daily discovery, no same-day or
+  queued duplicate scan, and expired unsent originals outside the active-only
+  same-prospect shield. No scan was issued to work around those holds. Added a
+  bulk-only global identity/history index before insert or refresh, using known
+  canonical/profile/business aliases and immutable draft/action contact snapshots.
+  Failed/expired attempts, conversations, responses, suppression and audit-issued
+  reservations retain their evidence without becoming contact or send authority.
+- Reused existing pilot/draft-budget, automation and sorted sender-identity locks
+  in their established order, locking only own candidate prospect rows. History
+  is re-read after waits and expanded aliases fail closed. The old explicit
+  research helper/invalidation semantics, budgets, schedules and all send/reply
+  policy remain unchanged. No private creator constants, dependency or service
+  were introduced. ADR-0046 and a primary-source PostgreSQL/listmonk comparison
+  record the decision; no upstream code was copied.
+- An isolated network-disabled PostgreSQL fixture demonstrated the current-main
+  cross-campaign expired-attempt insertion failure, then passed twenty-one research
+  groups with the guard, including nine global-history groups and real
+  budget/sender lock waits. Initial fixture runs exposed a community-versus-paid
+  setup mismatch, cached activity-stat polling/cleanup ordering and a valid
+  pending-reply block; only synthetic fixtures were corrected. The unreviewed
+  synthetic reply was retained and a separate clean fixture campaign used.
+  No live database, provider, model, SMTP or account operation was tested or
+  inferred; full-stack release verification and deployment remain separate gates.
+- Root review additionally caught repeated new inputs being counted twice after
+  batch preloading. Returning/reusing each saved row restored sequential counts,
+  profile mismatch refusal and contact-history merging. Transient whole-batch
+  aliases also inherit a preserved canonical identity without rewriting its row.
+  Thirty-two focused unit tests, changed-source Ruff and diff checks passed.
+- The first full isolated gate then passed 2,030 unit cases but exposed one
+  older targeting-test stub that accepted only the campaign row-lock call.
+  Updated that test to require all three writer advisory locks in exact order,
+  then the campaign lock, and prove a changed campaign fails before history
+  reads or candidate writes. No product source changed. The expanded focused
+  run passed 41 tests in 3.79 seconds; full-stack verification still requires
+  the separate complete rerun.

@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from unittest.mock import Mock
 
 import pytest
 from pydantic import ValidationError
@@ -186,10 +187,18 @@ def test_current_selection_recomputes_after_campaign_edit_without_rewriting_sour
     assert result["intelligence"]["researched_at"] == NOW.isoformat()
 
 
-def test_scan_persistence_fences_campaign_changed_during_network_research():
+def test_scan_persistence_fences_campaign_changed_during_network_research(monkeypatch):
+    writer_locks = [
+        "SELECT pg_advisory_xact_lock(hashtext('creator-pilot-budget'))",
+        "SELECT pg_advisory_xact_lock(hashtext('creator-draft-budget'))",
+        "SELECT pg_advisory_xact_lock(hashtextextended('creator-automation',0))",
+    ]
+    history_read = Mock(side_effect=AssertionError("History must follow the campaign fence"))
+    monkeypatch.setattr("app.creator_discovery_history.load_history", history_read)
+
     class Connection:
         def __init__(self):
-            self.calls = 0
+            self.calls = []
 
         def __enter__(self):
             return self
@@ -197,9 +206,16 @@ def test_scan_persistence_fences_campaign_changed_during_network_research():
         def __exit__(self, *args):
             return False
 
-        def execute(self, query, parameters):
-            assert "FOR UPDATE" in query
-            self.calls += 1
+        def execute(self, query, parameters=None):
+            self.calls.append((query, parameters))
+            if len(self.calls) <= len(writer_locks):
+                assert query == writer_locks[len(self.calls) - 1]
+                assert parameters is None
+            else:
+                assert query == (
+                    "SELECT id, updated_at FROM marketing_campaigns WHERE id = %s FOR UPDATE"
+                )
+                assert parameters == ("campaign",)
             return self
 
         def fetchone(self):
@@ -218,4 +234,8 @@ def test_scan_persistence_fences_campaign_changed_during_network_research():
         Store().save_discovered_prospects(
             "campaign", [], expected_campaign_updated_at=NOW - timedelta(seconds=1),
         )
-    assert connection.calls == 1
+    assert connection.calls == [(query, None) for query in writer_locks] + [(
+        "SELECT id, updated_at FROM marketing_campaigns WHERE id = %s FOR UPDATE",
+        ("campaign",),
+    )]
+    history_read.assert_not_called()
