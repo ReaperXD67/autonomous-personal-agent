@@ -258,21 +258,24 @@ a review of a configured mail provider's terms.
 ### CO-015 — Routine discovery could invalidate active reviewed evidence
 
 - Severity: High
-- Status: Bulk-only preservation under existing row locks
-- Evidence: bulk saves preserve an existing creator's research while an
-  unexpired active draft or linked exact outreach action protects it. The check
-  runs after existing campaign/prospect identity and suppression locks/checks;
-  it adds no task/action row locks or recipient/body/digest writes. New records
-  and unprotected rows retain normal discovery behavior. The saved campaign
-  discovery summary exposes `protected_count` with an aggregate preservation
-  audit. Terminal/expired work
-  releases the pin; explicit single-creator refresh still invalidates changed
-  snapshots. Contact withdrawal, suppression, campaign changes, expiry and the
-  final SMTP fence remain effective.
+- Status: Bulk-only global durable-history preservation
+- Evidence: bulk saves check known channel/profile/business aliases and immutable
+  contact snapshots globally before insert/update. Any saved draft attempt,
+  conversation, response or audit-issued reservation remains pinned after
+  expiry/failure, including withdrawn contacts. Existing budget/automation locks
+  precede own campaign/prospect rows and sorted sender keys; history is re-read
+  after waits and expanded aliases are skipped. No foreign prospect/task/action
+  row locks or recipient/body/digest writes are added. New/unworked identities
+  retain ordinary discovery; `protected_count` and the audit contain counts only.
+  Explicit research eligibility/invalidation stays separate. Withdrawal,
+  suppression, campaign changes, expiry and the final SMTP fence remain effective.
 - Residual risk: preserved research can become outdated while a packet waits.
   The pin extends no freshness window or approval deadline and does not certify
   the current source. Operators can intentionally refresh/withdraw work when new
-  evidence requires it. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
+  evidence requires it. A shared business address can conservatively pin several
+  identities, while an unbound new alias cannot be predicted. Protection is at
+  save time, not a guarantee of provider-read exclusion. See
+  [ADR-0046](../decisions/ADR-0046-global-creator-discovery-history.md).
 
 ### CO-016 — Overdue reservations could burst after worker recovery
 

@@ -89,12 +89,14 @@ task through the app's Scheduled controls. See the
    reservations or prior/pending outreach under the same canonical channel or
    exact normalized business address, including the other campaign. Do not run
    duplicate discovery/refresh tasks or repeatedly spend allowance on one lead.
-   Routine bulk discovery preserves rows protected by active drafts/packets and
-   records `protected_count` in the campaign discovery summary; it does not
-   refresh their timestamps. Explicit
-   single-creator refresh still invalidates a changed frozen context. Protection
-   ends with the relevant expiry/terminal state and does not delay opt-outs or
-   other final send guards. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
+   Routine bulk discovery preserves known identities with durable draft,
+   conversation, response or issued reservation history globally, even after
+   failure/expiry. It prevents both refresh and new alias rows and records
+   preserved/skipped inputs as `protected_count`, without changing timestamps or
+   permission. Unbound aliases still need qualification. Explicit single-creator
+   refresh retains its existing eligibility and context invalidation. No deadline
+   is extended and no opt-out/final-send guard delayed. See
+   [ADR-0046](../decisions/ADR-0046-global-creator-discovery-history.md).
    When a reviewed creator needs its recent uploads checked, use the existing
    `pilot-research` API with explicit `prospect_ids` and the matching count. This
    reserves only the selected identities within the shared research allowance;

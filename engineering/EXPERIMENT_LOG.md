@@ -1743,3 +1743,42 @@ tracked app files matched the rebuilt images. These are stop/preservation and
 installation observations, not model-generation, growth or collaboration tests.
 The complete PR-104 Docker lifecycle verifier, image scans and SBOM checks also
 passed before merge. Execution workers remain stopped under the owner hold.
+
+## 2026-11-12 — Global creator history preservation proof
+
+Used the existing locked test runtime and an isolated PostgreSQL 17/pgvector 0.8.1
+container with no published port or external network. Only synthetic credentials,
+creators and tasks were used. The new source was mounted independently of the
+live runtime. HTTP/SMTP calls were additionally rejected by the fixture patches.
+
+Current-main code failed the new expired/failed cross-campaign duplicate-insert
+assertion. The changed source passed twenty-one PostgreSQL scenario groups,
+including nine new groups: all-field/frozen-copy preservation after expiry,
+failure and withdrawal; global canonical/handle/old-business aliases; untouched
+new-lead insertion/refresh; old stopped issued batch/pilot reservations; reply-only
+and suppression addresses; real writer-budget/sender advisory waits; and
+fail-closed alias growth after a wait; fresh same-batch alias propagation; and
+duplicate-input count/profile-ownership behavior. Thirty-two focused unit tests
+passed in 2.16 seconds. Existing explicit refresh still invalidated
+ready/approved copy before receipts, and the existing concurrent 90-search budget,
+601-row export/602-row coverage and migration replay proofs passed.
+
+An earlier nineteen-group proof took 9.6 seconds end to end in this local fixture;
+the final 21-group proof also passed. These are not production latency or
+throughput measurements. First runs corrected
+only synthetic campaign mode, statistics-snapshot polling/cleanup and pending-
+reply fixture isolation. Disposable fixture databases were removed. No model
+response, creator delivery, live scan, external-user acquisition or full-stack
+release result is inferred from these measurements.
+
+The first complete isolated gate recorded 2,030 passing unit cases and one
+failure in the pre-existing targeting revision-fence test: its connection stub
+required a parameterized campaign query before the newly established writer
+locks. The test now checks those exact three locks, the campaign row lock and
+parameters, and no history read or candidate write after a revision mismatch.
+Product source is unchanged from the 21-group database proof. The expanded
+targeting/history/persistence selection passed 41 tests in 3.79 seconds, plus
+Ruff, in the existing test image
+`sha256:d6b23f0ed418b27b872f3fd806501613d17bfad8f86731c23ca4b84580a381fa`
+with a read-only source mount, temporary cache and no network. The complete
+gate must be rerun; the failed gate is retained rather than described as a pass.

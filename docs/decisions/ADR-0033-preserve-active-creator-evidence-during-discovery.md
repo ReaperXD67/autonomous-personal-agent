@@ -2,6 +2,7 @@
 
 - Date: 2026-11-02
 - Status: Accepted
+- Bulk-save expiry/same-prospect scope superseded by [ADR-0046](ADR-0046-global-creator-discovery-history.md); explicit research behavior remains unchanged.
 - Extends: ADR-0021 and ADR-0030
 
 ## Context

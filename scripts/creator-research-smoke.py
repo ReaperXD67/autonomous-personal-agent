@@ -1,30 +1,41 @@
 """Prove research persistence and authority isolation in a disposable database."""
 
-import os
-import re
 import csv
 import io
 import json
+import os
+import re
+import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
 
 import psycopg
-from app.marketing_models import (
-    MarketingCampaignCreate, MarketingCampaignUpdate, MarketingProspectCreate,
-    MarketingProspectUpdate, MarketingEmailPlanCreate,
-)
-from app.marketing_store import MarketingOutreachError, MarketingStore
-from app.creator_export import creator_coverage, creator_csv
 from app.action_store import SideEffectGuardError
+from app.creator_draft_batch_store import (
+    CreatorDraftBatchCreate,
+    CreatorDraftBatchStore,
+)
 from app.creator_draft_content import parse_model_copy, research_snapshot
 from app.creator_draft_models import CreatorDraftCreate
 from app.creator_draft_store import CreatorDraftConflictError, CreatorDraftStore
+from app.creator_export import creator_coverage, creator_csv
+from app.creator_pilot_store import CreatorPilotCreate, CreatorPilotStore
+from app.marketing_models import (
+    MarketingCampaignCreate,
+    MarketingCampaignUpdate,
+    MarketingEmailPlanCreate,
+    MarketingProspectCreate,
+    MarketingProspectUpdate,
+)
+from app.marketing_store import MarketingOutreachError, MarketingStore
 from app.models import ApprovalDecision, TaskCancellation, TaskCreate
 from psycopg import sql
 from psycopg.conninfo import conninfo_to_dict, make_conninfo
+from psycopg.types.json import Jsonb
 
 
 def check(condition, message):
@@ -209,7 +220,9 @@ def exercise_active_evidence(dsn, campaign_request, research):
                  for item in evidence]
     new_channel = "UC" + uuid4().hex[:22]
     brand_new = {**research, "external_id": new_channel,
-                 "profile_url": f"https://www.youtube.com/channel/{new_channel}"}
+                 "profile_url": f"https://www.youtube.com/channel/{new_channel}",
+                 "intelligence": {"source_channel_id": new_channel,
+                                  "topics": ["Minecraft"], "contact_candidates": []}}
     before = {item["id"]: store.get_prospect(item["id"]) for item in prospects}
     with store.connect() as connection:
         draft_before = connection.execute(
@@ -285,8 +298,10 @@ def exercise_active_evidence(dsn, campaign_request, research):
     store.cancel_task(action["task_id"], TaskCancellation(
         actor="research-smoke", reason="Synthetic approved packet cancellation",
     ))
-    check(store.save_discovered_prospects(campaign["id"], refreshed) == {"new": 0, "updated": 4},
-          "Expiry/cancellation did not release bulk evidence preservation")
+    check(store.save_discovered_prospects(campaign["id"], refreshed) == {"new": 0, "updated": 0},
+          "Expiry/cancellation released durable bulk history protection")
+    check(store.get_campaign(campaign["id"])["last_discovery_summary"]["protected_count"] == 4,
+          "Terminal/expired draft and message history was not counted as preserved")
 
     # Explicit operator refresh retains the existing invalidation boundary even while pinned.
     explicit, explicit_evidence = creator()
@@ -323,6 +338,266 @@ def exercise_active_evidence(dsn, campaign_request, research):
         check(not connection.execute("SELECT 1 FROM side_effect_receipts WHERE action_id=%s",
                                      (send_action["id"],)).fetchone(),
               "Explicitly stale research acquired a side-effect receipt")
+
+
+def exercise_bulk_history(dsn, campaign_request, research):
+    """Global history fence, including real writer/advisory-lock interleavings."""
+    campaign_request = MarketingCampaignCreate(**{
+        **campaign_request.model_dump(), "paid_offer_enabled": True,
+        "paid_offer_details": "An optional synthetic server trial", "outreach_mode": "paid",
+        "compensation_model": "revenue_share", "handoff_discord": "fixture_owner",
+    })
+    store = CreatorDraftStore(dsn)
+    source = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Global history source"},
+    ))
+    target = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Global history target"},
+    ))
+
+    def packet(channel=None, email=None, **changes):
+        channel = channel or "UC" + uuid4().hex[:22]
+        profile = f"https://www.youtube.com/channel/{channel}"
+        return {**research, "external_id": channel, "profile_url": profile,
+                "latest_content_published_at": datetime.now(UTC) - timedelta(days=2),
+                "intelligence": {"source_channel_id": channel, "topics": ["Minecraft"],
+                                 "contact_candidates": [{
+                                     "email": email, "source_url": profile,
+                                     "evidence": f"Business collaboration: {email}",
+                                     "observed_at": datetime.now(UTC).isoformat(),
+                                 }] if email else []}, **changes}
+
+    def creator(campaign=source, *, email=None):
+        email = email or f"{uuid4().hex}@example.test"
+        evidence = packet(email=email)
+        row = store.create_prospect(MarketingProspectCreate(
+            campaign_id=campaign["id"], platform="youtube", external_id=evidence["external_id"],
+            display_name="Synthetic history creator", profile_url=evidence["profile_url"],
+            audience_size=10000, contact_email=email, contact_source_url=evidence["profile_url"],
+            contact_basis_note="Synthetic explicit business collaboration source",
+            authorize_contact=True, requested_by="research-history-smoke",
+        ))
+        store.save_prospect_research(row["id"], evidence,
+                                    expected_profile_url=row["profile_url"],
+                                    expected_campaign_id=campaign["id"])
+        return store.get_prospect(row["id"]), evidence
+
+    def historical_attempt(person):
+        snapshot = {"contact": {key: person.get(key) for key in (
+            "platform", "external_id", "profile_url", "contact_email",
+        )}, "research": research_snapshot(person)}
+        with store.connect() as connection:
+            row = connection.execute(
+                "INSERT INTO creator_email_drafts(campaign_id,prospect_id,requested_by,"
+                "idempotency_key,input_snapshot,input_hash,model_context,status,error_code,"
+                "created_at,expires_at) VALUES (%s,%s,%s,%s,%s,%s,'{}','failed',"
+                "'SYNTHETIC_MODEL_FAILURE',now()-interval '3 days',now()-interval '2 days') "
+                "RETURNING *", (person["campaign_id"], person["id"], "history-smoke", uuid4(),
+                                 Jsonb(snapshot), uuid4().hex * 2),
+            ).fetchone()
+        return row
+
+    def absent(evidence):
+        return not any(row["external_id"] == evidence["external_id"] for row in store.list_prospects(
+            campaign_id=target["id"], prospect_status=None, limit=500,
+        ))
+
+    held, original = creator()
+    historical = historical_attempt(held)
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET contact_authorized_at=NULL,"
+                           "contact_authorized_by=NULL WHERE id=%s", (held["id"],))
+    held_before = store.get_prospect(held["id"])
+    same_channel = {**original, "display_name": "Must not replace held evidence"}
+    brand_new = packet()
+    check(store.save_discovered_prospects(target["id"], [same_channel, brand_new]) == {
+        "new": 1, "updated": 0,
+    }, "Expired/failed cross-campaign draft did not prevent duplicate insertion")
+    check(absent(same_channel) and store.get_prospect(held["id"]) == held_before,
+          "Held original fields changed or a duplicate was inserted")
+    check(store.save_discovered_prospects(source["id"], [same_channel]) == {
+        "new": 0, "updated": 0,
+    }, "Expired failed attempt allowed same-row refresh")
+    with store.connect() as connection:
+        check(connection.execute("SELECT * FROM creator_email_drafts WHERE id=%s",
+                                 (historical["id"],)).fetchone() == historical,
+              "Preservation altered historical failure/copy/context/deadline")
+
+    # The old immutable contact remains a known identity even after a later edit.
+    old_address = held["contact_email"]
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET contact_email=%s,intelligence=%s "
+                           "WHERE id=%s", (f"{uuid4().hex}@example.test",
+                                           Jsonb({"source_channel_id": held["external_id"]}), held["id"]))
+    check(store.save_discovered_prospects(target["id"], [packet(email=old_address)]) == {
+        "new": 0, "updated": 0,
+    }, "Frozen draft business address was lost after current-contact edit")
+
+    # A same-channel handle row links through canonical source identity, then its
+    # www/non-www profile can protect another incoming alias transitively.
+    alias, _ = creator()
+    handle = "https://www.youtube.com/@SyntheticHistoryAlias"
+    with store.connect() as connection:
+        connection.execute("UPDATE marketing_prospects SET external_id=%s,profile_url=%s,"
+                           "contact_email=NULL,contact_authorized_at=NULL,contact_authorized_by=NULL,"
+                           "intelligence=%s WHERE id=%s",
+                           ("imported-history-alias", handle,
+                            Jsonb({"source_channel_id": held["external_id"]}), alias["id"]))
+    incoming_alias = packet(profile_url=handle.replace("www.", "") + "/")
+    check(store.save_discovered_prospects(target["id"], [incoming_alias])["new"] == 0,
+          "Canonical/handle/host aliases did not preserve history transitively")
+
+    untouched = packet(display_name="Synthetic history creator")
+    check(store.save_discovered_prospects(target["id"], [untouched])["new"] == 1,
+          "Display-name overlap blocked a genuinely new creator")
+    check(store.save_discovered_prospects(target["id"], [{
+        **untouched, "latest_content_title": "Fresh untouched Minecraft sample",
+    }])["updated"] == 1, "A creator without durable work could not refresh")
+
+    # All-age, audit-bound reservations retain their selected identities. The
+    # ordinary rolling preparation/research budgets are not enlarged or reset.
+    reservation_campaign = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Old reservation history"},
+    ))
+    _, reserved_evidence = creator(reservation_campaign)
+    batch_store = CreatorDraftBatchStore(dsn)
+    batch = batch_store.create_batch(reservation_campaign["id"], CreatorDraftBatchCreate(
+        actor="history-smoke", idempotency_key=uuid4(), limit=1,
+    ))
+    store.cancel_task(batch["task"]["id"], TaskCancellation(actor="history-smoke", reason="Fixture"))
+    with store.connect() as connection:
+        connection.execute("UPDATE agent_tasks SET created_at=now()-interval '3 days' WHERE id=%s",
+                           (batch["task"]["id"],))
+        connection.execute("UPDATE audit_events SET occurred_at=now()-interval '3 days' "
+                           "WHERE task_id=%s", (batch["task"]["id"],))
+    check(store.save_discovered_prospects(target["id"], [reserved_evidence])["new"] == 0,
+          "Stopped/old issued batch reservation lost its identity preservation")
+    pilot_campaign = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Old pilot reservation history"},
+    ))
+    pilot_person, pilot_evidence = creator(pilot_campaign)
+    pilot = CreatorPilotStore(dsn).create_pilot(pilot_campaign["id"], CreatorPilotCreate(
+        actor="history-smoke", idempotency_key=uuid4(), prospect_ids=[pilot_person["id"]],
+    ))
+    store.cancel_task(pilot["id"], TaskCancellation(actor="history-smoke", reason="Fixture"))
+    check(store.save_discovered_prospects(target["id"], [pilot_evidence])["new"] == 0,
+          "Issued pilot reservation lost cross-campaign preservation")
+
+    # A durable matched/unmatched reply can carry the only observed old address.
+    reply_address = f"{uuid4().hex}@example.test"
+    with store.connect() as connection:
+        reply = connection.execute(
+            "INSERT INTO creator_reply_messages(campaign_id,gmail_message_id,gmail_thread_id,"
+            "sender,subject,snippet,received_at,suggested_classification,match_reason) "
+            "VALUES (%s,%s,%s,%s,'Synthetic reply','Fixture only',now(),'question','Fixture') "
+            "RETURNING *", (source["id"], uuid4().hex, uuid4().hex, reply_address),
+        ).fetchone()
+    check(store.save_discovered_prospects(target["id"], [packet(email=reply_address)])["new"] == 0,
+          "Reply-only address allowed a new alias insertion")
+    with store.connect() as connection:
+        check(connection.execute("SELECT * FROM creator_reply_messages WHERE id=%s",
+                                 (reply["id"],)).fetchone() == reply, "Reply evidence was modified")
+        connection.execute("INSERT INTO creator_contact_suppressions(email,reason) VALUES (%s,%s)",
+                           ("global-history-block@example.test", "Synthetic opt-out"))
+    check(store.save_discovered_prospects(target["id"], [
+        packet(email="global-history-block@example.test"),
+    ])["new"] == 0, "Global business suppression allowed a new duplicate research row")
+
+    def wait_for_lock(blocker, future):
+        for _ in range(100):
+            if future.done():
+                future.result()
+                raise AssertionError("Bulk save did not wait at the real PostgreSQL guard")
+            blocker.execute("SELECT pg_stat_clear_snapshot()")
+            if blocker.execute("SELECT 1 FROM pg_stat_activity WHERE datname=current_database() "
+                               "AND pid<>pg_backend_pid() AND wait_event_type='Lock' LIMIT 1").fetchone():
+                return
+            time.sleep(.05)
+        raise AssertionError("No PostgreSQL lock wait was observed")
+
+    # One real writer commits a new attempt while discovery waits at its shared
+    # draft budget. No model is executed and no email approval/receipt exists.
+    raced, raced_evidence = creator()
+    with ThreadPoolExecutor(max_workers=1) as pool, store.connect() as blocker:
+        blocker.execute("SELECT pg_advisory_xact_lock(hashtext('creator-draft-budget'))")
+        future = pool.submit(store.save_discovered_prospects, target["id"], [raced_evidence])
+        wait_for_lock(blocker, future)
+        store._create_draft_in_connection(blocker, raced["id"], CreatorDraftCreate(
+            actor="history-smoke", idempotency_key=uuid4(),
+        ))
+        blocker.commit()
+        check(future.result(timeout=15)["new"] == 0,
+              "Discovery ignored a cross-campaign draft committed during its budget wait")
+
+    # Manual preparation has no draft-budget lock. Its existing sender lock is
+    # shared with the bulk guard, and a fresh read after the wait must see it.
+    conversation_campaign = store.create_campaign(MarketingCampaignCreate(
+        **{**campaign_request.model_dump(), "name": "Sender wait proof without pending reply"},
+    ))
+    conversation, _ = creator(conversation_campaign)
+    candidate = packet(email=conversation["contact_email"])
+    with ThreadPoolExecutor(max_workers=1) as pool, store.connect() as blocker:
+        blocker.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
+                        (f"creator-email:{conversation['contact_email']}",))
+        future = pool.submit(store.save_discovered_prospects, target["id"], [candidate])
+        wait_for_lock(blocker, future)
+        writer = MarketingStore(dsn)
+        writer.connect = lambda: nullcontext(blocker)
+        action = writer.plan_outreach_email(conversation["id"], MarketingEmailPlanCreate(
+            actor="history-smoke", stage="initial",
+        ), sender="synthetic@example.test")
+        blocker.commit()
+        check(future.result(timeout=15)["new"] == 0,
+              "Discovery ignored a conversation committed during its sender-lock wait")
+    with store.connect() as connection:
+        check(not connection.execute("SELECT 1 FROM side_effect_receipts WHERE action_id=%s",
+                                     (action["id"],)).fetchone(), "Fixture acquired an email receipt")
+
+    # Known alias growth during a wait is skipped, never appended out of order.
+    expanding, _ = creator()
+    candidate = packet(email=expanding["contact_email"])
+    with ThreadPoolExecutor(max_workers=1) as pool, store.connect() as blocker:
+        blocker.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
+                        (f"creator-email:{expanding['contact_email']}",))
+        future = pool.submit(store.save_discovered_prospects, target["id"], [candidate])
+        wait_for_lock(blocker, future)
+        blocker.execute("UPDATE marketing_prospects SET contact_email=%s WHERE id=%s",
+                        (f"{uuid4().hex}@example.test", expanding["id"]))
+        blocker.commit()
+        check(future.result(timeout=15)["new"] == 0,
+              "Expanded known aliases were written without the complete lock union")
+
+    # Fresh provider observations are known at save time, even when the held
+    # source must not be updated. They protect another alias in the same batch.
+    fresh_address = f"{uuid4().hex}@example.test"
+    held_before = store.get_prospect(held["id"])
+    fresh_held = packet(held["external_id"], fresh_address)
+    fresh_alias = packet(email=fresh_address)
+    check(store.save_discovered_prospects(target["id"], [fresh_alias, fresh_held]) == {
+        "new": 0, "updated": 0,
+    }, "Fresh same-batch address on a frozen channel allowed another new alias")
+    check(store.get_prospect(held["id"]) == held_before,
+          "Transient same-batch alias propagation rewrote the preserved source")
+
+    # Native fetch deduplicates channels, but direct store callers retain the
+    # original sequential upsert/count and profile-ownership behavior too.
+    duplicate = packet()
+    check(store.save_discovered_prospects(target["id"], [duplicate, duplicate]) == {
+        "new": 1, "updated": 1,
+    }, "Repeated fresh input was incorrectly counted as two inserted creators")
+    mismatched = packet()
+    check(store.save_discovered_prospects(target["id"], [
+        mismatched, {**mismatched, "profile_url": "https://youtube.com/@DifferentFixture"},
+    ]) == {"new": 1, "updated": 0}, "A later duplicate rebound the first profile")
+    return ["Expired/failed/withdrawn global history preserves all fields and frozen copy",
+            "Canonical/handle/business snapshot aliases block cross-campaign inserts",
+            "Untouched new/different-name identities still insert and refresh",
+            "Old stopped audit-issued batch/pilot reservations remain pinned",
+            "Reply-only and globally suppressed addresses preserve evidence",
+            "Real draft-budget and sender-lock waits recheck committed durable state",
+            "Known alias growth after a wait is skipped without extending the lock union",
+            "Fresh same-batch aliases inherit a frozen canonical channel without source writes",
+            "Duplicate fresh inputs retain accurate new/update counts and profile ownership"]
 
 
 def exercise(dsn):
@@ -436,10 +711,7 @@ def exercise(dsn):
               "profile_url": f"https://www.youtube.com/channel/UC{index:022}",
               "display_name": f"Creator {index}",
               "intelligence": {**research["intelligence"], "source_channel_id": f"UC{index:022}",
-                               "contact_candidates": [{
-                                   **research["intelligence"]["contact_candidates"][0],
-                                   "source_url": f"https://www.youtube.com/channel/UC{index:022}",
-                               }]}} for index in range(601)]
+                               "contact_candidates": []}} for index in range(601)]
     store.save_discovered_prospects(exported_campaign["id"], batch)
     check(store.count_prospects(exported_campaign["id"], None) == 601, "Wrong full count")
     pages = [store.list_prospects(campaign_id=exported_campaign["id"], prospect_status=None,
@@ -450,6 +722,7 @@ def exercise(dsn):
     store.save_discovered_prospects(exported_campaign["id"], [{
         **research, "external_id": "UC" + "z" * 22,
         "profile_url": "https://www.youtube.com/channel/UC" + "z" * 22,
+        "intelligence": {"source_channel_id": "UC" + "z" * 22, "contact_candidates": []},
     }])
     csv_rows = list(csv.DictReader(io.StringIO("".join(creator_csv(
         [first, *snapshot],
@@ -475,6 +748,7 @@ def exercise(dsn):
     check(not store.reserve_youtube_search(tasks[0]["id"]), "Budget was not durable")
     exercise_history(store, campaign_request, research)
     exercise_active_evidence(dsn, campaign_request, research)
+    global_results = exercise_bulk_history(dsn, campaign_request, research)
     return ["JSONB dossier persisted without authority", "identity edits clear stale evidence and resist rescan rebinding",
             "refresh preserves reviewed contact and identity",
             "suppression blocks scan updates and direct refresh",
@@ -483,8 +757,9 @@ def exercise(dsn):
             "concurrent durable search reservations obey per-task and global limits",
             "source history preserves dates, survives concurrent refresh, expires, and respects identity/suppression",
             "bulk discovery preserves active queued/ready/prepared copy while discovering new creators",
-            "active action states preserve evidence; expiry and cancellation release preservation",
-            "explicit research refresh still invalidates ready and approved AI copy before side effects"]
+            "active selector shield expires; bulk draft/conversation history remains preserved",
+            "explicit research refresh still invalidates ready and approved AI copy before side effects",
+            *global_results]
 
 
 def main():

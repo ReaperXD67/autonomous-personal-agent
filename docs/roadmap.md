@@ -75,6 +75,7 @@
 - [x] Audited draft-only batches of up to five reviewed contacts, stable children/skips/resume, shared preparation reservations and cross-campaign channel/address deduplication
 - [x] Fair shortlist rotation from current issued reservation history before the candidate cap, preserving the ten-per-batch/thirty-per-day research limits
 - [x] Bounded recent/date discovery alongside independent relevance pagination, with authoritative video checks and canonical recent Minecraft evidence for shortlist drafting
+- [x] Global bulk-discovery history preservation across known channel/profile/business aliases, including expired/terminal attempts, with separate explicit research semantics
 - [x] Explicit reviewed shortlist IDs under the existing research budget, with all-or-nothing global identity and active-evidence guards
 - [x] Durable creator campaign stop and task cancellation, with an epoch fence at preparation, approval and final egress; explicit resumption cannot revive old approvals
 - [x] Reviewed organic promotion skill package and bounded networkless namespace installer for the pinned Hermes runtime

@@ -146,14 +146,17 @@ it does not generate or send automatically. Browser spot checks remain useful
 when source ownership or product claims are unclear, but they are not the
 normal discovery or batch-research mechanism.
 
-Routine bulk discovery now preserves existing research when an unexpired active
-draft or exact outreach action protects it, including manual packets. The saved
-campaign discovery summary exposes `protected_count`; protected rows are not
-silently assigned fresh observation times. New creators and unprotected rows
-continue normally. Explicit single-creator refresh remains intentional and can
-invalidate the frozen copy. Neither this preservation nor the recurring reviewer
-extends a draft/approval deadline or overrides withdrawal and final send guards.
-See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
+Routine bulk discovery preserves known identities with durable creator work,
+including expired/failed drafts, conversations, response drafts and issued
+reservations. Channel/profile/business-address aliases are checked globally before
+insert or update, including frozen old recipients. Shared business addresses are
+handled conservatively; display names never match. `protected_count` counts
+preserved/skipped input candidates without freshening observation times or
+changing permissions. New/unworked identities continue normally. The save fence
+cannot predict an unbound alias or exclude every matching official metadata read.
+Explicit reviewed research keeps its eligibility/invalidation behavior. No
+deadline, hold, opt-out, approval, schedule, quota or final-send rule changes. See
+[ADR-0046](../decisions/ADR-0046-global-creator-discovery-history.md).
 
 API clients can queue the same bounded job with
 `POST /v1/marketing/campaigns/{id}/pilot-research`, an actor, UUID idempotency key

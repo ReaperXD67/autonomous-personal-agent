@@ -96,12 +96,16 @@ flowchart LR
     G -->|explicit curation scope| Q["Local mode selection and private response draft"]
     Q --> P["Owner review; no sending authority"]
 ```
-Bulk discovery preserves research under the existing campaign/prospect locks
-while an unexpired active draft or exact outreach action protects it. The saved
-campaign discovery summary reports `protected_count`; it neither extends freshness nor changes
-the draft/body/digest. Terminal/expired work releases the pin, and explicit
-single-creator refresh retains invalidation. No task/action row locks, new
-service or schema are added. See [ADR-0033](../decisions/ADR-0033-preserve-active-creator-evidence-during-discovery.md).
+Bulk discovery preserves global known identity components with durable draft,
+action, reply, response or issued reservation history, even after expiry/failure.
+Frozen snapshots retain old business addresses; aliases in another campaign can
+also prevent a new duplicate row. Writer-budget/automation locks precede own
+campaign/prospect rows and sorted sender-identity locks. History is re-read after
+waits; expanded keys fail closed. No foreign prospect/task/action row locks are
+added. The aggregate `protected_count` counts preserved/skipped inputs without
+changing freshness, permissions, copy or deadlines. Explicit research's active-only
+eligibility and intentional invalidation remain unchanged. No schema, service or
+dependency is added. See [ADR-0046](../decisions/ADR-0046-global-creator-discovery-history.md).
 Draft reads also compute an editorial report from the stored public context and
 rendered copy. It has no persistence, score, model invocation or authorization
 effect; metadata-only grounding and natural language still require review.
