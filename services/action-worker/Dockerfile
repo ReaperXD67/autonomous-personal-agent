@@ -1,6 +1,6 @@
 FROM ghcr.io/astral-sh/uv:0.12.3-python3.13-trixie@sha256:8e231456b9e5eab17151e10ca096b8a3d52936be045d6a48e006bede5f229a9a AS uv_source
 
-FROM mcr.microsoft.com/playwright/python:v1.63.0-noble@sha256:72bd171a9ffc2b4b59532aaa6210e21014d07093120dc25528870c0b840da1f0 AS runtime
+FROM mcr.microsoft.com/playwright/python:v1.65.2-noble@sha256:38dd67fc654b56b3cba611e4c8eb71cd33750e1cd29eea2a5dc00b484817a75f AS runtime
 # Ubuntu USN-8847-1 / USN-8956-1 / USN-8996-1: exact OpenSSL/Brotli/APT fixes.
 # Retain the reviewed Playwright digest and upgrade only existing packages.
 RUN apt-get -o Acquire::Retries=0 update && \
